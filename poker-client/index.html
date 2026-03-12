@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SipSam — VURGLife</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="screen-login" class="screen active">
+  <div class="login-card">
+    <h1>SIPSAM</h1>
+    <p class="subtitle">The Ultimate Card Game</p>
+    <input type="text" id="username-input" placeholder="Enter your name" maxlength="20" autocomplete="off">
+    <button class="btn-primary" onclick="connect(document.getElementById('username-input').value.trim())">Join Game</button>
+    <p id="login-status"></p>
+  </div>
+</div>
+
+<!-- ===================== LOBBY ===================== -->
+<div id="screen-lobby" class="screen">
+  <div class="lobby-card">
+    <h2>SipSam Lobby</h2>
+    <p id="lobby-status">Waiting for players...</p>
+    <p class="lobby-section-label">Select Table (minimum bet):</p>
+    <div class="table-buttons">
+      <button class="btn-table" onclick="selectTable(10,this)">$10 Table<br><small>Need $700</small></button>
+      <button class="btn-table" onclick="selectTable(25,this)">$25 Table<br><small>Need $1500</small></button>
+      <button class="btn-table" onclick="selectTable(50,this)">$50 Table<br><small>Need $2500</small></button>
+      <button class="btn-table" onclick="selectTable(100,this)">$100 Table<br><small>Need $3000</small></button>
+    </div>
+    <p class="lobby-section-label">Select number of rounds:</p>
+    <div class="rounds-buttons">
+      <button class="btn-rounds" onclick="selectRounds(10,this)">10 Rounds</button>
+      <button class="btn-rounds" onclick="selectRounds(20,this)">20 Rounds</button>
+      <button class="btn-rounds" onclick="selectRounds(30,this)">30 Rounds</button>
+    </div>
+    <p id="lobby-selection-info"></p>
+    <div id="player-list"></div>
+    <button id="btn-start-game" class="btn-primary" onclick="startGame()" disabled>Start Game</button>
+  </div>
+</div>
+
+<!-- ===================== GAME ===================== -->
+<div id="screen-game" class="screen">
+
+  <div class="top-bar">
+    <span id="game-round">Round —</span>
+    <span id="game-status">—</span>
+    <span class="timer" id="game-timer">—</span>
+  </div>
+  <div class="status-bar" id="table-message"></div>
+
+  <div class="game-body">
+
+    <!-- LEFT extras: P3 -->
+    <div class="side-extras side-left">
+      <div class="side-name" id="p3-name">Player 3</div>
+      <div class="side-balance" id="p3-balance">$—</div>
+      <div class="bet-pill" id="p3-bet-pill">
+        <span class="bp-label">BET</span>
+        <span class="bp-amt" id="p3-bet-amt">—</span>
+      </div>
+      <div class="special-box" id="p3-special"></div>
+    </div>
+
+    <!-- TABLE: rounded rectangle -->
+    <div class="oval-table">
+      <div class="felt-grid"></div>
+
+      <!-- Countdown top-left -->
+      <div class="countdown-box">
+        <div class="cd-screen" id="cd-screen"></div>
+        <div class="cd-label-txt">Countdown</div>
+        <div class="cd-number" id="cd-number">—</div>
+      </div>
+
+      <!-- BANKER (top) — 1st hand furthest from centre (topmost), 3rd closest -->
+      <div class="zone zone-banker">
+        <div class="zone-header">
+          <div class="zone-nametag" id="banker-name">BANKER</div>
+          <div class="zone-stats">
+            <span class="zone-balance" id="banker-chips">$1000</span>
+            <span class="zone-bet-display" id="banker-bet-display"></span>
+            <span class="special-box" id="banker-special"></span>
+          </div>
+        </div>
+        <!-- Banker: 3RD top (closest to banker), 2ND middle, 1ST bottom (furthest) -->
+        <div class="banker-hands">
+          <div class="hand-block hb-horiz">
+            <div class="hb-label">3RD</div>
+            <div class="hb-cards" id="banker-cards-3"></div>
+          </div>
+          <div class="hand-block hb-horiz">
+            <div class="hb-label">2ND</div>
+            <div class="hb-cards" id="banker-cards-2"></div>
+          </div>
+          <div class="hand-block hb-horiz hb-first">
+            <div class="hb-label">1ST</div>
+            <div class="hb-cards" id="banker-cards-1"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P1 (right): 1ST leftmost (furthest from right edge), 2ND middle, 3RD rightmost (closest) -->
+      <div class="zone zone-p1">
+        <div class="side-hands">
+          <div class="hand-block hb-vert hb-first">
+            <div class="hb-label hb-label-side">1ST</div>
+            <div class="hb-cards" id="p1-cards-1"></div>
+          </div>
+          <div class="hand-block hb-vert">
+            <div class="hb-label hb-label-side">2ND</div>
+            <div class="hb-cards" id="p1-cards-2"></div>
+          </div>
+          <div class="hand-block hb-vert">
+            <div class="hb-label hb-label-side">3RD</div>
+            <div class="hb-cards" id="p1-cards-3"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P2 (bottom): 1ST top (furthest from bottom edge), 2ND middle, 3RD bottom (closest) -->
+      <div class="zone zone-p2">
+        <div class="p2-hands">
+          <div class="hand-block hb-horiz hb-first">
+            <div class="hb-label">1ST</div>
+            <div class="hb-cards" id="p2-cards-1"></div>
+          </div>
+          <div class="hand-block hb-horiz">
+            <div class="hb-label">2ND</div>
+            <div class="hb-cards" id="p2-cards-2"></div>
+          </div>
+          <div class="hand-block hb-horiz">
+            <div class="hb-label">3RD</div>
+            <div class="hb-cards" id="p2-cards-3"></div>
+          </div>
+        </div>
+        <div class="p2-footer">
+          <div class="zone-nametag p2-tag" id="p2-name">Player 2</div>
+          <div class="zone-balance" id="p2-balance">$—</div>
+          <div class="bet-pill" id="p2-bet-pill">
+            <span class="bp-label">BET</span>
+            <span class="bp-amt" id="p2-bet-amt">—</span>
+          </div>
+          <div class="special-box" id="p2-special"></div>
+        </div>
+      </div>
+
+      <!-- P3 (left): 3RD leftmost (closest to left edge), 2ND middle, 1ST rightmost (furthest) -->
+      <div class="zone zone-p3">
+        <div class="side-hands">
+          <div class="hand-block hb-vert">
+            <div class="hb-label hb-label-side">3RD</div>
+            <div class="hb-cards" id="p3-cards-3"></div>
+          </div>
+          <div class="hand-block hb-vert">
+            <div class="hb-label hb-label-side">2ND</div>
+            <div class="hb-cards" id="p3-cards-2"></div>
+          </div>
+          <div class="hand-block hb-vert hb-first">
+            <div class="hb-label hb-label-side">1ST</div>
+            <div class="hb-cards" id="p3-cards-1"></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /oval-table -->
+
+    <!-- RIGHT extras: P1 -->
+    <div class="side-extras side-right">
+      <div class="side-name" id="p1-name">Player 1</div>
+      <div class="side-balance" id="p1-balance">$—</div>
+      <div class="bet-pill" id="p1-bet-pill">
+        <span class="bp-label">BET</span>
+        <span class="bp-amt" id="p1-bet-amt">—</span>
+      </div>
+      <div class="special-box" id="p1-special"></div>
+    </div>
+
+  </div><!-- /game-body -->
+
+  <!-- MY AREA -->
+  <div class="my-area">
+    <div class="my-info-bar">
+      <span id="my-name">—</span>
+      <span id="my-chips">$1000</span>
+      <span id="my-payout"></span>
+    </div>
+    <div id="bet-controls" style="display:none;">
+      <p class="area-label">Adjust your bet — <span id="bet-countdown">10</span>s remaining</p>
+      <div class="bet-row">
+        <button id="btn-bet-down" class="btn-secondary">−$10</button>
+        <span id="bet-display" class="bet-amount">$10</span>
+        <button id="btn-bet-up" class="btn-secondary">+$10</button>
+        <span id="max-bet-label" style="font-size:11px;color:#aaa;margin-left:6px;align-self:center;"></span>
+      </div>
+      <p id="bet-msg" class="status-msg"></p>
+    </div>
+    <div id="banker-wait" style="display:none;">
+      <p class="banker-msg">🏦 You are the <strong>Banker</strong> — players are placing their bets...</p>
+    </div>
+    <div id="banker-arrange" style="display:none;">
+      <p class="banker-msg">🏦 You are the <strong>Banker</strong> — arrange your hands below.</p>
+    </div>
+    <div id="my-raw-cards" class="raw-cards-area" style="display:none;">
+      <p class="area-label">Your Cards — drag to piles below</p>
+      <div id="raw-card-row"></div>
+    </div>
+    <!-- 1st = furthest (left), 3rd = closest (right) -->
+    <div class="my-hands" id="my-hands" style="display:none;">
+      <div class="hand-pile">
+        <div class="pile-label">1st Hand (3 cards) — Weakest</div>
+        <div class="pile-drop" data-pile="hand1"></div>
+      </div>
+      <div class="hand-pile">
+        <div class="pile-label">2nd Hand (5 cards)</div>
+        <div class="pile-drop" data-pile="hand2"></div>
+      </div>
+      <div class="hand-pile">
+        <div class="pile-label">3rd Hand (5 cards) — Strongest</div>
+        <div class="pile-drop" data-pile="hand3"></div>
+      </div>
+    </div>
+    <div id="arrange-controls" style="display:none;">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <button id="btn-arrange" class="btn-primary" style="width:auto;padding:8px 32px;">Confirm Arrangement</button>
+        <button id="btn-declare-special" class="btn-special">⭐ Declare Special</button>
+      </div>
+      <p id="arrange-msg" class="status-msg"></p>
+      <p id="special-msg" class="status-msg special-detected"></p>
+    </div>
+    <div id="disqualify-panel" style="display:none;">
+      <div class="dq-title">⚠️ Disqualify a Player</div>
+      <div id="dq-buttons"></div>
+      <p id="dq-msg" class="status-msg"></p>
+    </div>
+  </div>
+
+</div><!-- /screen-game -->
+
+<!-- ===================== GAME OVER ===================== -->
+<div id="screen-gameover" class="screen">
+  <div class="gameover-card">
+    <h2>Game Over</h2>
+    <div id="final-scores"></div>
+    <button class="btn-primary" style="margin-top:24px;" onclick="location.reload()">Play Again</button>
+  </div>
+</div>
+
+<script src="game.js"></script>
+
+<!-- ═══════════════════════════════════════════════════════
+     IN-GAME SLIDE-OUT MENU
+     ═══════════════════════════════════════════════════════ -->
+
+<!-- Menu Toggle Button — shown only during game -->
+<button id="ingame-menu-btn" onclick="toggleIngameMenu()" style="
+  display:none;position:fixed;top:14px;right:14px;z-index:500;
+  background:rgba(8,15,30,.9);border:1px solid #1a2d50;border-radius:8px;
+  padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700;letter-spacing:1px;
+  font-family:'Rajdhani',sans-serif;color:#f0f6ff;backdrop-filter:blur(6px);
+  display:none;align-items:center;gap:7px;text-transform:uppercase;
+  box-shadow:0 4px 16px rgba(0,0,0,.5)">☰ Menu</button>
+
+<!-- Overlay -->
+<div id="igm-overlay" onclick="closeIngameMenu()" style="
+  display:none;position:fixed;inset:0;z-index:600;background:rgba(2,6,9,.6);backdrop-filter:blur(2px)"></div>
+
+<!-- Slide-out Panel -->
+<div id="igm-panel" style="
+  position:fixed;top:0;right:0;bottom:0;width:300px;z-index:700;
+  background:#080f1e;border-left:1px solid #1a2d50;
+  transform:translateX(100%);transition:transform .3s ease;
+  display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:-20px 0 60px rgba(0,0,0,.7)">
+
+  <!-- Panel Header -->
+  <div style="padding:18px 20px;border-bottom:1px solid #1a2d50;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#040d1c,#0a1e3c)">
+    <div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;background:linear-gradient(135deg,#fff,#4aabff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">In-Game Menu</div>
+      <div style="font-size:10px;letter-spacing:2px;color:#334d70;margin-top:1px" id="igm-table-label">♠ SipSam</div>
+    </div>
+    <button onclick="closeIngameMenu()" style="background:rgba(26,140,255,.1);border:1px solid #1a2d50;border-radius:6px;padding:6px 11px;cursor:pointer;color:#7a9ac0;font-size:16px">✕</button>
+  </div>
+
+  <!-- Player Info Bar -->
+  <div style="padding:14px 20px;border-bottom:1px solid #1a2d50;background:rgba(11,21,40,.7);display:flex;align-items:center;gap:12px">
+    <div style="width:38px;height:38px;border-radius:50%;background:#0f1e38;border:2px solid #0d4a8a;display:flex;align-items:center;justify-content:center;font-size:18px" id="igm-avatar">👤</div>
+    <div style="flex:1">
+      <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px" id="igm-username">—</div>
+      <div style="font-size:11px;color:#c9a84c;font-weight:600" id="igm-wallet">Wallet: $—</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:10px;color:#334d70;letter-spacing:1px">BANK</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;color:#e8c96a" id="igm-bank">$—</div>
+    </div>
+  </div>
+
+  <!-- Menu Items -->
+  <nav style="flex:1;overflow-y:auto;padding:8px 0">
+
+    <!-- Replenish Wallet -->
+    <div class="igm-item" onclick="igmReplenish()">
+      <div class="igm-ico">💰</div>
+      <div class="igm-body">
+        <div class="igm-title">Replenish Wallet</div>
+        <div class="igm-desc" id="igm-rep-desc">Draw chips from your bank into your wallet</div>
+      </div>
+      <span class="igm-arrow">›</span>
+    </div>
+
+    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
+
+    <!-- Request Chips -->
+    <div class="igm-item" onclick="igmRequestChips()">
+      <div class="igm-ico">🙏</div>
+      <div class="igm-body">
+        <div class="igm-title">Request Chips</div>
+        <div class="igm-desc">Send a chip request to a player or the Banker</div>
+      </div>
+      <span class="igm-arrow">›</span>
+    </div>
+
+    <!-- Send Chips -->
+    <div class="igm-item" onclick="igmSendChips()">
+      <div class="igm-ico">📤</div>
+      <div class="igm-body">
+        <div class="igm-title">Send Chips</div>
+        <div class="igm-desc" id="igm-send-desc">Send up to the table max bet</div>
+      </div>
+      <span class="igm-arrow">›</span>
+    </div>
+
+    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
+
+    <!-- Rules -->
+    <div class="igm-item" onclick="igmShowRules()">
+      <div class="igm-ico">📖</div>
+      <div class="igm-body">
+        <div class="igm-title">Game Rules</div>
+        <div class="igm-desc">Quick reference — hands, specials, payouts</div>
+      </div>
+      <span class="igm-arrow">›</span>
+    </div>
+
+    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
+
+    <!-- Exit Game -->
+    <div class="igm-item igm-danger" onclick="igmExit()">
+      <div class="igm-ico">🚪</div>
+      <div class="igm-body">
+        <div class="igm-title">Exit Game</div>
+        <div class="igm-desc">Your remaining wallet is returned to your bank</div>
+      </div>
+      <span class="igm-arrow">›</span>
+    </div>
+
+  </nav>
+
+  <!-- Sub-panels (shown inside the slide-out) -->
+
+  <!-- REPLENISH -->
+  <div id="igm-sub-replenish" class="igm-sub">
+    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Replenish Wallet</span></div>
+    <div style="padding:20px">
+      <div style="background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;padding:14px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px">
+          <span style="color:#7a9ac0">Current Wallet</span><span id="rep-cur-wallet" style="font-weight:700;color:#e8c96a">$—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px">
+          <span style="color:#7a9ac0">Bank Balance</span><span id="rep-cur-bank" style="font-weight:700">$—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <span style="color:#7a9ac0">Table Wallet Limit</span><span id="rep-limit" style="font-weight:700;color:#4aabff">$—</span>
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:#7a9ac0;text-transform:uppercase;margin-bottom:6px">Amount to Draw</label>
+        <input id="rep-amount" type="number" placeholder="Enter amount..." style="width:100%;background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 13px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:14px;outline:none">
+        <div id="rep-err" style="font-size:11px;color:#fca5a5;margin-top:5px;display:none"></div>
+      </div>
+      <button class="igm-action-btn" onclick="doReplenish()">💰 Draw to Wallet</button>
+    </div>
+  </div>
+
+  <!-- REQUEST CHIPS -->
+  <div id="igm-sub-request" class="igm-sub">
+    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Request Chips</span></div>
+    <div style="padding:20px">
+      <p style="font-size:13px;color:#7a9ac0;margin-bottom:16px;line-height:1.5">Select who to send your chip request to:</p>
+      <div id="req-players" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:#7a9ac0;text-transform:uppercase;margin-bottom:6px">Amount to Request</label>
+        <input id="req-amount" type="number" placeholder="Enter amount..." style="width:100%;background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 13px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:14px;outline:none">
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:#7a9ac0;text-transform:uppercase;margin-bottom:6px">Optional Message</label>
+        <input id="req-msg" type="text" placeholder="e.g. Please help me out!" maxlength="60" style="width:100%;background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 13px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:13px;outline:none">
+      </div>
+      <button class="igm-action-btn" onclick="doRequestChips()">🙏 Send Request</button>
+    </div>
+  </div>
+
+  <!-- SEND CHIPS -->
+  <div id="igm-sub-send" class="igm-sub">
+    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Send Chips</span></div>
+    <div style="padding:20px">
+      <div style="background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;color:#7a9ac0">
+        ⚠️ You can only send up to the <strong style="color:#f0f6ff">table max bet</strong> (<span id="send-limit" style="color:#e8c96a;font-weight:700">$—</span>) per transfer.
+      </div>
+      <p style="font-size:13px;color:#7a9ac0;margin-bottom:14px">Select recipient:</p>
+      <div id="send-players" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:#7a9ac0;text-transform:uppercase;margin-bottom:6px">Amount to Send</label>
+        <input id="send-amount" type="number" placeholder="Enter amount..." style="width:100%;background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 13px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:14px;outline:none">
+        <div id="send-err" style="font-size:11px;color:#fca5a5;margin-top:5px;display:none"></div>
+      </div>
+      <button class="igm-action-btn" onclick="doSendChips()">📤 Send Chips</button>
+    </div>
+  </div>
+
+  <!-- QUICK RULES -->
+  <div id="igm-sub-rules" class="igm-sub" style="overflow-y:auto">
+    <div class="igm-sub-head" style="position:sticky;top:0;z-index:1;background:#080f1e"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Quick Rules</span></div>
+    <div style="padding:16px;font-size:12px;line-height:1.6;color:#7a9ac0">
+      <div class="igm-rule-sec"><div class="igm-rule-h">♠ Hand Ranking (Strongest → Weakest)</div>
+        <ol style="padding-left:16px;margin:0">
+          <li>Royal Flush</li><li>Straight Flush</li><li>Four of a Kind</li><li>Full House</li>
+          <li><strong style="color:#e8c96a">Flush</strong> (beats Straight in SipSam)</li><li>Straight</li>
+          <li>Three of a Kind</li><li>Two Pair</li><li>One Pair</li><li>High Card</li>
+        </ol>
+      </div>
+      <div class="igm-rule-sec"><div class="igm-rule-h">🃏 Hand Arrangement</div>
+        <ul style="padding-left:16px;margin:0"><li><strong style="color:#f0f6ff">1st</strong> — 3 cards — weakest — furthest from you</li>
+          <li><strong style="color:#f0f6ff">2nd</strong> — 5 cards — middle strength</li><li><strong style="color:#f0f6ff">3rd</strong> — 5 cards — strongest — closest to you</li></ul>
+      </div>
+      <div class="igm-rule-sec"><div class="igm-rule-h">💰 Payouts</div>
+        <ul style="padding-left:16px;margin:0">
+          <li>Win all 3 hands → <span style="color:#22c55e">+2× bet</span></li><li>Win 2 of 3 → <span style="color:#22c55e">+1× bet</span></li>
+          <li>Win 1 of 3 → <span style="color:#ef4444">−1× bet</span></li><li>Lose all 3 → <span style="color:#ef4444">−2× bet</span></li>
+        </ul>
+      </div>
+      <div class="igm-rule-sec"><div class="igm-rule-h">⭐ Specials (override all hands)</div>
+        <ul style="padding-left:16px;margin:0">
+          <li><span style="color:#e8c96a">No Face</span> — all 13 cards are non-face cards — 2 to 1</li>
+          <li><span style="color:#e8c96a">Four of a Kind</span> — any hand has four of same rank — 3 to 1</li>
+          <li><span style="color:#e8c96a">Straight Flush</span> — any hand has 5 consecutive same suit — 3 to 1</li>
+          <li><span style="color:#e8c96a">Straight-Straight-Straight</span> — all 3 hands are straights — 5 to 1</li>
+          <li><span style="color:#e8c96a">Flush-Flush-Flush</span> — all 3 hands are flushes — 5 to 1</li>
+          <li><span style="color:#e8c96a">Royal Flush</span> — any hand has A-K-Q-J-10 same suit — 7 to 1</li>
+          <li><span style="color:#e8c96a">6½ Pairs</span> — 6 matching pairs among 13 cards — 8 to 1</li>
+          <li><span style="color:#e8c96a">Full Suit</span> — all 13 cards same suit — 10 to 1</li>
+        </ul>
+      </div>
+      <div class="igm-rule-sec"><div class="igm-rule-h">🚫 Tie Rules</div>
+        <ul style="padding-left:16px;margin:0"><li>Banker wins all ties except flush ties</li>
+          <li>Flush ties: Hearts &gt; Spades &gt; Diamonds &gt; Clubs</li></ul>
+      </div>
+      <div class="igm-rule-sec"><div class="igm-rule-h">⚠️ Disqualifications</div>
+        <ul style="padding-left:16px;margin:0"><li>Miss timer → lose round bet</li><li>Wrong Special → lose round bet</li>
+          <li>Banker hides Special → pays all 2× bet</li><li>Player hides Special → loses bet + pays Banker 2×</li></ul>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /igm-panel -->
+
+<style>
+.igm-item{display:flex;align-items:center;gap:12px;padding:13px 20px;cursor:pointer;transition:background .14s;border-left:3px solid transparent}
+.igm-item:hover{background:rgba(26,140,255,.07);border-left-color:#0d4a8a}
+.igm-item.igm-danger:hover{background:rgba(239,68,68,.07);border-left-color:#ef4444}
+.igm-ico{font-size:20px;width:28px;text-align:center;flex-shrink:0}
+.igm-body{flex:1;min-width:0}
+.igm-title{font-weight:700;font-size:13px;margin-bottom:1px;color:#f0f6ff}
+.igm-desc{font-size:11px;color:#7a9ac0;line-height:1.4}
+.igm-item.igm-danger .igm-title{color:#fca5a5}
+.igm-arrow{color:#334d70;font-size:18px;flex-shrink:0}
+.igm-sub{position:absolute;inset:0;background:#080f1e;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column}
+.igm-sub.open{transform:translateX(0)}
+.igm-sub-head{padding:14px 18px;border-bottom:1px solid #1a2d50;display:flex;align-items:center;gap:14px;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:#f0f6ff;flex-shrink:0}
+.igm-back-btn{background:rgba(26,140,255,.1);border:1px solid #1a2d50;border-radius:6px;padding:5px 11px;cursor:pointer;color:#4aabff;font-size:12px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px}
+.igm-back-btn:hover{background:rgba(26,140,255,.2)}
+.igm-action-btn{width:100%;background:linear-gradient(135deg,#1a5aaa,#1a8cff);border:none;border-radius:8px;padding:11px;color:#fff;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:1.5px;cursor:pointer;text-transform:uppercase;transition:all .18s}
+.igm-action-btn:hover{background:linear-gradient(135deg,#1e6cc7,#2a9dff);transform:translateY(-1px)}
+.igm-rule-sec{margin-bottom:16px}
+.igm-rule-h{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:#4aabff;text-transform:uppercase;margin-bottom:7px}
+.player-select-btn{background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 13px;cursor:pointer;
+  display:flex;align-items:center;gap:10px;transition:border-color .15s;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:13px}
+.player-select-btn:hover{border-color:#1a8cff}
+.player-select-btn.sel{border-color:#1a8cff;background:rgba(26,140,255,.1)}
+</style>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// IN-GAME MENU — SipSam
+// ═══════════════════════════════════════════════════════
+let igmOpen = false;
+let igmActiveSub = null;
+let igmSelectedPlayer = null;
+let igmTableCfg = null;
+let igmWallet = 0;
+let igmBank = 0;
+
+// Init menu from sessionStorage after page loads
+function initIngameMenu() {
+  try {
+    const tableJson = sessionStorage.getItem('sipsam_table');
+    const userJson  = sessionStorage.getItem('sipsam_user');
+    if (tableJson) igmTableCfg = JSON.parse(tableJson);
+    if (userJson)  {
+      const u = JSON.parse(userJson);
+      document.getElementById('igm-username').textContent = u.username || '—';
+      document.getElementById('igm-avatar').textContent   = (u.username||'?')[0].toUpperCase();
+    }
+    if (igmTableCfg) {
+      document.getElementById('igm-table-label').textContent = `♠ $${igmTableCfg.minBet} Table`;
+      document.getElementById('igm-send-desc').textContent   = `Max $${igmTableCfg.maxBet} per transfer`;
+      document.getElementById('send-limit').textContent      = `$${igmTableCfg.maxBet}`;
+      const repDesc = document.getElementById('igm-rep-desc');
+      if (repDesc) repDesc.textContent = `Draw up to $${igmTableCfg.walletSize||igmTableCfg.wallet} from bank`;
+    }
+    // Show menu button when game is active
+    const btn = document.getElementById('ingame-menu-btn');
+    if (btn) { btn.style.display = 'flex'; }
+  } catch(e) { console.warn('[IGM] Init error:', e); }
+}
+
+function toggleIngameMenu() {
+  igmOpen ? closeIngameMenu() : openIngameMenu();
+}
+
+function openIngameMenu() {
+  igmOpen = true;
+  syncWalletDisplay();
+  document.getElementById('igm-panel').style.transform   = 'translateX(0)';
+  document.getElementById('igm-overlay').style.display   = 'block';
+}
+
+function closeIngameMenu() {
+  igmOpen = false;
+  igmBack();
+  document.getElementById('igm-panel').style.transform   = 'translateX(100%)';
+  document.getElementById('igm-overlay').style.display   = 'none';
+}
+
+function syncWalletDisplay() {
+  // Try to read wallet/bank from game state if available
+  try {
+    if (typeof myChips !== 'undefined') igmWallet = myChips;
+    const walletEl = document.getElementById('igm-wallet');
+    const bankEl   = document.getElementById('igm-bank');
+    if (walletEl) walletEl.textContent = `Wallet: $${igmWallet.toLocaleString()}`;
+    if (bankEl)   bankEl.textContent   = '$' + igmBank.toLocaleString();
+    document.getElementById('rep-cur-wallet').textContent = '$' + igmWallet.toLocaleString();
+    document.getElementById('rep-cur-bank').textContent   = '$' + igmBank.toLocaleString();
+    if (igmTableCfg) {
+      const limit = igmTableCfg.walletSize || igmTableCfg.wallet || 0;
+      document.getElementById('rep-limit').textContent = '$' + limit.toLocaleString();
+    }
+  } catch(e) {}
+}
+
+// ── SUB-PANELS ──────────────────────────────────────────
+function igmShowSub(id) {
+  if (igmActiveSub) document.getElementById('igm-sub-'+igmActiveSub)?.classList.remove('open');
+  igmActiveSub = id;
+  document.getElementById('igm-sub-'+id)?.classList.add('open');
+}
+
+function igmBack() {
+  if (igmActiveSub) {
+    document.getElementById('igm-sub-'+igmActiveSub)?.classList.remove('open');
+    igmActiveSub = null;
+    igmSelectedPlayer = null;
+  }
+}
+
+// ── MENU ACTIONS ────────────────────────────────────────
+function igmReplenish() {
+  syncWalletDisplay();
+  igmShowSub('replenish');
+}
+
+function igmRequestChips() {
+  igmSelectedPlayer = null;
+  populatePlayerList('req-players');
+  igmShowSub('request');
+}
+
+function igmSendChips() {
+  igmSelectedPlayer = null;
+  populatePlayerList('send-players');
+  igmShowSub('send');
+}
+
+function igmShowRules() { igmShowSub('rules'); }
+
+function igmExit() {
+  if (!confirm('Exit game? Your remaining wallet will be returned to your bank.')) return;
+  closeIngameMenu();
+  exitToLobby();
+}
+
+// ── PLAYER LIST ─────────────────────────────────────────
+function populatePlayerList(containerId) {
+  const container = document.getElementById(containerId); if (!container) return;
+  container.innerHTML = '';
+  // Try to get players from game state
+  const playerList = getActivePlayers();
+  if (!playerList.length) {
+    container.innerHTML = '<div style="color:#7a9ac0;font-size:13px">No other players available.</div>';
+    return;
+  }
+  playerList.forEach(p => {
+    const btn = document.createElement('div');
+    btn.className = 'player-select-btn';
+    btn.innerHTML = `<span style="font-size:18px">${p.isbanker ? '🏦' : '👤'}</span>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:13px">${p.name}${p.isbot ? ' 🤖' : ''}</div>
+        <div style="font-size:11px;color:#7a9ac0">${p.isbanker ? 'Banker' : 'Player'}</div>
+      </div>`;
+    btn.onclick = () => {
+      container.querySelectorAll('.player-select-btn').forEach(b => b.classList.remove('sel'));
+      btn.classList.add('sel');
+      igmSelectedPlayer = p;
+    };
+    container.appendChild(btn);
+  });
+}
+
+function getActivePlayers() {
+  // Reads from game.js state if available
+  try {
+    const list = [];
+    if (typeof gameState !== 'undefined' && gameState.players) {
+      gameState.players.forEach(p => {
+        if (p.username !== (typeof myUsername !== 'undefined' ? myUsername : '')) {
+          list.push({name:p.username, sid:p.sid, isbot:p.isBot, isbanker:p.isBanker});
+        }
+      });
+    }
+    return list;
+  } catch(e) { return []; }
+}
+
+// ── TRANSACTIONS ────────────────────────────────────────
+async function doReplenish() {
+  const amtEl  = document.getElementById('rep-amount');
+  const errEl  = document.getElementById('rep-err');
+  errEl.style.display = 'none';
+  const amt = Number(amtEl.value);
+  const limit = igmTableCfg?.walletSize || igmTableCfg?.wallet || 0;
+  if (!amt || amt <= 0)           { errEl.textContent='Enter a valid amount.';       errEl.style.display='block'; return; }
+  if (amt > igmBank)              { errEl.textContent='Insufficient bank balance.';  errEl.style.display='block'; return; }
+  if (igmWallet + amt > limit)    { errEl.textContent=`Would exceed wallet limit of $${limit.toLocaleString()}.`; errEl.style.display='block'; return; }
+  try {
+    const userJson = sessionStorage.getItem('sipsam_user');
+    const token    = userJson ? JSON.parse(userJson).token : null;
+    const res = await fetch('/api/game/replenish', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      credentials:'include',
+      body:JSON.stringify({amount:amt, tableMinBet:igmTableCfg?.minBet})
+    }).then(r=>r.json());
+    if (res.error) { errEl.textContent = res.error; errEl.style.display='block'; return; }
+    igmWallet += amt;
+    igmBank    = res.newBankBalance ?? (igmBank - amt);
+    if (typeof myChips !== 'undefined') myChips = igmWallet;
+    syncWalletDisplay();
+    showIngameToast('💰 Wallet Replenished', `+$${amt.toLocaleString()} drawn from bank`);
+    igmBack();
+  } catch(e) {
+    errEl.textContent = 'Server error — try again.'; errEl.style.display='block';
+  }
+}
+
+async function doRequestChips() {
+  if (!igmSelectedPlayer) { showIngameToast('⚠️ Select a player first','Tap a player from the list above.'); return; }
+  const amt  = Number(document.getElementById('req-amount').value);
+  const msg  = document.getElementById('req-msg').value.trim();
+  if (!amt || amt <= 0) { showIngameToast('⚠️ Invalid amount','Enter the chips you want to request.'); return; }
+  // Send via WebSocket message to the selected player
+  try {
+    sendMsg('requestChips', {targetSid:igmSelectedPlayer.sid, amount:amt, message:msg||`${myUsername} is requesting $${amt} chips.`});
+    showIngameToast('🙏 Request Sent', `Chip request for $${amt.toLocaleString()} sent to ${igmSelectedPlayer.name}.`);
+    document.getElementById('req-amount').value = '';
+    document.getElementById('req-msg').value    = '';
+    igmBack();
+  } catch(e) { showIngameToast('⚠️ Error','Could not send request. Try again.'); }
+}
+
+async function doSendChips() {
+  const errEl = document.getElementById('send-err'); errEl.style.display='none';
+  if (!igmSelectedPlayer) { showIngameToast('⚠️ Select a player first','Tap a player from the list above.'); return; }
+  const amt    = Number(document.getElementById('send-amount').value);
+  const maxBet = igmTableCfg?.maxBet || 0;
+  if (!amt || amt <= 0)  { errEl.textContent='Enter a valid amount.'; errEl.style.display='block'; return; }
+  if (amt > maxBet)      { errEl.textContent=`Max transfer is $${maxBet.toLocaleString()} (table max bet).`; errEl.style.display='block'; return; }
+  if (amt > igmWallet)   { errEl.textContent='Insufficient wallet balance.'; errEl.style.display='block'; return; }
+  try {
+    sendMsg('sendChips', {targetSid:igmSelectedPlayer.sid, amount:amt});
+    igmWallet -= amt;
+    if (typeof myChips !== 'undefined') myChips = igmWallet;
+    syncWalletDisplay();
+    showIngameToast('📤 Chips Sent', `$${amt.toLocaleString()} sent to ${igmSelectedPlayer.name}.`);
+    document.getElementById('send-amount').value='';
+    igmBack();
+  } catch(e) { errEl.textContent='Could not send chips. Try again.'; errEl.style.display='block'; }
+}
+
+// ── EXIT ────────────────────────────────────────────────
+async function exitToLobby() {
+  try {
+    const userJson  = sessionStorage.getItem('sipsam_user');
+    const tableJson = sessionStorage.getItem('sipsam_table');
+    const token     = userJson ? JSON.parse(userJson).token : null;
+    const tableMinBet = tableJson ? JSON.parse(tableJson).minBet : 0;
+    const wallet    = (typeof myChips !== 'undefined') ? myChips : igmWallet;
+    await fetch('/api/game/exit', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      credentials:'include',
+      body:JSON.stringify({remainingWallet:wallet, tableMinBet})
+    });
+    sessionStorage.removeItem('sipsam_table');
+    sessionStorage.removeItem('sipsam_wallet');
+  } catch(e) {}
+  window.location.href = '/';
+}
+
+// ── IN-GAME TOAST ───────────────────────────────────────
+function showIngameToast(title, msg) {
+  let t = document.getElementById('igm-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'igm-toast';
+    t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:900;background:#0f1e38;border:1px solid #1a2d50;border-left:3px solid #1a8cff;border-radius:9px;padding:12px 18px;box-shadow:0 8px 28px rgba(0,0,0,.6);min-width:260px;max-width:320px;text-align:center;transition:opacity .3s';
+    document.body.appendChild(t);
+  }
+  t.innerHTML = `<div style="font-weight:700;font-size:13px;color:#f0f6ff;margin-bottom:3px">${title}</div><div style="font-size:12px;color:#7a9ac0">${msg}</div>`;
+  t.style.opacity = '1'; t.style.display = 'block';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity='0'; setTimeout(()=>t.style.display='none',300); }, 3500);
+}
+
+// ── INIT ON LOAD ────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', initIngameMenu);
+</script>
+
+</body>
+</html>
