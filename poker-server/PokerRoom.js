@@ -5,6 +5,50 @@
 // ============================================
 
 const Logic = require("./logic.js");
+const http  = require("http");
+
+// ── PLATFORM API CALLER ───────────────────────────────────────────
+// Calls the VurgLife platform (localhost:3000) to settle bank transactions
+function callPlatformAPI(path, token, body) {
+    return new Promise((resolve) => {
+        if (!token) return resolve({ ok: false, error: "no token" });
+        const payload = JSON.stringify(body);
+        const opts = {
+            hostname: "localhost",
+            port:     3000,
+            path:     path,
+            method:   "POST",
+            headers: {
+                "Content-Type":   "application/json",
+                "Content-Length": Buffer.byteLength(payload),
+                "Authorization":  "Bearer " + token
+            }
+        };
+        // 8-second timeout — prevents hanging indefinitely if platform is slow
+        const timer = setTimeout(() => {
+            console.error("[API] TIMEOUT:", path);
+            req.destroy();
+            resolve({ ok: false, error: "timeout" });
+        }, 8000);
+
+        const req = http.request(opts, (res) => {
+            let data = "";
+            res.on("data", chunk => data += chunk);
+            res.on("end", () => {
+                clearTimeout(timer);
+                try { resolve(JSON.parse(data)); }
+                catch(e) { resolve({ ok: false, raw: data }); }
+            });
+        });
+        req.on("error", (e) => {
+            clearTimeout(timer);
+            console.error("[API]", path, e.message);
+            resolve({ ok: false, error: e.message });
+        });
+        req.write(payload);
+        req.end();
+    });
+}
 
 class SipSamRoom {
 
@@ -13,18 +57,24 @@ class SipSamRoom {
         this.arrangeTimer = null;
         this.betTimer     = null;
         this.revealTimer  = null;
+        this._lobbyTimer  = null;
 
         this.gameState = {
             status:          "waiting",
             round:           0,
             maxRounds:       10,
+            blitz:           false,
             pot:             0,
             timer:           0,
-            tableMinBet:     10,
-            tableMaxBet:     30,
+            tableMinBet:     0,
+            tableMaxBet:     0,
+            tableIncrement:  0,
+            tableWalletSize: 0,
             bankerSessionId: "",
             players:         {},
-            message:         ""
+            message:         "",
+            lobbyCountdown:  0,
+            isPrivate:       false
         };
 
         console.log("SipSam Room Created");
@@ -39,8 +89,12 @@ class SipSamRoom {
             case "bankerResponse":  this._onBankerResponse(client, data); break;
             case "arrangeHands":      this._onArrangeHands(client, data);      break;
             case "requestState":      this._onRequestState(client, data);      break;
+            case "replenishWallet":   this._onReplenishWallet(client, data);   break;
             case "disqualifyPlayer":  this._onDisqualifyPlayer(client, data);  break;
             case "declareSpecial":    this._onDeclareSpecial(client, data);    break;
+            case "chatMessage":       this._onChatMessage(client, data);       break;
+            case "requestChips":      this._onRequestChips(client, data);      break;
+            case "sendChips":         this._onSendChips(client, data);         break;
             default: console.log("Unknown message:", type);
         }
     }
@@ -48,25 +102,64 @@ class SipSamRoom {
     _onStartGame(client, data) {
         console.log("startGame:", JSON.stringify(data));
         if (this.gameState.status !== "waiting") return;
-        const roundCount = [10,20,30].includes(data.rounds) ? data.rounds : 10;
-        const minBet     = [10,25,50,100].includes(data.tableMinBet) ? data.tableMinBet : 10;
-        const maxBetMap  = {10:30, 25:75, 50:150, 100:300};
-        this.gameState.maxRounds   = roundCount;
-        this.gameState.tableMinBet = minBet;
-        this.gameState.tableMaxBet = maxBetMap[minBet] || minBet * 3;
+        // Cancel lobby countdown — game is starting manually
+        if (this._lobbyTimer) { clearInterval(this._lobbyTimer); this._lobbyTimer = null; }
+        this.gameState.lobbyCountdown = 0;
+        // Fill bots for any empty seats now that game is starting
+        this.fillBotsIfNeeded();
+
+        const TABLE_CONFIG = {
+            100:  { minBet:100,  increment:50,  maxBet:150,  walletSize:3000,  minBank:5000  },
+            250:  { minBet:250,  increment:50,  maxBet:500,  walletSize:10000, minBank:15000 },
+            500:  { minBet:500,  increment:100, maxBet:1000, walletSize:20000, minBank:30000 },
+            1000: { minBet:1000, increment:500, maxBet:2000, walletSize:40000, minBank:60000 }
+        };
+
+        const roundCount = [5,10,20,30].includes(data.rounds) ? data.rounds : 10;
+        const cfg        = TABLE_CONFIG[data.tableMinBet] || TABLE_CONFIG[100];
+
+        this.gameState.maxRounds       = roundCount;
+        this.gameState.blitz           = data.blitz === true || roundCount === 5;
+        this.gameState.tableMinBet     = cfg.minBet;
+        this.gameState.tableMaxBet     = cfg.maxBet;
+        this.gameState.tableIncrement  = cfg.increment;
+        this.gameState.tableWalletSize = cfg.walletSize;
+
+        console.log(`Table: $${cfg.minBet} min / $${cfg.maxBet} max / $${cfg.increment} inc / $${cfg.walletSize} wallet | Rounds: ${roundCount} | Blitz: ${this.gameState.blitz}`);
+        this._applyTableConfigFromRoomId(); // ensure config is set
         this.beginGame();
     }
 
     _onPlaceBet(client, data) {
         const player = this.gameState.players[client.sessionId];
         if (!player || this.gameState.status !== "betting" || player.isBanker) return;
-        const tMin = this.gameState.tableMinBet;
-        let amount = parseInt(data.amount) || tMin;
-        const tMax = this.gameState.tableMaxBet || (tMin * 3);
-        amount = Math.max(tMin, Math.min(amount, tMax));
-        amount = Math.round(amount / 10) * 10;
+
+        // Player with 0 chips cannot bet — they should be a ghost bot
+        if (player.chips <= 0) {
+            console.log(player.username, 'cannot bet — 0 chips, converting to ghost.');
+            player.isGhostBot  = true;
+            player.bet         = 0;
+            player.hasArranged = true;
+            this.broadcastState();
+            return;
+        }
+
+        // Use TABLE_CONFIG for authoritative min/max — never use tMin * 3 fallback
+        const TABLE_CONFIG = {
+            100:  { minBet:100,  maxBet:150  },
+            250:  { minBet:250,  maxBet:500  },
+            500:  { minBet:500,  maxBet:1000 },
+            1000: { minBet:1000, maxBet:2000 }
+        };
+        const tMin  = this.gameState.tableMinBet;
+        const tCfg  = TABLE_CONFIG[tMin] || { minBet:tMin, maxBet:tMin * 2 };
+        const tMax  = tCfg.maxBet; // authoritative max, never tMin * 3
+        let amount  = parseInt(data.amount) || tMin;
+        // Cap bet to table max AND what player can afford
+        amount = Math.max(tMin, Math.min(amount, tMax, player.chips));
+        amount = Math.round(amount / tMin) * tMin; // round to nearest minBet increment
         player.bet = amount;
-        console.log(player.username, "bet:", amount);
+        console.log(player.username, "bet:", amount, `(min:${tMin} max:${tMax})`);
         this.broadcastState();
     }
 
@@ -108,7 +201,28 @@ class SipSamRoom {
             return;
         }
         const orderErr = Logic.validateHandOrder(h1, h2, h3);
-        if (orderErr) { this.sendToClient(client, { type:"error", message:orderErr }); return; }
+        if (orderErr) {
+            // Invalid arrangement → immediate disqualification (no retry allowed)
+            console.log(`${player.username} DISQUALIFIED — invalid hand order: ${orderErr}`);
+            player.disqualified     = true;
+            player.disqualifyReason = 'Invalid hand arrangement — disqualified.';
+            player.lastSpecial      = '❌ DQ — invalid hands';
+            player.hasArranged      = true; // mark arranged so game can proceed
+            // Assign hands as submitted so cards are visible at reveal
+            player.hand1 = h1; player.hand2 = h2; player.hand3 = h3;
+            // Deduct bet — player loses their bet to the banker
+            const banker = Object.values(this.gameState.players).find(p => p.isBanker);
+            if (player.bet > 0) {
+                player.chips -= player.bet;
+                player.lastPayout = -player.bet;
+                if (banker) banker.chips += player.bet;
+            }
+            this.sendToClient(client, { type:'playerDisqualified', username:player.username, reason:'Invalid hand arrangement — disqualified.' });
+            this.broadcast({ type:'playerDisqualified', username:player.username, reason:`${player.username} disqualified — invalid hand arrangement.` });
+            this.broadcastState();
+            this.checkAllArranged();
+            return;
+        }
         player.hand1=h1; player.hand2=h2; player.hand3=h3;
         player.hasArranged = true;
         console.log(player.username, "arranged.");
@@ -124,43 +238,276 @@ class SipSamRoom {
 
     onJoin(client, options) {
         const username = options.username || ("Player_" + client.sessionId.substring(0,4));
+        const token    = options.token || null;
+        const avatar   = options.avatar || '';
+
+        // Parse intended minBet from roomId (format: sipsam_1000_timestamp)
+        // so Live Tables can filter by denomination before game starts
+        if (!this.gameState.tableMinBet && client.roomId) {
+            const parts = client.roomId.split('_');
+            const parsed = parseInt(parts[1]);
+            if ([100, 250, 500, 1000].includes(parsed)) {
+                this.gameState.tableMinBet = parsed;
+            }
+        }
+
+        // Mark room as private if flagged by the joining player
+        if (options.isPrivate) {
+            this.gameState.isPrivate = true;
+        }
+
         this.gameState.players[client.sessionId] = {
-            username, chips:1000, bet:0,
+            username, token, avatar, chips: this.gameState.tableWalletSize || 3000, bet:0,
             isBanker:false, isBot:false,
             hand1:[], hand2:[], hand3:[], rawCards:[],
             hasArranged:false, disqualified:false,
             lastPayout:0, lastSpecial:null, wins:0
         };
+        // Guard: max 4 players per room
+        const currentCount = Object.keys(this.gameState.players).length;
+        if (currentCount >= 4) {
+            console.log(username, "REJECTED — room full (4 players max)");
+            this.sendToClient(client, { type:'error', message:'Room is full. Please join another table.' });
+            return;
+        }
+
         console.log(username, "joined. Total:", Object.keys(this.gameState.players).length);
-        this.fillBotsIfNeeded();
+        // Do NOT fill bots during waiting — real players may still be joining
+        // Bots fill only at timer expiry or when host starts game manually
+
+        // Start 3-minute lobby countdown on first real player joining
+        if (this.gameState.status === 'waiting' && !this._lobbyTimer) {
+            this._startLobbyCountdown();
+        }
+
         this.broadcastState();
+    }
+
+    _startLobbyCountdown() {
+        const LOBBY_SECONDS = 180; // 3 minutes
+        let remaining = LOBBY_SECONDS;
+        this.gameState.lobbyCountdown = remaining;
+
+        console.log('[LOBBY] 3-minute countdown started');
+
+        this._lobbyTimer = setInterval(() => {
+            remaining--;
+            this.gameState.lobbyCountdown = remaining;
+
+            // Broadcast every 10s and in the last 30s every second
+            if (remaining % 10 === 0 || remaining <= 30) {
+                this.broadcastState();
+            }
+
+            if (remaining <= 0) {
+                clearInterval(this._lobbyTimer);
+                this._lobbyTimer = null;
+                this.gameState.lobbyCountdown = 0;
+
+                // Only auto-start if still waiting and there's at least one real player
+                if (this.gameState.status === 'waiting') {
+                    const realPlayers = Object.values(this.gameState.players)
+                        .filter(p => !p.isBot && !p.isGhostBot);
+                    if (realPlayers.length > 0) {
+                        console.log('[LOBBY] Timer expired — filling bots and starting game');
+                        this.fillBotsIfNeeded();
+                        // Apply table config from roomId if not already set
+                        this._applyTableConfigFromRoomId();
+                        this.gameState.message = 'Lobby timer expired — starting with bots!';
+                        this.broadcastState();
+                        setTimeout(() => this.beginGame(), 1000);
+                    }
+                }
+            }
+        }, 1000);
     }
 
     onLeave(client, consented) {
         const player = this.gameState.players[client.sessionId];
         if (!player) return;
-        console.log(player.username, "left.");
+        console.log(player.username, "left. Game status:", this.gameState.status);
+
+        // ── WAITING PHASE: just remove the player entirely ──────────
+        // Room is still open — real players can still join to fill the seat
+        if (this.gameState.status === 'waiting') {
+            delete this.gameState.players[client.sessionId];
+            console.log(player.username, 'left lobby — seat freed.');
+            // Cancel lobby timer if no real players left
+            const remaining = Object.values(this.gameState.players)
+                .filter(p => !p.isBot && !p.isGhostBot);
+            if (remaining.length === 0) {
+                if (this._lobbyTimer) { clearInterval(this._lobbyTimer); this._lobbyTimer = null; }
+                this.gameState.lobbyCountdown = 0;
+            }
+            this.broadcastState();
+            return;
+        }
+
+        // ── ACTIVE GAME: check if any real players remain ────────────
+        const otherRealPlayers = Object.entries(this.gameState.players)
+            .filter(([sid, p]) => sid !== client.sessionId && !p.isBot && !p.isGhostBot);
+
+        if (otherRealPlayers.length === 0) {
+            // No other real players — reset room completely
+            console.log('[ROOM] Last real player left — resetting room.');
+            this._resetRoom();
+            return;
+        }
+
+        // Other real players still in game
+        // Current round: convert to ghost so this round resolves cleanly
+        // Next round onwards: the ghost becomes a real bot with fresh chips
+        player.token      = null;  // already settled — _settleToBank will skip
+        player.isBot      = true;
+        player.isGhostBot = true;  // ghost THIS round only
+        player.bet        = 0;
+        player.hasArranged = true; // prevent DQ for not arranging
+        player.chips      = 0;     // zeroed — already returned to bank
+
+        // Schedule conversion to real bot at next round start
+        // This gives the seat a proper bot replacement from next round
+        player._promoteToRealBot = true;
+        // Notify remaining players a bot will replace the leaving player
+        this.broadcast({
+            type: 'playerLeft',
+            username: player.username,
+            message: `${player.username} left. A bot will take their seat next round.`
+        });
+
         if (player.isBanker) {
-            player.isBot = true; player.username = "Bot_Banker";
-            console.log("Banker left — bot takes over.");
+            // Banker left — assign a fresh real bot as banker for remaining rounds
+            player.username = 'Bot_Banker';
+            console.log('Banker left mid-game — converting to ghost, reassigning banker.');
+            // Prefer a real human player as new banker; fall back to bot if needed
+            const allSids = Object.keys(this.gameState.players);
+            const newBankerId =
+                allSids.find(sid => { const p=this.gameState.players[sid]; return !p.isBot && !p.isGhostBot && !p.isBanker; }) ||
+                allSids.find(sid => { const p=this.gameState.players[sid]; return !p.isGhostBot && !p.isBanker; });
+            // ── BANKER FORFEIT ──────────────────────────────────────
+            // Banker left mid-game → forfeit rule:
+            // 1. Pay each active player 2× their bet immediately
+            // 2. End current round
+            // 3. A fresh bot takes over as banker with full wallet for remaining rounds
+
+            console.log('[BANKER FORFEIT] Banker left — paying all players 2× bet');
+
+            // Pay each non-DQ, non-ghost, non-banker player 2× their bet
+            let totalForfeited = 0;
+            Object.values(this.gameState.players).forEach(p => {
+                if (p.isBanker || p.isGhostBot || p.disqualified || p.bet <= 0) return;
+                const prize = p.bet * 2;
+                p.chips      += prize;
+                p.lastPayout  = prize;
+                p.lastSpecial = `✅ Banker forfeited — Won 2× bet ($${prize.toLocaleString()})`;
+                p.wins++;
+                totalForfeited += prize;
+                console.log(`[FORFEIT] ${p.username} receives $${prize}`);
+            });
+
+            // Deduct from banker's chips (may go negative — handled by debt system)
+            player.chips -= totalForfeited;
+
+            // Notify table
+            this.broadcast({
+                type:    'bankerForfeited',
+                username: player.username,
+                message:  `${player.username} (Banker) left the game and forfeited — all players receive 2× their bet!`
+            });
+
+            // Mark old banker as ghost — but DO promote to a regular player bot next round
+            // so their seat isn't left empty (Bot_Banker fills the banker role separately)
+            player.isBanker = false;
+            player.isGhostBot = true;
+            player.chips = 0;
+            player._promoteToRealBot = true; // promote to regular player bot next round
+
+            // Assign a fresh bot as banker with full wallet
+            const botBankerId = 'bot_banker_' + Date.now();
+            const walletSize  = this.gameState.tableWalletSize || 3000;
+            this.gameState.players[botBankerId] = {
+                username:      'Bot_Banker',
+                avatar:        '🤖',
+                token:         null,
+                chips:         walletSize,
+                bet:           0,
+                isBanker:      true,
+                isBot:         true,
+                isGhostBot:    false,
+                hand1:[], hand2:[], hand3:[], rawCards:[],
+                hasArranged:   false, disqualified: false,
+                lastPayout:    0, lastSpecial: null, wins: 0
+            };
+            this.gameState.bankerSessionId = botBankerId;
+
+            // End the current round immediately — skip to roundEnd
+            // Clear any running arrange/reveal timers
+            if (this.arrangeTimer) { clearInterval(this.arrangeTimer); this.arrangeTimer = null; }
+            if (this.revealTimer)  { clearInterval(this.revealTimer);  this.revealTimer  = null; }
+
+            this.gameState.status  = 'roundEnd';
+            this.gameState.message = `${player.username} forfeited as Banker. Bot_Banker takes over next round!`;
+            console.log('[BANKER FORFEIT] Round ended. Bot_Banker takes over.');
+            this.broadcastState();
+
+            // Move to next round after 4 seconds
+            setTimeout(() => this.startRound(), 4000);
         } else {
-            player.isBot = true;
-            player.username = "Bot_" + client.sessionId.substring(0,4);
+            player.username = '(Left)';
+            console.log(player.username, 'left mid-game — converted to ghost bot.');
         }
         this.broadcastState();
+    }
+
+    _resetRoom() {
+        console.log('[ROOM] Resetting room for next game...');
+        // Cancel any running timers
+        if (this.arrangeTimer) { clearInterval(this.arrangeTimer); this.arrangeTimer = null; }
+        if (this.betTimer)     { clearInterval(this.betTimer);     this.betTimer     = null; }
+        if (this.revealTimer)  { clearInterval(this.revealTimer);  this.revealTimer  = null; }
+        if (this._lobbyTimer)  { clearInterval(this._lobbyTimer);  this._lobbyTimer  = null; }
+
+        // Reset game state completely — fresh slate
+        this.gameState = {
+            status:          'waiting',
+            round:           0,
+            maxRounds:       10,
+            blitz:           false,
+            pot:             0,
+            timer:           0,
+            tableMinBet:     0,
+            tableMaxBet:     0,
+            tableIncrement:  0,
+            tableWalletSize: 0,
+            bankerSessionId: '',
+            players:         {},
+            message:         ''
+        };
+        this._settled = false;
+        console.log('[ROOM] Room reset complete — ready for new game.');
     }
 
     // ==================== GAME FLOW ====================
 
     beginGame() {
+        this._settled = false; // reset for this game
         this.gameState.round = 0;
+        // Mark all pending invites for this room as expired
+        // so players don't see stale invites after game starts
+        this._expireRoomInvites();
+        const walletSize = this.gameState.tableWalletSize || 3000;
+
+        // Reset all player chips to the correct wallet size for this table
+        Object.values(this.gameState.players).forEach(p => {
+            p.chips = walletSize;
+        });
+
         // Random banker — stays for entire game
         const ids      = Object.keys(this.gameState.players);
         const bankerId = ids[Math.floor(Math.random() * ids.length)];
         this.gameState.players[bankerId].isBanker = true;
         this.gameState.bankerSessionId = bankerId;
         const bankerName = this.gameState.players[bankerId].username;
-        console.log("Banker for this game:", bankerName);
+        console.log(`Banker: ${bankerName} | Wallet: $${walletSize} each`);
         this.gameState.message = `${bankerName} is the Banker for all ${this.gameState.maxRounds} rounds!`;
         this.broadcastState();
         setTimeout(() => this.startRound(), 2000);
@@ -173,21 +520,73 @@ class SipSamRoom {
 
         const banker = this.gameState.players[this.gameState.bankerSessionId];
         if (banker && banker.chips <= 0) {
-            banker.isBot = true; banker.username = "Bot_Banker";
-            console.log("Banker bankrupt — bot takes over.");
+            const walletSz = this.gameState.tableWalletSize || 3000;
+            if (banker.isBot) {
+                // Bot_Banker auto-replenishes — never runs dry
+                banker.chips = walletSz;
+                console.log(`[BOT REPLENISH] Bot_Banker topped up to $${walletSz}`);
+            } else {
+                // Human banker went broke — convert to Bot_Banker
+                banker.isBot = true; banker.username = "Bot_Banker";
+                banker.chips = walletSz;
+                console.log("Banker bankrupt — Bot_Banker takes over with fresh wallet.");
+            }
         }
 
         Object.values(this.gameState.players).forEach(p => {
-            p.bet            = p.isBanker ? 0 : this.gameState.tableMinBet;
-            p.lastPayout     = 0; p.lastSpecial = null;
-            p.disqualified   = false; p.disqualifyReason = null;
+            // Preserve debt-disqualification across rounds — debtDqd players stay DQ'd
+            const keepDqd = p.debtDqd === true;
+            p.bet             = p.isBanker ? 0 : this.gameState.tableMinBet;
+            p.lastPayout      = 0; p.lastSpecial = null;
+            p.disqualified    = keepDqd;  // debt-DQ'd players stay disqualified
+            p.disqualifyReason = keepDqd ? p.disqualifyReason : null;
             p.declaredSpecial = null; p.declaredSpecialName = null;
-            p.handResults = null;
+            p.handResults     = null;
             p.hand1=[]; p.hand2=[]; p.hand3=[];
             p.rawCards=[]; p.hasArranged=false;
         });
+        // Promote ghost bots (left players) to real bots for this round
+        // They were ghost last round — now they become a proper bot replacement
+        let botNum = Object.values(this.gameState.players).filter(p => p.isBot && !p.isGhostBot).length + 1;
         Object.values(this.gameState.players).forEach(p => {
-            if (p.isBot && !p.isBanker) p.bet = this.gameState.tableMinBet;
+            if (p._promoteToRealBot) {
+                p.isGhostBot       = false;  // no longer sitting out
+                p.isBot            = true;
+                p._promoteToRealBot = false;
+                p.chips            = this.gameState.tableWalletSize || 3000; // fresh wallet
+                p.username         = 'Bot_' + botNum++;
+                p.avatar           = this._botAvatar(botNum);
+                console.log(`[ROUND] Ghost promoted to real bot: ${p.username} with $${p.chips} chips`);
+                this.broadcast({ type:'botReplaced', username: p.username });
+            }
+        });
+
+        // Convert broke real players to ghost bots before round starts
+        Object.values(this.gameState.players).forEach(p => {
+            if (!p.isBot && !p.isGhostBot && !p.isBanker && p.chips <= 0) {
+                console.log(`[ROUND] ${p.username} is broke — converting to ghost bot.`);
+                p.isGhostBot  = true;
+                p.bet         = 0;
+                p.hasArranged = true;
+                // Notify table
+                this.broadcast({ type:'playerBroke', username: p.username });
+            }
+        });
+
+        // Auto-replenish bots that have run out of chips
+        // Bots never go broke — they always top back up to the table wallet size
+        const walletSize = this.gameState.tableWalletSize || 3000;
+        Object.values(this.gameState.players).forEach(p => {
+            if (p.isBot && !p.isGhostBot && p.chips <= 0) {
+                console.log(`[BOT REPLENISH] ${p.username} ran out of chips — topping up to $${walletSize}`);
+                p.chips = walletSize;
+            }
+        });
+
+        Object.values(this.gameState.players).forEach(p => {
+            // Normal bots bet tableMinBet; ghost bots (bust players) bet $0
+            if (p.isGhostBot) { p.bet = 0; p.hasArranged = true; } // skip arrange for ghost
+            else if (p.isBot && !p.isBanker) p.bet = this.gameState.tableMinBet;
         });
 
         const bankerName = this.gameState.players[this.gameState.bankerSessionId]?.username || "Banker";
@@ -203,15 +602,17 @@ class SipSamRoom {
         if (this.betTimer) clearInterval(this.betTimer);
         const deck = Logic.shuffleDeck(Logic.createDeck());
         Object.values(this.gameState.players).forEach(p => {
+            if (p.isGhostBot) return; // ghost bots get no cards — they sit out visually
             p.rawCards = Logic.dealPlayerCards(deck);
             p.hasArranged = false;
             if (p.isBot) this.botArrange(p);
         });
+        const arrangeSecs = this.gameState.blitz ? 40 : 65;
         this.gameState.status  = "arranging";
-        this.gameState.timer   = 90;
+        this.gameState.timer   = arrangeSecs;
         this.gameState.message = "Cards dealt! Arrange hands. (1st=weakest, 3rd=strongest)";
         this.broadcastState();
-        this.startCountdown(90, "arranging", () => {
+        this.startCountdown(arrangeSecs, "arranging", () => {
             this.disqualifyLate();
             this.startRevealPhase();
         });
@@ -227,10 +628,28 @@ class SipSamRoom {
             banker.lastSpecial      = '❌ DQ — banker too slow';
             Object.values(this.gameState.players).forEach(p => {
                 if (!p.isBanker && !p.disqualified && p.bet > 0) {
-                    const prize  = p.bet * 2;
-                    p.chips      += prize;
-                    p.lastPayout  = prize;
-                    banker.chips -= prize;
+                    // Banker pays bet × max(2, declaredSpecial.multiplier).
+                    // House pays the flat bonus on top (matches normal-round behaviour).
+                    const sp         = p.declaredSpecial || null;
+                    const mult       = Math.max(2, (sp && sp.multiplier) || 2);
+                    const bonus      = sp ? (Logic.SPECIAL_BONUS[sp.name] || 0) : 0;
+                    const fromBanker = p.bet * mult;
+                    const prize      = fromBanker + bonus;
+                    p.chips         += prize;
+                    p.lastPayout     = prize;
+                    banker.chips    -= fromBanker; // bonus comes from house, not banker
+                    // Set handResults so WIN badges show on all 3 hands
+                    p.handResults = {
+                        r1: 1, r2: 1, r3: 1,
+                        names: {
+                            player: sp ? [sp.name, sp.name, sp.name] : ['—', '—', '—'],
+                            banker: ['DQ', 'DQ', 'DQ']
+                        }
+                    };
+                    p.lastSpecial = sp
+                        ? `✅ Banker DQ + ${sp.name} — paid ${mult}× bet + $${bonus.toLocaleString()} bonus ($${prize.toLocaleString()})`
+                        : `✅ Banker DQ — Won 2× bet ($${prize.toLocaleString()})`;
+                    p.wins++;
                 }
             });
             console.log(banker.username, "BANKER DISQUALIFIED — did not arrange. Players paid 2x bet.");
@@ -256,12 +675,13 @@ class SipSamRoom {
 
     startRevealPhase() {
         if (this.arrangeTimer) clearInterval(this.arrangeTimer);
+        const revealSecs = this.gameState.blitz ? 20 : 30;
         this.gameState.status  = "revealing";
-        this.gameState.timer   = 30;
+        this.gameState.timer   = revealSecs;
         this.gameState.message = "All hands revealed! Processing payouts...";
         this.resolveAllHands();
         this.broadcastState();
-        this.startCountdown(30, "revealing", () => {
+        this.startCountdown(revealSecs, "revealing", () => {
             this.gameState.status  = "roundEnd";
             this.gameState.message = `Round ${this.gameState.round} complete!`;
             this.broadcastState();
@@ -271,12 +691,19 @@ class SipSamRoom {
 
     // Verify if a disqualification request is valid
     _verifyDisqualification(target) {
-        // Check 1: Invalid hand order
-        const orderErr = Logic.validateHandOrder(target.hand1, target.hand2, target.hand3);
-        if (orderErr) return `Invalid hand arrangement: ${orderErr}`;
+        // Check 1: Invalid hand order — skip if player has a declared special
+        // (specials like Straight Flush span all cards and don't need valid hand order)
+        if (!target.declaredSpecial) {
+            const orderErr = Logic.validateHandOrder(target.hand1, target.hand2, target.hand3);
+            if (orderErr) return `Invalid hand arrangement: ${orderErr}`;
+        }
 
         // Check 2: Has a special but did not declare it
-        const actualSpecial = Logic.detectSpecial(target.hand1, target.hand2, target.hand3);
+        // Use rawCards for detection — specials are identified from all 13 cards
+        const rawH1 = target.rawCards ? target.rawCards.slice(0,3) : target.hand1;
+        const rawH2 = target.rawCards ? target.rawCards.slice(3,8) : target.hand2;
+        const rawH3 = target.rawCards ? target.rawCards.slice(8,13) : target.hand3;
+        const actualSpecial = Logic.detectSpecial(rawH1, rawH2, rawH3);
         if (actualSpecial && !target.declaredSpecial) {
             return `Player has ${actualSpecial.name} but did not declare it.`;
         }
@@ -298,11 +725,61 @@ class SipSamRoom {
 
     resolveAllHands() {
         const banker = this.gameState.players[this.gameState.bankerSessionId];
-        if (!banker || banker.disqualified || !banker.hand1?.length) return;
+        if (!banker) return;
+
+        // If banker left mid-round (ghost bot) or was DQ'd with no hands
+        // treat as banker forfeit — pay all non-DQ players 2× their bet
+        if (banker.isGhostBot || (banker.disqualified && !banker.hand1?.length)) {
+            Object.values(this.gameState.players).forEach(p => {
+                if (p.isBanker || p.disqualified || p.isGhostBot || p.bet <= 0) return;
+                // Pay bet × max(2, declaredSpecial.multiplier) + flat house bonus.
+                const sp    = p.declaredSpecial || null;
+                const mult  = Math.max(2, (sp && sp.multiplier) || 2);
+                const bonus = sp ? (Logic.SPECIAL_BONUS[sp.name] || 0) : 0;
+                const prize = (p.bet * mult) + bonus;
+                p.chips      += prize;
+                p.lastPayout  = prize;
+                p.lastSpecial = sp
+                    ? `✅ Banker out + ${sp.name} — paid ${mult}× bet + $${bonus.toLocaleString()} bonus ($${prize.toLocaleString()})`
+                    : `✅ Banker left — Won 2× bet ($${prize.toLocaleString()})`;
+                p.wins++;
+            });
+            console.log('[RESOLVE] Banker ghost/DQ — players paid 2× or special');
+            return;
+        }
+
+        if (banker.disqualified || !banker.hand1?.length) return;
         const bankerHands = { hand1:banker.hand1, hand2:banker.hand2, hand3:banker.hand3 };
 
+        // House bonus tracking — awarded ONCE per round to the special winner, not per player
+        let roundBonusAwarded = false;
+        let roundBonusAmount  = 0;
+        let roundBonusWinner  = null; // 'player' or 'banker'
+        let roundBonusPlayer  = null; // the player who won (if not banker)
+
         Object.entries(this.gameState.players).forEach(([sid, player]) => {
-            if (player.isBanker || player.disqualified || !player.hand1?.length) return;
+            if (player.isBanker || player.isGhostBot) return;
+
+            // DQ'd players: if banker has a special, they pay the full special amount
+            // (they already paid 1x from DQ — pay the difference to make it full special amount)
+            if (player.disqualified) {
+                if (banker.declaredSpecial && !player.debtDqd) {
+                    const specialMultiplier = banker.declaredSpecial.multiplier;
+                    const alreadyPaid       = player.bet; // paid 1x during DQ
+                    const owedTotal         = player.bet * specialMultiplier;
+                    const extraOwed         = owedTotal - alreadyPaid;
+                    if (extraOwed > 0) {
+                        player.chips  -= extraOwed;
+                        banker.chips  += extraOwed;
+                        player.lastPayout = -(owedTotal);
+                        player.lastSpecial = `❌ DQ + Banker ${banker.declaredSpecial.name} — paid ${specialMultiplier}x`;
+                        console.log(`${player.username} DQ + banker special: total paid $${owedTotal}`);
+                    }
+                }
+                return; // skip normal resolution for DQ'd players
+            }
+
+            if (!player.hand1?.length) return;
 
             const result = Logic.resolveRound(
                 { hand1:player.hand1, hand2:player.hand2, hand3:player.hand3 },
@@ -312,16 +789,29 @@ class SipSamRoom {
                 banker.declaredSpecial || null
             );
 
-            player.chips     += result.payout;
-            player.lastPayout = result.payout;
+            // payout is pure bet exchange only — bonus is handled after the loop (once only)
+            player.chips      += result.payout;
+            player.lastPayout  = result.payout;
+            player.lastBonus   = result.bonus || 0;
             player.handResults = result.handResults || null;
-            banker.chips     -= result.payout;
+            banker.chips      -= result.payout; // banker receives/pays pure bet exchange
+
+            // Track which special won (for post-loop bonus award)
+            if (result.bonus > 0 && !roundBonusAwarded) {
+                roundBonusAwarded = true;
+                roundBonusAmount  = result.bonus;
+                roundBonusWinner  = result.specialWinner; // 'player' or 'banker'
+                roundBonusPlayer  = player; // only relevant if player won
+            }
             if (result.payout > 0) player.wins++;
 
+            const rb = result.bonus || 0;
             if (result.playerSpecial) {
-                player.lastSpecial = `⭐ ${result.playerSpecial.name} (${result.playerSpecial.multiplier}x)`;
+                const bonusStr = rb > 0 ? ` +$${rb.toLocaleString()} house bonus` : '';
+                player.lastSpecial = `⭐ ${result.playerSpecial.name} (${result.playerSpecial.multiplier}x)${bonusStr}`;
             } else if (result.bankerSpecial) {
-                player.lastSpecial = `🏦 Banker: ${result.bankerSpecial.name}`;
+                const bonusStr = rb > 0 ? ` +$${rb.toLocaleString()} house bonus` : '';
+                player.lastSpecial = `🏦 Banker: ${result.bankerSpecial.name}${bonusStr}`;
             } else {
                 player.lastSpecial = result.playerWins >= 2
                     ? `✅ Won ${result.playerWins}/3 hands`
@@ -329,36 +819,174 @@ class SipSamRoom {
             }
 
             const outcome = result.payout >= 0 ? "WIN" : "LOSS";
-            const why = result.playerSpecial ? result.playerSpecial.name
-                      : result.bankerSpecial  ? "Banker: "+result.bankerSpecial.name
+            const why = result.playerSpecial ? `${result.playerSpecial.name}${rb>0?' +$'+rb+' house bonus':''}`
+                      : result.bankerSpecial  ? `Banker: ${result.bankerSpecial.name}${rb>0?' +$'+rb+' house bonus':''}`
                       : `${result.playerWins}/3 hands`;
-            console.log(`${player.username} | Bet:$${player.bet} | ${outcome} $${Math.abs(result.payout)} | ${why}`);
+            console.log(`${player.username} | Bet:$${player.bet} | ${outcome} $${Math.abs(result.payout)}${rb>0?' (house bonus $'+rb+')':''} | ${why}`);
         });
+
+        // ── Award house bonus ONCE to the round's special winner ────────
+        if (roundBonusAwarded && roundBonusAmount > 0) {
+            if (roundBonusWinner === 'banker') {
+                banker.chips += roundBonusAmount;
+                console.log(`[BONUS] House pays banker $${roundBonusAmount.toLocaleString()} bonus`);
+            } else if (roundBonusWinner === 'player' && roundBonusPlayer) {
+                roundBonusPlayer.chips     += roundBonusAmount;
+                roundBonusPlayer.lastPayout = (roundBonusPlayer.lastPayout || 0) + roundBonusAmount;
+                console.log(`[BONUS] House pays ${roundBonusPlayer.username} $${roundBonusAmount.toLocaleString()} bonus`);
+            }
+        }
 
         // Store banker's special display
         const bs = banker.declaredSpecial;
         banker.lastSpecial = bs ? `⭐ ${bs.name} (${bs.multiplier}x)` : null;
 
-        // Wallet debt: if a player ends with negative chips, they owe the remainder
-        // from their wallet outside the game. They are removed from the game.
+        // Wallet debt: if a player's chips hit 0 or go negative after a round —
+        // 1. Player is DISQUALIFIED — a ghost bot takes their seat (no bets, no payouts)
+        // 2. Outstanding debt is pulled from their bank (bank can go negative)
+        // 3. Player cannot play again until bank is cleared
+        const debtPromises = [];
         Object.entries(this.gameState.players).forEach(([sid, player]) => {
-            if (player.isBanker || player.disqualified || player.chips >= 0) return;
-            const debt = Math.abs(player.chips);
-            banker.chips += debt; // wallet payment goes to banker
-            player.chips = 0;
-            player.disqualified     = true;
-            player.disqualifyReason = `Wallet debt: owes $${debt} outside game.`;
-            player.lastSpecial      = `❌ Owes $${debt} from wallet`;
-            console.log(`${player.username} wallet debt: $${debt} — removed from game.`);
-            this.broadcast({ type:'walletDebt', username:player.username, debt,
-                reason:`${player.username} owes $${debt} from their wallet and has been removed.` });
+            if (player.isBanker || player.disqualified || player.chips > 0) return;
+            const debt = Math.abs(player.chips); // could be 0 (exactly bust) or positive (negative chips)
+            const totalOwed = debt; // chips went to 0 or below — full shortfall owed
+
+            console.log(`${player.username} bust: chips=$${player.chips} — disqualifying, pulling $${totalOwed} from bank`);
+
+            // Disqualify and convert to ghost bot — no bets, no payouts for remaining rounds
+            player.chips           = 0;
+            player.disqualified    = true;
+            player.debtDqd         = true; // permanent flag — survives round resets
+            player.disqualifyReason = `Wallet reached $0 — disqualified. Bank charged $${totalOwed.toLocaleString()}.`;
+            player.lastSpecial      = `❌ Bust — $${totalOwed.toLocaleString()} from bank`;
+            player.isGhostBot       = true; // ghost: plays hands but bets $0, receives no payout
+
+            this.broadcast({ type:'walletDebt', username:player.username, debt: totalOwed,
+                reason:`${player.username} went bust — disqualified. $${totalOwed.toLocaleString()} pulled from bank.` });
+            this.broadcast({ type:'playerDisqualified', username:player.username,
+                reason:`Wallet reached $0 — disqualified for remaining rounds.` });
+
+            if (player.token && totalOwed > 0) {
+                debtPromises.push(
+                    callPlatformAPI('/api/game/debt-payment', player.token, {
+                        amount:      totalOwed,
+                        tableMinBet: this.gameState.tableMinBet,
+                        reason:      'wallet_bust'
+                    }).then(r => {
+                        console.log(`[DEBT] ${player.username}: -$${totalOwed} from bank —`, r.ok ? `bank now: $${r.newBankBalance}` : r.error);
+                        if (r.ok) player.bankBalance = r.newBankBalance;
+                    })
+                );
+            }
         });
+        if (debtPromises.length) Promise.all(debtPromises).catch(e => console.error("[DEBT] error:", e));
+    }
+
+    async _onReplenishWallet(client, data) {
+        const player = this.gameState.players[client.sessionId];
+        if (!player || !player.token) {
+            this.sendToClient(client, { type:'replenishResult', ok:false, error:'Not authorised' });
+            return;
+        }
+        const { amount } = data;
+        if (!amount || amount <= 0) {
+            this.sendToClient(client, { type:'replenishResult', ok:false, error:'Invalid amount' });
+            return;
+        }
+        try {
+            const res = await callPlatformAPI('/api/game/replenish', player.token, {
+                amount,
+                currentWallet: player.chips,
+                tableMinBet:   this.gameState.tableMinBet
+            });
+            if (res.ok) {
+                player.chips += amount;
+                this.sendToClient(client, { type:'replenishResult', ok:true, newWallet:player.chips, newBankBalance:res.newBankBalance });
+                this.broadcastState();
+                console.log(`[REPLENISH] ${player.username} +$${amount} → wallet $${player.chips}`);
+            } else {
+                this.sendToClient(client, { type:'replenishResult', ok:false, error: res.error || 'Replenish failed' });
+            }
+        } catch(e) {
+            this.sendToClient(client, { type:'replenishResult', ok:false, error:'Server error' });
+        }
     }
 
     endGame() {
-        this.gameState.status="gameOver"; this.gameState.message="Game Over! Final scores:";
+        this.gameState.status  = "gameOver";
+        this.gameState.message = "Game Over! Final scores:";
         console.log("=== GAME OVER ===");
         this.broadcastState();
+        // Settle: return each player's remaining chips to their bank
+        this._settleToBank();
+    }
+
+    async _settleToBank() {
+        if (this._settled) return; // prevent double-settlement
+        this._settled = true;
+        const players = Object.values(this.gameState.players);
+        const realPlayers = players.filter(p => !p.isBot && !p.isGhostBot);
+
+        console.log(`[SETTLE] ========== SETTLING GAME ==========`);
+        console.log(`[SETTLE] Real players: ${realPlayers.length}`);
+        realPlayers.forEach(p => {
+            console.log(`[SETTLE]   ${p.username}: chips=$${p.chips} token=${p.token ? "YES ("+p.token.substring(0,12)+"...)" : "MISSING — will not settle!"}`);
+        });
+
+        for (const player of realPlayers) {
+            if (!player.token) {
+                // Token missing — broadcast a warning so this is visible in client logs too
+                console.error(`[SETTLE] ⚠️  ${player.username} has NO TOKEN — chips cannot be returned to bank!`);
+                console.error(`[SETTLE] ⚠️  This means poker-server/index.js is NOT passing token through matchmake.`);
+                console.error(`[SETTLE] ⚠️  Deploy the latest poker-server-index.js from outputs to fix this.`);
+                // Broadcast a settlement failure message so client can fallback
+                this.clients
+                    .filter(c => c.sessionId === Object.keys(this.gameState.players).find(sid => this.gameState.players[sid] === player))
+                    .forEach(c => this.sendToClient(c, {
+                        type:    'settleFailed',
+                        reason:  'no_token',
+                        chips:   player.chips,
+                        tableMinBet: this.gameState.tableMinBet
+                    }));
+                continue;
+            }
+            const returning = Math.max(0, player.chips);
+            try {
+                const res = await callPlatformAPI('/api/game/exit', player.token, {
+                    remainingWallet: returning,
+                    tableMinBet:     this.gameState.tableMinBet
+                });
+                if (res.ok) {
+                    console.log(`[SETTLE] ✅ ${player.username}: returned $${returning} → new bank: $${res.newBankBalance}`);
+                    // Record win/loss + game mode stats
+                    const finalChips  = player.chips;
+                    const startChips  = this.gameState.tableWalletSize || this.gameState.tableMinBet * 6;
+                    const isWin       = finalChips > startChips;
+                    const rounds      = this.gameState.maxRounds || 10;
+                    const isBlitz     = this.gameState.blitz === true;
+                    const mode        = isBlitz ? 'blitz' : String(rounds);
+                    try {
+                        await callPlatformAPI('/api/game/record-result', player.token, {
+                            isWin, mode, rounds,
+                            tableMinBet: this.gameState.tableMinBet,
+                            finalChips,  startChips
+                        });
+                        console.log(`[SETTLE] 📊 ${player.username}: recorded ${isWin?'WIN':'LOSS'} mode=${mode}`);
+                    } catch(e) {
+                        console.warn(`[SETTLE] Stats recording failed for ${player.username}:`, e.message);
+                    }
+                    // Broadcast updated bank balance to the player's client
+                    const sid = Object.keys(this.gameState.players).find(s => this.gameState.players[s] === player);
+                    const c   = this.clients.find(c => c.sessionId === sid);
+                    if (c) this.sendToClient(c, { type:'settleComplete', newBankBalance: res.newBankBalance, returned: returning });
+                } else {
+                    console.error(`[SETTLE] ❌ ${player.username}: exit API failed — ${res.error}`);
+                }
+            } catch(e) {
+                console.error(`[SETTLE] ${player.username} error:`, e.message);
+            }
+        }
+        console.log(`[SETTLE] ====================================`);
     }
 
     // ==================== HELPERS ====================
@@ -401,16 +1029,75 @@ class SipSamRoom {
             return;
         }
 
-        // Server uses rawCards to verify — player hasn't arranged yet
-        // Detect what special they actually have across their raw cards
-        // For declaration, we split rawCards the natural way: first 3, next 5, last 5
+        // Server uses rawCards to verify — player hasn't arranged yet.
+        // IMPORTANT: We must NOT split rawCards by deal order (0-2, 3-7, 8-12) because
+        // the player hasn't arranged their hands yet — cards are in random deal order.
+        // detectSpecial must examine all 13 cards as a whole to correctly identify
+        // whole-hand specials (FFF, SSS, Full Suit, 6½, No Face, Four of a Kind).
+        // For specials that require a specific arrangement (Royal Flush, Straight Flush),
+        // we try all valid 3/5/5 splits to see if any arrangement yields the declared special.
         const raw = player.rawCards || [];
         if (raw.length !== 13) {
             this.sendToClient(client, { type:'error', message:'No cards dealt yet.' });
             return;
         }
+
+        // First: try detecting the special from ALL 13 cards using natural split
+        // detectSpecial internally checks whole-hand properties (suits, pairs, etc.)
+        // that don't depend on arrangement order
         const h1 = raw.slice(0,3), h2 = raw.slice(3,8), h3 = raw.slice(8,13);
-        const actual = Logic.detectSpecial(h1, h2, h3);
+        let actual = Logic.detectSpecial(h1, h2, h3);
+
+        // If not found with natural split, try the suit-grouped split for flush-based specials.
+        // Group cards by suit and check if a valid FFF/Full Suit arrangement exists.
+        if (!actual || actual.name !== specialName) {
+            const bySuit = { h:[], s:[], d:[], c:[] };
+            raw.forEach(c => { if (bySuit[c[1]]) bySuit[c[1]].push(c); });
+            const suits = Object.values(bySuit).filter(g => g.length > 0);
+
+            // Full Suit: all 13 same suit — detectable regardless of order
+            if (specialName === 'Full Suit') {
+                const fs = raw[0][1];
+                if (raw.every(c => c[1] === fs)) actual = { name:'Full Suit', multiplier:10, rank:8 };
+            }
+            // Flush-Flush-Flush: need groups of 3, 5, 5 all same suit each
+            // Check if cards can be grouped into three same-suit hands (3+5+5 or any valid split)
+            if (specialName === 'Flush-Flush-Flush' && (!actual || actual.name !== specialName)) {
+                // Try all combinations of suit groupings that give 3+5+5 or 5+5+3 splits
+                const suitGroups = Object.entries(bySuit).filter(([,g]) => g.length > 0);
+                let fffFound = false;
+                // We need exactly 3 suit groups (or 2 if one suit covers 3+5 = 8 cards, impossible with 5-card hands)
+                // Valid: any partition of 13 cards into groups of 3, 5, 5 where each group is same-suit
+                for (let i = 0; i < suitGroups.length && !fffFound; i++) {
+                    for (let j = 0; j < suitGroups.length && !fffFound; j++) {
+                        if (i === j) continue;
+                        for (let k = 0; k < suitGroups.length && !fffFound; k++) {
+                            if (k === i || k === j) continue;
+                            const [, gA] = suitGroups[i];
+                            const [, gB] = suitGroups[j];
+                            const [, gC] = suitGroups[k];
+                            const sizes = [gA.length, gB.length, gC.length].sort((a,b)=>a-b);
+                            if (sizes[0]===3 && sizes[1]===5 && sizes[2]===5) fffFound = true;
+                        }
+                    }
+                }
+                // Also handle 2-suit case: one suit has 3, another has 10 (split into 5+5)
+                if (!fffFound) {
+                    for (const [, g] of suitGroups) {
+                        if (g.length === 3) {
+                            // Check if remaining 10 cards are all one suit
+                            const rem = raw.filter(c => !g.includes(c));
+                            if (rem.every(c => c[1] === rem[0][1])) { fffFound = true; break; }
+                        }
+                    }
+                }
+                if (fffFound) actual = { name:'Flush-Flush-Flush', multiplier:5, rank:5 };
+            }
+            // No Face: no J/Q/K in all 13 cards — order irrelevant
+            if (specialName === 'No Face' && Logic.detectSpecial) {
+                if (!raw.some(c => ['J','Q','K'].includes(c[0]))) actual = { name:'No Face', multiplier:2, rank:1 };
+            }
+        }
 
         if (!actual || actual.name !== specialName) {
             // Wrong declaration — DQ the player
@@ -511,12 +1198,79 @@ class SipSamRoom {
         }
     }
 
+    _applyTableConfigFromRoomId() {
+        // If table config already set, skip
+        if (this.gameState.tableMinBet > 0) return;
+
+        const TABLE_CONFIG = {
+            100:  { minBet:100,  increment:50,  maxBet:150,  walletSize:3000,  minBank:5000  },
+            250:  { minBet:250,  increment:50,  maxBet:500,  walletSize:10000, minBank:15000 },
+            500:  { minBet:500,  increment:100, maxBet:1000, walletSize:20000, minBank:30000 },
+            1000: { minBet:1000, increment:500, maxBet:2000, walletSize:40000, minBank:60000 }
+        };
+
+        // Parse minBet from roomId (format: sipsam_100_timestamp)
+        let minBet = 100; // default
+        if (this._roomId) {
+            const parts = this._roomId.split('_');
+            const parsed = parseInt(parts[1]);
+            if (TABLE_CONFIG[parsed]) minBet = parsed;
+        }
+
+        const cfg = TABLE_CONFIG[minBet];
+        this.gameState.tableMinBet     = cfg.minBet;
+        this.gameState.tableMaxBet     = cfg.maxBet;
+        this.gameState.tableIncrement  = cfg.increment;
+        this.gameState.tableWalletSize = cfg.walletSize;
+        console.log(`[ROOM] Table config applied from roomId: $${cfg.minBet} min / $${cfg.increment} inc`);
+    }
+
+    _expireRoomInvites() {
+        if (!this._roomId) return;
+        // Call platform API to revoke all pending invites for this room
+        const http = require('http');
+        const body = JSON.stringify({ roomId: this._roomId });
+        const req  = http.request({
+            hostname: 'localhost',
+            port:     3000,
+            path:     '/api/game/invites/revoke-room',
+            method:   'POST',
+            headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+        }, () => {});
+        req.on('error', () => {}); // non-critical
+        req.write(body);
+        req.end();
+        console.log('[INVITES] Revoke request sent for room:', this._roomId);
+    }
+
+    _botAvatar(n) {
+        const BOT_AVATARS = ['🤖','👾','🎮','🃏','🦾','🧠','💻','🎲','👁️','⚡'];
+        return BOT_AVATARS[n % BOT_AVATARS.length];
+    }
+
     fillBotsIfNeeded() {
-        const needed = 4 - Object.keys(this.gameState.players).length;
+        // Only fill bots before game starts — never during active rounds
+        // (removing bots mid-game would wipe their handResults/chips/lastSpecial)
+        if (this.gameState.status !== 'waiting') return;
+
+        // Count real players (non-bot, non-ghost)
+        const realCount = Object.values(this.gameState.players)
+            .filter(p => !p.isBot && !p.isGhostBot).length;
+        const needed = Math.max(0, 4 - realCount);
+
+        // Remove any existing bots first — we'll re-add the exact right number
+        Object.keys(this.gameState.players).forEach(sid => {
+            if (this.gameState.players[sid].isBot && !this.gameState.players[sid].isBanker) {
+                delete this.gameState.players[sid];
+            }
+        });
+
+        // Add exactly the right number of bots
         for (let i=0; i<needed; i++) {
             const botId = "bot_"+i+"_"+Date.now();
             this.gameState.players[botId] = {
-                username:"Bot_"+(i+1), chips:1000, bet:0,
+                username:"Bot_X", avatar: this._botAvatar(i), token:null,
+                chips: this.gameState.tableWalletSize || 3000, bet:0,
                 isBanker:false, isBot:true,
                 hand1:[], hand2:[], hand3:[], rawCards:[],
                 hasArranged:false, disqualified:false,
@@ -524,12 +1278,16 @@ class SipSamRoom {
             };
         }
         // Shuffle the seat order so the human player gets a random position
-        // (JS object insertion order determines seat assignment on the client)
         const entries = Object.entries(this.gameState.players);
         for (let i = entries.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [entries[i], entries[j]] = [entries[j], entries[i]];
         }
+        // Name bots AFTER shuffle so Bot_1/Bot_2/Bot_3 match their visual seat order
+        let botNum = 1;
+        entries.forEach(([, p]) => {
+            if (p.isBot && !p.isBanker) p.username = 'Bot_' + (botNum++);
+        });
         this.gameState.players = Object.fromEntries(entries);
     }
 
@@ -548,14 +1306,18 @@ class SipSamRoom {
 
     getPublicState(forSessionId) {
         const state = JSON.parse(JSON.stringify(this.gameState));
+        const isRevealPhase = ['revealing','roundEnd','gameOver'].includes(state.status);
         Object.entries(state.players).forEach(([sid, player]) => {
             // Always expose whether this player has been dealt cards (for table display)
             player.hasCards = player.rawCards && player.rawCards.length > 0;
             if (sid !== forSessionId) {
                 player.rawCards=[];
-                if (state.status==="arranging"||state.status==="betting") {
+                // Hide hands during betting/arranging — show ALL during reveal
+                if (!isRevealPhase) {
                     player.hand1=[]; player.hand2=[]; player.hand3=[];
                 }
+                // During reveal: banker hands always visible to everyone
+                // Player hands also visible (face-up cards + WIN/LOSE badges)
             }
         });
         return state;
@@ -568,7 +1330,98 @@ class SipSamRoom {
     }
 
     broadcastAll(msg)  { this.clients.forEach(c => this.sendToClient(c, msg)); }
-    broadcast(msg)     { this.clients.forEach(c => this.sendToClient(c, msg)); }
+    // ── CHAT BROADCAST ─────────────────────────────────────────
+    _onChatMessage(client, data) {
+        const player = this.gameState.players[client.sessionId];
+        if (!player || player.isGhostBot) return;
+        const message = String(data.message || '').trim().slice(0, 120);
+        if (!message) return;
+
+        // Broadcast sessionId + isBanker flag — client resolves position from its own seatMap
+        console.log(`[CHAT] ${player.username}: ${message}`);
+        this.broadcast({
+            type:      'chatMessage',
+            sessionId: client.sessionId,
+            username:  player.username,
+            message,
+            isBanker:  !!player.isBanker
+        });
+    }
+
+    // ── REQUEST CHIPS ────────────────────────────────────────
+    _onRequestChips(client, data) {
+        const requester = this.gameState.players[client.sessionId];
+        if (!requester || requester.isGhostBot || requester.isBot) return;
+        if (this.gameState.status === 'waiting') return; // no transfers in lobby
+
+        const targetSid = data.targetSid;
+        const target = this.gameState.players[targetSid];
+        if (!target) {
+            this.sendToClient(client, { type:'error', message:'Player not found.' });
+            return;
+        }
+        if (target.isGhostBot || target.disqualified) {
+            this.sendToClient(client, { type:'error', message:'Cannot request chips from a disqualified player.' });
+            return;
+        }
+        const amount = this.gameState.tableMaxBet; // always table max bet
+
+        console.log(`[REQUEST] ${requester.username} requests $${amount} from ${target.username}`);
+        // Notify the target player
+        this.broadcast({
+            type:            'chipRequest',
+            sessionId:       client.sessionId,
+            username:        requester.username,
+            targetSessionId: targetSid,
+            amount
+        });
+        this.sendToClient(client, { type:'chipRequestSent', toUsername: target.username, amount });
+    }
+
+    // ── SEND CHIPS ───────────────────────────────────────────
+    _onSendChips(client, data) {
+        const sender = this.gameState.players[client.sessionId];
+        if (!sender || sender.isGhostBot || sender.isBot) return;
+        if (this.gameState.status === 'waiting') return;
+
+        const targetSid = data.targetSid;
+        const target = this.gameState.players[targetSid];
+        if (!target) {
+            this.sendToClient(client, { type:'error', message:'Player not found.' });
+            return;
+        }
+        if (target.isGhostBot || target.disqualified) {
+            this.sendToClient(client, { type:'error', message:'Cannot send chips to a disqualified player.' });
+            return;
+        }
+        // Use client-specified amount, capped at tableMaxBet
+        const maxBet = this.gameState.tableMaxBet;
+        const amount = Math.min(data.amount || maxBet, maxBet);
+        if (!amount || amount <= 0) {
+            this.sendToClient(client, { type:'error', message:'Invalid amount.' });
+            return;
+        }
+        if (sender.chips < amount) {
+            this.sendToClient(client, { type:'error', message:`Insufficient wallet. You have $${sender.chips.toLocaleString()}, need $${amount.toLocaleString()}.` });
+            return;
+        }
+
+        // Deduct from WALLET (not bank)
+        sender.chips -= amount;
+        target.chips += amount;
+
+        console.log(`[SEND] ${sender.username} → ${target.username}: $${amount}`);
+        this.broadcast({
+            type:            'chipSent',
+            sessionId:       client.sessionId,
+            username:        sender.username,
+            targetSessionId: targetSid,
+            amount
+        });
+        this.broadcastState();
+    }
+
+        broadcast(msg)     { this.clients.forEach(c => this.sendToClient(c, msg)); }
 
     sendToClient(client, msg) {
         try { client.send(JSON.stringify(msg)); }
