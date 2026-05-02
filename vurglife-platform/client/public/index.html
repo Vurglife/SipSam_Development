@@ -379,9 +379,10 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
         <div class="gi">🃏</div><div class="gn">SipSam</div>
         <div class="gd">The Caribbean card game. 3 hands. Beat the Banker. Specials pay big.</div>
       </div>
-      <div class="gcard soon"><div class="gi">🥃</div><div class="gn">Rhum 32</div><div class="gd">Classic Caribbean rum game. Coming soon.</div></div>
-      <div class="gcard soon"><div class="gi">🤠</div><div class="gn">Texas Hold'em</div><div class="gd">World-famous poker variant. Coming soon.</div></div>
-      <div class="gcard soon"><div class="gi">🎴</div><div class="gn">Black Jack</div><div class="gd">Beat the dealer to 21. Coming soon.</div></div>
+      <div class="gcard live" onclick="showScreen('screen-register')"><div class="gi">🥃</div><div class="gn">Rhum 32</div><div class="gd">Beat the Dealer. Stay under 32. Specials pay big.</div></div>
+      <div class="gcard live" onclick="showScreen('screen-register')"><div class="gi">🤠</div><div class="gn">Texas Hold'em</div><div class="gd">World-famous poker variant. Bluff, bet, and dominate.</div></div>
+      <div class="gcard live" onclick="showScreen('screen-register')"><div class="gi">🎴</div><div class="gn">Black Jack</div><div class="gd">Beat the dealer to 21. Classic casino action.</div></div>
+      <div class="gcard live" onclick="showScreen('screen-register')"><div class="gi">🎡</div><div class="gn">Roulette</div><div class="gd">American or European wheel. Spin to win. 35:1 straight up.</div></div>
     </div>
   </div>
 </div>
@@ -391,7 +392,7 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
   <div class="auth-box">
     <div class="auth-head">
       <img src="/images/vurglife-logo.png" alt="VurgLife" class="auth-logo" onerror="this.style.display='none'">
-      <div class="auth-brand">SipSam by VurgLife</div>
+      <div class="auth-brand">VurgLife</div>
       <div class="auth-sub">Sign in to your account</div>
     </div>
     <div class="auth-body">
@@ -413,7 +414,7 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
   <div class="auth-box">
     <div class="auth-head">
       <img src="/images/vurglife-logo.png" alt="VurgLife" class="auth-logo" onerror="this.style.display='none'">
-      <div class="auth-brand">SipSam by VurgLife</div>
+      <div class="auth-brand">VurgLife</div>
       <div class="auth-sub">Create your free account</div>
     </div>
     <div class="auth-body">
@@ -475,6 +476,10 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
       <div class="ni" onclick="showPanel('getchips')"><span class="ni-ico">🪙</span><span class="ni-lbl">Get Chips</span></div>
       <div class="nav-sec">Games</div>
       <div class="ni" onclick="showPanel('play')"><span class="ni-ico">♠</span><span class="ni-lbl">Play SipSam</span></div>
+      <div class="ni" onclick="showPanel('play-rhum32')"><span class="ni-ico">🥃</span><span class="ni-lbl">Play Rhum32</span></div>
+      <div class="ni" onclick="showPanel('play-blackjack')"><span class="ni-ico">🎴</span><span class="ni-lbl">Play Blackjack</span></div>
+      <div class="ni" onclick="showPanel('play-holdem')"><span class="ni-ico">🤠</span><span class="ni-lbl">Play Hold'em</span></div>
+      <div class="ni" onclick="showPanel('play-roulette')"><span class="ni-ico">🎡</span><span class="ni-lbl">Play Roulette</span></div>
       <div class="ni" onclick="showPanel('history')"><span class="ni-ico">📊</span><span class="ni-lbl">Game History</span></div>
       <div class="ni" onclick="showPanel('rewards')"><span class="ni-ico">🏆</span><span class="ni-lbl">Rewards & Milestones</span></div>
       <div class="nav-sec">Social</div>
@@ -510,8 +515,14 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
           <div class="sc"><div class="sc-lbl">Games Played</div><div class="sc-val" id="home-games">0</div></div>
           <div class="sc"><div class="sc-lbl">Win Rate</div><div class="sc-val" id="home-wr">—</div></div>
         </div>
-        <div class="sh">♠ SipSam — Choose Your Table</div>
-        <div class="tgrid" id="tgrid-home"></div>
+        <div class="sh">Choose Your Game</div>
+        <div class="games-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:20px">
+          <div class="gcard live" onclick="showPanel('play')"><div class="gi">🃏</div><div class="gn">SipSam</div><div class="gd">Beat the Banker. 3 hands. Specials pay big.</div></div>
+          <div class="gcard live" onclick="showPanel('play-rhum32')"><div class="gi">🥃</div><div class="gn">Rhum 32</div><div class="gd">Beat the Dealer. Stay under 32.</div></div>
+          <div class="gcard live" onclick="showPanel('play-blackjack')"><div class="gi">🎴</div><div class="gn">Black Jack</div><div class="gd">Beat the dealer to 21.</div></div>
+          <div class="gcard live" onclick="showPanel('play-holdem')"><div class="gi">🤠</div><div class="gn">Texas Hold'em</div><div class="gd">Bluff, bet, dominate.</div></div>
+          <div class="gcard live" onclick="showPanel('play-roulette')"><div class="gi">🎡</div><div class="gn">Roulette</div><div class="gd">Spin the wheel. American or European.</div></div>
+        </div>
         <div class="sh">📺 Earn Free Chips</div>
         <div class="adp">
           <div class="adp-info" style="flex:1">
@@ -612,10 +623,88 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
         </div>
         <div class="sh" style="margin-top:20px">Other VurgLife Games</div>
         <div class="games-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
-          <div class="gcard soon"><div class="gi">🥃</div><div class="gn">Rhum 32</div><div class="gd">Coming soon</div></div>
-          <div class="gcard soon"><div class="gi">🤠</div><div class="gn">Texas Hold'em</div><div class="gd">Coming soon</div></div>
-          <div class="gcard soon"><div class="gi">🎴</div><div class="gn">Black Jack</div><div class="gd">Coming soon</div></div>
+          <div class="gcard live" onclick="showPanel('play-rhum32')"><div class="gi">🥃</div><div class="gn">Rhum 32</div><div class="gd">Beat the Dealer!</div></div>
+          <div class="gcard live" onclick="showPanel('play-blackjack')"><div class="gi">🎴</div><div class="gn">Black Jack</div><div class="gd">Beat the dealer to 21!</div></div>
+          <div class="gcard live" onclick="showPanel('play-holdem')"><div class="gi">🤠</div><div class="gn">Texas Hold'em</div><div class="gd">Bluff, bet, dominate!</div></div>
         </div>
+      </div>
+
+      <!-- PLAY RHUM32 -->
+      <div id="panel-play-rhum32" class="panel">
+        <div class="ptitle">Play Rhum32</div>
+        <div class="psub">Beat the Dealer — stay under 32. Select a table below.</div>
+        <div class="tgrid" id="tgrid-rhum32"></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;font-size:13px;color:var(--text-mid);margin-top:4px">
+          💡 <strong style="color:var(--text-hi)">How it works:</strong> Place a Front Bet to enter each round. After seeing 4 cards (and one of the dealer's), double down with a Back Bet or fold. Dealer busts over 32 — specials pay up to 100:1!
+        </div>
+        <div class="sh" style="margin-top:20px">Table Requirements</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;color:var(--text-mid)">
+          <thead><tr style="border-bottom:1px solid var(--border);text-align:left">
+            <th style="padding:8px">Table</th><th style="padding:8px">Max Front Bet</th><th style="padding:8px">Tie Bet Range</th><th style="padding:8px">Min Bank</th>
+          </tr></thead>
+          <tbody>
+            <tr><td style="padding:6px 8px">$100</td><td style="padding:6px 8px">$500</td><td style="padding:6px 8px">$50 – $100</td><td style="padding:6px 8px">$3,000</td></tr>
+            <tr><td style="padding:6px 8px">$500</td><td style="padding:6px 8px">$3,000</td><td style="padding:6px 8px">$100 – $500</td><td style="padding:6px 8px">$15,000</td></tr>
+            <tr><td style="padding:6px 8px">$1,000</td><td style="padding:6px 8px">$5,000</td><td style="padding:6px 8px">$500 – $1,000</td><td style="padding:6px 8px">$25,000</td></tr>
+            <tr><td style="padding:6px 8px">$5,000</td><td style="padding:6px 8px">$10,000</td><td style="padding:6px 8px">$1,000 – $5,000</td><td style="padding:6px 8px">$100,000</td></tr>
+            <tr><td style="padding:6px 8px">VIP $10,000</td><td style="padding:6px 8px">$100,000</td><td style="padding:6px 8px">No Limit</td><td style="padding:6px 8px">$1,000,000</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- PLAY BLACKJACK -->
+      <div id="panel-play-blackjack" class="panel">
+        <div class="ptitle">Play Blackjack</div>
+        <div class="psub">Select a table — your bank must meet the minimum requirement</div>
+        <div class="tgrid" id="tgrid-bj"></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;font-size:13px;color:var(--text-mid);margin-top:4px">
+          💡 <strong style="color:var(--text-hi)">How it works:</strong> Get dealt cards, try to beat the dealer without going over 21. Hit, stand, double down, or split. Classic casino rules.
+        </div>
+        <div class="sh" style="margin-top:20px">Other VurgLife Games</div>
+        <div class="games-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+          <div class="gcard live" onclick="showPanel('play')"><div class="gi">🃏</div><div class="gn">SipSam</div><div class="gd">Beat the Banker!</div></div>
+          <div class="gcard live" onclick="showPanel('play-rhum32')"><div class="gi">🥃</div><div class="gn">Rhum 32</div><div class="gd">Beat the Dealer!</div></div>
+          <div class="gcard live" onclick="showPanel('play-holdem')"><div class="gi">🤠</div><div class="gn">Texas Hold'em</div><div class="gd">Bluff, bet, dominate!</div></div>
+        </div>
+      </div>
+
+      <!-- PLAY HOLDEM -->
+      <div id="panel-play-holdem" class="panel">
+        <div class="ptitle">Texas Hold'em</div>
+        <div class="psub">Select a table — your bank must meet the minimum requirement</div>
+        <div class="tgrid" id="tgrid-holdem"></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;font-size:13px;color:var(--text-mid);margin-top:4px">
+          💡 <strong style="color:var(--text-hi)">How it works:</strong> Two hole cards, five community cards. Bet in rounds: pre-flop, flop, turn, river. Best 5-card hand wins the pot.
+        </div>
+        <div class="sh" style="margin-top:20px">Other VurgLife Games</div>
+        <div class="games-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+          <div class="gcard live" onclick="showPanel('play')"><div class="gi">🃏</div><div class="gn">SipSam</div><div class="gd">Beat the Banker!</div></div>
+          <div class="gcard live" onclick="showPanel('play-rhum32')"><div class="gi">🥃</div><div class="gn">Rhum 32</div><div class="gd">Beat the Dealer!</div></div>
+          <div class="gcard live" onclick="showPanel('play-blackjack')"><div class="gi">🎴</div><div class="gn">Black Jack</div><div class="gd">Beat the dealer to 21!</div></div>
+        </div>
+      </div>
+
+      <!-- PLAY ROULETTE -->
+      <div id="panel-play-roulette" class="panel">
+        <div class="ptitle">Play Roulette</div>
+        <div class="psub">Place your chips. Spin the wheel. Pick a table — variant (American or European) chosen at the table.</div>
+        <div class="tgrid" id="tgrid-roulette"></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;font-size:13px;color:var(--text-mid);margin-top:4px">
+          💡 <strong style="color:var(--text-hi)">How it works:</strong> Place chips on numbers, colors, dozens, or columns during a 20s betting window. The wheel spins. Straight-up pays 35:1, even-money bets pay 1:1. European tables follow the <em>la partage</em> rule (half stake returned on zero for even-money bets).
+        </div>
+        <div class="sh" style="margin-top:20px">Table Requirements</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;color:var(--text-mid)">
+          <thead><tr style="border-bottom:1px solid var(--border);text-align:left">
+            <th style="padding:8px">Table</th><th style="padding:8px">Max Bet</th><th style="padding:8px">Wallet Size</th><th style="padding:8px">Min Bank</th>
+          </tr></thead>
+          <tbody>
+            <tr><td style="padding:6px 8px">$100</td><td style="padding:6px 8px">$500</td><td style="padding:6px 8px">$2,500</td><td style="padding:6px 8px">$2,500</td></tr>
+            <tr><td style="padding:6px 8px">$1,000</td><td style="padding:6px 8px">$5,000</td><td style="padding:6px 8px">$25,000</td><td style="padding:6px 8px">$25,000</td></tr>
+            <tr><td style="padding:6px 8px">$5,000</td><td style="padding:6px 8px">$25,000</td><td style="padding:6px 8px">$120,000</td><td style="padding:6px 8px">$120,000</td></tr>
+            <tr><td style="padding:6px 8px">VIP $10,000</td><td style="padding:6px 8px">$50,000</td><td style="padding:6px 8px">$250,000</td><td style="padding:6px 8px">$250,000</td></tr>
+            <tr><td style="padding:6px 8px">VIP $50,000</td><td style="padding:6px 8px">$250,000</td><td style="padding:6px 8px">$1,000,000</td><td style="padding:6px 8px">$1,000,000</td></tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- HISTORY -->
@@ -794,15 +883,95 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
 
         <!-- RHUM 32 -->
         <div id="rc-rhum32" class="rc">
-          <div class="rsec"><h3>Rhum 32 — Coming Soon</h3><p>Full rules will be published when this game launches on VurgLife. Stay tuned!</p></div>
-        </div>
+          <div class="rsec"><h3>Game Overview</h3>
+            <p>Rhum32 is a Caribbean casino card game played with <strong>1 standard deck</strong>. Up to <strong>6 players</strong> compete against the <strong>Dealer</strong> (House). The goal is to have a hand value <strong>lower</strong> than the Dealer's. If the Dealer's hand crosses 32, the Dealer automatically loses.</p>
+          </div>
+          <div class="rsec"><h3>Table Selection &amp; Bank Requirements</h3>
+            <table class="stbl">
+              <tr><th>Table</th><th>Max Front Bet</th><th>Tie Bet Range</th><th>Min Bank</th></tr>
+              <tr><td>$100</td><td>$500</td><td>$50 – $100</td><td>$3,000</td></tr>
+              <tr><td>$500</td><td>$3,000</td><td>$100 – $500</td><td>$15,000</td></tr>
+              <tr><td>$1,000</td><td>$5,000</td><td>$500 – $1,000</td><td>$25,000</td></tr>
+              <tr><td>$5,000</td><td>$10,000</td><td>$1,000 – $5,000</td><td>$100,000</td></tr>
+              <tr><td>VIP $10,000</td><td>$100,000</td><td>No Limit</td><td>$1,000,000</td></tr>
+            </table>
+          </div>
+          <div class="rsec"><h3>Card Values</h3>
+            <ul><li><strong>Ace</strong> = 1</li><li><strong>2–9</strong> = face value</li><li><strong>10, Jack, Queen, King</strong> = 10 each</li></ul>
+          </div>
+          <div class="rsec"><h3>Zero Rules (Cards Worth 0)</h3>
+            <p>Certain card combinations within your hand count as <strong>0</strong>:</p>
+            <ul>
+              <li><strong>3 of a Kind</strong> — three cards of the same rank = 0</li>
+              <li><strong>4 of a Kind</strong> — four cards of the same rank = 0</li>
+              <li><strong>Straight Flush (3+ cards)</strong> — consecutive cards of the same suit = 0</li>
+            </ul>
+            <div class="hl"><p>Example: 5&#9827; 6&#9827; 7&#9827; 3&#9829; 6&#9829; = hand value 9 (the 5,6,7 of clubs = 0, so 3+6 = 9)</p></div>
+          </div>
+          <div class="rsec"><h3>Game Flow</h3>
+            <ol>
+              <li><strong>Front Bet</strong> — Players place their Front Bet (10 seconds). Optional Tie Bet also placed now.</li>
+              <li><strong>Deal 4 Cards</strong> — Dealer deals 4 cards to each player and themselves. Dealer's 4th card is shown face-up.</li>
+              <li><strong>Decision (10s)</strong> — Players see their 4 cards + dealer's shown card. Choose:
+                <ul><li><strong>Bet (Stay In)</strong> — Pay a Back Bet = 2x Front Bet</li><li><strong>Push (Fold)</strong> — Surrender Front Bet, sit out the round</li></ul>
+              </li>
+              <li><strong>Deal 5th Card</strong> — Remaining players and dealer receive their final card.</li>
+              <li><strong>Reveal &amp; Payout</strong> — All hands shown, payouts calculated.</li>
+            </ol>
+          </div>
+          <div class="rsec"><h3>Winning &amp; Losing</h3>
+            <table class="stbl">
+              <tr><th>Scenario</th><th>Result</th></tr>
+              <tr><td>Player value &lt; Dealer value (Dealer &le; 32)</td><td style="color:var(--green)">Player wins</td></tr>
+              <tr><td>Player value &gt; Dealer value (Dealer &le; 32)</td><td style="color:var(--red)">Dealer wins</td></tr>
+              <tr><td>Player value = Dealer value</td><td>Tie — no payment (Tie Bet pays if placed)</td></tr>
+              <tr><td>Dealer value &gt; 32</td><td style="color:var(--green)">Dealer busts — all players win Front Bet 1:1</td></tr>
+            </table>
+          </div>
+          <div class="rsec"><h3>Payments &amp; Specials</h3>
+            <table class="stbl">
+              <tr><th>Hand Value</th><th>Front Bet</th><th>Back Bet</th><th>Bonus</th></tr>
+              <tr><td>A-5 Special (same suit)</td><td>1:1</td><td style="color:var(--gold-hi)">100:1</td><td style="color:var(--gold-hi)">$75,000</td></tr>
+              <tr><td>0 Special (5-card straight flush)</td><td>1:1</td><td style="color:var(--gold-hi)">50:1</td><td style="color:var(--gold-hi)">$30,000</td></tr>
+              <tr><td>1–5</td><td>1:1</td><td style="color:var(--gold-hi)">20:1</td><td style="color:var(--gold-hi)">$5,000</td></tr>
+              <tr><td>4–7</td><td>1:1</td><td style="color:var(--gold-hi)">4:1</td><td style="color:var(--gold-hi)">$2,500</td></tr>
+              <tr><td>8–11</td><td>1:1</td><td style="color:var(--gold-hi)">3:1</td><td style="color:var(--gold-hi)">$1,000</td></tr>
+              <tr><td>12–17</td><td>1:1</td><td>2:1</td><td>—</td></tr>
+              <tr><td>18–31</td><td>1:1</td><td>1:1</td><td>—</td></tr>
+              <tr><td>47 Special (4 face + 7)</td><td>1:1</td><td>2:1</td><td>—</td></tr>
+              <tr><td>48 Special (4 face + 8)</td><td>1:1</td><td>3:1</td><td>—</td></tr>
+              <tr><td>49 Special (4 face + 9)</td><td>1:1</td><td style="color:var(--gold-hi)">6:1</td><td>—</td></tr>
+              <tr><td>50 Special (5 face cards)</td><td>1:1</td><td style="color:var(--gold-hi)">7:1</td><td>—</td></tr>
+            </table>
+            <div class="hl" style="margin-top:10px"><p>47–50 Specials require NO 3/4-of-a-kind and NO straight flush of 3+ cards in the hand. The Dealer never benefits from these specials.</p></div>
+          </div>
+          <div class="rsec"><h3>Tie Bet</h3>
+            <p>Optional bet placed before the round. If your hand value equals the Dealer's, the Tie Bet pays <strong>20:1</strong>. Your Front and Back Bets are returned on a tie. If you don't tie, the Tie Bet is lost.</p>
+          </div>
+          <div class="rsec"><h3>Dealer Crosses 32</h3>
+            <p>If the Dealer's 5-card hand exceeds 32, all remaining players win their <strong>Front Bet 1:1</strong>. Back Bets are returned. No special multipliers apply on a bust.</p>
+          </div>
+          <div class="rsec"><h3>Freeze Bets</h3>
+            <p>Players can freeze their bet amount so it carries over automatically between rounds. Unfreeze to change bets during the next betting window.</p>
+          </div>
+        </div><!-- /rhum32 -->
         <!-- HOLDEM -->
         <div id="rc-holdem" class="rc">
-          <div class="rsec"><h3>Texas Hold'em — Coming Soon</h3><p>Full rules will be published when this game launches on VurgLife. Stay tuned!</p></div>
+          <div class="rsec"><h3>Texas Hold'em</h3>
+            <p><strong>Overview:</strong> Texas Hold'em is the world's most popular poker variant. Each player receives 2 hole cards, then 5 community cards are dealt face-up. Build the best 5-card hand from any combination of your hole cards and community cards.</p>
+            <p><strong>Betting Rounds:</strong> Pre-Flop (after hole cards), Flop (3 community cards), Turn (4th card), River (5th card). Actions: Check, Bet, Call, Raise, Fold, All-In.</p>
+            <p><strong>Hand Rankings (high to low):</strong> Royal Flush, Straight Flush, Four of a Kind, Full House, Flush, Straight, Three of a Kind, Two Pair, One Pair, High Card.</p>
+            <p><strong>Blinds:</strong> Small blind (half the min bet) and big blind (min bet) rotate each hand. The player left of the dealer posts the small blind.</p>
+          </div>
         </div>
         <!-- BLACKJACK -->
         <div id="rc-blackjack" class="rc">
-          <div class="rsec"><h3>Black Jack — Coming Soon</h3><p>Full rules will be published when this game launches on VurgLife. Stay tuned!</p></div>
+          <div class="rsec"><h3>Black Jack</h3>
+            <p><strong>Overview:</strong> Beat the dealer by getting a hand value closer to 21 without going over. Number cards are face value, face cards are 10, Aces are 1 or 11.</p>
+            <p><strong>Actions:</strong> Hit (draw another card), Stand (keep your hand), Double Down (double your bet and draw exactly one more card), Split (if you have a pair, split into two hands).</p>
+            <p><strong>Blackjack:</strong> An Ace + 10-value card on the initial deal is a Blackjack and pays 3:2. Dealer must hit on 16 or less and stand on 17 or more.</p>
+            <p><strong>Insurance:</strong> When the dealer shows an Ace, you can take insurance (side bet at 2:1) against the dealer having Blackjack.</p>
+          </div>
         </div>
       </div><!-- /rules panel -->
 
@@ -850,14 +1019,43 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
 // ═══════════════════════════════════════════════════════
 // VURGLIFE DASHBOARD CLIENT
 // ═══════════════════════════════════════════════════════
-let currentUser = null, authToken = null;
+let currentUser = null, authToken = localStorage.getItem('vurglife_token') || null;
 let pendingTable = null, adCtx = null, adTimer = null;
 
 const TABLES = {
   100:  {minBet:100,  inc:50,  maxBet:150,  minBank:5000,  wallet:3000 },
   250:  {minBet:250,  inc:50,  maxBet:500,  minBank:15000, wallet:10000},
   500:  {minBet:500,  inc:100, maxBet:1000, minBank:30000, wallet:20000},
-  1000: {minBet:1000, inc:500, maxBet:2000, minBank:60000, wallet:40000}
+  1000: {minBet:1000, inc:500, maxBet:2000, minBank:60000, wallet:40000},
+  10000:{minBet:10000,inc:10000,maxBet:50000,minBank:2000000,wallet:1000000}
+};
+
+const RHUM32_TABLES = {
+  100:   {minBet:100,   maxBet:500,    tieBetMin:50,   tieBetMax:100,   minBank:3000,    wallet:3000  },
+  500:   {minBet:500,   maxBet:3000,   tieBetMin:100,  tieBetMax:500,   minBank:15000,   wallet:15000 },
+  1000:  {minBet:1000,  maxBet:5000,   tieBetMin:500,  tieBetMax:1000,  minBank:25000,   wallet:25000 },
+  5000:  {minBet:5000,  maxBet:10000,  tieBetMin:1000, tieBetMax:5000,  minBank:100000,  wallet:100000},
+  10000: {minBet:10000, maxBet:100000, tieBetMin:0,    tieBetMax:999999,minBank:1000000, wallet:500000}
+};
+
+const BJ_TABLES = {
+  100: { minBet:100, maxBet:500, wallet:2500, minBank:2500, label:'Standard' },
+};
+
+const HOLDEM_TABLES = {
+  10:   { minBet:10,   maxBet:100,   wallet:1000,  minBank:2000,  maxSeats:6, label:'Micro',        tier:'Beginner',   inc:5   },
+  50:   { minBet:50,   maxBet:500,   wallet:5000,  minBank:8000,  maxSeats:6, label:'Starter',      tier:'Casual',     inc:25  },
+  100:  { minBet:100,  maxBet:1000,  wallet:10000, minBank:20000, maxSeats:9, label:'Standard',     tier:'Regular',    inc:50  },
+  500:  { minBet:500,  maxBet:5000,  wallet:50000, minBank:75000, maxSeats:9, label:'High Roller',  tier:'Premium',    inc:250 },
+  1000: { minBet:1000, maxBet:10000, wallet:100000,minBank:150000,maxSeats:9, label:'VIP Nosebleed',tier:'VIP',        inc:500 },
+};
+
+const ROULETTE_TABLES = {
+  100:   { minBet:100,   maxBet:500,    wallet:2500,    minBank:2500,    label:'Standard'   },
+  1000:  { minBet:1000,  maxBet:5000,   wallet:25000,   minBank:25000,   label:'Premium'    },
+  5000:  { minBet:5000,  maxBet:25000,  wallet:120000,  minBank:120000,  label:'High Stakes'},
+  10000: { minBet:10000, maxBet:50000,  wallet:250000,  minBank:250000,  label:'VIP'        },
+  50000: { minBet:50000, maxBet:250000, wallet:1000000, minBank:1000000, label:'VIP Whale'  },
 };
 
 const PKGS = [
@@ -889,6 +1087,10 @@ function showScreen(id) {
 const PANEL_TITLES = {
   home:'Home',profile:'Player Profile',messages:'Messages',
   bank:'Bank',getchips:'Get Chips',play:'Play SipSam',
+  'play-rhum32':'Play Rhum32',
+  'play-blackjack':'Play Blackjack',
+  'play-holdem':'Texas Hold\'em',
+  'play-roulette':'Play Roulette',
   history:'Game History',rewards:'Rewards & Milestones',
   friends:'Friends Network',rules:'Rules'
 };
@@ -901,10 +1103,15 @@ function showPanel(name) {
   });
   const t = document.getElementById('topbar-title');
   if (t) t.textContent = PANEL_TITLES[name] || name;
-  if (name==='play')     buildGrid('tgrid-play');
-  if (name==='getchips') buildPkgs();
+  if (name==='play')          buildGrid('tgrid-play');
+  if (name==='play-rhum32')     buildRhum32Grid('tgrid-rhum32');
+  if (name==='play-blackjack') buildBJGrid('tgrid-bj');
+  if (name==='play-holdem')    buildHoldemGrid('tgrid-holdem');
+  if (name==='play-roulette')  buildRouletteGrid('tgrid-roulette');
+  if (name==='getchips')       buildPkgs();
   if (name==='rewards')  refreshRewards();
   if (name==='history')  loadHistory();
+  if (name==='friends')  loadFriends();
 }
 
 // ── TOAST ─────────────────────────────────────────────
@@ -928,7 +1135,7 @@ async function doRegister() {
   const res = await apiPost('/api/auth/register',{email,username:user,password:pw});
   btn.disabled=false; btn.innerHTML='♠ Create Account — Get 5,000 Free Chips';
   if (res.error) { err.textContent=res.error; err.classList.add('show'); return; }
-  if (res.token) authToken=res.token;
+  if (res.token) { authToken=res.token; localStorage.setItem('vurglife_token', authToken); }
   currentUser=res.user;
   ok.textContent=`Welcome, ${user}! Loading dashboard...`; ok.classList.add('show');
   setTimeout(loadDashboard,1000);
@@ -943,14 +1150,14 @@ async function doLogin() {
   const res = await apiPost('/api/auth/login',{identifier,password});
   btn.disabled=false; btn.innerHTML='Sign In';
   if (res.error) { err.textContent=res.error; err.classList.add('show'); return; }
-  if (res.token) authToken=res.token;
+  if (res.token) { authToken=res.token; localStorage.setItem('vurglife_token', authToken); }
   currentUser=res.user;
   loadDashboard();
 }
 
 async function doLogout() {
   try { await apiPost('/api/auth/logout',{}); } catch(e) {}
-  currentUser=null; authToken=null;
+  currentUser=null; authToken=null; localStorage.removeItem('vurglife_token');
   showScreen('screen-landing');
 }
 
@@ -968,10 +1175,9 @@ async function loadDashboard() {
   if (!currentUser) {
     const res = await apiGet('/api/auth/me');
     if (!res?.ok) { showScreen('screen-login'); return; }
-    currentUser=res.user; if (res.token) authToken=res.token;
+    currentUser=res.user; if (res.token) { authToken=res.token; localStorage.setItem('vurglife_token', authToken); }
   }
   refreshUI();
-  buildGrid('tgrid-home');
   buildPkgs();
   refreshRewards();
   checkAdStatus();
@@ -1032,23 +1238,233 @@ function buildGrid(gridId) {
   });
 }
 
+// ── RHUM32 TABLE GRID ────────────────────────────────
+function buildRhum32Grid(gridId) {
+  const grid=document.getElementById(gridId); if (!grid) return;
+  const bank=getBank(); grid.innerHTML='';
+  Object.values(RHUM32_TABLES).forEach(t => {
+    const ok=bank>=t.minBank;
+    const vipLabel = t.minBet===10000 ? 'VIP ' : '';
+    const d=document.createElement('div');
+    d.className='tc'+(ok?'':' locked');
+    d.innerHTML=`<div class="tc-bet">${vipLabel}$${t.minBet.toLocaleString()}</div>
+      <div class="tc-name">Rhum32 Table</div>
+      <div>
+        <div class="tc-row"><span class="tc-l">Min Bank Required</span><span class="tc-r">$${t.minBank.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Wallet Size</span><span class="tc-r gold">$${t.wallet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Max Front Bet</span><span class="tc-r">$${t.maxBet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Tie Bet</span><span class="tc-r">${t.tieBetMin===0?'No Limit':'$'+t.tieBetMin.toLocaleString()+' – $'+t.tieBetMax.toLocaleString()}</span></div>
+      </div>
+      <div style="margin-top:14px">
+        ${ok?`<button class="btn bp bsm bfull" onclick="enterRhum32Table(${t.minBet})">Enter Table →</button>`
+            :`<div style="font-size:11px;color:var(--text-dim)">Need $${t.minBank.toLocaleString()} in bank</div>`}
+      </div>`;
+    grid.appendChild(d);
+  });
+}
+
 // ── TABLE ENTRY ───────────────────────────────────────
+let pendingGameType = 'sipsam'; // track which game we're entering
+
 function enterTable(minBet) {
   pendingTable=TABLES[Number(minBet)];
+  pendingGameType='sipsam';
   if (!pendingTable) return;
   runAd('pregame',10,'⚡ Quick Ad Break','Watch a short ad to enter the table. Your seat is reserved.');
 }
 
-function cancelPregame() { stopAd(); pendingTable=null; }
+function enterRhum32Table(minBet) {
+  const t=RHUM32_TABLES[Number(minBet)];
+  if (!t) { console.error('[Dashboard] No RHUM32 table for minBet:', minBet); return; }
+  const bank=getBank();
+  if (bank<t.minBank) { toast('Insufficient Balance',`You need $${t.minBank.toLocaleString()} in your bank to enter this table.`); return; }
+
+  const userData = {
+    id: currentUser.id||currentUser.user_id||0,
+    username: currentUser.username,
+    token: authToken||'',
+    bankBalance: currentUser.bankBalance||currentUser.bank_balance||0,
+  };
+  console.log('[Dashboard] Setting rhum32 session:', userData.username, 'table:', t.minBet);
+  sessionStorage.setItem('rhum32_table', JSON.stringify(t));
+  sessionStorage.setItem('rhum32_user', JSON.stringify(userData));
+
+  // Verify it was stored
+  const check = sessionStorage.getItem('rhum32_user');
+  console.log('[Dashboard] Verified rhum32_user in sessionStorage:', check ? 'YES' : 'NO');
+
+  window.location.href='/rhum32/';
+}
+
+// ── BLACKJACK TABLE GRID ─────────────────────────────
+function buildBJGrid(gridId) {
+  const grid=document.getElementById(gridId); if (!grid) return;
+  const bank=getBank(); grid.innerHTML='';
+  Object.values(BJ_TABLES).forEach(t => {
+    const ok=bank>=t.minBank;
+    const d=document.createElement('div');
+    d.className='tc'+(ok?'':' locked');
+    d.innerHTML=`<div class="tc-bet">$${t.minBet.toLocaleString()}</div>
+      <div class="tc-name">${t.label} Table</div>
+      <div>
+        <div class="tc-row"><span class="tc-l">Min Bank Required</span><span class="tc-r">$${t.minBank.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Wallet Size</span><span class="tc-r gold">$${t.wallet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Min Bet</span><span class="tc-r">$${t.minBet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Max Bet</span><span class="tc-r">$${t.maxBet.toLocaleString()}</span></div>
+      </div>
+      <div style="margin-top:14px">
+        ${ok?`<button class="btn bp bsm bfull" onclick="enterBJTable(${t.minBet})">Enter Table →</button>`
+            :`<div style="font-size:11px;color:var(--text-dim)">Need $${t.minBank.toLocaleString()} in bank</div>`}
+      </div>`;
+    grid.appendChild(d);
+  });
+}
+
+async function enterBJTable(minBet) {
+  const t=BJ_TABLES[Number(minBet)];
+  if (!t) return;
+  const bank=getBank();
+  if (bank<t.minBank) { toast('Insufficient Balance',`You need $${t.minBank.toLocaleString()} in your bank to enter this table.`); return; }
+  sessionStorage.removeItem('bj_table');
+  sessionStorage.setItem('bj_user', JSON.stringify({
+    id: currentUser.id||currentUser.user_id||0,
+    username: currentUser.username,
+    token: authToken||'',
+    avatar: currentUser.avatarPreset||currentUser.avatar_preset||'',
+    bankBalance: currentUser.bankBalance||currentUser.bank_balance||0,
+  }));
+  window.location.href='/blackjack/';
+}
+
+// ── HOLDEM TABLE GRID ────────────────────────────────
+function buildHoldemGrid(gridId) {
+  const grid=document.getElementById(gridId); if (!grid) return;
+  const bank=getBank(); grid.innerHTML='';
+  let recBet=null;
+  Object.values(HOLDEM_TABLES).forEach(t => { if (bank>=t.minBank) recBet=t.minBet; });
+  Object.values(HOLDEM_TABLES).forEach(t => {
+    const ok=bank>=t.minBank;
+    const rec=ok&&t.minBet===recBet;
+    const d=document.createElement('div');
+    d.className='tc'+(ok?'':' locked')+(rec?' tc-recommended':'');
+    d.innerHTML=`
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim)">${t.maxSeats}-MAX &middot; ${t.tier.toUpperCase()}</div>
+        ${rec?'<div style="font-size:9px;font-weight:700;color:var(--gold);background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.25);padding:2px 7px;border-radius:8px;letter-spacing:1px">RECOMMENDED</div>':''}
+      </div>
+      <div class="tc-bet">$${t.minBet.toLocaleString()}</div>
+      <div class="tc-name">${t.label} Table</div>
+      <div>
+        <div class="tc-row"><span class="tc-l">Min Bank Required</span><span class="tc-r">$${t.minBank.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Wallet Size</span><span class="tc-r gold">$${t.wallet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Big Blind</span><span class="tc-r">$${t.minBet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Max Seats</span><span class="tc-r">${t.maxSeats} players</span></div>
+      </div>
+      <div style="margin-top:14px">
+        ${ok?`<button class="btn bp bsm bfull" onclick="enterHoldemTable(${t.minBet})">Enter Table →</button>`
+            :`<div style="font-size:11px;color:var(--text-dim)">Need $${t.minBank.toLocaleString()} in bank</div>`}
+      </div>`;
+    grid.appendChild(d);
+  });
+}
+
+async function enterHoldemTable(minBet) {
+  const t=HOLDEM_TABLES[Number(minBet)];
+  if (!t) return;
+  const bank=getBank();
+  if (bank<t.minBank) { toast('Insufficient Balance',`You need $${t.minBank.toLocaleString()} in your bank to enter this table.`); return; }
+  sessionStorage.setItem('holdem_table', JSON.stringify({...t, minBet}));
+  sessionStorage.setItem('holdem_user', JSON.stringify({
+    id: currentUser.id||currentUser.user_id||0,
+    username: currentUser.username,
+    token: authToken||'',
+    avatar: currentUser.avatarPreset||currentUser.avatar_preset||'',
+    bankBalance: currentUser.bankBalance||currentUser.bank_balance||0,
+  }));
+  window.location.href='/holdem/';
+}
+
+// ── ROULETTE TABLE GRID ──────────────────────────────
+function buildRouletteGrid(gridId) {
+  const grid=document.getElementById(gridId); if (!grid) return;
+  const bank=getBank(); grid.innerHTML='';
+  Object.values(ROULETTE_TABLES).forEach(t => {
+    const ok=bank>=t.minBank;
+    const isVIP = t.minBet>=10000;
+    const d=document.createElement('div');
+    d.className='tc'+(ok?'':' locked');
+    d.innerHTML=`
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim)">${t.label.toUpperCase()}</div>
+        ${isVIP?'<div style="font-size:9px;font-weight:700;color:var(--gold);background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.25);padding:2px 7px;border-radius:8px;letter-spacing:1px">VIP</div>':''}
+      </div>
+      <div class="tc-bet">$${t.minBet.toLocaleString()}</div>
+      <div class="tc-name">${t.label} Table</div>
+      <div>
+        <div class="tc-row"><span class="tc-l">Min Bank Required</span><span class="tc-r">$${t.minBank.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Wallet Size</span><span class="tc-r gold">$${t.wallet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Min Bet</span><span class="tc-r">$${t.minBet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Max Bet</span><span class="tc-r">$${t.maxBet.toLocaleString()}</span></div>
+      </div>
+      <div style="margin-top:14px">
+        ${ok?`<button class="btn bp bsm bfull" onclick="enterRouletteTable(${t.minBet})">Enter Table →</button>`
+            :`<div style="font-size:11px;color:var(--text-dim)">Need $${t.minBank.toLocaleString()} in bank</div>`}
+      </div>`;
+    grid.appendChild(d);
+  });
+}
+
+async function enterRouletteTable(minBet) {
+  const t=ROULETTE_TABLES[Number(minBet)];
+  if (!t) return;
+  const bank=getBank();
+  if (bank<t.minBank) { toast('Insufficient Balance',`You need $${t.minBank.toLocaleString()} in your bank to enter this table.`); return; }
+
+  // Deduct wallet from bank on the platform
+  try {
+    const res = await apiPost('/api/game/roulette/enter', { tableMinBet: minBet });
+    if (res.error) { toast('⚠️ Error', res.error); return; }
+    if (res.newBankBalance != null) {
+      currentUser.bankBalance  = res.newBankBalance;
+      currentUser.bank_balance = res.newBankBalance;
+      refreshUI();
+    }
+  } catch(e) {
+    console.warn('[Roulette enter] platform call failed — continuing anyway:', e);
+  }
+
+  sessionStorage.setItem('roulette_table', JSON.stringify({...t, minBet}));
+  sessionStorage.setItem('roulette_user', JSON.stringify({
+    id: currentUser.id||currentUser.user_id||0,
+    username: currentUser.username,
+    token: authToken||'',
+    avatar: currentUser.avatarPreset||currentUser.avatar_preset||'',
+    bankBalance: currentUser.bankBalance||currentUser.bank_balance||0,
+  }));
+
+  // Pass handoff via URL so the roulette client picks it up directly.
+  const params = new URLSearchParams({
+    minBet:   String(t.minBet),
+    wallet:   String(t.wallet),
+    username: currentUser.username,
+    userId:   String(currentUser.id||currentUser.user_id||0),
+  });
+  window.location.href='/roulette/?' + params.toString();
+}
+
+function cancelPregame() { stopAd(); pendingTable=null; pendingGameType='sipsam'; }
 
 async function confirmEnter() {
   stopAd();
   document.getElementById('mo-pregame').classList.remove('show');
 
+  const gameType = pendingGameType || 'sipsam';
+  const storagePrefix = gameType === 'rhum32' ? 'rhum32' : 'sipsam';
+
   // Set sessionStorage FIRST — before any API calls that might fail
-  sessionStorage.setItem('sipsam_table',  JSON.stringify(pendingTable));
-  sessionStorage.setItem('sipsam_wallet', String(pendingTable.wallet || pendingTable.walletSize || 0));
-  sessionStorage.setItem('sipsam_user',   JSON.stringify({
+  sessionStorage.setItem(storagePrefix+'_table',  JSON.stringify(pendingTable));
+  sessionStorage.setItem(storagePrefix+'_wallet', String(pendingTable.wallet || pendingTable.walletSize || 0));
+  sessionStorage.setItem(storagePrefix+'_user',   JSON.stringify({
     id:       currentUser.id       || currentUser.user_id || 0,
     username: currentUser.username,
     token:    authToken || ''
@@ -1062,15 +1478,16 @@ async function confirmEnter() {
   refreshUI();
 
   // Try to record entry on server — but don't block redirect if it fails
+  const enterEndpoint = gameType === 'rhum32' ? '/api/game/rhum32/enter' : '/api/game/enter';
   try {
     await apiPost('/api/game/media/watch', {adType:'pregame'});
-    await apiPost('/api/game/enter', {tableMinBet: pendingTable.minBet});
+    await apiPost(enterEndpoint, {tableMinBet: pendingTable.minBet});
   } catch(e) {
     console.warn('[VurgLife] Enter API call failed — continuing anyway:', e);
   }
 
   // Redirect to game
-  window.location.href = '/sipsam';
+  window.location.href = gameType === 'rhum32' ? '/rhum32' : '/sipsam';
 }
 
 // ── AD ENGINE ─────────────────────────────────────────
@@ -1207,9 +1624,174 @@ function toggleAddFriend() {
   const b=document.getElementById('add-friend-box');
   b.style.display=b.style.display==='none'?'block':'none';
 }
+
+function friendAvatar(name) {
+  return String(name || '?').trim().slice(0,1).toUpperCase() || '?';
+}
+
+// HTML escape — was missing; without it the friend card .map would throw
+// `ReferenceError: escHtml is not defined` and the panel would stay on
+// "Loading friends..." forever.
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function friendEmpty(text) {
+  return '<div style="color:var(--text-dim);font-size:13px;padding:10px 0">'+text+'</div>';
+}
+
+function friendCard(friend) {
+  const name = friend.username || friend.friend_username || 'Unknown';
+  const id = friend.id || friend.friend_id || friend.user_id;
+  return '<div class="fcard">' +
+    '<div class="f-av">'+friendAvatar(name)+'</div>' +
+    '<div><div class="f-name">'+escHtml(name)+'</div><div class="f-status">Friend</div></div>' +
+    '<div class="f-acts"><button class="btn bgh bsm" onclick="removeFriend('+id+')">Remove</button></div>' +
+  '</div>';
+}
+
+async function loadFriends() {
+  const list=document.getElementById('friends-list');
+  const reqs=document.getElementById('friend-reqs');
+  if (list) list.innerHTML=friendEmpty('Loading friends...');
+  if (reqs) reqs.innerHTML=friendEmpty('Loading requests...');
+  const [friendsRes,pendingRes]=await Promise.all([
+    apiGet('/api/friends'),
+    apiGet('/api/friends/pending')
+  ]);
+  const friends=friendsRes.friends||[];
+  const pending=pendingRes.pending||[];
+  if (list) list.innerHTML=friends.length ? friends.map(friendCard).join('') : friendEmpty('No friends added yet.');
+  if (reqs) reqs.innerHTML=pending.length ? pending.map(r => {
+    const name=r.from_username||'Unknown';
+    return '<div class="fcard">' +
+      '<div class="f-av">'+friendAvatar(name)+'</div>' +
+      '<div><div class="f-name">'+escHtml(name)+'</div><div class="f-status">Pending request</div></div>' +
+      '<div class="f-acts">' +
+        '<button class="btn bp bsm" onclick="acceptFriend('+r.from_id+')">Accept</button>' +
+        '<button class="btn bgh bsm" onclick="removeFriend('+r.from_id+')">Reject</button>' +
+      '</div></div>';
+  }).join('') : friendEmpty('No pending requests.');
+}
+
 async function searchFriend() {
   const q=document.getElementById('friend-q').value.trim(); if (!q) return;
-  document.getElementById('friend-results').innerHTML='<div style="color:var(--text-dim);font-size:13px">Searching... (coming soon)</div>';
+  const box=document.getElementById('friend-results');
+  box.innerHTML=friendEmpty('Searching...');
+  const res=await apiPost('/api/friends/search',{query:q});
+  const users=res.users||[];
+  if (!users.length) { box.innerHTML=friendEmpty('No players found.'); return; }
+  box.innerHTML=users.map(u => {
+    const disabled = u.isFriend ? 'disabled' : '';
+    const label = u.isFriend ? 'Already Friends' : 'Add Friend';
+    return '<div class="fcard">' +
+      '<div class="f-av">'+friendAvatar(u.username)+'</div>' +
+      '<div><div class="f-name">'+escHtml(u.username)+'</div><div class="f-status">'+(u.isFriend?'Friend':'Player')+'</div></div>' +
+      '<div class="f-acts"><button class="btn bp bsm" '+disabled+' onclick="requestFriend('+u.id+')">'+label+'</button></div>' +
+    '</div>';
+  }).join('');
+}
+
+async function requestFriend(id) {
+  const res=await apiPost('/api/friends/request',{targetUserId:id});
+  if (res.ok) { toast('Request Sent','Friend request sent.'); document.getElementById('friend-results').innerHTML=''; loadFriends(); }
+  else toast('Request Failed',res.error||'Unable to send request.');
+}
+
+async function acceptFriend(id) {
+  const res=await apiPost('/api/friends/accept',{fromUserId:id});
+  if (res.ok) { toast('Friend Added','Request accepted.'); loadFriends(); }
+  else toast('Action Failed',res.error||'Unable to accept request.');
+}
+
+async function removeFriend(id) {
+  const res=await apiPost('/api/friends/reject',{targetUserId:id});
+  if (res.ok) { toast('Updated','Friend network updated.'); loadFriends(); }
+  else toast('Action Failed',res.error||'Unable to update friend.');
+}
+
+// ── INCOMING GAME INVITES ─────────────────────────────
+// Polls /api/friends/invites and shows a centered modal whenever a new
+// invite arrives. Without this, Vurg sending an invite to Vurglife was
+// invisible — the invite was stored on the server but the dashboard
+// never asked for it.
+const _seenInviteIds = new Set();
+let _inviteToken = null;
+async function pollGameInvites() {
+  if (!authToken) return;
+  try {
+    const r = await apiGet('/api/friends/invites');
+    if (!r || !r.ok) return;
+    for (const inv of (r.invites || [])) {
+      if (_seenInviteIds.has(inv.inviteId)) continue;
+      _seenInviteIds.add(inv.inviteId);
+      _showGameInviteModal(inv);
+    }
+  } catch(e) {}
+}
+
+function _gameLabel(g) { return ({sipsam:'SipSam',rhum32:'Rhum32',blackjack:'Blackjack',holdem:"Hold'em",roulette:'Roulette'}[g] || g); }
+function _gameDest(g)  { return ({sipsam:'/sipsam',rhum32:'/rhum32',blackjack:'/blackjack',holdem:'/holdem',roulette:'/roulette'}[g] || '/'); }
+function _gameSession(g) { return ({sipsam:['sipsam_user','sipsam_table'], rhum32:['rhum32_user','rhum32_table'], blackjack:['bj_user','bj_table'], holdem:['holdem_user','holdem_table'], roulette:['roulette_user','roulette_table']}[g] || ['game_user','game_table']); }
+
+function _showGameInviteModal(inv) {
+  // Build modal once if missing
+  let modal = document.getElementById('invite-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'invite-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)';
+    modal.innerHTML = `
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:28px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+        <div style="font-size:32px;margin-bottom:8px;text-align:center">🎴</div>
+        <div style="font-size:20px;font-weight:700;text-align:center;margin-bottom:8px">Game Invite</div>
+        <div id="invite-modal-body" style="text-align:center;color:var(--text);font-size:14px;line-height:1.6;margin-bottom:20px"></div>
+        <div style="display:flex;gap:10px">
+          <button id="invite-modal-decline" class="btn bgh" style="flex:1;padding:12px">Decline</button>
+          <button id="invite-modal-accept" class="btn bp" style="flex:2;padding:12px">Accept &amp; Join →</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  const body = document.getElementById('invite-modal-body');
+  const acceptBtn = document.getElementById('invite-modal-accept');
+  const declineBtn = document.getElementById('invite-modal-decline');
+  body.innerHTML = `<strong>${escHtml(inv.fromUsername)}</strong> invited you to <strong>${escHtml(_gameLabel(inv.game))}</strong><br>` +
+                   `<span style="color:var(--text-dim);font-size:12px">$${Number(inv.tableMinBet).toLocaleString()} minimum bet table</span>` +
+                   (inv.meetsMinBank === false ? `<div style="color:var(--red);font-size:12px;margin-top:8px">⚠️ You don't have the minimum bank for this table.</div>` : '');
+  modal.style.display = 'flex';
+  acceptBtn.onclick = async () => {
+    acceptBtn.disabled = declineBtn.disabled = true;
+    acceptBtn.textContent = 'Joining…';
+    const r = await apiPost('/api/friends/invite/accept', { inviteId: inv.inviteId });
+    if (!r || !r.ok) {
+      toast('⚠️ Failed', (r && r.error) || 'Could not accept invite.');
+      acceptBtn.disabled = declineBtn.disabled = false;
+      acceptBtn.textContent = 'Accept & Join →';
+      return;
+    }
+    // Set per-game session storage so the game client auto-logins to the right room.
+    const [userKey, tableKey] = _gameSession(r.game || inv.game);
+    sessionStorage.setItem(userKey, JSON.stringify({
+      username: currentUser?.username, token: authToken, avatar: currentUser?.avatar_url || '',
+      bankBalance: currentUser?.bank_balance, id: currentUser?.id
+    }));
+    sessionStorage.setItem(tableKey, JSON.stringify({
+      minBet: r.tableMinBet, ...(r.tableConfig || {}),
+      isInvitedJoiner: true, roomId: r.roomId
+    }));
+    modal.style.display = 'none';
+    window.location.href = _gameDest(r.game || inv.game) + '/';
+  };
+  declineBtn.onclick = () => { modal.style.display = 'none'; };
+}
+
+// Start polling once auth is established
+function startGameInvitePolling() {
+  if (_inviteToken) return;
+  pollGameInvites();
+  _inviteToken = setInterval(pollGameInvites, 8000);
 }
 
 // ── RULES ─────────────────────────────────────────────
@@ -1240,8 +1822,13 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   if (params.get('verified')==='success') toast('✅ Email Verified','Your account is now fully active!');
   const res = await apiGet('/api/auth/me');
   if (res?.ok && res.user) {
-    currentUser=res.user; if (res.token) authToken=res.token;
+    currentUser=res.user; if (res.token) { authToken=res.token; localStorage.setItem('vurglife_token', authToken); }
     loadDashboard();
+    startGameInvitePolling();
+    // Handle hash-based panel navigation (e.g. /#rhum32 from game exit)
+    const hash = window.location.hash.replace('#','');
+    const HASH_PANELS = { rhum32:'play-rhum32', sipsam:'play', blackjack:'play-blackjack', holdem:'play-holdem', bank:'bank', profile:'profile' };
+    if (hash && HASH_PANELS[hash]) { showPanel(HASH_PANELS[hash]); window.location.hash=''; }
   }
 });
 </script>

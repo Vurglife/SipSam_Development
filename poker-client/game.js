@@ -2241,7 +2241,9 @@ function startGame() {
     if (!selectedRounds || !selectedMinBet) return;
     const tableJson = sessionStorage.getItem('sipsam_table');
     const table     = tableJson ? JSON.parse(tableJson) : {};
-    sendMsg("startGame", { rounds: selectedRounds, tableMinBet: selectedMinBet, blitz: table.blitz === true });
+    // Blitz fires when the dashboard preselected blitz OR the lobby picked 5 rounds.
+    const isBlitz = (table.blitz === true) || (selectedRounds === 5);
+    sendMsg("startGame", { rounds: selectedRounds, tableMinBet: selectedMinBet, blitz: isBlitz });
 }
 
 // ── VURGLIFE PLATFORM AUTO-LOGIN ──────────────
