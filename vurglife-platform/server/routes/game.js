@@ -371,22 +371,37 @@ router.post('/enter', requireAuth, async (req, res) => {
     });
 });
 
-// POST /api/game/exit — return remaining wallet chips to bank
+// Recent-credit cooldown: prevents double-credits when both the explicit
+// /exit and the beforeunload beacon fire within the same exit. Survives
+// platform restarts only by losing the cooldown — but losing the cooldown
+// on a fresh process means the FIRST credit wins and there is no in-flight
+// double to defend against, so this is safe.
+const _ssRecentCredits = new Map(); // userId -> lastCreditAtMs
+const _SS_COOLDOWN_MS = 10000;
+function _ssRecentlyCredited(userId) {
+    const at = _ssRecentCredits.get(userId);
+    return !!(at && Date.now() - at < _SS_COOLDOWN_MS);
+}
+function _ssMarkCredited(userId) { _ssRecentCredits.set(userId, Date.now()); }
+
+// POST /api/game/exit — return remaining wallet chips to bank.
+// Always credits when invoked explicitly UNLESS we credited the same user
+// in the last 10 seconds (which means the beacon or an earlier call beat
+// us to it). This is safer than the previous "no-session" skip, which
+// silently dropped the wallet whenever the in-memory session map was
+// missing (e.g. after a platform restart mid-game).
 router.post('/exit', requireAuth, async (req, res) => {
     const { remainingWallet, tableMinBet } = req.body;
     if (typeof remainingWallet !== 'number' || remainingWallet < 0)
         return res.status(400).json({ error: 'Invalid wallet amount' });
 
-    // Refuse to credit if there's no active session — the caller is the
-    // second-or-third exit hook firing after the first one already
-    // returned the wallet.
-    const sess = _ssGetSession(req.userId);
-    if (!sess) {
+    if (_ssRecentlyCredited(req.userId)) {
         const user = await UserDB.findById(req.userId);
-        return res.json({ ok:true, skipped:'no-session', newBankBalance: user.bank_balance });
+        return res.json({ ok:true, skipped:'recent-credit', newBankBalance: user.bank_balance });
     }
 
     _ssClearSession(req.userId);
+    _ssMarkCredited(req.userId);
     await UserDB.adjustBank(req.userId, remainingWallet);
     await TxnDB.record(req.userId, 'wallet_return', remainingWallet, null, `Exited $${tableMinBet} table`);
 
@@ -409,10 +424,10 @@ router.post('/exit-beacon', async (req, res) => {
         if (typeof remainingWallet !== 'number' || remainingWallet < 0)
             return res.status(400).end();
 
-        const sess = _ssGetSession(userId);
-        if (!sess) return res.status(204).end(); // Already returned by another hook
-        _ssClearSession(userId);
+        if (_ssRecentlyCredited(userId)) return res.status(204).end();
 
+        _ssClearSession(userId);
+        _ssMarkCredited(userId);
         await UserDB.adjustBank(userId, remainingWallet);
         await TxnDB.record(userId, 'wallet_return', remainingWallet, null,
             `Exited $${tableMinBet} table (beacon)`);
