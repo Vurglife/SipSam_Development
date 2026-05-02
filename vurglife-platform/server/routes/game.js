@@ -325,11 +325,32 @@ router.post('/holdem/exit-beacon', async (req, res) => {
     }
 });
 
+// ── SipSam wallet session guard ─────────────────────────────────────────
+// Same pattern as bjActiveSessions: prevents the wallet from being
+// returned multiple times when the client AND the game server AND the
+// beacon all call exit on the same session.
+const sipsamActiveSessions = new Map();
+function _ssGetSession(userId)    { return sipsamActiveSessions.get(userId); }
+function _ssSetSession(userId, walletSize, tableMinBet) {
+    sipsamActiveSessions.set(userId, { walletSize, tableMinBet, at: Date.now() });
+}
+function _ssClearSession(userId)  { sipsamActiveSessions.delete(userId); }
+
 // POST /api/game/enter — draw wallet from bank on entering a SipSam table
 router.post('/enter', requireAuth, async (req, res) => {
     const { tableMinBet } = req.body;
     const cfg  = TABLE_CONFIG[tableMinBet];
     if (!cfg)  return res.status(400).json({ error: 'Invalid table' });
+
+    // Idempotent: re-entering the same table without exiting just returns OK.
+    const existing = _ssGetSession(req.userId);
+    if (existing && existing.tableMinBet === Number(tableMinBet)) {
+        const user = await UserDB.findById(req.userId);
+        return res.json({
+            ok: true, walletSize: existing.walletSize, tableConfig: cfg,
+            newBankBalance: user.bank_balance, idempotent: true
+        });
+    }
 
     const user = await UserDB.findById(req.userId);
     if (user.bank_balance < cfg.minBank)
@@ -340,6 +361,7 @@ router.post('/enter', requireAuth, async (req, res) => {
     // Deduct wallet from bank
     await UserDB.adjustBank(req.userId, -cfg.walletSize);
     await TxnDB.record(req.userId, 'wallet_draw', -cfg.walletSize, null, `Entered $${tableMinBet} table`);
+    _ssSetSession(req.userId, cfg.walletSize, Number(tableMinBet));
 
     res.json({
         ok: true,
@@ -355,6 +377,16 @@ router.post('/exit', requireAuth, async (req, res) => {
     if (typeof remainingWallet !== 'number' || remainingWallet < 0)
         return res.status(400).json({ error: 'Invalid wallet amount' });
 
+    // Refuse to credit if there's no active session — the caller is the
+    // second-or-third exit hook firing after the first one already
+    // returned the wallet.
+    const sess = _ssGetSession(req.userId);
+    if (!sess) {
+        const user = await UserDB.findById(req.userId);
+        return res.json({ ok:true, skipped:'no-session', newBankBalance: user.bank_balance });
+    }
+
+    _ssClearSession(req.userId);
     await UserDB.adjustBank(req.userId, remainingWallet);
     await TxnDB.record(req.userId, 'wallet_return', remainingWallet, null, `Exited $${tableMinBet} table`);
 
@@ -376,6 +408,10 @@ router.post('/exit-beacon', async (req, res) => {
         const { remainingWallet, tableMinBet } = req.body || {};
         if (typeof remainingWallet !== 'number' || remainingWallet < 0)
             return res.status(400).end();
+
+        const sess = _ssGetSession(userId);
+        if (!sess) return res.status(204).end(); // Already returned by another hook
+        _ssClearSession(userId);
 
         await UserDB.adjustBank(userId, remainingWallet);
         await TxnDB.record(userId, 'wallet_return', remainingWallet, null,

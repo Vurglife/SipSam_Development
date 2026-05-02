@@ -11,14 +11,27 @@ const SERVER_WS   = "ws://localhost:3001";
 
 let ws             = null;
 let mySessionId    = null;
-let myUsername     = "";
+var myRoomId       = 'sipsam_main'; // current room — set from matchmake response
+var myAvatar       = '';            // emoji avatar for this player
+var lastBankerSid  = null;          // track banker changes to rebuild seatMap
+var myUsername     = "";  // var so poker-client-index.html inline script can access it
 let isBanker       = false;
 let draggedCard    = null;
 let dropZonesReady = false;
 let lastStatus     = "";
 let lastRound      = 0;
 let currentBet     = 10;
-let tableMinBet    = 10;
+let tableMinBet    = 100; // default to $100 table — overridden by TABLE_CONFIGS lookup
+
+// TABLE_CONFIGS — single source of truth for all table types
+// Defined at top so all functions can access it regardless of call order
+const TABLE_CONFIGS = {
+    100:  { minBet:100,  increment:50,  maxBet:150,   walletSize:3000,  bankRequired:5000  },
+    250:  { minBet:250,  increment:50,  maxBet:500,   walletSize:10000, bankRequired:15000 },
+    500:  { minBet:500,  increment:100, maxBet:1000,  walletSize:20000, bankRequired:30000 },
+    1000: { minBet:1000, increment:500, maxBet:2000,  walletSize:40000, bankRequired:60000 },
+    10000:{ minBet:10000,increment:10000,maxBet:50000, walletSize:1000000, bankRequired:2000000 },
+};
 let selectedRounds = 0;
 let selectedMinBet = 0;
 
@@ -30,24 +43,81 @@ let seatMap = {}; // sid → zoneId
 // ============================================
 // SERVER CONNECTION
 // ============================================
-async function joinRoom(username) {
-    const res = await fetch(`${SERVER_HTTP}/matchmake/joinOrCreate/sipsam_room`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username })
-    });
-    if (!res.ok) throw new Error("Matchmake failed: " + res.status);
-    const reservation = await res.json();
-    console.log("Reservation:", reservation);
+async function joinRoom(username, _authToken, _roomId) {
+    // Token passed directly from DOMContentLoaded (sessionStorage already cleared by then)
+    if (!_authToken) {
+        try { _authToken = JSON.parse(sessionStorage.getItem('sipsam_user') || '{}').token || null; } catch(e) {}
+    }
+    if (!_roomId) _roomId = 'sipsam_main';
+    // Try proxied URL first, fall back to direct poker-server if proxy fails
+    const matchmakeUrls = [
+        `${SERVER_HTTP}/matchmake/joinOrCreate/sipsam_room`,
+        `http://localhost:2999/matchmake/joinOrCreate/sipsam_room`
+    ];
+
+    let reservation = null;
+    let lastError   = null;
+
+    for (const url of matchmakeUrls) {
+        try {
+            console.log(`[joinRoom] Trying matchmake URL: ${url}`);
+            const controller = new AbortController();
+            const fetchTimeout = setTimeout(() => {
+                console.warn(`[joinRoom] Fetch timed out after 5s: ${url}`);
+                controller.abort();
+            }, 5000);
+            let res;
+            try {
+                res = await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, token: _authToken, roomId: _roomId, avatar: window._myAvatar || '', isPrivate: window._isPrivateRoom || false }),
+                    signal: controller.signal
+                });
+            } finally {
+                clearTimeout(fetchTimeout);
+            }
+            console.log(`[joinRoom] Response status: ${res.status} from ${url}`);
+            if (!res.ok) {
+                const body = await res.text().catch(() => '(no body)');
+                console.warn(`[joinRoom] Non-OK response: ${res.status} — ${body}`);
+                lastError = new Error(`Matchmake HTTP ${res.status}: ${body}`);
+                continue;
+            }
+            reservation = await res.json();
+            console.log("[joinRoom] Reservation received:", reservation);
+            break;
+        } catch (e) {
+            console.warn(`[joinRoom] Fetch failed for ${url}:`, e);
+            lastError = e;
+        }
+    }
+
+    if (!reservation) {
+        throw lastError || new Error("All matchmake URLs failed");
+    }
+
     const { sessionId, roomId } = reservation;
+    myRoomId = roomId || 'sipsam_main'; // store globally for invite system
+    if (!sessionId || !roomId) {
+        throw new Error(`Bad reservation — sessionId:${sessionId} roomId:${roomId}`);
+    }
+
     const wsUrl = `${SERVER_WS}/${roomId}?sessionId=${sessionId}`;
-    console.log("Connecting to:", wsUrl);
+    console.log("[joinRoom] Opening WebSocket:", wsUrl);
+
     return new Promise((resolve, reject) => {
         const socket = new WebSocket(wsUrl);
         socket.binaryType = "arraybuffer";
 
+        const timeout = setTimeout(() => {
+            socket.close();
+            reject(new Error("WebSocket connection timed out after 10s"));
+        }, 10000);
+
         socket.onopen = () => {
-            console.log("WebSocket connected!");
+            clearTimeout(timeout);
+            console.log("[joinRoom] WebSocket connected! sessionId:", sessionId);
             mySessionId = sessionId;
             resolve(socket);
         };
@@ -60,12 +130,13 @@ async function joinRoom(username) {
         };
 
         socket.onerror = (e) => {
-            console.error("WS error:", e);
-            reject(new Error("WebSocket error"));
+            clearTimeout(timeout);
+            console.error("[joinRoom] WS error:", e);
+            reject(new Error("WebSocket connection error — is poker-server running on port 3001?"));
         };
 
         socket.onclose = (e) => {
-            console.log("WS closed — code:", e.code);
+            console.log("[joinRoom] WS closed — code:", e.code, "reason:", e.reason);
             const el = document.getElementById("login-status");
             if (el) el.textContent = "Disconnected (" + e.code + ")";
         };
@@ -117,7 +188,7 @@ function createCardEl(cardCode, draggable=false) {
     const el = document.createElement('div');
     el.classList.add('card', getSuit(cardCode));
     el.dataset.card = cardCode;
-    el.innerHTML = '<span class="mc-val" style="font-size:inherit;font-weight:800;line-height:1">' + getDisplayValue(cardCode) + '</span><span class="mc-suit" style="font-size:1.15em;line-height:1">' + getSuitSymbol(cardCode) + '</span>';
+    el.innerHTML = '<span class="mc-val">' + getDisplayValue(cardCode) + '</span><span class="mc-suit">' + getSuitSymbol(cardCode) + '</span>';
     if (draggable) {
         el.draggable = true;
         el.addEventListener('dragstart', onDragStart);
@@ -210,6 +281,201 @@ function setupDropZones() {
     });
 }
 
+
+// ============================================
+// TOUCH SUPPORT — tap to select, tap pile to place
+// ============================================
+let _touchSelectedCard = null;
+let _touchCardsBound = false;
+let _magneticTouchBound = false;
+let _suppressTouchClick = false;
+
+function isMobile() {
+    return window.matchMedia('(max-width: 600px)').matches || 'ontouchstart' in window;
+}
+
+// Prevent double-tap zoom on interactive elements (mobile UX)
+function preventDoubleTapZoom() {
+    if (!isMobile()) return;
+    document.querySelectorAll(
+        '.btn-primary, .btn-secondary, .pile-drop, .card, #ingame-menu-btn, #chat-fab'
+    ).forEach(el => {
+        el.style.touchAction = 'manipulation';
+    });
+}
+
+function setupTouchCards() {
+    if (!isMobile()) return;
+    setupMagneticTouchDrag();
+    if (_touchCardsBound) return;
+    _touchCardsBound = true;
+
+    // Show touch hint
+    document.querySelectorAll('.touch-hint').forEach(el => el.style.display = 'block');
+
+    // Add tap listener to raw card row — event delegation
+    const rawRow = document.getElementById('raw-card-row');
+    if (rawRow) {
+        rawRow.addEventListener('click', e => {
+            if (_suppressTouchClick) { _suppressTouchClick = false; return; }
+            const card = e.target.closest('.card');
+            if (!card) return;
+
+            // Deselect if tapping same card
+            if (_touchSelectedCard === card) {
+                card.classList.remove('selected-mobile');
+                _touchSelectedCard = null;
+                return;
+            }
+
+            // Deselect previous
+            if (_touchSelectedCard) {
+                _touchSelectedCard.classList.remove('selected-mobile');
+            }
+
+            // Select new card
+            card.classList.add('selected-mobile');
+            _touchSelectedCard = card;
+        });
+    }
+
+    // Add tap listener to pile-drop zones
+    document.querySelectorAll('.pile-drop').forEach(pile => {
+        pile.addEventListener('click', e => {
+            // If a card is selected, drop it here
+            if (_touchSelectedCard) {
+                pile.appendChild(_touchSelectedCard);
+                _touchSelectedCard.classList.remove('selected-mobile');
+                _touchSelectedCard.draggable = true;
+                _touchSelectedCard = null;
+                syncPiles();
+                return;
+            }
+
+            // If tapping a card already IN a pile, select it for moving
+            const card = e.target.closest('.card');
+            if (card) {
+                if (_touchSelectedCard === card) {
+                    card.classList.remove('selected-mobile');
+                    _touchSelectedCard = null;
+                    return;
+                }
+                if (_touchSelectedCard) {
+                    _touchSelectedCard.classList.remove('selected-mobile');
+                }
+                card.classList.add('selected-mobile');
+                _touchSelectedCard = card;
+            }
+        });
+    });
+
+    // Tap raw row to send selected pile card back to raw row
+    if (rawRow) {
+        rawRow.addEventListener('click', e => {
+            if (!e.target.closest('.card') && _touchSelectedCard) {
+                rawRow.appendChild(_touchSelectedCard);
+                _touchSelectedCard.classList.remove('selected-mobile');
+                _touchSelectedCard = null;
+                syncPiles();
+            }
+        });
+    }
+}
+
+function getCardOverlapRatio(cardRect, zoneRect) {
+    const left = Math.max(cardRect.left, zoneRect.left);
+    const right = Math.min(cardRect.right, zoneRect.right);
+    const top = Math.max(cardRect.top, zoneRect.top);
+    const bottom = Math.min(cardRect.bottom, zoneRect.bottom);
+    const overlap = Math.max(0, right - left) * Math.max(0, bottom - top);
+    const area = Math.max(1, cardRect.width * cardRect.height);
+    return overlap / area;
+}
+
+function setupMagneticTouchDrag() {
+    if (!isMobile() || _magneticTouchBound) return;
+    _magneticTouchBound = true;
+    let active = null;
+
+    document.addEventListener('pointerdown', e => {
+        const card = e.target.closest('.card');
+        if (!card || card.classList.contains('face-down')) return;
+        if (!card.closest('#raw-card-row, .pile-drop')) return;
+        if (document.getElementById('btn-arrange')?.disabled) return;
+
+        const rect = card.getBoundingClientRect();
+        active = {
+            card,
+            startX: e.clientX,
+            startY: e.clientY,
+            offsetX: e.clientX - rect.left,
+            offsetY: e.clientY - rect.top,
+            parent: card.parentElement,
+            next: card.nextSibling,
+            moved: false
+        };
+        card.setPointerCapture?.(e.pointerId);
+        card.classList.add('dragging', 'magnetic-dragging');
+        card.style.position = 'fixed';
+        card.style.left = rect.left + 'px';
+        card.style.top = rect.top + 'px';
+        card.style.width = rect.width + 'px';
+        card.style.height = rect.height + 'px';
+        card.style.zIndex = '10000';
+        card.style.pointerEvents = 'none';
+        e.preventDefault();
+    }, { passive:false });
+
+    document.addEventListener('pointermove', e => {
+        if (!active) return;
+        const dx = Math.abs(e.clientX - active.startX);
+        const dy = Math.abs(e.clientY - active.startY);
+        if (dx > 4 || dy > 4) active.moved = true;
+        active.card.style.left = (e.clientX - active.offsetX) + 'px';
+        active.card.style.top = (e.clientY - active.offsetY) + 'px';
+        e.preventDefault();
+    }, { passive:false });
+
+    document.addEventListener('pointerup', e => {
+        if (!active) return;
+        const { card, parent, next, moved } = active;
+        const cardRect = card.getBoundingClientRect();
+        const zones = [...document.querySelectorAll('#raw-card-row, .pile-drop')];
+        let bestZone = null;
+        let bestRatio = 0;
+        zones.forEach(zone => {
+            const ratio = getCardOverlapRatio(cardRect, zone.getBoundingClientRect());
+            if (ratio > bestRatio) {
+                bestRatio = ratio;
+                bestZone = zone;
+            }
+        });
+
+        card.classList.remove('dragging', 'magnetic-dragging');
+        card.style.position = '';
+        card.style.left = '';
+        card.style.top = '';
+        card.style.width = '';
+        card.style.height = '';
+        card.style.zIndex = '';
+        card.style.pointerEvents = '';
+
+        if (bestZone && bestRatio >= 0.5) {
+            const centerX = cardRect.left + cardRect.width / 2;
+            const { before } = getDragInsertionPoint(bestZone, centerX);
+            if (before) bestZone.insertBefore(card, before);
+            else bestZone.appendChild(card);
+            syncPiles();
+        } else if (parent) {
+            parent.insertBefore(card, next);
+        }
+
+        if (moved) _suppressTouchClick = true;
+        active = null;
+        e.preventDefault();
+    }, { passive:false });
+}
+
 function syncPiles() {
     ['hand1','hand2','hand3'].forEach(pile => {
         const zone = document.querySelector(`.pile-drop[data-pile="${pile}"]`);
@@ -228,6 +494,7 @@ function syncPiles() {
 // Detect special from raw (unarranged) cards — tries natural split 3/5/5
 function detectSpecialClientFromRaw(raw) {
     if (!raw || raw.length !== 13) return null;
+    // Pass full raw split naturally — detectSpecialClient checks all 13 as a whole
     return detectSpecialClient(raw.slice(0,3), raw.slice(3,8), raw.slice(8,13));
 }
 
@@ -261,17 +528,63 @@ function detectSpecialClient(h1, h2, h3) {
         if (vals.length!==cards.length) return false;
         return vals[vals.length-1]-vals[0]===vals.length-1||vals.join(',')==='2,3,4,5,14'||vals.join(',')==='2,3,14';
     };
-    if (isStraight(h1)&&isStraight(h2)&&isStraight(h3)) return {name:'Straight-Straight-Straight',multiplier:5};
+    const canFormSSS = cards => {
+        const combo = (arr, n, start=0, pref=[], out=[]) => {
+            if (pref.length === n) { out.push([...pref]); return out; }
+            for (let i=start; i<=arr.length-(n-pref.length); i++) {
+                pref.push(arr[i]); combo(arr, n, i+1, pref, out); pref.pop();
+            }
+            return out;
+        };
+        const rem = (arr, used) => arr.filter(c => !new Set(used).has(c));
+        for (const a of combo(cards, 3)) {
+            if (!isStraight(a)) continue;
+            const r10 = rem(cards, a);
+            for (const b of combo(r10, 5)) {
+                const c = rem(r10, b);
+                if (isStraight(b) && isStraight(c)) return true;
+            }
+        }
+        return false;
+    };
+    if ((isStraight(h1)&&isStraight(h2)&&isStraight(h3)) || canFormSSS(all)) return {name:'Straight-Straight-Straight',multiplier:5};
     // Four of a Kind (checked before Straight Flush)
     if (eq > 0) return {name:'Four of a Kind',multiplier:3};
-    // Straight Flush in h2 or h3
-    const checkSF = h => {
-        const vals = [...new Set(h.map(c=>valMap[c[0]]||0))].sort((a,b)=>a-b);
-        if (vals.length!==h.length) return false;
-        const isSt = vals[vals.length-1]-vals[0]===vals.length-1 || vals.join(',')==='2,3,4,5,14';
-        return isSt && h.every(c=>c[1]===h[0][1]);
-    };
-    if (checkSF(h2)||checkSF(h3)) return {name:'Straight Flush',multiplier:3};
+    // Royal Flush from all 13 raw cards — A,K,Q,J,10 of same suit
+    const royalInRaw = (() => {
+        const bySuit = {};
+        all.forEach(c => { if (!bySuit[c[1]]) bySuit[c[1]]=[]; bySuit[c[1]].push(c); });
+        return Object.values(bySuit).some(sc => {
+            const vs = new Set(sc.map(c=>valMap[c[0]]||0));
+            return [10,11,12,13,14].every(v=>vs.has(v));
+        });
+    })();
+    if (royalInRaw) return {name:'Royal Flush',multiplier:7};
+    // Straight Flush — 5+ consecutive same-suit cards anywhere in all 13
+    const sfInRaw = (() => {
+        const bySuit = {};
+        all.forEach(c => { if (!bySuit[c[1]]) bySuit[c[1]]=[]; bySuit[c[1]].push(c); });
+        for (const sc of Object.values(bySuit)) {
+            if (sc.length < 5) continue;
+            const vals = [...new Set(sc.map(c=>valMap[c[0]]||0))].sort((a,b)=>a-b);
+            let run = 1;
+            for (let i=1;i<vals.length;i++) {
+                if (vals[i]===vals[i-1]+1) { run++; if (run>=5) return true; }
+                else run=1;
+            }
+            // Ace-low
+            if (vals.includes(14)) {
+                const low = [...new Set(vals.map(v=>v===14?1:v))].sort((a,b)=>a-b);
+                run=1;
+                for (let i=1;i<low.length;i++) {
+                    if (low[i]===low[i-1]+1) { run++; if (run>=5) return true; }
+                    else run=1;
+                }
+            }
+        }
+        return false;
+    })();
+    if (sfInRaw) return {name:'Straight Flush',multiplier:3};
     // No Face
     if (!all.some(c=>['J','Q','K'].includes(c[0]))) return {name:'No Face',multiplier:2};
     return null;
@@ -289,6 +602,16 @@ function renderMyCards(cards) {
 }
 
 function renderOpponentHands(zoneId, player, revealed=false) {
+    // Ghost bots (left players) — clear their zones entirely
+    if (player.isGhostBot) {
+        ['1','2','3'].forEach(num => {
+            const slot = document.getElementById(`${zoneId}-cards-${num}`);
+            if (slot) slot.innerHTML = '';
+            const block = slot?.closest('.hand-block');
+            if (block) block.querySelectorAll('.hand-result').forEach(b => b.remove());
+        });
+        return;
+    }
     const hasCards = player.hasCards || (player.rawCards && player.rawCards.length > 0);
     const arranged = player.hasArranged;
 
@@ -339,7 +662,7 @@ function renderOpponentHands(zoneId, player, revealed=false) {
             });
             const r = resultFor(num);
             if (r !== null) {
-                // Normal player badge: WIN / LOSE / TIE + their hand name
+                // Normal hand result: WIN / LOSE / TIE + hand name badges
                 slot.classList.add(r===1?'won':r===-1?'lost':'tied');
                 const badge = document.createElement('div');
                 badge.className = 'hand-result ' + (r===1?'hr-win': r===-1?'hr-lose':'hr-tie');
@@ -347,7 +670,7 @@ function renderOpponentHands(zoneId, player, revealed=false) {
                 badge.innerHTML = (r===1?'WIN':r===-1?'LOSE':'TIE')
                     + (handName ? '<br><span style="font-size:0.75em;font-weight:600;opacity:0.85">'+handName+'</span>' : '');
                 if (block) block.appendChild(badge);
-                // Also show banker's hand name as a secondary info badge on this player's block
+                // Also show banker's hand name as a secondary info badge
                 const bName = bankerHandNameFor(num);
                 if (bName) {
                     const bBadge = document.createElement('div');
@@ -355,8 +678,17 @@ function renderOpponentHands(zoneId, player, revealed=false) {
                     bBadge.innerHTML = '🏦<br><span style="font-size:0.75em;font-weight:600;opacity:0.85">'+bName+'</span>';
                     if (block) block.appendChild(bBadge);
                 }
+            } else if (!isBankerZone && num === '1' && player.lastSpecial) {
+                // Special round or DQ — show outcome badge on the 1st hand block only
+                const isWin  = player.lastSpecial.startsWith('⭐') || player.lastSpecial.startsWith('✅');
+                const isLoss = player.lastSpecial.startsWith('🏦') || player.lastSpecial.startsWith('❌');
+                const badge  = document.createElement('div');
+                badge.className = 'hand-result ' + (isWin ? 'hr-win' : isLoss ? 'hr-lose' : 'hr-info');
+                badge.style.cssText = 'max-width:90px;font-size:9px;text-align:center;padding:3px 5px;white-space:normal;word-break:break-word;line-height:1.3';
+                badge.textContent = player.lastSpecial;
+                if (block) block.appendChild(badge);
             } else if (isBankerZone && bankerOwnNames) {
-                // Banker zone: show their own hand name as an info badge (no win/lose)
+                // Banker zone: show their own hand name as an info badge
                 const bName = bankerOwnNames[num==='1'?0:num==='2'?1:2];
                 if (bName) {
                     const badge = document.createElement('div');
@@ -365,7 +697,9 @@ function renderOpponentHands(zoneId, player, revealed=false) {
                     if (block) block.appendChild(badge);
                 }
             }
-        } else if (arranged || (hasCards && player.isBot)) {
+        } else if (arranged || hasCards) {
+            // Show face-down cards for any player who has been dealt cards
+            // (whether bot or real human who hasn't arranged yet)
             for (let i = 0; i < count; i++) {
                 const m = document.createElement('div');
                 m.className = 'mini-card face-down';
@@ -424,6 +758,14 @@ function renderMyRevealHands(me) {
             badge.innerHTML = (r===1?'WIN':r===-1?'LOSE':'TIE')
                 + (handName ? '&nbsp;<span style="font-size:0.85em;opacity:0.85">'+handName+'</span>' : '');
             if (pile) pile.appendChild(badge);
+        } else if (key === 'hand1' && me.lastSpecial) {
+            // Special round or DQ — show outcome on first hand only
+            const isWin = me.lastSpecial.startsWith('⭐') || me.lastSpecial.startsWith('✅');
+            const badge = document.createElement('div');
+            badge.className = 'pile-drop-result ' + (isWin ? 'hr-win' : 'hr-lose');
+            badge.style.cssText = 'font-size:10px;max-width:160px;text-align:center;white-space:normal;word-break:break-word;line-height:1.3';
+            badge.textContent = me.lastSpecial;
+            if (pile) pile.appendChild(badge);
         }
     });
 }
@@ -431,15 +773,17 @@ function renderMyRevealHands(me) {
 // ============================================
 // BET CONTROLS
 // ============================================
-function initBetControls(minBet, myChips) {
-    tableMinBet = minBet;
-    currentBet  = minBet;
+function initBetControls(minBet, startingChips) {
+    // Always derive config from TABLE_CONFIGS to prevent bad defaults
+    const cfg    = TABLE_CONFIGS[minBet] || TABLE_CONFIGS[100];
+    tableMinBet  = cfg.minBet;
+    // Effective max = table max OR what the player can afford (whichever is lower)
+    const chips  = startingChips || 0;
+    const effMax = chips > 0 ? Math.min(cfg.maxBet, chips) : cfg.maxBet;
+    currentBet   = Math.min(cfg.minBet, effMax);
     updateBetDisplay();
-    // Show the max bet in the UI
-    const state = window._lastState;
-    const maxBet = state?.tableMaxBet || minBet * 3;
-    const maxEl = document.getElementById('max-bet-label');
-    if (maxEl) maxEl.textContent = 'Max: $' + maxBet;
+    const maxEl  = document.getElementById('max-bet-label');
+    if (maxEl) maxEl.textContent = 'Max: $' + effMax.toLocaleString();
 }
 
 function updateBetDisplay() {
@@ -451,9 +795,14 @@ function adjustBet(delta) {
     const me    = state?.players?.[mySessionId];
     if (!me) return;
     const tableMaxBet = state.tableMaxBet || (tableMinBet * 3);
-    const newBet  = currentBet + delta;
-    // Clamp between tableMinBet and tableMaxBet
-    currentBet = Math.max(tableMinBet, Math.min(newBet, tableMaxBet));
+    // Use the table's actual increment from game state
+    const resolvedBetCfg = TABLE_CONFIGS[state?.tableMinBet || tableMinBet] || TABLE_CONFIGS[100];
+    const step    = resolvedBetCfg.increment;
+    const newBet  = currentBet + (delta > 0 ? step : -step);
+    // Cap to what player can actually afford (chips), and table max
+    const myChipsNow = me?.chips || 0;
+    const effectiveMax = myChipsNow > 0 ? Math.min(tableMaxBet, myChipsNow) : tableMaxBet;
+    currentBet = Math.max(tableMinBet, Math.min(newBet, effectiveMax));
     updateBetDisplay();
     sendMsg("placeBet", { amount: currentBet });
 }
@@ -472,16 +821,49 @@ function updateGameUI(state) {
     const t = state.timer || 0;
     timerEl.textContent = t;
     timerEl.classList.toggle('urgent', t <= 10);
+    // Timer warning beep in last 10 seconds during arranging phase
+    if (t <= 10 && t > 0 && state.status === 'arranging' && typeof SFX !== 'undefined') SFX.timer();
     if (cdEl) { cdEl.textContent = t; cdEl.classList.toggle('urgent', t <= 10); }
 
-    // Sync bet countdown in bet controls
+    // Sync bet countdown overlay
     if (state.status === 'betting') {
-        const bc = document.getElementById('bet-countdown');
-        if (bc) bc.textContent = state.timer || 0;
+        const t    = state.timer || 0;
+        const TOTAL = 10;
+        const bc   = document.getElementById('bet-countdown');
+        const ring = document.getElementById('bet-ring');
+        const alertText = document.getElementById('bet-alert-text');
+        const urgent = t <= 3;
+        const warn   = t <= 6;
+
+        if (bc) bc.textContent = t;
+
+        // Drive SVG countdown ring
+        if (ring) {
+            const circumference = 213.6;
+            const offset = circumference * (1 - t / TOTAL);
+            ring.style.strokeDashoffset = offset;
+            ring.style.stroke = urgent ? '#ef4444' : warn ? '#f87171' : '#c9a84c';
+        }
+
+        // Urgency effects on text
+        if (alertText) {
+            alertText.style.animationDuration = urgent ? '0.35s' : '1.1s';
+            alertText.style.color       = urgent ? '#ef4444' : '#c9a84c';
+            alertText.style.textShadow  = urgent
+                ? '0 0 30px rgba(239,68,68,.8), 0 0 60px rgba(239,68,68,.4)'
+                : '0 0 30px rgba(201,168,76,.6), 0 0 60px rgba(201,168,76,.25)';
+            if (urgent && t !== (state.timer - 1)) alertText.textContent = 'BET NOW!';
+            else if (!urgent)                       alertText.textContent = 'Place Your Bet';
+        }
+
+        if (bc) {
+            bc.style.color = urgent ? '#ef4444' : '#f0f6ff';
+        }
     }
 
     const me = state.players?.[mySessionId];
     if (me) {
+        const wasBanker = isBanker;
         isBanker = me.isBanker;
         // Apply banker perspective — repositions zones via CSS class
         const oval = document.querySelector('.oval-table');
@@ -492,14 +874,54 @@ function updateGameUI(state) {
         if (bankerZone) {
             bankerZone.style.flexDirection = isBanker ? 'column-reverse' : 'column';
         }
+        // In banker-pov, zone-p1 moves to LEFT and zone-p3 moves to RIGHT
+        // but the side-extras (outside the oval) stay physically left/right.
+        // Swap their IDs so the correct player data always matches the correct side.
+        // In banker-pov: CSS moves zone-p1 to LEFT and zone-p3 to RIGHT.
+        // Remap ALL element IDs in side-extras so they match the visual zones.
+        // Do this on EVERY update (not just on transition) to handle page reloads.
+        const sideLeft  = document.querySelector('.side-extras.side-left');
+        const sideRight = document.querySelector('.side-extras.side-right');
+        if (sideLeft && sideRight) {
+            const L = isBanker ? 'p1' : 'p3'; // zone visually on LEFT
+            const R = isBanker ? 'p3' : 'p1'; // zone visually on RIGHT
+            // Left side-extras
+            sideLeft.querySelector('.side-name').id      = L + '-name';
+            sideLeft.querySelector('.side-balance').id   = L + '-balance';
+            sideLeft.querySelector('.special-box').id    = L + '-special';
+            const lPill = sideLeft.querySelector('.bet-pill');
+            if (lPill) {
+                lPill.id = L + '-bet-pill';
+                const lAmt = lPill.querySelector('.bp-amt');
+                if (lAmt) lAmt.id = L + '-bet-amt';
+            }
+            // Right side-extras
+            sideRight.querySelector('.side-name').id     = R + '-name';
+            sideRight.querySelector('.side-balance').id  = R + '-balance';
+            sideRight.querySelector('.special-box').id   = R + '-special';
+            const rPill = sideRight.querySelector('.bet-pill');
+            if (rPill) {
+                rPill.id = R + '-bet-pill';
+                const rAmt = rPill.querySelector('.bp-amt');
+                if (rAmt) rAmt.id = R + '-bet-amt';
+            }
+        }
         document.getElementById('my-chips').textContent = `Chips: ${me.chips}`;
+        // Keep module-level myChips in sync with live game state
+        if (typeof myChips !== 'undefined') myChips = me.chips;
+        if (typeof igmWallet !== 'undefined') igmWallet = me.chips;
 
         // bet display now shown in side-extras via updateOpponentSeats
 
         const payoutEl = document.getElementById('my-payout');
-        if (me.lastPayout > 0)      { payoutEl.textContent=`+${me.lastPayout}`; payoutEl.className='payout-win'; }
-        else if (me.lastPayout < 0) { payoutEl.textContent=`${me.lastPayout}`;  payoutEl.className='payout-loss'; }
-        else                        { payoutEl.textContent=''; }
+        if (me.lastPayout > 0) {
+            payoutEl.textContent=`+${me.lastPayout}`; payoutEl.className='payout-win';
+            if (window._lastPayout !== me.lastPayout && typeof SFX !== 'undefined') SFX.win();
+        } else if (me.lastPayout < 0) {
+            payoutEl.textContent=`${me.lastPayout}`; payoutEl.className='payout-loss';
+            if (window._lastPayout !== me.lastPayout && typeof SFX !== 'undefined') SFX.lose();
+        } else { payoutEl.textContent=''; }
+        window._lastPayout = me.lastPayout;
     }
 
     showGameControls(state.status, isBanker);
@@ -514,25 +936,89 @@ function updateGameUI(state) {
 
     // Transitions
     if (state.status === 'betting' && lastStatus !== 'betting') {
-        initBetControls(state.tableMinBet || 10, me?.chips || 1000);
+        // Resolve minBet from multiple reliable sources — never use bare state.tableMinBet
+        // because it may still be 0 if the state hasn't propagated yet
+        const resolvedMinBet = state.tableMinBet
+            || igmTableCfg?.minBet
+            || (()=>{ try { return JSON.parse(sessionStorage.getItem('sipsam_table'))?.minBet; } catch(e){} return null; })()
+            || 100; // absolute fallback — $100 table
+        initBetControls(resolvedMinBet, me?.chips || 1000);
         document.getElementById('btn-bet-up').disabled   = false;
         document.getElementById('btn-bet-down').disabled = false;
+        // Update button labels from TABLE_CONFIGS — single source of truth
+        const resolvedCfg  = TABLE_CONFIGS[resolvedMinBet] || TABLE_CONFIGS[100];
+        const inc = resolvedCfg.increment;
+        const upBtn   = document.getElementById('btn-bet-up');
+        const downBtn = document.getElementById('btn-bet-down');
+        if (upBtn)   upBtn.textContent   = '+$' + inc.toLocaleString();
+        if (downBtn) downBtn.textContent = '-$' + inc.toLocaleString();
+        // Update max label to reflect player's actual chips vs table max
+        const myChipsForMax = me?.chips || 0;
+        const effMaxBet = myChipsForMax > 0 ? Math.min(resolvedCfg.maxBet, myChipsForMax) : resolvedCfg.maxBet;
+        const maxLbl = document.getElementById('max-bet-label');
+        if (maxLbl) maxLbl.textContent = 'Max: $' + effMaxBet.toLocaleString();
         document.getElementById('bet-msg').textContent   = '';
-        // Build stable seat map if not yet built or if round 1
-        if (state.round === 1 || Object.keys(seatMap).length === 0) {
+        // Show full-screen bet overlay for non-bankers
+        const overlay = document.getElementById('bet-overlay');
+        const roundLbl = document.getElementById('bet-round-label');
+        if (overlay && !isBanker) {
+            if (roundLbl) roundLbl.textContent = `${state.round} of ${state.maxRounds}`;
+            overlay.style.display = 'flex';
+            overlay.style.animation = 'betOverlayIn .3s ease';
+        }
+        // Build/rebuild seatMap excluding the current banker
+        // Rebuilds on round 1, when empty, OR when banker changed
+        const bankerSidNow = Object.entries(state.players||{}).find(([,p])=>p.isBanker)?.[0];
+        const seatMapHasBanker = bankerSidNow && seatMap[bankerSidNow];
+        const bankerChanged   = bankerSidNow !== lastBankerSid;
+        if (state.round === 1 || Object.keys(seatMap).length === 0 || seatMapHasBanker || bankerChanged) {
             seatMap = {};
             const zones = ['p1','p2','p3'];
             let zi = 0;
-            const bankerSid = Object.entries(state.players||{}).find(([,p])=>p.isBanker)?.[0];
             Object.keys(state.players||{}).forEach(sid => {
-                if (sid === bankerSid) return; // banker always goes to banker zone
+                if (sid === bankerSidNow) return; // banker always goes to banker zone
                 if (zi < zones.length) seatMap[sid] = zones[zi++];
             });
+            lastBankerSid = bankerSidNow;
         }
         // Show deal animation — cards visually distributed to all seats
         setTimeout(() => runDealAnimation(state), 300);
     }
     const roundChanged = state.round !== lastRound;
+    // Hide bet overlay when betting phase ends
+    if (state.status !== 'betting') {
+        const overlay = document.getElementById('bet-overlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    // Show validation overlay on arranging → revealing transition
+    if (state.status === 'revealing' && lastStatus === 'arranging') {
+        const revOverlay = document.getElementById('reveal-overlay');
+        if (revOverlay) {
+            revOverlay.style.display = 'flex';
+            // Auto-dismiss after 3 seconds so hands become visible
+            setTimeout(() => {
+                if (revOverlay) {
+                    revOverlay.style.transition = 'opacity .5s ease';
+                    revOverlay.style.opacity    = '0';
+                    setTimeout(() => {
+                        revOverlay.style.display  = 'none';
+                        revOverlay.style.opacity  = '1';
+                        revOverlay.style.transition = '';
+                    }, 500);
+                }
+            }, 3000);
+        }
+    }
+
+    // Always hide reveal overlay when phase moves past revealing
+    if (state.status !== 'revealing' && state.status !== 'arranging') {
+        const revOverlay = document.getElementById('reveal-overlay');
+        if (revOverlay && revOverlay.style.display !== 'none') {
+            revOverlay.style.display = 'none';
+        }
+    }
+
     if (state.status === 'arranging' && (lastStatus !== 'arranging' || roundChanged)) {
         lastRound = state.round;
         // Fully reset piles and card areas for the new round
@@ -547,7 +1033,20 @@ function updateGameUI(state) {
         if (rawRow) rawRow.innerHTML = '';
         setupDropZones();
         if (me && me.rawCards && me.rawCards.length > 0) renderMyCards(me.rawCards);
+        // Set up touch interaction for mobile players
+        setTimeout(() => setupTouchCards(), 100);
+        // On mobile, scroll my-area into view so player sees their cards
+        if (isMobile()) {
+            setTimeout(() => {
+                const myArea = document.querySelector('.my-area');
+                if (myArea) myArea.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }, 300);
+        }
         else console.warn('No rawCards in state for me:', me);
+        // Close the Declare Special modal if it's open from a previous round
+        const existingModal = document.getElementById('special-modal-backdrop');
+        if (existingModal) existingModal.remove();
+
         document.getElementById('btn-arrange').disabled         = false;
         document.getElementById('btn-declare-special').disabled  = false;
         document.getElementById('btn-declare-special').style.display = 'inline-block';
@@ -574,7 +1073,14 @@ function updateGameUI(state) {
         if (dqPanel) dqPanel.style.display = 'none';
     }
 
-    if (state.status === 'gameOver') showGameOver(state);
+    if (state.status === 'gameOver') {
+        showGameOver(state);
+        // Server settled chips to bank — update local display
+        const myState = state.players ? Object.values(state.players).find(p => p.username === myUsername) : null;
+        if (myState && typeof igmBank !== 'undefined') {
+            // igmBank will be refreshed next time menu opens via fetchIgmBank
+        }
+    }
 }
 
 function updateOpponentSeats(state, revealed) {
@@ -588,7 +1094,8 @@ function updateOpponentSeats(state, revealed) {
     if (bankerSid) {
         const bp   = players[bankerSid];
         const isMe = bankerSid === mySessionId;
-        const label = '🏦 BANKER: ' + (bp.username||'Banker') + (bp.isBot?' 🤖':'') + (isMe?' (You)':'');
+        const bAv  = bp.avatar ? bp.avatar + ' ' : '';
+        const label = '🏦 BANKER: ' + bAv + (bp.username||'Banker') + (bp.isBot?' 🤖':'') + (isMe?' (You)':'');
 
         const nameEl    = document.getElementById('banker-name');
         const chipsEl   = document.getElementById('banker-chips');
@@ -630,7 +1137,13 @@ function updateOpponentSeats(state, revealed) {
         const betEl     = document.getElementById(zId + '-bet-amt');
         const specEl    = document.getElementById(zId + '-special');
         const balanceEl = document.getElementById(zId + '-balance');
-        const label     = player.username + (player.isBot?' 🤖':'') + (isMe?' (You)':'');
+        // Grey out zones for players who left mid-game
+        const zoneEl = document.getElementById('zone-' + zId) || document.querySelector('.zone-' + zId);
+        if (zoneEl) zoneEl.style.opacity = player.isGhostBot ? '0.35' : '';
+        const pAv   = (player.avatar && !player.isGhostBot) ? player.avatar + ' ' : '';
+        const label = player.isGhostBot
+            ? (player._promoteToRealBot ? '🤖 Bot joining next round...' : '🚪 (Left)')
+            : pAv + player.username + (player.isBot?' 🤖':'') + (isMe?' (You)':'');
         if (nameEl)    nameEl.textContent    = label;
         if (betEl)     betEl.textContent     = '$'+(player.bet||0);
         if (specEl)    specEl.textContent    = player.lastSpecial || '';
@@ -648,35 +1161,452 @@ function updateOpponentSeats(state, revealed) {
 }
 
 function formatStatus(s) {
-    const m = { waiting:'Waiting...', betting:'Place Bets (10s)', arranging:'Arrange Cards (90s)', revealing:'Revealing Hands (30s)', roundEnd:'Round Complete', gameOver:'Game Over' };
+    const m = { waiting:'Waiting...', betting:'Place Bets (10s)', arranging:'Arrange Cards (65s)', revealing:'Revealing Hands (30s)', roundEnd:'Round Complete', gameOver:'Game Over' };
     return m[s] || s;
 }
 
 function showGameOver(state) {
     const scoresEl = document.getElementById('final-scores');
     scoresEl.innerHTML = '';
-    Object.values(state.players||{})
-        .sort((a,b) => b.chips - a.chips)
-        .forEach((p, i) => {
+
+    const me = state.players?.[mySessionId];
+    const startChips = state.tableWalletSize || state.tableMinBet * 6 || 0;
+    const myFinalChips = me ? me.chips : 0;
+    const isWin = myFinalChips > startChips;
+    const mode  = state.blitz ? 'blitz' : String(state.maxRounds || 10);
+
+    // Build scores table — ghost bots (left players) shown separately at bottom
+    const activePlayers = Object.values(state.players||{}).filter(p => !p.isGhostBot);
+    const ghostPlayers  = Object.values(state.players||{}).filter(p =>  p.isGhostBot);
+    const sorted = [...activePlayers.sort((a,b) => b.chips - a.chips), ...ghostPlayers];
+
+    sorted.forEach((p, i) => {
+        if (p.isGhostBot) {
+            // Show left players as a greyed-out note
             const row = document.createElement('div');
             row.classList.add('score-row');
-            if (i===0) row.classList.add('score-winner');
-            const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
-            row.innerHTML = `<span>${medal} ${p.username}</span><span>${p.chips} chips (${p.wins} wins)</span>`;
+            row.style.opacity = '0.45';
+            row.innerHTML = `<span>🚪 ${p.username || '(Left)'}</span><span style="font-size:11px;color:#7a9ac0">Left game early</span>`;
             scoresEl.appendChild(row);
-        });
+            return;
+        }
+        const row = document.createElement('div');
+        row.classList.add('score-row');
+        const isMe = state.players && Object.entries(state.players).find(([sid,pl])=>pl===p)?.[0] === mySessionId;
+        if (i===0) row.classList.add('score-winner');
+        if (isMe)  row.classList.add('score-me');
+        const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'🏅';
+        const tag   = (p.isBot && !p.isGhostBot) ? ' 🤖' : (isMe ? ' (You)' : '');
+        const diff  = p.chips - startChips;
+        const diffStr = diff >= 0 ? `+$${diff.toLocaleString()}` : `-$${Math.abs(diff).toLocaleString()}`;
+        const diffColor = diff >= 0 ? '#4ade80' : '#f87171';
+        row.innerHTML = `
+            <span>${medal} ${p.username}${tag}</span>
+            <span>$${p.chips.toLocaleString()} &nbsp;<span style="font-size:11px;color:${diffColor}">(${diffStr})</span>&nbsp; ${p.wins} round wins</span>`;
+        scoresEl.appendChild(row);
+    });
+
+    // Determine if this player is the table winner (most chips among ALL players including bots)
+    // Game Winner Bonus only applies when there's at least one other real human player
+    const allPlayers      = Object.values(state.players || {});
+    const humanPlayers    = allPlayers.filter(p => !p.isBot && !p.isGhostBot);
+    // Table winner = human with most chips (bots excluded from winner calculation)
+    const sortedHumans    = [...humanPlayers].sort((a, b) => b.chips - a.chips);
+    const chipLeader      = sortedHumans[0];
+    const chipLeaderSid   = Object.entries(state.players || {}).find(([,p]) => p === chipLeader)?.[0];
+    const isTableWinner   = chipLeaderSid === mySessionId && humanPlayers.length >= 1;
+
+    // Record stats — only for real human player, only once
+    if (me && !me.isBot && !window._statsRecorded) {
+        window._statsRecorded = true;
+        const token = igmToken;
+        if (token) {
+            fetch('/api/game/record-result', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                credentials: 'include',
+                body: JSON.stringify({
+                    isWin,
+                    isTableWinner,
+                    mode,
+                    rounds:      state.maxRounds || 10,
+                    tableMinBet: state.tableMinBet,
+                    finalChips:  myFinalChips,
+                    startChips
+                })
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.ok) {
+                    console.log('[STATS] ✅ Recorded:', mode, isWin ? 'WIN' : 'LOSS',
+                        isTableWinner ? '👑 TABLE WINNER +$1,000' : '');
+                    // Show winner bonus toast
+                    if (d.winnerBonusPaid && typeof showIngameToast === 'function') {
+                        showIngameToast('👑 Game Winner Bonus!', '+$1,000 added to your bank!');
+                    }
+                    // Show milestone unlocked toast
+                    if (d.milestonesUnlocked?.length && typeof showIngameToast === 'function') {
+                        d.milestonesUnlocked.forEach(m => {
+                            setTimeout(() => {
+                                showIngameToast('🏆 Milestone Reached!',
+                                    `${m.label} unlocked — $${m.reward.toLocaleString()} ready to claim!`);
+                            }, 2000);
+                        });
+                    }
+                }
+            })
+            .catch(e => console.warn('[STATS] record-result failed:', e.message));
+        }
+    }
+
+    // Update win/loss banner
+    const resultEl = document.getElementById('gameover-result');
+    if (resultEl && me && !me.isBot) {
+        resultEl.textContent  = isWin ? '🏆 You Won!' : '💸 Better luck next time';
+        resultEl.style.color  = isWin ? '#4ade80' : '#f87171';
+    }
+
+    // Store state for Play Again
+    window._gameOverState = state;
+
     showScreen('screen-gameover');
+}
+
+// ── INVITE FRIENDS FROM LOBBY ──────────────────────────────
+let _lobbyFriends = null; // cached friends list
+
+async function getLobbyFriends() {
+    if (_lobbyFriends) return _lobbyFriends;
+    try {
+        const token = igmToken;
+        if (!token) return [];
+        const res = await fetch('/api/friends', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        }).then(r => r.json());
+        _lobbyFriends = res.friends || [];
+        return _lobbyFriends;
+    } catch(e) { return []; }
+}
+
+async function searchAllPlayers(q) {
+    try {
+        const token = igmToken;
+        if (!token) return [];
+        const res = await fetch('/api/friends/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ query: q })
+        }).then(r => r.json());
+        return res.users || res.results || [];
+    } catch(e) { return []; }
+}
+
+let _lobbySearchTimer = null;
+
+function onLobbyInviteInput(val) {
+    const dd = document.getElementById('lobby-invite-dropdown');
+    if (!dd) return;
+    clearTimeout(_lobbySearchTimer);
+    const q = val.toLowerCase().trim();
+    if (!q) {
+        getLobbyFriends().then(friends => renderLobbyDropdown(dd, friends, [], ''));
+        return;
+    }
+    getLobbyFriends().then(friends => {
+        const friendMatches = friends.filter(f => f.username.toLowerCase().includes(q));
+        renderLobbyDropdown(dd, friendMatches, [], q);
+    });
+    _lobbySearchTimer = setTimeout(async () => {
+        const friends      = await getLobbyFriends();
+        const friendNames  = new Set(friends.map(f => f.username.toLowerCase()));
+        const all          = await searchAllPlayers(val);
+        const friendMatches    = friends.filter(f => f.username.toLowerCase().includes(q));
+        const nonFriendMatches = all.filter(u => !friendNames.has(u.username.toLowerCase()));
+        renderLobbyDropdown(dd, friendMatches, nonFriendMatches, q);
+    }, 350);
+}
+
+function renderLobbyDropdown(dd, friends, others, q) {
+    if (!friends.length && !others.length) {
+        dd.innerHTML = q
+            ? '<div style="padding:11px 14px;font-size:12px;color:#7a9ac0">No matches. You can still type a full username to invite.</div>'
+            : '<div style="padding:11px 14px;font-size:12px;color:#7a9ac0">No friends yet. Type any username to search all players.</div>';
+        dd.style.display = 'block';
+        return;
+    }
+    const row = (username, label, col) => `
+        <div onclick="selectLobbyInvitee('${username}')"
+             style="padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(26,45,80,.5)"
+             onmouseenter="this.style.background='rgba(26,140,255,.08)'" onmouseleave="this.style.background=''">
+          <span style="width:28px;height:28px;border-radius:50%;background:#1a2d50;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;color:#c9a84c">${username[0].toUpperCase()}</span>
+          <span style="flex:1;font-size:13px;color:#f0f6ff">${username}</span>
+          <span style="font-size:10px;color:${col};letter-spacing:.5px">${label}</span>
+        </div>`;
+    let html = '';
+    if (friends.length) {
+        html += '<div style="padding:5px 14px 3px;font-size:9px;font-weight:700;letter-spacing:2px;color:#4aabff;text-transform:uppercase">Friends</div>';
+        html += friends.map(f => row(f.username, '🤝 Friend', '#4aabff')).join('');
+    }
+    if (others.length) {
+        html += '<div style="padding:5px 14px 3px;font-size:9px;font-weight:700;letter-spacing:2px;color:#7a9ac0;text-transform:uppercase;border-top:1px solid #1a2d50;margin-top:2px">Other Players</div>';
+        html += others.map(u => row(u.username, '👤 Player', '#7a9ac0')).join('');
+    }
+    dd.innerHTML = html;
+    dd.style.display = 'block';
+}
+
+function onLobbyInviteFocus() {
+    getLobbyFriends().then(friends => {
+        const dd = document.getElementById('lobby-invite-dropdown');
+        if (dd) renderLobbyDropdown(dd, friends, [], '');
+    });
+}
+
+function selectLobbyInvitee(username) {
+    const inp = document.getElementById('invite-username');
+    if (inp) inp.value = username;
+    const dd  = document.getElementById('lobby-invite-dropdown');
+    if (dd)  dd.style.display = 'none';
+}
+
+document.addEventListener('click', e => {
+    const dd = document.getElementById('lobby-invite-dropdown');
+    if (dd && !dd.contains(e.target) && e.target.id !== 'invite-username')
+        dd.style.display = 'none';
+});
+
+// SipSam max table size = 4 humans (banker + 3 others). Player can invite
+// up to 3 friends from the lobby. Track sent invites locally; server-side
+// enforcement happens via room membership.
+window._lobbyInviteCount = window._lobbyInviteCount || 0;
+const SIPSAM_MAX_INVITES = 3;
+
+// Cancel from lobby — return to dashboard, refund wallet to bank.
+function cancelLobby() {
+    if (!confirm('Cancel and return to the dashboard? Your wallet will be returned to your bank.')) return;
+    try {
+        const token = igmToken || (() => { try { return JSON.parse(sessionStorage.getItem('sipsam_user')||'{}').token || null; } catch(e){ return null; }})();
+        if (token) {
+            // Fire wallet-return; navigate regardless of result so user isn't stuck
+            fetch('/api/game/exit', {
+                method: 'POST',
+                headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+token },
+                body: JSON.stringify({ remainingWallet: (typeof myChips==='number' ? myChips : 0), tableMinBet: (igmTableCfg?.minBet || selectedMinBet || 0) })
+            }).catch(()=>{});
+        }
+    } catch(e) {}
+    window._intentionalExit = true;
+    setTimeout(() => { window.location.href = '/'; }, 200);
+}
+
+async function sendLobbyInvite() {
+    const input    = document.getElementById('invite-username');
+    const statusEl = document.getElementById('invite-status');
+    if (!input || !statusEl) return;
+    if (window._lobbyInviteCount >= SIPSAM_MAX_INVITES) {
+        statusEl.textContent = `⚠️ Maximum ${SIPSAM_MAX_INVITES} invites — table is capped at 4 players.`;
+        statusEl.style.color = '#fca5a5';
+        return;
+    }
+    const username = input.value.trim();
+    if (!username) { statusEl.textContent = '⚠️ Enter a username.'; statusEl.style.color = '#fca5a5'; return; }
+
+    statusEl.textContent = 'Sending invite...'; statusEl.style.color = '#7a9ac0';
+
+    try {
+        const token = igmToken || (()=>{ try { return JSON.parse(sessionStorage.getItem('sipsam_user')||'{}').token||null; } catch(e){ return null; } })();
+        if (!token) { statusEl.textContent = '⚠️ Not authenticated.'; statusEl.style.color = '#fca5a5'; return; }
+
+        const tableConfig = igmTableCfg || {};
+        const res = await fetch('/api/friends/invite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            credentials: 'include',
+            body: JSON.stringify({
+                toUsername:  username,
+                game:        'sipsam',
+                roomId:      myRoomId,
+                tableMinBet: tableConfig.minBet || selectedMinBet,
+                tableConfig: {
+                    minBet:     tableConfig.minBet     || selectedMinBet,
+                    maxBet:     tableConfig.maxBet,
+                    walletSize: tableConfig.walletSize  || tableConfig.wallet,
+                    wallet:     tableConfig.walletSize  || tableConfig.wallet,
+                    inc:        tableConfig.increment   || tableConfig.inc,
+                    minBank:    tableConfig.minBank     || tableConfig.bankRequired,
+                    rounds:     window._gameOverState?.maxRounds || selectedRounds || 10,
+                    blitz:      false,
+                    roomId:     myRoomId
+                }
+            })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            window._lobbyInviteCount = (window._lobbyInviteCount || 0) + 1;
+            const remaining = SIPSAM_MAX_INVITES - window._lobbyInviteCount;
+            statusEl.textContent = remaining > 0
+                ? `✅ Invite sent to ${username}! (${remaining} more allowed)`
+                : `✅ Invite sent to ${username}! Maximum reached — table is capped at 4 players.`;
+            statusEl.style.color = '#22c55e';
+            input.value = '';
+            if (window._lobbyInviteCount >= SIPSAM_MAX_INVITES) {
+                input.disabled = true;
+                const sendBtn = input.parentElement?.querySelector('button');
+                if (sendBtn) sendBtn.disabled = true;
+            }
+            setTimeout(() => { if (statusEl && remaining > 0) statusEl.textContent = ''; }, 4000);
+            // Mark this room as private now that an invite has been sent
+            if (myRoomId && myRoomId !== 'sipsam_main') {
+                fetch('/room/' + myRoomId + '/make-private', { method: 'POST' }).catch(()=>{});
+                window._isPrivateRoom = true;
+            }
+        } else {
+            statusEl.textContent = '❌ ' + (data.error || 'Failed to send.');
+            statusEl.style.color = '#fca5a5';
+        }
+    } catch(e) {
+        statusEl.textContent = '⚠️ Server error.'; statusEl.style.color = '#fca5a5';
+    }
+}
+
+function playAgain() {
+    const state = window._gameOverState;
+    const token = igmToken;
+
+    if (!token) { window.location.replace('/'); return; }
+
+    // Build table config from multiple reliable sources
+    const cfg = igmTableCfg || {};
+    const minBet = cfg.minBet || state?.tableMinBet;
+    if (!minBet) { window.location.replace('/'); return; }
+
+    // TABLE_CONFIGS is defined in game.js — use it as authoritative source
+    const tableCfg = TABLE_CONFIGS[minBet] || {};
+    const walletSize = tableCfg.walletSize || cfg.walletSize || cfg.wallet || 0;
+
+    sessionStorage.setItem('sipsam_user', JSON.stringify({
+        username: myUsername || '—',
+        token:    token,
+        avatar:   myAvatar || window._myAvatar || ''
+    }));
+    sessionStorage.setItem('sipsam_table', JSON.stringify({
+        minBet:     minBet,
+        maxBet:     tableCfg.maxBet     || cfg.maxBet,
+        walletSize: walletSize,
+        wallet:     walletSize,
+        inc:        tableCfg.increment  || cfg.increment || cfg.inc,
+        minBank:    tableCfg.bankRequired || cfg.minBank || cfg.bankRequired,
+        rounds:     state?.maxRounds || 10,
+        blitz:      state?.blitz || false
+    }));
+    window._statsRecorded  = false;
+    window._serverSettled  = true;  // server already settled at game end — no beacon needed
+    window._intentionalExit = true; // prevent beforeunload beacon
+    myChips   = 0;
+    igmWallet = 0;
+    setTimeout(() => window.location.reload(), 300);
 }
 
 function updateLobbyUI(state) {
     const listEl = document.getElementById('player-list');
     listEl.innerHTML = '';
-    Object.values(state.players||{}).forEach(player => {
+    const allPlayers  = Object.values(state.players || {});
+    const realPlayers = allPlayers.filter(p => !p.isBot && !p.isGhostBot);
+    const openSeats   = Math.max(0, 4 - realPlayers.length);
+
+    // Show real players
+    realPlayers.forEach(player => {
         const item = document.createElement('div');
         item.classList.add('player-list-item');
-        item.textContent = player.username + (player.isBot ? ' 🤖' : '');
+        const av = (player.avatar && player.avatar !== 'default') ? player.avatar + ' ' : '';
+        item.textContent = av + player.username;
         listEl.appendChild(item);
     });
+
+    // Show open seat slots
+    for (let i = 0; i < openSeats; i++) {
+        const item = document.createElement('div');
+        item.classList.add('player-list-item');
+        item.style.cssText = 'opacity:0.4;font-style:italic;color:#7a9ac0';
+        item.textContent = '— Open Seat —';
+        listEl.appendChild(item);
+    }
+
+    // Show lobby countdown timer
+    const countdown = state.lobbyCountdown || 0;
+    let timerEl = document.getElementById('lobby-timer');
+    if (!timerEl) {
+        timerEl = document.createElement('div');
+        timerEl.id = 'lobby-timer';
+        timerEl.style.cssText = 'margin-top:12px;text-align:center;font-size:12px;color:#7a9ac0';
+        const statusEl = document.getElementById('lobby-status');
+        if (statusEl) statusEl.after(timerEl);
+    }
+    if (countdown > 0) {
+        const mins = Math.floor(countdown / 60);
+        const secs = String(countdown % 60).padStart(2, '0');
+        const urgent = countdown <= 30;
+        timerEl.style.color = urgent ? '#f87171' : '#7a9ac0';
+        timerEl.innerHTML = `⏱ Game starts in <strong style="color:${urgent?'#f87171':'#c9a84c'}">${mins}:${secs}</strong> — invite friends or wait for bots to fill seats`;
+    } else if (countdown === 0 && state.players && Object.keys(state.players).length > 0) {
+        timerEl.textContent = '';
+    }
+}
+
+// TABLE CONFIG MAP — mirrors dashboard table definitions
+
+
+// Apply a pre-selected table+rounds config to the lobby (called from auto-login)
+function applyLobbyPreselect(table, rounds) {
+    const cfg = TABLE_CONFIGS[table.minBet] || table;
+
+    // Show the config banner. Hide ONLY the table-tier picker; keep the
+    // rounds picker visible — players still pick rounds in the lobby
+    // (round count is independent of table tier).
+    const preEl    = document.getElementById('lobby-preselected');
+    const manualEl = document.getElementById('lobby-manual-select');
+    if (preEl) preEl.style.display = 'block';
+    if (manualEl) {
+        manualEl.style.display = 'block';
+        const labels = manualEl.querySelectorAll('.lobby-section-label');
+        const tableButtons = manualEl.querySelector('.table-buttons');
+        if (tableButtons) tableButtons.style.display = 'none';
+        // First label is the "Select Table" caption — hide it. Keep "Select rounds" label.
+        if (labels[0]) labels[0].style.display = 'none';
+    }
+    // Auto-select the rounds button matching the chosen rounds (visual + state)
+    setTimeout(() => {
+        const targetRounds = (table.blitz === true) ? 5 : (rounds || 10);
+        document.querySelectorAll('.btn-rounds').forEach(b => {
+            const m = b.textContent.match(/(\d+)/);
+            const n = m ? parseInt(m[1]) : 0;
+            if (n === targetRounds) {
+                b.classList.add('selected');
+                if (typeof selectRounds === 'function') selectRounds(n, b);
+            } else {
+                b.classList.remove('selected');
+            }
+        });
+    }, 0);
+
+    // Populate banner values
+    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    const isBlitz = table.blitz === true;
+    setEl('lci-table',  '$' + cfg.minBet + ' Table');
+    setEl('lci-minbet', '$' + cfg.minBet);
+    setEl('lci-rounds', isBlitz ? '⚡ BLITZ (5)' : rounds + ' rounds');
+    setEl('lci-wallet', '$' + Number(cfg.walletSize || cfg.wallet || 0).toLocaleString());
+    // Style rounds value orange for blitz
+    const roundsEl = document.getElementById('lci-rounds');
+    if (roundsEl) roundsEl.style.color = isBlitz ? '#ff9a3c' : '';
+
+    // Programmatically set the selection variables
+    selectedMinBet = cfg.minBet;
+    selectedRounds = rounds;
+
+    checkCanStart();
+    const info = document.getElementById('lobby-selection-info');
+    if (info) info.textContent = '';
 }
 
 // ============================================
@@ -694,20 +1624,40 @@ function sendMsg(type, data={}) {
 // ============================================
 // CONNECT
 // ============================================
-async function connect(username) {
-    document.getElementById('login-status').textContent = 'Connecting...';
+async function connect(username, authToken, _roomId) {
+    // Update login-status if it exists and is visible; otherwise it's fine
+    const statusEl = document.getElementById('login-status');
+    if (statusEl) statusEl.textContent = 'Connecting...';
     try {
-        ws = await joinRoom(username);
+        ws = await joinRoom(username, authToken, _roomId);
         myUsername = username;
-        document.getElementById('my-name').textContent = username;
-        document.getElementById('login-status').textContent = '';
+        const myAv = window._myAvatar || '';
+        document.getElementById('my-name').textContent = (myAv ? myAv + ' ' : '') + username;
+        if (statusEl) statusEl.textContent = '';
         showScreen('screen-lobby');
 
         // onmessage and onclose are already set inside joinRoom
         // so we don't need to re-set them here
     } catch(err) {
-        console.error("Connect error:", err);
-        document.getElementById('login-status').textContent = 'Connection failed: ' + err.message;
+        console.error("[connect] Error:", err);
+        // Always make screen-login visible with a clear error — never leave black screen
+        showScreen('screen-login');
+        const loginCard = document.querySelector('.login-card, .login-box, #login-form');
+        if (loginCard) loginCard.style.display = '';
+        const errEl = document.getElementById('login-status');
+        if (errEl) {
+            errEl.style.display = 'block';
+            errEl.style.color   = '#ff6b6b';
+            errEl.textContent   = '⚠️ ' + err.message;
+        } else {
+            // Worst case: inject a visible error message
+            document.body.insertAdjacentHTML('afterbegin',
+                `<div style="position:fixed;top:20px;left:50%;transform:translateX(-50%);
+                background:#1a0a0a;border:1px solid #ff6b6b;color:#ff6b6b;padding:16px 24px;
+                border-radius:8px;z-index:9999;font-family:monospace;font-size:14px">
+                ⚠️ Connection failed: ${err.message}</div>`
+            );
+        }
     }
 }
 
@@ -717,36 +1667,54 @@ function handleServerMessage(msg) {
         const me    = state.players?.[mySessionId];
         if (me) isBanker = me.isBanker;
 
+        // Sound triggers on status change
+        if (typeof SFX !== 'undefined') {
+            if (state.status === 'arranging' && window._lastStatus !== 'arranging') SFX.deal();
+            if (state.status === 'betting'   && window._lastStatus !== 'betting')   SFX.chip();
+        }
+        window._lastStatus = state.status;
+
         if (state.status === 'waiting') {
             showScreen('screen-lobby');
             updateLobbyUI(state);
         } else {
             if (!document.getElementById('screen-game').classList.contains('active') && state.status !== 'gameOver') {
                 showScreen('screen-game');
+                // Always keep in-game menu button visible during gameplay
+                const menuBtn = document.getElementById('ingame-menu-btn');
+                if (menuBtn) menuBtn.style.display = 'flex';
             }
             updateGameUI(state);
         }
     } else if (msg.type === 'error') {
-        document.getElementById('arrange-msg').textContent = '⚠️ ' + msg.message;
+        // General errors (chip transfers, etc.) — shown in relevant panel
+        // Note: invalid hand arrangement now results in DQ, not an error message
     } else if (msg.type === 'specialConfirmed') {
         const msgEl = document.getElementById('special-msg');
         if (msgEl) msgEl.textContent = `✅ ${msg.specialName} (${msg.multiplier}x) — CONFIRMED! Waiting for reveal...`;
     } else if (msg.type === 'specialDenied') {
         const msgEl = document.getElementById('special-msg');
-        if (msgEl) msgEl.textContent = `❌ Wrong special declared — you are DISQUALIFIED.`;
-        // Re-show cards area with face-down cards so table can see
+        if (msgEl) msgEl.textContent = msg.message || 'Wrong special declared - you are DISQUALIFIED.';
+        showSpecialDeniedModal(msg);
         document.getElementById('btn-arrange').disabled = true;
         document.getElementById('btn-declare-special').disabled = true;
     } else if (msg.type === 'specialAlert') {
         // Show a banner on the table for everyone
         showSpecialAlertBanner(msg.username, msg.specialName, msg.multiplier);
+        if (typeof SFX !== 'undefined') SFX.special();
     } else if (msg.type === 'walletDebt') {
         const tmEl = document.getElementById('table-message');
         if (tmEl) tmEl.textContent = `💸 ${msg.reason}`;
-        // If it's me, show a prominent alert
         if (msg.username === myUsername) {
-            alert(`WALLET PAYMENT REQUIRED\n\nYou owe $${msg.debt} from your wallet outside the game.\nYou have been removed from this game.`);
+            // Update igmBank — can go negative
+            if (typeof igmBank !== 'undefined') igmBank = igmBank - msg.debt;
+            const bankStr = igmBank < 0
+                ? `Bank: -$${Math.abs(igmBank).toLocaleString()} (in debt)`
+                : `Bank: $${igmBank.toLocaleString()}`;
+            showIngameToast('💸 Bank Hit', `$${msg.debt.toLocaleString()} pulled from your bank. ${bankStr}`);
         }
+    } else if (msg.type === 'replenishResult') {
+        if (typeof onReplenishResult === 'function') onReplenishResult(msg);
     } else if (msg.type === 'playerDisqualified') {
         const tmEl = document.getElementById('table-message');
         if (tmEl) { tmEl.textContent = `⚠️ ${msg.username} DISQUALIFIED — ${msg.reason}`; }
@@ -755,6 +1723,120 @@ function handleServerMessage(msg) {
     } else if (msg.type === 'disqualifyDenied') {
         const dqMsg = document.getElementById('dq-msg');
         if (dqMsg) dqMsg.textContent = `❌ ${msg.message}`;
+
+    } else if (msg.type === 'bankerChanged') {
+        showIngameToast('🏦 Banker Changed', `${msg.username} is now the Banker.`);
+
+    } else if (msg.type === 'playerBroke') {
+        showIngameToast('💸 Player Eliminated', `${msg.username} ran out of chips and has been removed.`);
+
+    } else if (msg.type === 'gameAborted') {
+        showIngameToast('🚪 Game Ended', msg.message || 'Not enough players to continue.');
+        setTimeout(() => { window._serverSettled = true; window._intentionalExit = true; window.location.href = '/'; }, 4000);
+
+    } else if (msg.type === 'bankerForfeited') {
+        showIngameToast('🏦 Banker Forfeited!', msg.message || 'Banker left — you receive 2× your bet!');
+        if (typeof SFX !== 'undefined') SFX.win();
+
+    } else if (msg.type === 'playerLeft') {
+        showIngameToast('🚪 Player Left', msg.message || `${msg.username} has left the game.`);
+
+    } else if (msg.type === 'botReplaced') {
+        showIngameToast('🤖 Bot Joined', `${msg.username} has taken the empty seat.`);
+
+    } else if (msg.type === 'chipRequestSent') {
+        showIngameToast('💸 Chip Request Sent', `Request sent to ${msg.toUsername} for $${msg.amount?.toLocaleString()}.`);
+
+    } else if (msg.type === 'doubleRequest') {
+        // Another player wants to double — show notification to banker
+        if (isBanker) {
+            showIngameToast('⚡ Double Request', `${msg.from} wants to double their bet.`);
+        }
+
+    } else if (msg.type === 'doubleAccepted') {
+        showIngameToast('✅ Double Accepted', `${msg.username}'s double bet was accepted.`);
+
+    } else if (msg.type === 'doubleRejected') {
+        showIngameToast('❌ Double Rejected', `${msg.username}'s double bet was rejected.`);
+
+    } else if (msg.type === 'chatMessage') {
+        // Resolve position from client's own seatMap (server's guess is unreliable)
+        if (typeof showSpeechBubble === 'function') {
+            let position;
+            if (msg.isBanker) {
+                position = 'banker';
+            } else if (msg.sessionId === mySessionId) {
+                // I am the sender — always show at my own zone (bottom = p2 by convention,
+                // but use seatMap to be exact)
+                position = seatMap[msg.sessionId] || 'p2';
+            } else {
+                position = seatMap[msg.sessionId] || 'p1';
+            }
+            showSpeechBubble(msg.sessionId, msg.username, msg.message, position);
+        }
+
+    } else if (msg.type === 'chipRequest') {
+        // Another player is requesting chips from me
+        if (msg.targetSessionId === mySessionId) {
+            if (typeof showIngameToast === 'function') {
+                showIngameToast(
+                    `🙏 Chip Request`,
+                    `${msg.username} requests $${msg.amount.toLocaleString()}. Open menu to respond.`
+                );
+            }
+            // Store pending request so the Send Chips panel can auto-fill it
+            window._pendingChipRequest = { from: msg.username, fromSid: msg.sessionId, amount: msg.amount };
+        }
+
+    } else if (msg.type === 'chipSent') {
+        // Chips were sent to me
+        if (msg.targetSessionId === mySessionId) {
+            if (typeof showIngameToast === 'function') {
+                showIngameToast(`💰 Chips Received`, `${msg.username} sent you $${msg.amount.toLocaleString()}!`);
+            }
+            if (typeof SFX !== 'undefined') SFX.chipIn();
+            // Update local chip count
+            if (typeof myChips !== 'undefined') myChips = (myChips || 0) + msg.amount;
+            if (typeof igmWallet !== 'undefined') igmWallet = (igmWallet || 0) + msg.amount;
+        }
+
+    } else if (msg.type === 'settleComplete') {
+        // Server confirmed chips returned to bank — update local bank display
+        console.log(`[SETTLE] ✅ Server settled — returned $${msg.returned}, new bank: $${msg.newBankBalance}`);
+        if (typeof igmBank !== 'undefined') igmBank = msg.newBankBalance;
+        window._serverSettled = true; // flag: server already handled exit
+
+    } else if (msg.type === 'settleFailed') {
+        // Server could not settle (missing token) — client must call exit directly
+        console.warn('[SETTLE] ⚠️ Server settle failed (no_token) — client falling back to direct exit call');
+        (async () => {
+            try {
+                // igmToken is captured at game load BEFORE sessionStorage is cleared
+                const token = (typeof igmToken !== 'undefined' && igmToken)
+                    ? igmToken
+                    : (()=>{ try { return JSON.parse(sessionStorage.getItem('sipsam_user')||'{}').token||null; } catch(e){ return null; } })();
+                const tableMinBet = (typeof igmTableCfg !== 'undefined' && igmTableCfg?.minBet)
+                    ? igmTableCfg.minBet
+                    : 0;
+                const chips = msg.chips || 0;
+                if (!token) { console.error('[SETTLE] No token available anywhere — chips lost!'); return; }
+                const res = await fetch('/api/game/exit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    credentials: 'include',
+                    body: JSON.stringify({ remainingWallet: chips, tableMinBet })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    console.log(`[SETTLE] ✅ Client fallback settle OK — new bank: $${data.newBankBalance}`);
+                    if (typeof igmBank !== 'undefined') igmBank = data.newBankBalance;
+                    window._serverSettled = true;
+                } else {
+                    console.error('[SETTLE] ❌ Client fallback also failed:', data.error);
+                }
+            } catch(e) { console.error('[SETTLE] Client fallback error:', e.message); }
+        })();
+
     } else if (msg.type === 'error') {
         // Show in whichever panel is visible
         const panels = ['special-msg','arrange-msg','bet-msg','dq-msg'];
@@ -1010,8 +2092,8 @@ document.getElementById('username-input').addEventListener('keydown', e => {
 });
 
 // Bet controls
-document.getElementById('btn-bet-up')  .addEventListener('click', () => adjustBet(10));
-document.getElementById('btn-bet-down').addEventListener('click', () => adjustBet(-10));
+document.getElementById('btn-bet-up')  .addEventListener('click', () => adjustBet(1));
+document.getElementById('btn-bet-down').addEventListener('click', () => adjustBet(-1));
 
 
 
@@ -1022,6 +2104,9 @@ document.getElementById('btn-arrange').addEventListener('click', () => {
     if (piles.hand1.length !== 3) { msg.textContent = '⚠️ 1st hand needs exactly 3 cards.'; return; }
     if (piles.hand2.length !== 5) { msg.textContent = '⚠️ 2nd hand needs exactly 5 cards.'; return; }
     if (piles.hand3.length !== 5) { msg.textContent = '⚠️ 3rd hand needs exactly 5 cards.'; return; }
+    // Clear any previous error styling before submitting
+    const arrangeMsgEl = document.getElementById('arrange-msg');
+    if (arrangeMsgEl) { arrangeMsgEl.textContent = ''; arrangeMsgEl.classList.remove('arrange-error'); }
     sendMsg("arrangeHands", { hand1:piles.hand1, hand2:piles.hand2, hand3:piles.hand3 });
     msg.textContent = '✅ Arrangement submitted! Waiting for others...';
     document.getElementById('btn-arrange').disabled = true;
@@ -1044,6 +2129,35 @@ const ALL_SPECIALS = [
     { name: 'Straight Flush',          multiplier:  3, desc: 'Straight Flush in 2nd or 3rd hand' },
     { name: 'No Face',                 multiplier:  2, desc: 'No J, Q, or K in any hand' },
 ];
+
+
+function showSpecialDeniedModal(msg) {
+    const existing = document.getElementById('special-denied-backdrop');
+    if (existing) existing.remove();
+    const backdrop = document.createElement('div');
+    backdrop.className = 'special-modal-backdrop';
+    backdrop.id = 'special-denied-backdrop';
+    const actual = msg.actual
+        ? '<strong>' + msg.actual + '</strong>' + (msg.actualMultiplier ? ' (' + msg.actualMultiplier + 'x)' : '')
+        : '<strong>No special found</strong>';
+    const modal = document.createElement('div');
+    modal.className = 'special-modal';
+    modal.innerHTML =
+        '<h3>Special Declined</h3>' +
+        '<p class="modal-sub">' + (msg.message || 'Wrong special declared.') + '</p>' +
+        '<div style="font-size:13px;line-height:1.6;color:#c7d7ef;margin:10px 0">' +
+        'Declared: <strong>' + (msg.declared || 'Unknown') + '</strong><br>' +
+        'Actual highest special: ' + actual +
+        '</div>';
+    const close = document.createElement('button');
+    close.className = 'btn-cancel-special';
+    close.textContent = 'Close';
+    close.onclick = () => backdrop.remove();
+    modal.appendChild(close);
+    backdrop.appendChild(modal);
+    backdrop.addEventListener('click', e => { if (e.target === backdrop) backdrop.remove(); });
+    document.body.appendChild(backdrop);
+}
 
 function showSpecialModal() {
     // Auto-detect what special (if any) the player currently has
@@ -1125,65 +2239,144 @@ function checkCanStart() {
 
 function startGame() {
     if (!selectedRounds || !selectedMinBet) return;
-    sendMsg("startGame", { rounds: selectedRounds, tableMinBet: selectedMinBet });
+    const tableJson = sessionStorage.getItem('sipsam_table');
+    const table     = tableJson ? JSON.parse(tableJson) : {};
+    sendMsg("startGame", { rounds: selectedRounds, tableMinBet: selectedMinBet, blitz: table.blitz === true });
 }
 
 // ── VURGLIFE PLATFORM AUTO-LOGIN ──────────────
 // Runs on DOMContentLoaded — skips login screen if coming from dashboard
+// ── CRASH / CLOSE RECOVERY ──────────────────────────────────────
+// If the page closes or crashes mid-game, return chips to bank via beacon API
+// sendBeacon works even during page unload (unlike fetch)
+window.addEventListener('beforeunload', function() {
+    // Only fire beacon on true crash/unexpected close
+    // intentionalExit is set by exitToLobby() and playAgain() before navigating
+    if (window._intentionalExit) return;
+    if (window._serverSettled) return;
+    if (!igmToken || !myChips) return;
+    const wallet      = myChips || 0;
+    const tableMinBet = igmTableCfg?.minBet || 0;
+    const payload = JSON.stringify({ remainingWallet: wallet, tableMinBet });
+    const blob    = new Blob([payload], { type: 'application/json' });
+    navigator.sendBeacon('/api/game/exit-beacon?token=' + encodeURIComponent(igmToken), blob);
+});
+
 window.addEventListener('DOMContentLoaded', function() {
     try {
         const userJson  = sessionStorage.getItem('sipsam_user');
         const tableJson = sessionStorage.getItem('sipsam_table');
 
-        // No session data — show normal login screen as usual
-        if (!userJson) return;
+        // Only auto-connect if BOTH sipsam_user AND sipsam_table exist.
+        // Both are only set when the player explicitly clicks "Enter Table" on the dashboard.
+        // If either is missing, redirect back to the dashboard — the old "Enter your name"
+        // screen should never be shown; all access must come through the dashboard.
+        if (!userJson || !tableJson) {
+            window.location.replace('/');
+            return;
+        }
 
         const user  = JSON.parse(userJson);
-        const table = tableJson ? JSON.parse(tableJson) : null;
-        if (!user || !user.username) return;
+        const table = JSON.parse(tableJson);
+        if (!user || !user.username || !table || !table.minBet) {
+            window.location.replace('/');
+            return;
+        }
 
         // Clear session storage immediately
         sessionStorage.removeItem('sipsam_user');
+        sessionStorage.removeItem('sipsam_table');
 
-        // Show a loading screen while connecting — don't leave black screen
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        const loginScreen = document.getElementById('screen-login');
-        if (loginScreen) {
-            loginScreen.classList.add('active');
-            // Show connecting message instead of login form
-            const form = loginScreen.querySelector('.login-card, .login-box, form, #login-form');
-            if (form) form.style.display = 'none';
-            const status = loginScreen.querySelector('#login-status, .status-msg');
-            if (status) {
-                status.style.display = 'block';
-                status.textContent   = 'Connecting as ' + user.username + '...';
-            } else {
-                loginScreen.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px"><div style="font-family:serif;font-size:32px;letter-spacing:4px;color:#c9a84c">SIPSAM</div><div style="color:#7a9ac0;font-size:14px;letter-spacing:2px">Connecting as ' + user.username + '...</div></div>';
-            }
-        }
+        console.log('[VurgLife] Auto-login as:', user.username, '| table:', table);
 
-        // Connect to game server
-        connect(user.username).then(() => {
+        // Hide the redirect overlay — we have a valid session
+        const redirectOverlay = document.getElementById('screen-redirect');
+        if (redirectOverlay) redirectOverlay.remove();
+
+        // Show a connecting overlay — DON'T destroy the DOM, just cover it
+        // This keeps all elements (login-status, username-input, etc.) intact
+        const overlay = document.createElement('div');
+        overlay.id = 'vurglife-connect-overlay';
+        overlay.style.cssText = [
+            'position:fixed', 'inset:0', 'z-index:9999',
+            'background:#0a0f1a',
+            'display:flex', 'flex-direction:column',
+            'align-items:center', 'justify-content:center', 'gap:20px'
+        ].join(';');
+        overlay.innerHTML = `
+            <div style="font-family:'Bebas Neue',serif;font-size:42px;letter-spacing:6px;color:#c9a84c">SIPSAM</div>
+            <div id="vl-connect-msg" style="color:#7a9ac0;font-size:13px;letter-spacing:2px;text-transform:uppercase">
+                Connecting as ${user.username}…
+            </div>
+            <div style="width:180px;height:2px;background:#1a2a3a;border-radius:2px;overflow:hidden">
+                <div id="vl-connect-bar" style="height:100%;width:0%;background:#c9a84c;transition:width 0.4s ease"></div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        // Animate the progress bar while connecting
+        let pct = 0;
+        const barEl = overlay.querySelector('#vl-connect-bar');
+        const barTick = setInterval(() => {
+            pct = Math.min(pct + 8, 85); // stops at 85% until connect resolves
+            if (barEl) barEl.style.width = pct + '%';
+        }, 200);
+
+        const removeOverlay = () => {
+            clearInterval(barTick);
+            if (barEl) barEl.style.width = '100%';
+            setTimeout(() => overlay.remove(), 300);
+        };
+
+        // Connect to game server — pass token directly since sessionStorage is already cleared
+        // Guard against 'default' placeholder from old DB rows
+        const rawAvatar = user.avatar || '';
+        window._myAvatar     = (rawAvatar === 'default' || rawAvatar === 'null') ? '' : rawAvatar;
+        myAvatar             = window._myAvatar;
+        window._isPrivateRoom = table.isPrivate || false;
+        connect(user.username, user.token, table.roomId || 'sipsam_main').then(() => {
             // connect() calls showScreen('screen-lobby') on success
+            removeOverlay();
+
             if (!table || !table.minBet) return;
-            // Auto-click the matching table button in the lobby
-            setTimeout(() => {
-                document.querySelectorAll('button').forEach(btn => {
-                    const txt = btn.textContent || '';
-                    const oc  = btn.getAttribute('onclick') || '';
-                    if (txt.includes('$' + table.minBet) || oc.includes(table.minBet)) {
-                        btn.click();
+
+            // Call /api/game/enter to deduct wallet from bank
+            // Skip if dashboard already called it (enterHandled flag)
+            if (!table.enterHandled) {
+                fetch('/api/game/enter', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + user.token },
+                    credentials: 'include',
+                    body: JSON.stringify({ tableMinBet: table.minBet })
+                })
+                .then(r => r.json())
+                .then(d => {
+                    if (d.ok) {
+                        console.log(`[ENTER] ✅ Wallet funded: $${d.walletSize} | Bank: $${d.newBankBalance}`);
+                        igmBank = d.newBankBalance;
+                    } else {
+                        console.warn('[ENTER] Enter API:', d.error);
                     }
-                });
-            }, 800);
+                })
+                .catch(e => console.warn('[ENTER] Enter API failed:', e.message));
+            } else {
+                console.log('[ENTER] Enter already handled by dashboard — skipping.');
+            }
+
+            // Apply pre-selected table + rounds from dashboard
+            const rounds = table.rounds || 10;
+            setTimeout(() => {
+                applyLobbyPreselect(table, rounds);
+            }, 300);
         }).catch(err => {
             console.warn('[VurgLife] Auto-connect failed:', err);
-            // Fall back to normal login screen on failure
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById('screen-login')?.classList.add('active');
+            removeOverlay();
+            // connect() already handles showing the login screen + error message
         });
 
     } catch(e) {
         console.warn('[VurgLife] Auto-login error:', e);
+        // Make sure something is visible
+        showScreen('screen-login');
     }
 });

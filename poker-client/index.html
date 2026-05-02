@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="VurgLife">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/images/icon-192.png">
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=3">
   <style>
     /* Lobby config banner (pre-selected from dashboard) */
     .lobby-title { font-family:'Bebas Neue',serif; font-size:2rem; letter-spacing:4px; margin:0 0 4px; }
@@ -93,6 +93,7 @@
         <button class="btn-table" onclick="selectTable(250,this)">$250 Table<br><small>Need $15,000</small></button>
         <button class="btn-table" onclick="selectTable(500,this)">$500 Table<br><small>Need $30,000</small></button>
         <button class="btn-table" onclick="selectTable(1000,this)">$1,000 Table<br><small>Need $60,000</small></button>
+        <button class="btn-table" onclick="selectTable(10000,this)">$10,000 VIP<br><small>Need $2,000,000</small></button>
       </div>
       <p class="lobby-section-label">Select number of rounds:</p>
       <div class="rounds-buttons">
@@ -123,7 +124,10 @@
       <div id="invite-status" style="font-size:11px;margin-top:6px;min-height:16px"></div>
     </div>
 
-    <button id="btn-start-game" class="btn-primary" onclick="startGame()" disabled style="margin-top:16px">Start Game</button>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button id="btn-cancel-lobby" class="btn-secondary" onclick="cancelLobby()" style="flex:0 0 auto;padding:14px 20px">Cancel</button>
+      <button id="btn-start-game" class="btn-primary" onclick="startGame()" disabled style="flex:1">Start Game</button>
+    </div>
   </div>
 </div>
 
@@ -517,13 +521,12 @@
     <div id="gameover-result" style="font-size:15px;font-weight:700;margin-bottom:12px;letter-spacing:1px"></div>
     <div id="final-scores"></div>
     <div style="margin-top:20px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-      <button class="btn-primary" onclick="playAgain()" style="padding:12px 28px">⚡ Play Again</button>
-      <button class="btn-secondary" onclick="exitToLobby()" style="padding:12px 28px">🏠 Return to Dashboard</button>
+      <button class="btn-primary" onclick="exitToLobby()" style="padding:12px 28px">🏠 Return to Dashboard</button>
     </div>
   </div>
 </div>
 
-<script src="game.js"></script>
+<script src="game.js?v=14"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      IN-GAME SLIDE-OUT MENU
@@ -612,6 +615,17 @@
     </div>
 
     <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
+
+
+    <!-- Payouts & Specials -->
+    <div class="igm-item" onclick="igmShowPayouts()">
+      <div class="igm-ico">$</div>
+      <div class="igm-body">
+        <div class="igm-title">Payouts & Specials</div>
+        <div class="igm-desc">Special multipliers, bonuses, and DQ payouts</div>
+      </div>
+      <span class="igm-arrow">â€º</span>
+    </div>
 
     <!-- Rules -->
     <div class="igm-item" onclick="igmShowRules()">
@@ -712,13 +726,13 @@
         <ul style="padding-left:16px;margin:0"><li><strong style="color:#f0f6ff">1st</strong> — 3 cards — weakest — furthest from you</li>
           <li><strong style="color:#f0f6ff">2nd</strong> — 5 cards — middle strength</li><li><strong style="color:#f0f6ff">3rd</strong> — 5 cards — strongest — closest to you</li></ul>
       </div>
-      <div class="igm-rule-sec"><div class="igm-rule-h">💰 Payouts</div>
+      <div class="igm-rule-sec" id="igm-payouts-section"><div class="igm-rule-h">💰 Payouts</div>
         <ul style="padding-left:16px;margin:0">
           <li>Win all 3 hands → <span style="color:#22c55e">+2× bet</span></li><li>Win 2 of 3 → <span style="color:#22c55e">+1× bet</span></li>
           <li>Win 1 of 3 → <span style="color:#ef4444">−1× bet</span></li><li>Lose all 3 → <span style="color:#ef4444">−2× bet</span></li>
         </ul>
       </div>
-      <div class="igm-rule-sec"><div class="igm-rule-h">⭐ Specials (override all hands)</div>
+      <div class="igm-rule-sec" id="igm-specials-section"><div class="igm-rule-h">⭐ Specials (override all hands)</div>
         <p style="margin:0 0 8px;font-size:11px">Must be declared before arranging. Winner gets multiplier × bet <strong style="color:#4aabff">plus a house bonus</strong>. Bonus is paid once by the house — not charged to any player.</p>
         <table style="width:100%;border-collapse:collapse;font-size:11px">
           <thead>
@@ -1198,6 +1212,13 @@ function igmSendChips() {
 }
 
 function igmShowRules() { igmShowSub('rules'); }
+function igmShowPayouts() {
+  igmShowSub('rules');
+  setTimeout(() => {
+    const target = document.getElementById('igm-payouts-section');
+    if (target) target.scrollIntoView({ block:'start' });
+  }, 80);
+}
 
 function igmExit() {
   if (!confirm('Exit game? Your remaining wallet will be returned to your bank.')) return;

@@ -1053,11 +1053,13 @@ html, body{
   text-transform: uppercase;
 }
 
-/* ── MY AREA — glass top edge ── */
+/* ── MY AREA — solid glass top edge ──
+   NOTE: NO backdrop-filter here. backdrop-filter on an ancestor turns
+   `position:fixed` descendants into containing-block-relative, which
+   traps the bet-overlay inside .my-area instead of centering on the
+   viewport. Use a solid translucent fill instead. */
 .my-area{
-  background: rgba(8,18,36,.7);
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  background: rgba(8,18,36,.92);
   border-top: 1px solid var(--mg-line);
 }
 #my-name { font-family:'Manrope',sans-serif; font-weight: 700; letter-spacing:.04em; color:#f3f6fb; }
@@ -1101,3 +1103,11 @@ html, body{
   box-shadow: 0 4px 12px rgba(0,4,18,.55), inset 0 1px 0 rgba(255,255,255,.12);
 }
 
+
+
+.card.magnetic-dragging {
+  touch-action: none;
+  opacity: .92;
+  transform: scale(1.03);
+  box-shadow: 0 18px 34px rgba(0,0,0,.65), 0 0 0 2px rgba(240,208,128,.55);
+}
