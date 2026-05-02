@@ -330,36 +330,30 @@ function validateHandOrder(hand1, hand2, hand3) {
     }
 
     if (s1 === s2) {
-        // Same strength bucket
-        // Case: both High Card (s=0)
-        if (s1 === 0) {
-            // 1st hand straight/flush is treated as High Card — compare highest card
-            const top1 = Math.max(...hand1.map(cardValue));
-            const top2 = Math.max(...hand2.map(cardValue));
-            if (top1 > top2)
-                return `Both hands High Card — highest card must be in 2nd hand (1st best: ${fv(top1)}, 2nd best: ${fv(top2)}).`;
-        }
         // Case: same bucket but different underlying types (3-card Trips=20 vs 5-card TwoPair=20)
-        else if (e1.name !== e2.name) {
+        if (e1.name !== e2.name && s1 !== 0) {
             return `1st hand (${e1.name}) and 2nd hand (${e2.name}) have incompatible rankings. Invalid.`;
         }
-        // Case: same type in same bucket (both Pair, or both Trips)
-        else {
-            const pv1 = primaryValue(hand1), pv2 = primaryValue(hand2);
-            if (pv1 > pv2)
-                return `Both hands ${e1.name} — 2nd hand primary (${fv(pv2)}) must be higher than 1st (${fv(pv1)}).`;
-            if (pv1 === pv2) {
-                // Equal primary values — for flushes check suit ordering
-                if (e1.isFlush && e2.isFlush) {
-                    const s1cards = sortDesc(hand1), s2cards = sortDesc(hand2);
-                    for (let i = 0; i < Math.min(s1cards.length, s2cards.length); i++) {
-                        const sv1 = suitRank(s1cards[i]), sv2 = suitRank(s2cards[i]);
-                        if (sv1 > sv2) return `Both Flush same values — 2nd hand suit must outrank 1st (Hearts > Spades > Diamonds > Clubs).`;
-                        if (sv2 > sv1) break;
-                    }
-                } else {
-                    return `Both hands ${e1.name} — 2nd hand primary (${fv(pv2)}) must be strictly higher than 1st (${fv(pv1)}).`;
-                }
+        // ── FIX: use evaluate().cards which sorts poker-correctly ──────────────
+        // (pair cards first, then kickers desc) NOT raw sortDesc which just sorts by value
+        // This ensures pair of Qs correctly outranks pair of Js even if Js hand has Ace kicker
+        const sorted1 = e1.cards || sortDesc(hand1);
+        const sorted2 = e2.cards || sortDesc(hand2);
+        const vals1 = sorted1.map(cardValue);
+        const vals2 = sorted2.map(cardValue);
+        let valueVerdict = 0;
+        for (let i = 0; i < Math.min(vals1.length, vals2.length); i++) {
+            if (vals2[i] > vals1[i]) { valueVerdict =  1; break; }
+            if (vals1[i] > vals2[i]) { valueVerdict = -1; break; }
+        }
+        if (valueVerdict === -1) {
+            return `Both hands ${e1.name} — 2nd hand (${e2.name}) must be stronger than 1st hand (${e1.name}).`;
+        }
+        if (valueVerdict === 0 && e1.isFlush && e2.isFlush) {
+            for (let i = 0; i < Math.min(sorted1.length, sorted2.length); i++) {
+                const sv1 = suitRank(sorted1[i]), sv2 = suitRank(sorted2[i]);
+                if (sv1 > sv2) return `Both Flush, same card values — 2nd hand suit must outrank 1st (Hearts > Spades > Diamonds > Clubs).`;
+                if (sv2 > sv1) break;
             }
         }
     }
@@ -377,28 +371,28 @@ function validateHandOrder(hand1, hand2, hand3) {
     }
 
     if (s2 === s3) {
-        if (s2 === 0) {
-            const top2 = Math.max(...hand2.map(cardValue));
-            const top3 = Math.max(...hand3.map(cardValue));
-            if (top2 > top3)
-                return `Both hands High Card — highest card must be in 3rd hand (2nd best: ${fv(top2)}, 3rd best: ${fv(top3)}).`;
-        } else {
-            const pv2 = primaryValue(hand2), pv3 = primaryValue(hand3);
-            if (pv2 > pv3)
-                return `Both hands ${e2.name} — 3rd hand primary (${fv(pv3)}) must be higher than 2nd (${fv(pv2)}).`;
-            // If primary values equal, check suit (Flush tie: higher suit wins, so 3rd must have ≥ suit)
-            if (pv2 === pv3 && e2.isFlush && e3.isFlush) {
-                // Compare full hand positionally by suit — 3rd must be >= 2nd in suit
-                const s2cards = sortDesc(hand2), s3cards = sortDesc(hand3);
-                for (let i = 0; i < Math.min(s2cards.length, s3cards.length); i++) {
-                    const sv2 = suitRank(s2cards[i]), sv3 = suitRank(s3cards[i]);
-                    if (sv2 > sv3) return `Both Flush same values — 3rd hand suit must outrank 2nd (Hearts > Spades > Diamonds > Clubs).`;
-                    if (sv3 > sv2) break; // 3rd has higher suit at this position — valid
-                }
-            } else if (pv2 === pv3) {
-                return `Both hands ${e2.name} — 3rd hand primary (${fv(pv3)}) must be strictly higher than 2nd (${fv(pv2)}).`;
+        // ── FIX: use evaluate().cards which sorts poker-correctly ──────────────
+        // (dominant cards first — pair/trips/etc — then kickers desc)
+        const sorted2 = e2.cards || sortDesc(hand2);
+        const sorted3 = e3.cards || sortDesc(hand3);
+        const vals2 = sorted2.map(cardValue);
+        const vals3 = sorted3.map(cardValue);
+        let valueVerdict = 0; // -1 = 2nd stronger, 0 = equal, 1 = 3rd stronger
+        for (let i = 0; i < Math.min(vals2.length, vals3.length); i++) {
+            if (vals3[i] > vals2[i]) { valueVerdict =  1; break; }
+            if (vals2[i] > vals3[i]) { valueVerdict = -1; break; }
+        }
+        if (valueVerdict === -1) {
+            return `Both hands ${e2.name} — 3rd hand (${e3.name}) must be stronger than 2nd hand (${e2.name}).`;
+        }
+        if (valueVerdict === 0 && e2.isFlush && e3.isFlush) {
+            for (let i = 0; i < Math.min(sorted2.length, sorted3.length); i++) {
+                const sv2 = suitRank(sorted2[i]), sv3 = suitRank(sorted3[i]);
+                if (sv2 > sv3) return `Both Flush, same card values — 3rd hand suit must outrank 2nd (Hearts > Spades > Diamonds > Clubs).`;
+                if (sv3 > sv2) break;
             }
         }
+        // valueVerdict === 1 means 3rd is stronger — valid, fall through
     }
 
     return null; // valid
@@ -431,11 +425,27 @@ function detectSpecial(hand1, hand2, hand3) {
         return {name:'Royal Flush', multiplier:7, rank:6};
 
     // FFF — all three hands are flushes (5:1)
+    // Check both the submitted arrangement AND whether the 13 raw cards CAN form FFF
+    // (handles declaration verification where cards may not be arranged yet)
     const e1 = evaluate3CardHand(hand1);
-    if (e1.isFlush && e2.isFlush && e3.isFlush)
-        return {name:'Flush-Flush-Flush', multiplier:5, rank:5};
+    const canFFF = (() => {
+        // Check submitted arrangement first
+        if (e1.isFlush && e2.isFlush && e3.isFlush) return true;
+        // Check if raw cards can form FFF via suit grouping
+        const bySuit = {};
+        all.forEach(c => { bySuit[c[1]] = (bySuit[c[1]]||[]); bySuit[c[1]].push(c); });
+        const groups = Object.values(bySuit).filter(g => g.length > 0);
+        // 3 suit groups of sizes 3,5,5 in any order
+        const sizes = groups.map(g => g.length).sort((a,b)=>a-b);
+        if (groups.length === 3 && sizes[0]===3 && sizes[1]===5 && sizes[2]===5) return true;
+        // 2 suit groups: one of 3, one of 10 (10 splits into 5+5 same suit)
+        if (groups.length === 2 && sizes[0]===3 && sizes[1]===10) return true;
+        return false;
+    })();
+    if (canFFF) return {name:'Flush-Flush-Flush', multiplier:5, rank:5};
 
     // SSS — all three hands are straights (5:1)
+    // Check submitted arrangement; SSS requires player to arrange correctly
     if (e1.isStraight && e2.isStraight && e3.isStraight)
         return {name:'Straight-Straight-Straight', multiplier:5, rank:4};
 
@@ -443,9 +453,71 @@ function detectSpecial(hand1, hand2, hand3) {
     if (eq > 0)
         return {name:'Four of a Kind', multiplier:3, rank:2};
 
-    // Straight Flush (3:1) — in 2nd or 3rd
-    if (e2.rank===7 || e3.rank===7)
+    // Straight Flush (3:1) — detect from ALL 13 raw cards, not just arranged hands
+    // Rule: 5 or more consecutive cards of the same suit anywhere in the 13 cards
+    const hasStraightFlushInRaw = (() => {
+        // Group by suit
+        const bySuit = {};
+        all.forEach(c => {
+            const suit = c[1];
+            if (!bySuit[suit]) bySuit[suit] = [];
+            bySuit[suit].push(c);
+        });
+        for (const suitCards of Object.values(bySuit)) {
+            if (suitCards.length < 5) continue;
+            // Get unique values, handle Ace as both 1 and 14
+            const vals = [...new Set(suitCards.map(c => cardValue(c)))].sort((a,b)=>a-b);
+            // Check for any run of 5+ consecutive values
+            let run = 1;
+            for (let i = 1; i < vals.length; i++) {
+                if (vals[i] === vals[i-1] + 1) {
+                    run++;
+                    if (run >= 5) return true;
+                } else {
+                    run = 1;
+                }
+            }
+            // Check Ace-low straight (A-2-3-4-5): Ace=14, so check if 2,3,4,5 present
+            if (vals.includes(14)) {
+                const lowVals = [1,2,3,4,5];
+                const withAceLow = [...new Set([...vals.map(v => v===14?1:v)])].sort((a,b)=>a-b);
+                let lowRun = 1;
+                for (let i = 1; i < withAceLow.length; i++) {
+                    if (withAceLow[i] === withAceLow[i-1] + 1) {
+                        lowRun++;
+                        if (lowRun >= 5) return true;
+                    } else {
+                        lowRun = 1;
+                    }
+                }
+            }
+        }
+        return false;
+    })();
+
+    // Also check arranged hands (keeps backward compatibility)
+    if (hasStraightFlushInRaw || e2.rank===7 || e3.rank===7)
         return {name:'Straight Flush', multiplier:3, rank:3};
+
+    // Royal Flush from raw cards — A,K,Q,J,10 of same suit anywhere in 13 cards
+    // (already checked arranged hands above via e2/e3, also check raw)
+    const hasRoyalInRaw = (() => {
+        const bySuit = {};
+        all.forEach(c => {
+            if (!bySuit[c[1]]) bySuit[c[1]] = [];
+            bySuit[c[1]].push(c);
+        });
+        const royalVals = new Set([10,11,12,13,14]); // 10,J,Q,K,A
+        for (const suitCards of Object.values(bySuit)) {
+            const vals = new Set(suitCards.map(c => cardValue(c)));
+            if ([...royalVals].every(v => vals.has(v))) return true;
+        }
+        return false;
+    })();
+    if (hasRoyalInRaw && (e2.rank!==8 && e3.rank!==8)) {
+        // Royal Flush found in raw but not in arranged hands — still valid
+        return {name:'Royal Flush', multiplier:7, rank:6};
+    }
 
     // No Face (2:1)
     if (!hasFaceCard(all))
@@ -454,19 +526,192 @@ function detectSpecial(hand1, hand2, hand3) {
     return null;
 }
 
+
+// ── SPECIAL BONUSES ───────────────────────────────────────────────
+// Flat chip bonus awarded ON TOP of the multiplier payout.
+// Two tables: standard tables and the $10K VIP tier.
+// Use getSpecialBonus(name, isVip) to read the right table.
+const SPECIAL_BONUS_VIP = {
+    'No Face':                    100000,
+    'Four of a Kind':             250000,
+    'Straight Flush':             250000,
+    'Straight-Straight-Straight': 500000,
+    'Flush-Flush-Flush':          500000,
+    'Royal Flush':                750000,
+    '6½':                         1000000,
+    'Full Suit':                  3000000,
+};
+
+function getSpecialBonus(specialName, isVip) {
+    if (isVip) return SPECIAL_BONUS_VIP[specialName] || 0;
+    return SPECIAL_BONUS[specialName] || 0;
+}
+
+const SPECIAL_BONUS = {
+    'No Face':                    1000,
+    'Four of a Kind':             2500,
+    'Straight Flush':             2500,
+    'Straight-Straight-Straight': 7000,
+    'Flush-Flush-Flush':          7000,
+    'Royal Flush':                10000,
+    '6½':                         15000,
+    'Full Suit':                  50000,
+};
+
+// Best suit rank across a set of cards (Hearts=4 highest)
+function bestSuitRank(cards) {
+    return Math.max(...cards.map(suitRank));
+}
+
+// Straight Flush tie-break: higher straight wins; suit rank breaks equal straights
+function sfTieBreak(handA, handB) {
+    const eA = evaluate5CardHand(handA);
+    const eB = evaluate5CardHand(handB);
+    const hA = straightEffectiveHigh(eA);
+    const hB = straightEffectiveHigh(eB);
+    if (hA > hB) return  1;
+    if (hA < hB) return -1;
+    const sA = bestSuitRank(handA), sB = bestSuitRank(handB);
+    if (sA > sB) return  1;
+    if (sA < sB) return -1;
+    return 0;
+}
+
+// 6½ Pairs tie-break: find lone (non-paired) card value
+function sixHalfExtraCard(cards) {
+    const vc = {};
+    cards.forEach(c => { const v = cardValue(c); vc[v] = (vc[v]||0)+1; });
+    const extra = cards.find(c => vc[cardValue(c)] === 1);
+    return extra ? cardValue(extra) : 0;
+}
+
+// ── RESOLVE SPECIAL TIE ───────────────────────────────────────────
+// Returns 1 if A wins, -1 if B wins, 0 if truly equal
+function resolveSpecialTie(special, handsA, handsB) {
+    const name = special.name;
+
+    // No Face: banker always wins a tie — caller handles direction
+    if (name === 'No Face') return 0; // 0 = banker wins upstream
+
+    // Four of a Kind: suit order on the quad cards
+    if (name === 'Four of a Kind') {
+        const allA = [...handsA.hand1, ...handsA.hand2, ...handsA.hand3];
+        const allB = [...handsB.hand1, ...handsB.hand2, ...handsB.hand3];
+        const vcA = {}, vcB = {};
+        allA.forEach(c => { const v=cardValue(c); vcA[v]=(vcA[v]||0)+1; });
+        allB.forEach(c => { const v=cardValue(c); vcB[v]=(vcB[v]||0)+1; });
+        const quadCardsA = allA.filter(c => vcA[cardValue(c)] === 4);
+        const quadCardsB = allB.filter(c => vcB[cardValue(c)] === 4);
+        const sA = bestSuitRank(quadCardsA), sB = bestSuitRank(quadCardsB);
+        if (sA > sB) return  1;
+        if (sA < sB) return -1;
+        return 0;
+    }
+
+    // Straight Flush: larger straight wins; more cards = bigger;
+    // find the SF hand in each set and compare
+    if (name === 'Straight Flush') {
+        const sfA = [handsA.hand2, handsA.hand3].find(h => { const e=evaluate5CardHand(h); return e.rank===7||e.rank===8; }) || handsA.hand3;
+        const sfB = [handsB.hand2, handsB.hand3].find(h => { const e=evaluate5CardHand(h); return e.rank===7||e.rank===8; }) || handsB.hand3;
+        return sfTieBreak(sfA, sfB);
+    }
+
+    // Straight-Straight-Straight / Flush-Flush-Flush: normal hand-to-hand
+    if (name === 'Straight-Straight-Straight' || name === 'Flush-Flush-Flush') {
+        const r1 = compare3CardHands(handsA.hand1, handsB.hand1);
+        const r2 = compare5CardHands(handsA.hand2, handsB.hand2, null, null);
+        const r3 = compare5CardHands(handsA.hand3, handsB.hand3, null, null);
+        const wins = [r1,r2,r3].filter(r=>r===1).length;
+        if (wins >= 2) return  1;
+        if (wins === 0) return -1;
+        return 0; // banker wins ties
+    }
+
+    // Royal Flush: suit order on the Royal hand
+    if (name === 'Royal Flush') {
+        const rfA = [handsA.hand2, handsA.hand3].find(h => evaluate5CardHand(h).rank===8) || handsA.hand3;
+        const rfB = [handsB.hand2, handsB.hand3].find(h => evaluate5CardHand(h).rank===8) || handsB.hand3;
+        const sA = bestSuitRank(rfA), sB = bestSuitRank(rfB);
+        if (sA > sB) return  1;
+        if (sA < sB) return -1;
+        return 0;
+    }
+
+    // 6½ Pairs: higher extra (lone) card wins
+    if (name === '6½') {
+        const allA = [...handsA.hand1, ...handsA.hand2, ...handsA.hand3];
+        const allB = [...handsB.hand1, ...handsB.hand2, ...handsB.hand3];
+        const eA = sixHalfExtraCard(allA), eB = sixHalfExtraCard(allB);
+        if (eA > eB) return  1;
+        if (eA < eB) return -1;
+        return 0;
+    }
+
+    // Full Suit: suit order (all cards same suit — compare the suit)
+    if (name === 'Full Suit') {
+        const allA = [...handsA.hand1, ...handsA.hand2, ...handsA.hand3];
+        const allB = [...handsB.hand1, ...handsB.hand2, ...handsB.hand3];
+        const sA = bestSuitRank(allA), sB = bestSuitRank(allB);
+        if (sA > sB) return  1;
+        if (sA < sB) return -1;
+        return 0;
+    }
+
+    return 0; // banker wins by default
+}
+
 // ── RESOLVE ROUND ─────────────────────────────────────────────────
-function resolveRound(playerHands, bankerHands, betAmount, playerDeclaredSpecial, bankerDeclaredSpecial) {
+// `isVip` toggles between SPECIAL_BONUS and SPECIAL_BONUS_VIP for bonus values.
+// Payouts (bet × multiplier) are unchanged regardless of VIP.
+function resolveRound(playerHands, bankerHands, betAmount, playerDeclaredSpecial, bankerDeclaredSpecial, isVip) {
     const ps = playerDeclaredSpecial || null;
     const bs = bankerDeclaredSpecial || null;
+    const vip = !!isVip;
 
+    // ── Both have a special ───────────────────────────────────────
     if (ps && bs) {
-        const won = ps.rank > bs.rank;
-        return {playerSpecial:ps, bankerSpecial:bs, payout: won ? betAmount*ps.multiplier : -(betAmount*bs.multiplier)};
+        let winner;
+        if (ps.rank > bs.rank) {
+            winner = 'player';
+        } else if (bs.rank > ps.rank) {
+            winner = 'banker';
+        } else {
+            // Same special — use tie-break rules
+            const tb = resolveSpecialTie(ps, playerHands, bankerHands);
+            // tb: 1=player wins, -1=banker wins, 0=banker wins (banker advantage)
+            winner = tb === 1 ? 'player' : 'banker';
+        }
+        const winSpecial  = winner === 'player' ? ps : bs;
+        const bonus       = getSpecialBonus(winSpecial.name, vip);
+        // payout = pure bet exchange (winner receives bet × multiplier)
+        // bonus is ALWAYS paid by the house to the winner — never charged to the loser
+        const payout      = winner === 'player'
+            ? betAmount * ps.multiplier   // player wins: receives bet × multiplier from banker
+            : -(betAmount * bs.multiplier); // banker wins: player pays bet × multiplier to banker
+        // Both player & banker bonuses returned so PokerRoom can credit each from the house
+        const playerBonus = ps ? getSpecialBonus(ps.name, vip) : 0;
+        const bankerBonus = bs ? getSpecialBonus(bs.name, vip) : 0;
+        return { playerSpecial:ps, bankerSpecial:bs, payout, bonus, playerBonus, bankerBonus,
+                 specialWinner: winner, handResults:null };
     }
-    if (ps) return {playerSpecial:ps, bankerSpecial:null, payout: betAmount * ps.multiplier, handResults:null};
-    if (bs) return {playerSpecial:null, bankerSpecial:bs, payout: -(betAmount * bs.multiplier), handResults:null};
 
-    // Normal comparison
+    // ── Only player has a special ─────────────────────────────────
+    if (ps) {
+        const bonus  = getSpecialBonus(ps.name, vip);
+        const payout = betAmount * ps.multiplier; // pure bet exchange; bonus paid by house separately
+        return { playerSpecial:ps, bankerSpecial:null, payout, bonus, playerBonus:bonus, bankerBonus:0,
+                 specialWinner:'player', handResults:null };
+    }
+
+    // ── Only banker has a special ─────────────────────────────────
+    if (bs) {
+        const bonus  = getSpecialBonus(bs.name, vip);
+        const payout = -(betAmount * bs.multiplier); // pure bet exchange; house bonus paid to banker separately
+        return { playerSpecial:null, bankerSpecial:bs, payout, bonus, playerBonus:0, bankerBonus:bonus,
+                 specialWinner:'banker', handResults:null };
+    }
+
+    // ── Normal comparison ─────────────────────────────────────────
     const pCombinedLen = longestStraightLength([...playerHands.hand2, ...playerHands.hand3]);
     const bCombinedLen = longestStraightLength([...bankerHands.hand2, ...bankerHands.hand3]);
 
@@ -474,9 +719,10 @@ function resolveRound(playerHands, bankerHands, betAmount, playerDeclaredSpecial
     const r2 = compare5CardHands(playerHands.hand2, bankerHands.hand2, pCombinedLen, bCombinedLen);
     const r3 = compare5CardHands(playerHands.hand3, bankerHands.hand3, pCombinedLen, bCombinedLen);
 
-    // Banker wins ties (r===0 → banker wins)
+    // Banker wins ties (r===0 → banker wins that hand)
     const playerWins = [r1,r2,r3].filter(r => r === 1).length;
-    // Sweep rule: win all 3 → 2x bet; lose all 3 → pay 2x bet; otherwise 1x
+
+    // Sweep rule: win all 3 → 2× bet; lose all 3 → pay 2× bet; otherwise 1×
     let payout;
     if (playerWins === 3)      payout =  betAmount * 2;
     else if (playerWins === 0) payout = -betAmount * 2;
@@ -498,7 +744,7 @@ function resolveRound(playerHands, bankerHands, betAmount, playerDeclaredSpecial
         }
     };
 
-    return {playerSpecial:null, bankerSpecial:null, handResults, playerWins, payout};
+    return { playerSpecial:null, bankerSpecial:null, handResults, playerWins, payout, bonus:0 };
 }
 
 function disqualifyResult(betAmount) {
@@ -512,8 +758,9 @@ module.exports = {
     evaluate3CardHand, evaluate5CardHand, evaluateCombined,
     detectSpecial, validateHandOrder, compareHands,
     compare3CardHands, compare5CardHands,
-    resolveRound, disqualifyResult, dealPlayerCards, hasFaceCard,
-    longestStraightLength, getEffectiveRank
+    resolveRound, resolveSpecialTie, disqualifyResult, dealPlayerCards, hasFaceCard,
+    longestStraightLength, getEffectiveRank,
+    SPECIAL_BONUS, SPECIAL_BONUS_VIP, getSpecialBonus, bestSuitRank, sixHalfExtraCard
 };
 
 // ── BOT ARRANGEMENT ───────────────────────────────────────────────
@@ -557,12 +804,17 @@ function findBestBotArrangement(rawCards) {
     }
 
     // Card-value tiebreak for a 3-card hand (within same rank)
-    // H1 is won by highest card — Ace = strongest possible H1
+    // H1 is won by highest card — encode all 3 cards so:
+    //   A,10,6 scores higher than A,4,3 (10 > 4 on 2nd card)
+    //   This ensures when H2 has a pair, H1 gets the best remaining non-pair cards
     function tiebreak3(h) {
-        const e = evaluate3CardHand(h);
-        const topCard = sortDesc(h)[0];
-        // rank already handled by arrangementScore — just return card strength
-        return topVal(h) * 10 + suitRank(topCard);
+        const sorted = sortDesc(h); // highest first
+        const v1 = cardValue(sorted[0]);
+        const v2 = sorted[1] ? cardValue(sorted[1]) : 0;
+        const v3 = sorted[2] ? cardValue(sorted[2]) : 0;
+        const topCard = sorted[0];
+        // Encode all 3 card values: v1 dominates, then v2, then v3, then suit
+        return v1 * 10000 + v2 * 100 + v3 * 10 + suitRank(topCard);
     }
 
     // Full arrangement score using separated rank vs tiebreak.
@@ -630,8 +882,8 @@ function findBestBotArrangement(rawCards) {
         for(let c=b+1;c<low7.length;c++)
             candidates.push([low7[a],low7[b],low7[c]]);
 
-        // Strategy B: high lone card + 2 weak fillers
-        // Try each of the top 4 cards paired with 2 of the bottom 5
+        // Strategy B: high cards as H1 — maximise H1 strength
+        // B1: one high card + 2 from the rest (original strategy)
         const top4 = byVal.slice(0,4);
         const bot5 = byVal.slice(-5);
         for(const highCard of top4){
@@ -639,6 +891,19 @@ function findBestBotArrangement(rawCards) {
             for(let a=0;a<rest.length-1;a++)
             for(let b=a+1;b<rest.length;b++)
                 candidates.push([highCard, rest[a], rest[b]]);
+        }
+
+        // B2: TWO high cards + 1 from the rest
+        // This catches A+K+6, A+10+6, K+Q+5 etc that B1 misses
+        // Critical for: when H2 uses a pair with small kickers,
+        //               H1 should get the 2 highest remaining non-pair cards
+        for(let i=0;i<top4.length-1;i++){
+            for(let j=i+1;j<top4.length;j++){
+                const hc1=top4[i], hc2=top4[j];
+                const rest=byVal.filter(c=>c!==hc1&&c!==hc2);
+                for(const kicker of rest)
+                    candidates.push([hc1, hc2, kicker]);
+            }
         }
 
         // Strategy C: pair in H1 (only small pairs — strongest pair goes to H2/H3)

@@ -109,14 +109,18 @@ class SipSamRoom {
         this.fillBotsIfNeeded();
 
         const TABLE_CONFIG = {
-            100:  { minBet:100,  increment:50,  maxBet:150,  walletSize:3000,  minBank:5000  },
-            250:  { minBet:250,  increment:50,  maxBet:500,  walletSize:10000, minBank:15000 },
-            500:  { minBet:500,  increment:100, maxBet:1000, walletSize:20000, minBank:30000 },
-            1000: { minBet:1000, increment:500, maxBet:2000, walletSize:40000, minBank:60000 }
+            100:   { minBet:100,   increment:50,    maxBet:150,   walletSize:3000,    minBank:5000    },
+            250:   { minBet:250,   increment:50,    maxBet:500,   walletSize:10000,   minBank:15000   },
+            500:   { minBet:500,   increment:100,   maxBet:1000,  walletSize:20000,   minBank:30000   },
+            1000:  { minBet:1000,  increment:500,   maxBet:2000,  walletSize:40000,   minBank:60000   },
+            10000: { minBet:10000, increment:10000, maxBet:50000, walletSize:1000000, minBank:2000000 }
         };
 
         const roundCount = [5,10,20,30].includes(data.rounds) ? data.rounds : 10;
         const cfg        = TABLE_CONFIG[data.tableMinBet] || TABLE_CONFIG[100];
+
+        // VIP flag for enhanced bonuses (used by logic.getSpecialBonus)
+        this.gameState.isVip = cfg.minBet >= 10000;
 
         this.gameState.maxRounds       = roundCount;
         this.gameState.blitz           = data.blitz === true || roundCount === 5;
@@ -626,13 +630,14 @@ class SipSamRoom {
             banker.disqualified     = true;
             banker.disqualifyReason = "Banker did not arrange cards in time.";
             banker.lastSpecial      = '❌ DQ — banker too slow';
+            const isVip = this.gameState.isVip || false;
             Object.values(this.gameState.players).forEach(p => {
                 if (!p.isBanker && !p.disqualified && p.bet > 0) {
                     // Banker pays bet × max(2, declaredSpecial.multiplier).
                     // House pays the flat bonus on top (matches normal-round behaviour).
                     const sp         = p.declaredSpecial || null;
                     const mult       = Math.max(2, (sp && sp.multiplier) || 2);
-                    const bonus      = sp ? (Logic.SPECIAL_BONUS[sp.name] || 0) : 0;
+                    const bonus      = sp ? Logic.getSpecialBonus(sp.name, isVip) : 0;
                     const fromBanker = p.bet * mult;
                     const prize      = fromBanker + bonus;
                     p.chips         += prize;
@@ -730,12 +735,13 @@ class SipSamRoom {
         // If banker left mid-round (ghost bot) or was DQ'd with no hands
         // treat as banker forfeit — pay all non-DQ players 2× their bet
         if (banker.isGhostBot || (banker.disqualified && !banker.hand1?.length)) {
+            const isVip = this.gameState.isVip || false;
             Object.values(this.gameState.players).forEach(p => {
                 if (p.isBanker || p.disqualified || p.isGhostBot || p.bet <= 0) return;
                 // Pay bet × max(2, declaredSpecial.multiplier) + flat house bonus.
                 const sp    = p.declaredSpecial || null;
                 const mult  = Math.max(2, (sp && sp.multiplier) || 2);
-                const bonus = sp ? (Logic.SPECIAL_BONUS[sp.name] || 0) : 0;
+                const bonus = sp ? Logic.getSpecialBonus(sp.name, isVip) : 0;
                 const prize = (p.bet * mult) + bonus;
                 p.chips      += prize;
                 p.lastPayout  = prize;
@@ -786,22 +792,33 @@ class SipSamRoom {
                 bankerHands,
                 player.bet,
                 player.declaredSpecial || null,
-                banker.declaredSpecial || null
+                banker.declaredSpecial || null,
+                this.gameState.isVip || false
             );
 
-            // payout is pure bet exchange only — bonus is handled after the loop (once only)
+            // payout is pure bet exchange only — bonuses are awarded INDEPENDENTLY:
+            //   • player's own playerBonus (if they declared a special) is credited now,
+            //     regardless of who won the round.
+            //   • banker's bankerBonus is accumulated and paid ONCE after the loop.
             player.chips      += result.payout;
             player.lastPayout  = result.payout;
-            player.lastBonus   = result.bonus || 0;
+            player.lastBonus   = result.playerBonus || 0;
             player.handResults = result.handResults || null;
             banker.chips      -= result.payout; // banker receives/pays pure bet exchange
 
-            // Track which special won (for post-loop bonus award)
-            if (result.bonus > 0 && !roundBonusAwarded) {
+            // Per-player bonus: house pays the player their own special bonus immediately.
+            const playerBonusOwn = result.playerBonus || 0;
+            if (playerBonusOwn > 0) {
+                player.chips     += playerBonusOwn;
+                player.lastPayout = (player.lastPayout || 0) + playerBonusOwn;
+            }
+
+            // Track banker bonus once per round (banker plays one hand, multiple players see it).
+            const bankerBonusOwn = result.bankerBonus || 0;
+            if (bankerBonusOwn > 0 && !roundBonusAwarded) {
                 roundBonusAwarded = true;
-                roundBonusAmount  = result.bonus;
-                roundBonusWinner  = result.specialWinner; // 'player' or 'banker'
-                roundBonusPlayer  = player; // only relevant if player won
+                roundBonusAmount  = bankerBonusOwn;
+                roundBonusWinner  = 'banker';
             }
             if (result.payout > 0) player.wins++;
 
@@ -825,16 +842,10 @@ class SipSamRoom {
             console.log(`${player.username} | Bet:$${player.bet} | ${outcome} $${Math.abs(result.payout)}${rb>0?' (house bonus $'+rb+')':''} | ${why}`);
         });
 
-        // ── Award house bonus ONCE to the round's special winner ────────
-        if (roundBonusAwarded && roundBonusAmount > 0) {
-            if (roundBonusWinner === 'banker') {
-                banker.chips += roundBonusAmount;
-                console.log(`[BONUS] House pays banker $${roundBonusAmount.toLocaleString()} bonus`);
-            } else if (roundBonusWinner === 'player' && roundBonusPlayer) {
-                roundBonusPlayer.chips     += roundBonusAmount;
-                roundBonusPlayer.lastPayout = (roundBonusPlayer.lastPayout || 0) + roundBonusAmount;
-                console.log(`[BONUS] House pays ${roundBonusPlayer.username} $${roundBonusAmount.toLocaleString()} bonus`);
-            }
+        // ── Award banker's house bonus ONCE (player bonuses already credited per-loop) ──
+        if (roundBonusAwarded && roundBonusAmount > 0 && roundBonusWinner === 'banker') {
+            banker.chips += roundBonusAmount;
+            console.log(`[BONUS] House pays banker $${roundBonusAmount.toLocaleString()} bonus`);
         }
 
         // Store banker's special display
@@ -1203,10 +1214,11 @@ class SipSamRoom {
         if (this.gameState.tableMinBet > 0) return;
 
         const TABLE_CONFIG = {
-            100:  { minBet:100,  increment:50,  maxBet:150,  walletSize:3000,  minBank:5000  },
-            250:  { minBet:250,  increment:50,  maxBet:500,  walletSize:10000, minBank:15000 },
-            500:  { minBet:500,  increment:100, maxBet:1000, walletSize:20000, minBank:30000 },
-            1000: { minBet:1000, increment:500, maxBet:2000, walletSize:40000, minBank:60000 }
+            100:   { minBet:100,   increment:50,    maxBet:150,   walletSize:3000,    minBank:5000    },
+            250:   { minBet:250,   increment:50,    maxBet:500,   walletSize:10000,   minBank:15000   },
+            500:   { minBet:500,   increment:100,   maxBet:1000,  walletSize:20000,   minBank:30000   },
+            1000:  { minBet:1000,  increment:500,   maxBet:2000,  walletSize:40000,   minBank:60000   },
+            10000: { minBet:10000, increment:10000, maxBet:50000, walletSize:1000000, minBank:2000000 }
         };
 
         // Parse minBet from roomId (format: sipsam_100_timestamp)
@@ -1222,7 +1234,8 @@ class SipSamRoom {
         this.gameState.tableMaxBet     = cfg.maxBet;
         this.gameState.tableIncrement  = cfg.increment;
         this.gameState.tableWalletSize = cfg.walletSize;
-        console.log(`[ROOM] Table config applied from roomId: $${cfg.minBet} min / $${cfg.increment} inc`);
+        this.gameState.isVip           = cfg.minBet >= 10000;
+        console.log(`[ROOM] Table config applied from roomId: $${cfg.minBet} min / $${cfg.increment} inc${this.gameState.isVip ? ' (VIP)' : ''}`);
     }
 
     _expireRoomInvites() {
