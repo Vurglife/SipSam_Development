@@ -1,0 +1,135 @@
+[
+  {
+    "ts": "2026-04-02T00:15:57.459Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "// ── PROXY /matchmake → poker-server on port 2999 ─────────\n// This lets game.js call /matchmake from the same origin (port 3000)\napp.use('/matchmake', createProxyMiddleware({\n    target: 'http://localhost:2999',\n    changeOrigin: true,\n    logLevel: 'silent'\n}));",
+    "new_string": "// ── PROXY /matchmake → poker-server on port 2999 (SipSam) ─────────\n// This lets game.js call /matchmake from the same origin (port 3000)\napp.use('/matchmake/joinOrCreate/sipsam_room', createProxyMiddleware({\n    target: 'http://localhost:2999',\n    changeOrigin: true,\n    logLevel: 'silent'\n}));\n\n// ── PROXY /matchmake → rhum32-server on port 2998 (Rhum32) ────────\napp.use('/matchmake/joinOrCreate/rhum32_room', createProxyMiddleware({\n    target: 'http://localhost:2998',\n    changeOrigin: true,\n    logLevel: 'silent'\n}));",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-02T00:16:04.091Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "// SipSam game — serve entire poker-client folder as static under /sipsam\napp.use('/sipsam', express.static(path.join(__dirname, '../../poker-client')));\n\n// Fallback: /sipsam with no file → serve index.html\napp.get('/sipsam', (req, res) => {\n    res.sendFile(path.join(__dirname, '../../poker-client/index.html'));\n});",
+    "new_string": "// SipSam game — serve entire poker-client folder as static under /sipsam\napp.use('/sipsam', express.static(path.join(__dirname, '../../poker-client')));\n\n// Fallback: /sipsam with no file → serve index.html\napp.get('/sipsam', (req, res) => {\n    res.sendFile(path.join(__dirname, '../../poker-client/index.html'));\n});\n\n// Rhum32 game — serve entire rhum32-client folder as static under /rhum32\napp.use('/rhum32', express.static(path.join(__dirname, '../../rhum32-client')));\n\n// Fallback: /rhum32 with no file → serve index.html\napp.get('/rhum32', (req, res) => {\n    res.sendFile(path.join(__dirname, '../../rhum32-client/index.html'));\n});",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-02T00:16:08.350Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "║   SipSam WebSocket: ws://localhost:3001  ║",
+    "new_string": "║   SipSam WebSocket: ws://localhost:3001  ║\n║   Rhum32 WebSocket: ws://localhost:3002  ║",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-02T00:30:45.196Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "app.use('/api/auth', require('./routes/auth'));\napp.use('/api/game', require('./routes/game'));",
+    "new_string": "app.use('/api/auth',    require('./routes/auth'));\napp.use('/api/game',    require('./routes/game'));\napp.use('/api/friends', require('./routes/friends'));",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-04T00:55:54.081Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "// ── PROXY /matchmake → rhum32-server on port 2998 (Rhum32) ────────\napp.use('/matchmake/joinOrCreate/rhum32_room', createProxyMiddleware({\n    target: 'http://localhost:2998',\n    changeOrigin: true,\n    logLevel: 'silent'\n}));",
+    "new_string": "// ── PROXY /matchmake → rhum32-server on port 2998 (Rhum32) ────────\napp.use('/matchmake/joinOrCreate/rhum32_room', createProxyMiddleware({\n    target: 'http://localhost:2998',\n    changeOrigin: true,\n    logLevel: 'silent'\n}));\n\n// ── PROXY Rhum32 table browse/create → port 2998 ────────────────\napp.use('/rhum32-api', createProxyMiddleware({\n    target: 'http://localhost:2998',\n    changeOrigin: true,\n    pathRewrite: { '^/rhum32-api': '' },\n    logLevel: 'silent'\n}));",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-05T02:29:25.358Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "app.get('/rhum32', (req, res) =>\n    res.sendFile(path.join(__dirname, '../../rhum32-client/index.html')));",
+    "new_string": "app.get('/rhum32', (req, res) =>\n    res.sendFile(path.join(__dirname, '../../rhum32-client/index.html')));\napp.get('/rhum32/', (req, res) =>\n    res.sendFile(path.join(__dirname, '../../rhum32-client/index.html')));",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-05T02:50:57.006Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "// ── PROXY: SipSam matchmake → port 2999 ─────────────────────────\nconst gameServerProxy = createProxyMiddleware({\n    target: 'http://localhost:2999',\n    changeOrigin: true,\n    logLevel: 'silent'\n});\napp.use('/matchmake', gameServerProxy);\napp.use('/rooms',     gameServerProxy);\napp.use('/room',      gameServerProxy);\n\n// ── PROXY: Rhum32 matchmake → port 2998 ─────────────────────────\napp.use('/matchmake/joinOrCreate/rhum32_room', createProxyMiddleware({\n    target: 'http://localhost:2998',\n    changeOrigin: true,\n    logLevel: 'silent'\n}));",
+    "new_string": "// ── PROXY: Rhum32 matchmake → port 2998 (MUST be before SipSam catch-all) ──\napp.use('/matchmake/joinOrCreate/rhum32_room', createProxyMiddleware({\n    target: 'http://localhost:2998',\n    changeOrigin: true,\n    logLevel: 'silent'\n}));\n\n// ── PROXY: SipSam matchmake → port 2999 ─────────────────────────\nconst gameServerProxy = createProxyMiddleware({\n    target: 'http://localhost:2999',\n    changeOrigin: true,\n    logLevel: 'silent'\n});\napp.use('/matchmake', gameServerProxy);\napp.use('/rooms',     gameServerProxy);\napp.use('/room',      gameServerProxy);",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-05T03:12:21.289Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "// ── PROXY: Rhum32 matchmake → port 2998 (MUST be before SipSam catch-all) ──\napp.use('/matchmake/joinOrCreate/rhum32_room', createProxyMiddleware({\n    target: 'http://localhost:2998',\n    changeOrigin: true,\n    logLevel: 'silent'\n}));\n\n// ── PROXY: SipSam matchmake → port 2999 ─────────────────────────\nconst gameServerProxy = createProxyMiddleware({\n    target: 'http://localhost:2999',\n    changeOrigin: true,\n    logLevel: 'silent'\n});\napp.use('/matchmake', gameServerProxy);\napp.use('/rooms',     gameServerProxy);\napp.use('/room',      gameServerProxy);\n\n// ── PROXY: Rhum32 table browse/create → port 2998 ───────────────\napp.use('/rhum32-api', createProxyMiddleware({\n    target: 'http://localhost:2998',\n    changeOrigin: true,\n    pathRewrite: { '^/rhum32-api': '' },\n    logLevel: 'silent'\n}));",
+    "new_string": "// ── RHUM32 MATCHMAKE: manual forward → port 2998 ───────────────\n// (http-proxy-middleware v3 hangs on this route, so we forward manually)\nconst http = require('http');\napp.post('/matchmake/joinOrCreate/rhum32_room', (req, res) => {\n    const postData = JSON.stringify(req.body);\n    const proxyReq = http.request({\n        hostname: 'localhost', port: 2998,\n        path: '/matchmake/joinOrCreate/rhum32_room',\n        method: 'POST',\n        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) }\n    }, (proxyRes) => {\n        let data = '';\n        proxyRes.on('data', chunk => data += chunk);\n        proxyRes.on('end', () => {\n            res.status(proxyRes.statusCode).set('Content-Type', 'application/json').send(data);\n        });\n    });\n    proxyReq.on('error', (e) => {\n        console.error('[Rhum32 proxy] Error:', e.message);\n        res.status(502).json({ error: 'Rhum32 server unreachable' });\n    });\n    proxyReq.write(postData);\n    proxyReq.end();\n});\n\n// ── RHUM32 API: manual forward → port 2998 ─────────────────────\napp.use('/rhum32-api', (req, res) => {\n    const targetPath = req.originalUrl.replace(/^\\/rhum32-api/, '') || '/';\n    const proxyReq = http.request({\n        hostname: 'localhost', port: 2998,\n        path: targetPath,\n        method: req.method,\n        headers: { 'Content-Type': 'application/json' }\n    }, (proxyRes) => {\n        let data = '';\n        proxyRes.on('data', chunk => data += chunk);\n        proxyRes.on('end', () => {\n            res.status(proxyRes.statusCode).set('Content-Type', 'application/json').send(data);\n        });\n    });\n    proxyReq.on('error', (e) => {\n        res.status(502).json({ error: 'Rhum32 server unreachable' });\n    });\n    if (req.body && req.method === 'POST') proxyReq.write(JSON.stringify(req.body));\n    proxyReq.end();\n});\n\n// ── PROXY: SipSam matchmake → port 2999 ─────────────────────────\nconst gameServerProxy = createProxyMiddleware({\n    target: 'http://localhost:2999',\n    changeOrigin: true,\n    logLevel: 'silent'\n});\napp.use('/matchmake', gameServerProxy);\napp.use('/rooms',     gameServerProxy);\napp.use('/room',      gameServerProxy);",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-06T01:37:03.332Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "// ── PROXY: SipSam matchmake → port 2999 ─────────────────────────\nconst gameServerProxy = createProxyMiddleware({\n    target: 'http://localhost:2999',\n    changeOrigin: true,\n    logLevel: 'silent'\n});\napp.use('/matchmake', gameServerProxy);\napp.use('/rooms',     gameServerProxy);\napp.use('/room',      gameServerProxy);\n\n// ── PROXY: Rhum32 matchmake → port 2998 ─────────────────────────\napp.use('/matchmake/joinOrCreate/rhum32_room', createProxyMiddleware({\n    target: 'http://localhost:2998',\n    changeOrigin: true,\n    logLevel: 'silent'\n}));\n\n// ── PROXY: Rhum32 table browse/create → port 2998 ───────────────\napp.use('/rhum32-api', createProxyMiddleware({\n    target: 'http://localhost:2998',\n    changeOrigin: true,\n    pathRewrite: { '^/rhum32-api': '' },\n    logLevel: 'silent'\n}));",
+    "new_string": "// ── PROXY: Rhum32 matchmake → port 2998 (MUST be before SipSam catch-all) ──\napp.use('/matchmake/joinOrCreate/rhum32_room', createProxyMiddleware({\n    target: 'http://localhost:2998',\n    changeOrigin: true,\n    logLevel: 'silent'\n}));\n\n// ── PROXY: Rhum32 table browse/create → port 2998 ───────────────\napp.use('/rhum32-api', createProxyMiddleware({\n    target: 'http://localhost:2998',\n    changeOrigin: true,\n    pathRewrite: { '^/rhum32-api': '' },\n    logLevel: 'silent'\n}));\n\n// ── PROXY: SipSam matchmake → port 2999 ─────────────────────────\nconst gameServerProxy = createProxyMiddleware({\n    target: 'http://localhost:2999',\n    changeOrigin: true,\n    logLevel: 'silent'\n});\napp.use('/matchmake', gameServerProxy);\napp.use('/rooms',     gameServerProxy);\napp.use('/room',      gameServerProxy);",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-06T01:44:25.382Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "// ── PROXY: Rhum32 matchmake → port 2998 (MUST be before SipSam catch-all) ──\napp.use('/matchmake/joinOrCreate/rhum32_room', createProxyMiddleware({\n    target: 'http://localhost:2998',\n    changeOrigin: true,\n    logLevel: 'silent'\n}));",
+    "new_string": "// ── PROXY: Rhum32 matchmake → port 2998 (explicit route, not middleware) ──\napp.post('/matchmake/joinOrCreate/rhum32_room', async (req, res) => {\n    try {\n        const http = require('http');\n        const body = JSON.stringify(req.body);\n        const options = {\n            hostname: 'localhost', port: 2998,\n            path: '/matchmake/joinOrCreate/rhum32_room',\n            method: 'POST',\n            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }\n        };\n        const proxyReq = http.request(options, (proxyRes) => {\n            let data = '';\n            proxyRes.on('data', chunk => data += chunk);\n            proxyRes.on('end', () => {\n                res.status(proxyRes.statusCode).set('Content-Type', 'application/json').send(data);\n            });\n        });\n        proxyReq.on('error', (e) => {\n            console.error('[Rhum32 proxy] Error:', e.message);\n            res.status(502).json({ error: 'Rhum32 server unreachable' });\n        });\n        proxyReq.write(body);\n        proxyReq.end();\n    } catch(e) {\n        res.status(500).json({ error: e.message });\n    }\n});",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-06T13:58:53.574Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "// ── STATIC FILES ─────────────────────────────────────────────────\napp.use(express.static(path.join(__dirname, '../client/public')));\napp.use('/sipsam',    express.static(path.join(__dirname, '../../poker-client')));\napp.use('/blackjack', express.static(path.join(__dirname, '../../blackjack-client')));\napp.use('/holdem',    express.static(path.join(__dirname, '../../holdem-client')));\napp.use('/rhum32',    express.static(path.join(__dirname, '../../rhum32-client')));",
+    "new_string": "// ── STATIC FILES (no-cache for HTML to prevent stale game clients) ──\nconst noCacheStatic = (dir) => express.static(dir, {\n    setHeaders: (res, filePath) => {\n        if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {\n            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');\n            res.setHeader('Pragma', 'no-cache');\n            res.setHeader('Expires', '0');\n        }\n    }\n});\napp.use(express.static(path.join(__dirname, '../client/public')));\napp.use('/sipsam',    noCacheStatic(path.join(__dirname, '../../poker-client')));\napp.use('/blackjack', noCacheStatic(path.join(__dirname, '../../blackjack-client')));\napp.use('/holdem',    noCacheStatic(path.join(__dirname, '../../holdem-client')));\napp.use('/rhum32',    noCacheStatic(path.join(__dirname, '../../rhum32-client')));",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:29:57.110Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "app.post('/blackjack-matchmake', requireAuth, async (req, res) => {\n    const { minBet } = req.body;\n    const BJ_TABLES = {\n        100:  { minBet: 100,  maxBet: 500,  walletSize: 2500,  minBank: 2500  },\n        1000: { minBet: 1000, maxBet: 2000, walletSize: 10000, minBank: 15000 },\n    };\n    const config = BJ_TABLES[Number(minBet)];\n    if (!config) return res.json({ ok: false, error: 'Invalid table' });",
+    "new_string": "app.post('/blackjack-matchmake', requireAuth, async (req, res) => {\n    const { minBet } = req.body;\n    const BJ_TABLES = {\n        // Standard\n        100:   { minBet: 100,   maxBet: 500,   walletSize: 2500,    minBank: 2500,    label: 'standard' },\n        // VIP tiers — fixed bets\n        1000:  { minBet: 1000,  maxBet: 1000,  walletSize: 30000,   minBank: 50000,   label: 'vip' },\n        5000:  { minBet: 5000,  maxBet: 5000,  walletSize: 120000,  minBank: 150000,  label: 'vip' },\n        10000: { minBet: 10000, maxBet: 10000, walletSize: 240000,  minBank: 300000,  label: 'vip' },\n        20000: { minBet: 20000, maxBet: 20000, walletSize: 500000,  minBank: 750000,  label: 'vip' },\n        50000: { minBet: 50000, maxBet: 50000, walletSize: 1000000, minBank: 1500000, label: 'vip' },\n    };\n    const config = BJ_TABLES[Number(minBet)];\n    if (!config) return res.json({ ok: false, error: 'Invalid table' });",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:30:05.256Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "    const { minBet } = req.body;\n    const BJ_TABLES = {\n        100:  { minBet: 100,  maxBet: 500,  walletSize: 2500,  minBank: 2500  },\n        1000: { minBet: 1000, maxBet: 2000, walletSize: 10000, minBank: 15000 },\n    };",
+    "new_string": "    const { minBet } = req.body;\n    const BJ_TABLES = {\n        // Standard\n        100:   { minBet: 100,   maxBet: 500,   walletSize: 2500,    minBank: 2500,    label: 'standard' },\n        // VIP tiers — fixed bets\n        1000:  { minBet: 1000,  maxBet: 1000,  walletSize: 30000,   minBank: 50000,   label: 'vip' },\n        5000:  { minBet: 5000,  maxBet: 5000,  walletSize: 120000,  minBank: 150000,  label: 'vip' },\n        10000: { minBet: 10000, maxBet: 10000, walletSize: 240000,  minBank: 300000,  label: 'vip' },\n        20000: { minBet: 20000, maxBet: 20000, walletSize: 500000,  minBank: 750000,  label: 'vip' },\n        50000: { minBet: 50000, maxBet: 50000, walletSize: 1000000, minBank: 1500000, label: 'vip' },\n    };",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-25T11:57:39.624Z",
+    "source": "2c3393a0-bfd0-44b9-bcd3-83e4270164f5.jsonl",
+    "old_string": "const rhum32Server = createGameServer('Rhum32',\n    path.join(__dirname, '../../rhum32-server/index.js'));\n\n// Graceful shutdown\nfunction shutdownAll() {\n    pokerServer.kill();\n    blackjackServer.kill();\n    holdemServer.kill();\n    rhum32Server.kill();\n    process.exit(0);\n}",
+    "new_string": "const rhum32Server = createGameServer('Rhum32',\n    path.join(__dirname, '../../rhum32-server/index.js'));\n\nconst rouletteServer = createGameServer('Roulette',\n    path.join(__dirname, '../../roulette-server/index.js'),\n    { ROULETTE_API_PORT: '3005', ROULETTE_WS_PORT: '3006' });\n\n// Graceful shutdown\nfunction shutdownAll() {\n    pokerServer.kill();\n    blackjackServer.kill();\n    holdemServer.kill();\n    rhum32Server.kill();\n    rouletteServer.kill();\n    process.exit(0);\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-25T11:57:48.867Z",
+    "source": "2c3393a0-bfd0-44b9-bcd3-83e4270164f5.jsonl",
+    "old_string": "    if (req.body && req.method === 'POST') proxyReq.write(JSON.stringify(req.body));\n    proxyReq.end();\n});\n\n// ── PROXY: SipSam matchmake → port 2999 ─────────────────────────",
+    "new_string": "    if (req.body && req.method === 'POST') proxyReq.write(JSON.stringify(req.body));\n    proxyReq.end();\n});\n\n// ── ROULETTE MATCHMAKE: manual forward → port 3005 ─────────────\napp.post('/matchmake/joinOrCreate/roulette_room', (req, res) => {\n    const postData = JSON.stringify(req.body);\n    const proxyReq = http.request({\n        hostname: 'localhost', port: 3005,\n        path: '/matchmake/joinOrCreate/roulette_room',\n        method: 'POST',\n        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) }\n    }, (proxyRes) => {\n        let data = '';\n        proxyRes.on('data', chunk => data += chunk);\n        proxyRes.on('end', () => {\n            res.status(proxyRes.statusCode).set('Content-Type', 'application/json').send(data);\n        });\n    });\n    proxyReq.on('error', (e) => {\n        console.error('[Roulette proxy] Error:', e.message);\n        res.status(502).json({ error: 'Roulette server unreachable' });\n    });\n    proxyReq.write(postData);\n    proxyReq.end();\n});\n\n// ── ROULETTE API: manual forward → port 3005 ───────────────────\napp.use('/roulette-api', (req, res) => {\n    const targetPath = req.originalUrl.replace(/^\\/roulette-api/, '') || '/';\n    const proxyReq = http.request({\n        hostname: 'localhost', port: 3005,\n        path: targetPath,\n        method: req.method,\n        headers: { 'Content-Type': 'application/json' }\n    }, (proxyRes) => {\n        let data = '';\n        proxyRes.on('data', chunk => data += chunk);\n        proxyRes.on('end', () => {\n            res.status(proxyRes.statusCode).set('Content-Type', 'application/json').send(data);\n        });\n    });\n    proxyReq.on('error', (e) => {\n        res.status(502).json({ error: 'Roulette server unreachable' });\n    });\n    if (req.body && req.method === 'POST') proxyReq.write(JSON.stringify(req.body));\n    proxyReq.end();\n});\n\n// ── PROXY: SipSam matchmake → port 2999 ─────────────────────────",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-25T11:58:03.266Z",
+    "source": "2c3393a0-bfd0-44b9-bcd3-83e4270164f5.jsonl",
+    "old_string": "app.use('/sipsam',    express.static(path.join(__dirname, '../../poker-client')));\napp.use('/blackjack', express.static(path.join(__dirname, '../../blackjack-client')));\napp.use('/holdem',    express.static(path.join(__dirname, '../../holdem-client')));\napp.use('/rhum32',    express.static(path.join(__dirname, '../../rhum32-client')));",
+    "new_string": "app.use('/sipsam',    express.static(path.join(__dirname, '../../poker-client')));\napp.use('/blackjack', express.static(path.join(__dirname, '../../blackjack-client')));\napp.use('/holdem',    express.static(path.join(__dirname, '../../holdem-client')));\napp.use('/rhum32',    express.static(path.join(__dirname, '../../rhum32-client')));\napp.use('/roulette',  express.static(path.join(__dirname, '../../roulette-client')));",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-25T11:58:07.581Z",
+    "source": "2c3393a0-bfd0-44b9-bcd3-83e4270164f5.jsonl",
+    "old_string": "app.get('/rhum32', (req, res) =>\n    res.sendFile(path.join(__dirname, '../../rhum32-client/index.html')));\napp.get('/rhum32/', (req, res) =>\n    res.sendFile(path.join(__dirname, '../../rhum32-client/index.html')));",
+    "new_string": "app.get('/rhum32', (req, res) =>\n    res.sendFile(path.join(__dirname, '../../rhum32-client/index.html')));\napp.get('/rhum32/', (req, res) =>\n    res.sendFile(path.join(__dirname, '../../rhum32-client/index.html')));\n\napp.get('/roulette', (req, res) =>\n    res.sendFile(path.join(__dirname, '../../roulette-client/index.html')));\napp.get('/roulette/', (req, res) =>\n    res.sendFile(path.join(__dirname, '../../roulette-client/index.html')));",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-25T11:58:11.111Z",
+    "source": "2c3393a0-bfd0-44b9-bcd3-83e4270164f5.jsonl",
+    "old_string": "    pokerServer.start();\n    blackjackServer.start();\n    holdemServer.start();\n    rhum32Server.start();\n    await new Promise(resolve => setTimeout(resolve, 1000));",
+    "new_string": "    pokerServer.start();\n    blackjackServer.start();\n    holdemServer.start();\n    rhum32Server.start();\n    rouletteServer.start();\n    await new Promise(resolve => setTimeout(resolve, 1000));",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-25T11:58:17.176Z",
+    "source": "2c3393a0-bfd0-44b9-bcd3-83e4270164f5.jsonl",
+    "old_string": "║   Rhum32:     http://localhost:${PORT}/rhum32    ║\n║   Game API:   http://localhost:2999          ║\n║   SipSam WS:  ws://localhost:3001            ║\n║   BJ WS:      ws://localhost:3002            ║\n║   Rhum32 WS:  ws://localhost:3003            ║\n║   HoldEm WS:  ws://localhost:3004            ║\n╚══════════════════════════════════════════════╝",
+    "new_string": "║   Rhum32:     http://localhost:${PORT}/rhum32    ║\n║   Roulette:   http://localhost:${PORT}/roulette  ║\n║   Game API:   http://localhost:2999          ║\n║   SipSam WS:  ws://localhost:3001            ║\n║   BJ WS:      ws://localhost:3002            ║\n║   Rhum32 WS:  ws://localhost:3003            ║\n║   HoldEm WS:  ws://localhost:3004            ║\n║   Roulette:   ws://localhost:3006            ║\n╚══════════════════════════════════════════════╝",
+    "replace_all": false
+  }
+]

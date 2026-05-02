@@ -1,0 +1,100 @@
+210	.dealer-tag { background:linear-gradient(135deg,#0d4a8a,#1a8cff) !important;
+211	  color:#fff !important; letter-spacing:2px !important; }
+212	
+213	/* ── 6 PLAYER SEATS — casino semicircle arc ── */
+214	/* Top arc (far from player) */
+215	.bj-seat {
+216	  position:absolute; z-index:4;
+217	  display:flex; flex-direction:column; align-items:center; gap:3px;
+218	  transform:translateX(-50%);  /* centre on the arc point */
+219	}
+220	.bj-seat-0 { left:96.0%; top:8.0%; }  /* far-right */
+221	.bj-seat-1 { left:87.2%; top:56.2%; }  /* mid-right */
+222	.bj-seat-2 { left:64.2%; top:86.0%; }  /* near-right */
+223	.bj-seat-3 { left:35.8%; top:86.0%; }  /* near-left */
+224	.bj-seat-4 { left:12.8%; top:56.2%; }  /* mid-left */
+225	.bj-seat-5 { left:4.0%; top:8.0%; }  /* far-left */
+226	
+227	
+228	/* ── SEAT ELEMENTS ── */
+229	.seat-nametag { font-family:'Cinzel Decorative',serif; font-size:clamp(7px,1.1vw,10px);
+230	  letter-spacing:1px; text-transform:uppercase; color:#1a1000;
+231	  background:linear-gradient(135deg,var(--gold-dk),var(--gold));
+232	  padding:3px 12px; border-radius:20px; white-space:nowrap; font-weight:700;
+233	  box-shadow:0 2px 6px rgba(201,168,76,.4); max-width:120px;
+234	  overflow:hidden; text-overflow:ellipsis; }
+235	.seat-nametag:empty { display:none; }
+236	.seat-nametag.is-you    { background:linear-gradient(135deg,#7a5a00,var(--gold-lt)); box-shadow:0 0 10px rgba(201,168,76,.5); }
+237	.seat-nametag.is-active { background:linear-gradient(135deg,#0d4a8a,#1a8cff) !important; color:#fff !important; box-shadow:0 0 12px rgba(26,140,255,.6) !important; }
+238	.seat-nametag.is-bot    { opacity:.85; }
+239	.seat-chips { font-size:clamp(9px,1.3vw,11px); font-weight:700; color:var(--gold-lt);
+240	  background:rgba(4,8,20,.85); border:1px solid var(--gold-dk); border-radius:6px;
+241	  padding:1px 7px; white-space:nowrap; box-shadow:0 1px 4px rgba(0,0,0,.5); }
+242	.seat-chips:empty { display:none; }
+243	.seat-bet { font-size:clamp(8px,1.1vw,10px); font-weight:700; color:#1a1000;
+244	  background:linear-gradient(135deg,var(--gold-dk),var(--gold)); border-radius:6px;
+245	  padding:1px 7px; white-space:nowrap; }
+246	.seat-bet:empty { display:none; }
+247	
+248	/* ── ZONE HEADER (dealer) ── */
+249	.zone-header { display:flex; flex-direction:column; align-items:center; gap:2px; margin-bottom:4px; }
+250	.zone-nametag { font-family:'Cinzel Decorative',serif; font-size:clamp(8px,1.2vw,11px);
+251	  letter-spacing:1px; text-transform:uppercase; color:#1a1000;
+252	  background:linear-gradient(135deg,var(--gold-dk),var(--gold));
+253	  padding:3px 14px; border-radius:20px; white-space:nowrap; font-weight:700;
+254	  box-shadow:0 2px 6px rgba(201,168,76,.4); }
+255	.zone-balance { background:rgba(0,0,0,.8); border:1px solid var(--gold-dk); border-radius:8px;
+256	  padding:2px 8px; font-size:clamp(9px,1.3vw,11px); font-weight:700; color:var(--gold-lt); white-space:nowrap; }
+257	.zone-balance.bust { color:#ff5555; }
+258	.zone-balance.bj   { color:#ffd700; }
+259	
+260	/* ── BOT BUTTON per seat ── */
+261	.seat-bot-btn {
+262	  font-family:'Rajdhani',sans-serif; font-size:11px; font-weight:700;
+263	  letter-spacing:1px; padding:4px 12px; border-radius:10px; cursor:pointer;
+264	  border:1px solid rgba(74,171,255,.35); color:rgba(74,171,255,.8);
+265	  background:rgba(74,171,255,.07); transition:all .15s; width:100%;
+266	}
+267	.seat-bot-btn:hover { border-color:#4aabff; color:#4aabff; background:rgba(74,171,255,.15); }
+268	
+269	/* ── HANDS ── */
+270	.dealer-hand { display:flex; gap:6px; min-height:72px; align-items:flex-end;
+271	  filter:drop-shadow(0 4px 12px rgba(0,0,0,.7)); flex-wrap:wrap; justify-content:center; }
+272	.seat-hand { display:flex; flex-direction:row; gap:4px; min-height:54px; align-items:flex-end;
+273	  background:rgba(4,30,8,.5); border:1.5px solid rgba(201,168,76,.3); border-radius:8px;
+274	  padding:4px 6px; min-width:50px; flex-wrap:nowrap; }
+275	.seat-hand:not(:has(.vl-card)) { opacity:0.3; }
+276	
+277	/* ── RESULT BADGES ── */
+278	.result-badge-inline { font-family:'Rajdhani',sans-serif; font-size:clamp(9px,1.2vw,12px);
+279	  font-weight:700; letter-spacing:1px; padding:3px 10px; border-radius:5px;
+280	  display:none; text-transform:uppercase; text-align:center;
+281	  animation:badgePop .3s cubic-bezier(.34,1.56,.64,1) both; }
+282	@keyframes badgePop { from{transform:scale(0.5);opacity:0} to{transform:scale(1);opacity:1} }
+283	.result-badge-inline.win       { background:rgba(20,60,20,.95); color:#44ff88; border:1.5px solid #44ff88; display:block; }
+284	.result-badge-inline.lose      { background:rgba(60,10,10,.95); color:#ff5555; border:1.5px solid #ff5555; display:block; }
+285	.result-badge-inline.push      { background:rgba(10,30,60,.95); color:#4ab8ff; border:1.5px solid #4ab8ff; display:block; }
+286	.result-badge-inline.bust      { background:rgba(60,10,10,.95); color:#ff5555; border:1.5px solid #ff5555; display:block; }
+287	.result-badge-inline.blackjack { background:rgba(70,50,0,.95); color:#ffd700; border:1.5px solid #ffd700; display:block;
+288	  box-shadow:0 0 12px rgba(255,215,0,.5); animation:badgePop .3s ease both,bjGlow 1.5s ease .3s infinite alternate; }
+289	@keyframes bjGlow { to{box-shadow:0 0 24px rgba(255,215,0,.9);} }
+290	
+291	/* ── CARDS — powered by vl-card.css ── */
+292	.vl-card { width:clamp(40px,5.8vw,56px); height:clamp(57px,9vh,80px); }
+293	.dealer-hand .vl-card { width:clamp(46px,6.8vw,62px); height:clamp(65px,10.5vh,90px); }
+294	.seat-hand.vert .vl-card { width:clamp(34px,5vw,46px); height:clamp(48px,7.5vh,66px); }
+295	.hand-total { font-family:'Rajdhani',sans-serif; font-size:clamp(10px,1.4vw,13px); font-weight:700;
+296	  color:#fff; background:rgba(0,0,0,.7); border-radius:10px; padding:2px 7px; letter-spacing:1px; }
+297	.hand-total.bust { color:#ff5555; }
+298	.hand-total.bj   { color:#ffd700; }
+299	
+300	/* ── DECK PILE ── */
+301	.deck-pile { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+302	  width:clamp(32px,4.8vw,46px); height:clamp(46px,7.2vh,64px); z-index:3;
+303	  pointer-events:none; display:none; }
+304	.deck-pile.visible { display:block; }
+305	.deck-pile-card { position:absolute; inset:0; border-radius:6px;
+306	  background:#083a7a url('backVurgLife.png') center/80% no-repeat;
+307	  border:1.5px solid var(--gold-dk); box-shadow:0 1px 4px rgba(0,0,0,.5); }
+308	
+309	/* ── INVITE BUTTON ── */

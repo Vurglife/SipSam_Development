@@ -1,0 +1,9 @@
+[
+  {
+    "ts": "2026-04-19T21:29:43.931Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "function calcPayout(result, bet, insuranceBet = 0, dealerHasBlackjack = false) {\n  let credit = 0;\n\n  switch (result) {\n    case 'blackjack': credit = bet + Math.floor(bet * 1.5); break; // 3:2 + bet back\n    case 'win':       credit = bet * 2;                     break; // 1:1 + bet back\n    case 'push':      credit = bet;                         break; // bet back only\n    case 'lose':\n    case 'bust':      credit = 0;                           break; // lose bet\n  }",
+    "new_string": "function calcPayout(result, bet, insuranceBet = 0, dealerHasBlackjack = false, blackjackPayoutOverride = null) {\n  let credit = 0;\n\n  switch (result) {\n    case 'blackjack':\n      // VIP tiers define a flat blackjack payout; standard uses 3:2 formula\n      credit = blackjackPayoutOverride !== null && blackjackPayoutOverride !== undefined\n        ? bet + blackjackPayoutOverride         // bet back + flat bonus\n        : bet + Math.floor(bet * 1.5);          // 3:2 + bet back\n      break;\n    case 'win':       credit = bet * 2; break; // 1:1 + bet back\n    case 'tie':                                 // tie = push for main bet;\n    case 'push':      credit = bet;   break;   // tie bonus handled separately\n    case 'lose':\n    case 'bust':      credit = 0;     break;   // lose bet\n  }",
+    "replace_all": false
+  }
+]

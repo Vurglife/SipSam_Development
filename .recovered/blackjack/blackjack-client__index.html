@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="theme-color" content="#04080f"/>
+<title>Blackjack — VurgLife</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Rajdhani:wght@400;600;700&family=Bebas+Neue&family=Exo+2:wght@400;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css"/>
+<link rel="stylesheet" href="vl-card.css"/>
+</head>
+<body>
+
+<!-- ═══════════ LOBBY ═══════════ -->
+<div id="screen-lobby" class="screen active">
+  <div class="lobby-bg">
+
+    <!-- ── STEP 1: Mode Selection (always shown first, never auto-skipped) ── -->
+    <div id="lobby-step-choose" class="lobby-card">
+      <div class="lobby-logo">Vurg<span>Life</span></div>
+      <div class="lobby-title">♠ BLACKJACK ♠</div>
+      <div class="lobby-sub">Min $100 · Max $500 per hand · $2,500 starting wallet</div>
+      <div class="lobby-modes">
+        <div class="mode-card" onclick="chooseLobby('multi')">
+          <div class="mode-icon">👥</div>
+          <div class="mode-name">Multiplayer</div>
+          <div class="mode-desc">Create a table, invite friends and wait for them to join. Up to 6 players. 5-minute invite window.</div>
+          <button class="mode-btn">PLAY MULTIPLAYER →</button>
+        </div>
+        <div class="mode-card" onclick="chooseLobby('single')">
+          <div class="mode-icon">🃏</div>
+          <div class="mode-name">Single Player</div>
+          <div class="mode-desc">Your private table. Starts immediately. Add bots from empty seats.</div>
+          <button class="mode-btn secondary">PLAY SINGLE →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── STEP 2A: Single Player — ad countdown ── -->
+    <div id="lobby-step-single" class="lobby-card" style="display:none">
+      <div class="lobby-logo">Vurg<span>Life</span></div>
+      <div class="lobby-title">🃏 Single Table</div>
+      <div style="font-size:12px;color:#888;margin-bottom:16px">Your private table is being prepared…</div>
+      <div class="ad-sim"><div class="al">ADVERTISEMENT</div><div class="ai">📺</div><div style="font-size:11px;color:#666">Ad plays here</div></div>
+      <div class="ad-bar"><div class="ad-fill" id="lobby-ad-fill" style="width:0%"></div></div>
+      <div class="ad-cnt" id="lobby-ad-cnt">10</div>
+      <button id="lobby-enter-btn" class="mode-btn" disabled onclick="enterTableNow()" style="width:100%;margin-top:12px">ENTER TABLE →</button>
+      <button class="btn-secondary" onclick="backToChoose()" style="width:100%;margin-top:8px;font-size:12px">← Back</button>
+    </div>
+
+    <!-- ── STEP 2B: Multiplayer — waiting room with invite ── -->
+    <div id="lobby-step-multi" class="lobby-card" style="display:none;max-width:560px">
+      <div class="lobby-logo">Vurg<span>Life</span></div>
+      <div class="lobby-title">👥 Multiplayer Table</div>
+
+      <!-- 5-min countdown -->
+      <div id="lobby-multi-timer-row" style="display:flex;align-items:center;justify-content:center;gap:10px;margin:10px 0 14px">
+        <div style="font-size:11px;color:#7a9ac0;letter-spacing:2px;text-transform:uppercase">Game starts in</div>
+        <div id="lobby-wait-timer" style="font-family:'Rajdhani',sans-serif;font-size:28px;font-weight:900;color:#c9a84c;letter-spacing:2px">5:00</div>
+        <div style="font-size:11px;color:#7a9ac0;letter-spacing:2px;text-transform:uppercase">or when full</div>
+      </div>
+
+      <!-- Seats list -->
+      <div id="lobby-seats-list" style="background:rgba(0,0,0,.3);border:1px solid rgba(201,168,76,.15);border-radius:10px;padding:10px 14px;margin-bottom:14px;min-height:80px">
+        <div style="font-size:10px;color:#555;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Players at table</div>
+        <div id="lobby-player-rows"></div>
+      </div>
+
+      <!-- Invite panel -->
+      <div id="lobby-multi-invite-panel" style="margin-bottom:12px">
+        <div class="lobby-section-label" style="margin-bottom:8px">📨 INVITE A PLAYER</div>
+        <div style="position:relative">
+          <div style="display:flex;gap:8px;align-items:stretch">
+            <input id="lobby-invite-input" type="text" placeholder="Click to see friends or type a username…" autocomplete="off"
+              style="flex:1;padding:10px 12px;background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;color:#f0f6ff;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none"
+              oninput="onMultiInviteInput(this.value)" onfocus="onMultiInviteFocus()"/>
+            <button class="mode-btn" style="width:auto;padding:10px 18px;font-size:13px" onclick="sendMultiInvite()">Send Invite</button>
+          </div>
+          <div id="lobby-multi-invite-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#06111f;border:1px solid #1a5caa;border-radius:8px;margin-top:4px;max-height:220px;overflow-y:auto;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.7)"></div>
+        </div>
+        <div id="lobby-invite-status" style="font-size:12px;color:#7a9ac0;min-height:16px;margin-top:6px;text-align:center"></div>
+      </div>
+
+      <div id="lobby-multi-host-actions" style="display:flex;gap:8px">
+        <button class="mode-btn" onclick="startNow()" style="flex:1">START NOW →</button>
+        <button class="btn-secondary" onclick="backToChoose()" style="font-size:12px;padding:10px 14px">← Back</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════ GAME ═══════════ -->
+<div id="screen-game" class="screen">
+  <div class="top-bar">
+    <span id="game-round">Round —</span>
+    <span id="game-status">—</span>
+
+  </div>
+  <div class="status-bar" id="table-message"></div>
+
+  <div class="game-body-bj">
+
+    <!-- TABLE — full width semicircle -->
+    <div class="oval-table" id="oval-table">
+      <div class="felt-grid"></div>
+      <!-- Decorative betting arc line -->
+      <div style="position:absolute;bottom:18%;left:50%;transform:translateX(-50%);width:70%;height:2px;background:linear-gradient(90deg,transparent,rgba(201,168,76,.15) 20%,rgba(201,168,76,.35) 50%,rgba(201,168,76,.15) 80%,transparent);border-radius:50%;pointer-events:none;z-index:2"></div>
+      <!-- Inner glow ring -->
+      <div style="position:absolute;inset:0;border-radius:0 0 700px 700px / 0 0 320px 320px;background:radial-gradient(ellipse 50% 30% at 50% 95%,rgba(201,168,76,.06) 0%,transparent 70%);pointer-events:none;z-index:2"></div>
+      <img src="VurgLife_logo_table.png" class="table-logo" alt="VurgLife" draggable="false" onerror="this.style.display='none'"/>
+
+      <!-- Countdown moved to top-bar -->
+
+      <!-- Phase banner -->
+      <div class="phase-banner" id="phase-banner"></div>
+
+      <!-- DEALER — top centre -->
+      <div class="bj-dealer-zone">
+        <div class="zone-nametag dealer-tag">◆ DEALER ◆</div>
+        <div class="zone-stats" style="margin-top:4px">
+          <span class="zone-balance" id="dealer-total-display"></span>
+        </div>
+        <div class="dealer-hand" id="dealer-cards"></div>
+      </div>
+
+      <!-- 6 PLAYER SEATS in semicircle arc -->
+      <!-- Top arc: seats 0, 1, 2 -->
+      <div class="bj-seat bj-seat-0" id="bj-seat-0">
+        <div class="seat-nametag" id="seat0-name"></div>
+        <div class="seat-chips"   id="seat0-chips"></div>
+        <div class="seat-bet"     id="seat0-bet"></div>
+        <div class="seat-hand"    id="seat0-cards"></div>
+        <div class="result-badge-inline" id="seat0-result"></div>
+        <div class="empty-seat-zone" id="seat0-empty" style="display:none">
+          <div class="empty-seat-label">Empty</div>
+          <button class="invite-btn" id="seat0-invite" onclick="inviteToSeat()">＋ Invite</button>
+          <button class="seat-bot-btn" id="seat0-bot-btn" onclick="addBotToSeat(0)">🤖 Bot</button>
+        </div>
+      </div>
+
+      <div class="bj-seat bj-seat-1" id="bj-seat-1">
+        <div class="seat-nametag" id="seat1-name"></div>
+        <div class="seat-chips"   id="seat1-chips"></div>
+        <div class="seat-bet"     id="seat1-bet"></div>
+        <div class="seat-hand"    id="seat1-cards"></div>
+        <div class="result-badge-inline" id="seat1-result"></div>
+        <div class="empty-seat-zone" id="seat1-empty" style="display:none">
+          <div class="empty-seat-label">Empty</div>
+          <button class="invite-btn" id="seat1-invite" onclick="inviteToSeat()">＋ Invite</button>
+          <button class="seat-bot-btn" id="seat1-bot-btn" onclick="addBotToSeat(1)">🤖 Bot</button>
+        </div>
+      </div>
+
+      <div class="bj-seat bj-seat-2" id="bj-seat-2">
+        <div class="seat-nametag" id="seat2-name"></div>
+        <div class="seat-chips"   id="seat2-chips"></div>
+        <div class="seat-bet"     id="seat2-bet"></div>
+        <div class="seat-hand"    id="seat2-cards"></div>
+        <div class="result-badge-inline" id="seat2-result"></div>
+        <div class="empty-seat-zone" id="seat2-empty" style="display:none">
+          <div class="empty-seat-label">Empty</div>
+          <button class="invite-btn" id="seat2-invite" onclick="inviteToSeat()">＋ Invite</button>
+          <button class="seat-bot-btn" id="seat2-bot-btn" onclick="addBotToSeat(2)">🤖 Bot</button>
+        </div>
+      </div>
+
+      <!-- Bottom arc: seats 3, 4 (centre/primary), 5 -->
+      <div class="bj-seat bj-seat-3" id="bj-seat-3">
+        <div class="seat-nametag" id="seat3-name"></div>
+        <div class="seat-chips"   id="seat3-chips"></div>
+        <div class="seat-bet"     id="seat3-bet"></div>
+        <div class="seat-hand"    id="seat3-cards"></div>
+        <div class="result-badge-inline" id="seat3-result"></div>
+        <div class="empty-seat-zone" id="seat3-empty" style="display:none">
+          <div class="empty-seat-label">Empty</div>
+          <button class="invite-btn" id="seat3-invite" onclick="inviteToSeat()">＋ Invite</button>
+          <button class="seat-bot-btn" id="seat3-bot-btn" onclick="addBotToSeat(3)">🤖 Bot</button>
+        </div>
+      </div>
+
+      <div class="bj-seat bj-seat-4" id="bj-seat-4">
+        <div class="seat-nametag" id="seat4-name"></div>
+        <div class="seat-chips"   id="seat4-chips"></div>
+        <div class="seat-bet"     id="seat4-bet"></div>
+        <div class="seat-hand"    id="seat4-cards"></div>
+        <div class="result-badge-inline" id="seat4-result"></div>
+        <div class="empty-seat-zone" id="seat4-empty" style="display:none">
+          <div class="empty-seat-label">Empty</div>
+          <button class="invite-btn" id="seat4-invite" onclick="inviteToSeat()">＋ Invite</button>
+          <button class="seat-bot-btn" id="seat4-bot-btn" onclick="addBotToSeat(4)">🤖 Bot</button>
+        </div>
+      </div>
+
+      <div class="bj-seat bj-seat-5" id="bj-seat-5">
+        <div class="seat-nametag" id="seat5-name"></div>
+        <div class="seat-chips"   id="seat5-chips"></div>
+        <div class="seat-bet"     id="seat5-bet"></div>
+        <div class="seat-hand"    id="seat5-cards"></div>
+        <div class="result-badge-inline" id="seat5-result"></div>
+        <div class="empty-seat-zone" id="seat5-empty" style="display:none">
+          <div class="empty-seat-label">Empty</div>
+          <button class="invite-btn" id="seat5-invite" onclick="inviteToSeat()">＋ Invite</button>
+          <button class="seat-bot-btn" id="seat5-bot-btn" onclick="addBotToSeat(5)">🤖 Bot</button>
+        </div>
+      </div>
+
+      <!-- Deck pile -->
+      <div class="deck-pile" id="deck-pile">
+        <div class="deck-pile-card" style="top:-3px;left:1px"></div>
+        <div class="deck-pile-card" style="top:-1.5px;left:.5px"></div>
+        <div class="deck-pile-card"></div>
+      </div>
+
+      <!-- BET OVERLAY -->
+      <div id="bet-overlay" style="display:none;position:absolute;inset:0;z-index:50;background:rgba(2,8,16,.76);backdrop-filter:blur(2px);border-radius:inherit;flex-direction:column;align-items:center;justify-content:center;gap:0">
+        <div style="font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#7a9ac0;margin-bottom:2px">Round <span id="bet-round-label">—</span></div>
+        <!-- Wallet display — visible inside overlay so player always sees their balance -->
+        <div style="display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.4);border:1px solid rgba(201,168,76,.2);border-radius:20px;padding:4px 14px;margin-bottom:4px">
+          <span style="font-size:10px;color:#7a9ac0;letter-spacing:2px;text-transform:uppercase">Wallet</span>
+          <span id="bet-overlay-wallet" style="font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:900;color:var(--gold-lt);letter-spacing:1px">$—</span>
+        </div>
+        <div id="bet-alert-text" style="font-family:'Bebas Neue',sans-serif;font-size:clamp(22px,3.8vw,36px);letter-spacing:4px;color:#c9a84c;text-align:center;line-height:1;text-shadow:0 0 30px rgba(201,168,76,.6)">Tap a chip to bet</div>
+
+        <!-- Tie bet section — shown above chips so player can place it before choosing a chip -->
+        <div id="bet-tiebet-section" style="display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:6px">
+          <div style="font-size:10px;color:#888;letter-spacing:2px;text-transform:uppercase">Optional Side Bet</div>
+          <button id="btn-tie-bet" onclick="placeTieBet()" class="tie-bet-btn">🎯 TIE BET — $100</button>
+          <div id="bet-tiebet-hint" style="font-size:10px;color:#666;text-align:center;line-height:1.4">
+            <strong style="color:#ffd700">$2,000 Bonus</strong> · $500 main bet: <strong style="color:#ffd700">$3,000 Bonus</strong><br>
+            Wins if your total = dealer's total
+          </div>
+        </div>
+
+        <!-- Chip + countdown section — hidden after bet placed -->
+        <div id="bet-chips-section" style="display:flex;flex-direction:column;align-items:center;gap:6px;position:relative">
+          <div id="bet-confirm-section">
+            <div class="chip-row" style="margin:4px 0">
+              <button class="chip-btn chip-100" onclick="addChip(100)">$100</button>
+              <button class="chip-btn chip-200" onclick="addChip(200)">$200</button>
+              <button class="chip-btn chip-350" onclick="addChip(350)">$350</button>
+              <button class="chip-btn chip-500" onclick="addChip(500)">$500</button>
+            </div>
+            <div id="bet-display" style="font-family:'Rajdhani',sans-serif;font-size:clamp(16px,4.5vw,26px);font-weight:900;color:#c9a84c;letter-spacing:2px;min-height:24px;text-align:center;margin:2px 0 4px"></div>
+          </div>
+          <!-- VIP fixed-bet display — shown instead of chip row in VIP tiers -->
+          <div id="bet-fixed-section" style="display:none;flex-direction:column;align-items:center;gap:4px;margin:4px 0">
+            <div style="font-size:10px;color:#7a9ac0;letter-spacing:2px;text-transform:uppercase">Fixed Bet</div>
+            <div id="bet-fixed-amount" style="font-family:'Rajdhani',sans-serif;font-size:clamp(24px,5.5vw,34px);font-weight:900;color:var(--gold-lt);letter-spacing:2px;text-shadow:0 0 20px rgba(201,168,76,.4)">$—</div>
+            <div style="font-size:10px;color:#666;text-align:center">Auto-placed · Tie bet is optional</div>
+          </div>
+          <!-- VIP fixed-bet display — shown instead of chip row in VIP tiers -->
+          <div id="bet-fixed-section" style="display:none;flex-direction:column;align-items:center;gap:4px;margin:4px 0">
+            <div style="font-size:10px;color:#7a9ac0;letter-spacing:2px;text-transform:uppercase">Fixed Bet</div>
+            <div id="bet-fixed-amount" style="font-family:'Rajdhani',sans-serif;font-size:clamp(24px,5.5vw,34px);font-weight:900;color:var(--gold-lt);letter-spacing:2px;text-shadow:0 0 20px rgba(201,168,76,.4)">$—</div>
+            <div style="font-size:10px;color:#666;text-align:center">Auto-placed · Tie bet is optional</div>
+          </div>
+          <!-- Countdown timer — positioned to the right, out of the way of chips -->
+          <div style="position:absolute;right:-100px;top:50%;transform:translateY(-50%);width:76px;height:76px">
+            <svg viewBox="0 0 80 80" style="position:absolute;inset:0;transform:rotate(-90deg)">
+              <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="6"/>
+              <circle id="bet-ring" cx="40" cy="40" r="34" fill="none" stroke="#c9a84c" stroke-width="6"
+                stroke-dasharray="213.6" stroke-dashoffset="0" stroke-linecap="round"
+                style="transition:stroke-dashoffset .9s linear,stroke .3s"/>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column">
+              <span id="bet-countdown" style="font-family:'Rajdhani',sans-serif;font-size:28px;font-weight:900;color:#f0f6ff;line-height:1">10</span>
+              <span style="font-size:9px;color:#7a9ac0;letter-spacing:1px">SECS</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── VIP TIE BET PROMPT — 5s YES/NO decision at start of each round ── -->
+      <div id="tie-bet-overlay" style="display:none;position:absolute;inset:0;z-index:55;background:rgba(2,8,16,.82);backdrop-filter:blur(3px);border-radius:inherit;flex-direction:column;align-items:center;justify-content:center;gap:12px">
+        <div style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#7a9ac0">Round <span id="tie-round-label">—</span></div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,5vw,44px);letter-spacing:4px;color:#c9a84c;text-shadow:0 0 24px rgba(201,168,76,.55);line-height:1">Place Tie Bet?</div>
+        <div id="tie-amount-display" style="font-family:'Rajdhani',sans-serif;font-size:clamp(20px,4vw,30px);font-weight:900;color:var(--gold-lt);letter-spacing:2px">$—</div>
+        <div id="tie-payout-hint" style="font-size:11px;color:#9aa;text-align:center;line-height:1.4;max-width:320px;padding:0 12px">Wins if your total matches the dealer's — bonus: <strong style="color:#ffd700">$—</strong></div>
+        <div style="display:flex;gap:16px;margin-top:6px">
+          <button class="action-btn" style="min-width:120px;background:rgba(68,255,136,.18);border:1px solid rgba(68,255,136,.55);color:#b8ffce;font-size:16px;letter-spacing:3px" onclick="tieBetDecide('yes')">✓ YES</button>
+          <button class="action-btn" style="min-width:120px;background:rgba(255,90,90,.12);border:1px solid rgba(255,90,90,.45);color:#ffb8b8;font-size:16px;letter-spacing:3px" onclick="tieBetDecide('no')">✕ NO</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:11px;color:#7a9ac0;letter-spacing:2px;text-transform:uppercase">
+          Auto-skip in <span id="tie-countdown" style="font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:900;color:#f0f6ff">5</span>s
+        </div>
+      </div>
+
+      <!-- ── VIP TIE BET PROMPT — 5s YES/NO decision at start of each round ── -->
+      <div id="tie-bet-overlay" style="display:none;position:absolute;inset:0;z-index:55;background:rgba(2,8,16,.82);backdrop-filter:blur(3px);border-radius:inherit;flex-direction:column;align-items:center;justify-content:center;gap:12px">
+        <div style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#7a9ac0">Round <span id="tie-round-label">—</span></div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,5vw,44px);letter-spacing:4px;color:#c9a84c;text-shadow:0 0 24px rgba(201,168,76,.55);line-height:1">Place Tie Bet?</div>
+        <div id="tie-amount-display" style="font-family:'Rajdhani',sans-serif;font-size:clamp(20px,4vw,30px);font-weight:900;color:var(--gold-lt);letter-spacing:2px">$—</div>
+        <div id="tie-payout-hint" style="font-size:11px;color:#9aa;text-align:center;line-height:1.4;max-width:320px;padding:0 12px">Wins if your total matches the dealer's — bonus: <strong style="color:#ffd700">$—</strong></div>
+        <div style="display:flex;gap:16px;margin-top:6px">
+          <button class="action-btn" style="min-width:120px;background:rgba(68,255,136,.18);border:1px solid rgba(68,255,136,.55);color:#b8ffce;font-size:16px;letter-spacing:3px" onclick="tieBetDecide('yes')">✓ YES</button>
+          <button class="action-btn" style="min-width:120px;background:rgba(255,90,90,.12);border:1px solid rgba(255,90,90,.45);color:#ffb8b8;font-size:16px;letter-spacing:3px" onclick="tieBetDecide('no')">✕ NO</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:11px;color:#7a9ac0;letter-spacing:2px;text-transform:uppercase">
+          Auto-skip in <span id="tie-countdown" style="font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:900;color:#f0f6ff">5</span>s
+        </div>
+      </div>
+
+      <!-- WIN/LOSE FLASH -->
+      <!-- ── YOUR TURN COUNTDOWN — centred on felt, only visible on your turn ── -->
+      <div id="your-turn-overlay" style="display:none;position:absolute;inset:0;z-index:55;pointer-events:none;align-items:center;justify-content:center;flex-direction:column;gap:8px">
+        <div style="background:rgba(0,0,0,.75);border:2px solid var(--gold);border-radius:16px;padding:12px 32px;text-align:center;backdrop-filter:blur(4px)">
+          <div style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px;color:#7a9ac0;text-transform:uppercase;margin-bottom:2px">Your Turn</div>
+          <div id="cd-number" style="font-family:'Rajdhani',sans-serif;font-size:clamp(48px,9vw,72px);font-weight:900;color:var(--gold-lt);line-height:1;letter-spacing:2px;font-variant-numeric:tabular-nums">10</div>
+          <div style="font-size:10px;color:#555;letter-spacing:2px;margin-top:2px">SECONDS</div>
+        </div>
+      </div>
+        <div style="flex:1">
+          <div style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#fbbf24;margin-bottom:3px">⚠️ DEALER SHOWS ACE</div>
+          <div id="insurance-msg" style="font-size:12px;color:#7a9ac0">Take insurance for half your bet?</div>
+        </div>
+        <button class="action-btn primary" onclick="takeInsurance(true)">YES — INSURE</button>
+        <div style="flex:1">
+          <div style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#fbbf24;margin-bottom:3px">⚠️ DEALER SHOWS ACE</div>
+          <div id="insurance-msg" style="font-size:12px;color:#7a9ac0">Take insurance for half your bet?</div>
+        </div>
+        <button class="action-btn primary" onclick="takeInsurance(true)">YES — INSURE</button>
+        <button class="action-btn" onclick="takeInsurance(false)">NO THANKS</button>
+      </div>
+    </div>
+    <!-- Player actions -->
+    <div id="player-actions" style="display:none">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center">
+        <button class="action-btn primary large" id="btn-hit"    onclick="sendAction('hit')">HIT</button>
+        <button class="action-btn large"         id="btn-stand"  onclick="sendAction('stand')">STAND</button>
+        <button class="action-btn"               id="btn-double" onclick="sendAction('double')">DOUBLE</button>
+        <button class="action-btn"               id="btn-split"  onclick="sendAction('split')">SPLIT</button>
+      </div>
+      <div id="split-status" style="font-size:11px;color:#7a9ac0;text-align:center;margin-top:4px;min-height:14px"></div>
+    </div>
+    <!-- Waiting -->
+    <div id="waiting-msg" style="display:none;text-align:center;padding:6px 0">
+      <div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;letter-spacing:2px;color:#4aabff;animation:betPulse 1.5s ease-in-out infinite">Waiting for players…</div>
+    </div>
+    <!-- Freeze button — always visible, centred below all action panels -->
+    <div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:6px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.04)">
+      <button id="btn-freeze-bar" class="freeze-btn-bar" onclick="toggleFreeze()">🔒 Freeze Bet</button>
+      <span id="seat-freeze-indicator" class="freeze-indicator" style="display:none"></span>
+    </div>
+  </div>
+
+  <!-- Chat FAB -->
+  <button id="chat-fab" onclick="toggleChatPopup()" style="position:fixed;bottom:18px;right:18px;width:44px;height:44px;border-radius:50%;background:#1a5caa;border:2px solid #2a7fff;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.5);z-index:300;transition:transform .15s">💬</button>
+  <div id="chat-popup" style="position:fixed;bottom:72px;right:18px;width:260px;background:#06111f;border:1px solid #1a3a5c;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.7);z-index:299;display:none;flex-direction:column;overflow:hidden">
+    <div style="padding:8px 12px;border-bottom:1px solid #1a3a5c;font-size:11px;color:#7a9ac0;letter-spacing:1px;text-transform:uppercase">Table Chat</div>
+    <div style="padding:10px;display:flex;gap:6px;align-items:center">
+      <input id="chat-bar-input" type="text" maxlength="120" placeholder="Type a message..." style="flex:1;background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;color:#e0eeff;font-size:13px;padding:6px 10px;outline:none;font-family:inherit" onkeydown="if(event.key==='Enter'){chatBarSend();toggleChatPopup();}"/>
+      <button onclick="chatBarSend();toggleChatPopup();" style="background:#1a5caa;border:none;border-radius:8px;color:#fff;font-size:12px;padding:6px 12px;cursor:pointer">Send</button>
+    </div>
+  </div>
+</div><!-- /screen-game -->
+
+<!-- ═══════════ GAME OVER ═══════════ -->
+<div id="screen-gameover" class="screen">
+  <div class="gameover-card">
+    <h2>Round Complete</h2>
+    <div id="gameover-result" style="font-size:15px;font-weight:700;margin-bottom:12px;letter-spacing:1px"></div>
+    <div id="final-scores" style="margin-bottom:24px"></div>
+    <button class="btn-secondary" onclick="exitToLobby()" style="padding:12px 28px">🏠 Return to Dashboard</button>
+  </div>
+</div>
+
+<script src="vl-card.js"></script>
+<script src="game.js?v=2"></script>
+
+<!-- ═══════════ IGM BUTTON ═══════════ -->
+<button id="ingame-menu-btn" onclick="toggleIngameMenu()" style="display:none;position:fixed;top:8px;right:10px;z-index:500;background:rgba(8,15,30,.9);border:1px solid #1a2d50;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700;letter-spacing:1px;font-family:'Rajdhani',sans-serif;color:#f0f6ff;backdrop-filter:blur(6px);align-items:center;gap:7px;text-transform:uppercase;box-shadow:0 4px 16px rgba(0,0,0,.5)">☰ MENU</button>
+<div id="igm-overlay" onclick="closeIngameMenu()" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(2,6,9,.6);backdrop-filter:blur(2px)"></div>
+
+<!-- ═══════════ IGM PANEL ═══════════ -->
+<div id="igm-panel" style="position:fixed;top:0;right:0;bottom:0;width:300px;z-index:700;background:#080f1e;border-left:1px solid #1a2d50;transform:translateX(100%);transition:transform .3s ease;display:flex;flex-direction:column;overflow:hidden;box-shadow:-20px 0 60px rgba(0,0,0,.7)">
+  <div style="padding:18px 20px;border-bottom:1px solid #1a2d50;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#040d1c,#0a1e3c)">
+    <div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;background:linear-gradient(135deg,#fff,#4aabff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">In-Game Menu</div>
+      <div style="font-size:10px;letter-spacing:2px;color:#334d70;margin-top:1px">♠ Blackjack — $100 Table</div>
+    </div>
+    <button onclick="closeIngameMenu()" style="background:rgba(26,140,255,.1);border:1px solid #1a2d50;border-radius:6px;padding:6px 11px;cursor:pointer;color:#7a9ac0;font-size:16px">✕</button>
+  </div>
+  <div style="padding:14px 20px;border-bottom:1px solid #1a2d50;background:rgba(11,21,40,.7);display:flex;align-items:center;gap:12px">
+    <div style="width:38px;height:38px;border-radius:50%;background:#0f1e38;border:2px solid #0d4a8a;display:flex;align-items:center;justify-content:center;font-size:18px" id="igm-avatar">👤</div>
+    <div style="flex:1"><div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px" id="igm-username">—</div><div style="font-size:11px;color:#c9a84c;font-weight:600" id="igm-wallet-display">Wallet: $—</div></div>
+    <div style="text-align:right"><div style="font-size:10px;color:#334d70;letter-spacing:1px">BANK</div><div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;color:#e8c96a" id="igm-bank-display">$—</div></div>
+  </div>
+  <nav style="flex:1;overflow-y:auto;padding:8px 0">
+    <div class="igm-item" onclick="igmReplenish()"><div class="igm-ico">💰</div><div class="igm-body"><div class="igm-title">Replenish Wallet</div><div class="igm-desc">Draw chips from your bank</div></div><span class="igm-arrow">›</span></div>
+    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
+    <div class="igm-item" onclick="igmAddBot()"><div class="igm-ico">🤖</div><div class="igm-body"><div class="igm-title">Add Bot</div><div class="igm-desc">Bot financed from your wallet — you keep winnings</div></div><span class="igm-arrow">›</span></div>
+    <div class="igm-item" onclick="igmInvite()"><div class="igm-ico">📨</div><div class="igm-body"><div class="igm-title">Invite Friends</div><div class="igm-desc">Send a table link</div></div><span class="igm-arrow">›</span></div>
+    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
+    <div class="igm-item" onclick="igmShowPayouts()"><div class="igm-ico">💎</div><div class="igm-body"><div class="igm-title">Payouts &amp; Specials</div><div class="igm-desc">Verify every payout for this table</div></div><span class="igm-arrow">›</span></div>
+
+    <div class="igm-item" onclick="igmShowRules()"><div class="igm-ico">📖</div><div class="igm-body"><div class="igm-title">Game Rules</div><div class="igm-desc">Blackjack rules &amp; payouts</div></div><span class="igm-arrow">›</span></div>
+    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
+    <div class="igm-item igm-danger" onclick="igmExit()"><div class="igm-ico">🚪</div><div class="igm-body"><div class="igm-title">Exit Game</div><div class="igm-desc">Chips returned to your bank</div></div><span class="igm-arrow">›</span></div>
+  </nav>
+
+  <!-- Replenish sub -->
+  <div id="igm-sub-replenish" class="igm-sub">
+    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Replenish Wallet</span></div>
+    <div style="padding:20px">
+      <div style="background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;padding:14px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px"><span style="color:#7a9ac0">Wallet</span><span id="rep-cur-wallet" style="font-weight:700;color:#e8c96a">$—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#7a9ac0">Bank</span><span id="rep-cur-bank" style="font-weight:700">$—</span></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input id="rep-amount" type="number" placeholder="Amount..." style="flex:1;background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 13px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:14px;outline:none">
+        <button onclick="igmFillMax()" style="background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 12px;color:#4aabff;font-size:11px;font-weight:700;cursor:pointer">MAX</button>
+      </div>
+      <div id="rep-err" style="font-size:11px;color:#fca5a5;margin-bottom:8px;display:none"></div>
+    <div class="igm-item igm-danger" onclick="igmExit()"><div class="igm-ico">🚪</div><div class="igm-body"><div class="igm-title">Exit Game</div><div class="igm-desc">Chips returned to your bank</div></div><span class="igm-arrow">›</span></div>
+  </nav>
+
+  <!-- Replenish sub -->
+  <div id="igm-sub-replenish" class="igm-sub">
+    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Replenish Wallet</span></div>
+    <div style="padding:20px">
+      <div style="background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;padding:14px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px"><span style="color:#7a9ac0">Wallet</span><span id="rep-cur-wallet" style="font-weight:700;color:#e8c96a">$—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#7a9ac0">Bank</span><span id="rep-cur-bank" style="font-weight:700">$—</span></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input id="rep-amount" type="number" placeholder="Amount..." style="flex:1;background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 13px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:14px;outline:none">
+        <button onclick="igmFillMax()" style="background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 12px;color:#4aabff;font-size:11px;font-weight:700;cursor:pointer">MAX</button>
+      </div>
+      <div id="rep-err" style="font-size:11px;color:#fca5a5;margin-bottom:8px;display:none"></div>
+      <button class="igm-action-btn" onclick="doReplenish()">💰 Draw to Wallet</button>
+    </div>
+  </div>
+
+  <!-- Invite sub -->
+  <div id="igm-sub-invite" class="igm-sub">
+    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Invite Friends</span></div>
+    <div style="padding:16px;flex:1;display:flex;flex-direction:column;gap:10px">
+      <div style="position:relative">
+        <input id="invite-username" type="text" placeholder="Search username…" style="width:100%;padding:9px 12px;background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;color:#f0f6ff;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;box-sizing:border-box" oninput="onLobbyInviteInput(this.value)" onfocus="onLobbyInviteFocus()" autocomplete="off"/>
+        <div id="lobby-invite-dropdown" style="display:none;position:absolute;bottom:100%;left:0;right:0;background:#06111f;border:1px solid #1a2d50;border-radius:8px;z-index:600;max-height:200px;overflow-y:auto;margin-bottom:4px;box-shadow:0 -8px 24px rgba(0,0,0,.5)"></div>
+      </div>
+      <button class="igm-action-btn" onclick="sendLobbyInvite()">📨 SEND INVITE</button>
+      <div id="invite-status" style="font-size:12px;color:#7a9ac0;min-height:16px;text-align:center"></div>
+    </div>
+  </div>
+
+  <!-- Payouts & Specials — focused payout reference -->
+  <div id="igm-sub-payouts" class="igm-sub" style="overflow-y:auto">
+    <div class="igm-sub-head" style="position:sticky;top:0;z-index:1;background:#080f1e"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Payouts &amp; Specials</span></div>
+    <div style="padding:16px;font-size:12px;line-height:1.6;color:#7a9ac0">
+
+      <div id="igm-payouts-tier" style="margin-bottom:12px;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:700;letter-spacing:1px;text-align:center;text-transform:uppercase"></div>
+
+      <!-- Main bet payouts -->
+      <div class="igm-rule-sec">
+        <div class="igm-rule-h">💰 Main Bet Payouts</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <tbody>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px">Blackjack (A + 10-value)</td><td style="text-align:right;padding:5px 6px;color:#ffd700;font-weight:700">3:2 (1.5×)</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px">Win round</td><td style="text-align:right;padding:5px 6px;color:#22c55e;font-weight:700">1:1</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px">Push (tie value, no tie bet)</td><td style="text-align:right;padding:5px 6px;color:#7a9ac0;font-weight:700">bet returned</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px">Insurance (dealer Blackjack)</td><td style="text-align:right;padding:5px 6px;color:#22c55e;font-weight:700">2:1</td></tr>
+            <tr><td style="padding:5px 6px">Lose / bust</td><td style="text-align:right;padding:5px 6px;color:#ef4444;font-weight:700">−1× bet</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tie bet -->
+      <div class="igm-rule-sec">
+        <div class="igm-rule-h">🎯 Tie Bet (optional)</div>
+        <p style="margin:0 0 6px;font-size:11px">Place during betting phase. Wins a flat bonus when your total equals the dealer's — even if both bust at the same total.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <tbody>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px">$100 main bet → tie</td><td style="text-align:right;padding:5px 6px;color:#ffd700;font-weight:700" id="igm-bj-tie-100">+$2,000</td></tr>
+            <tr><td style="padding:5px 6px">$500 main bet → tie</td><td style="text-align:right;padding:5px 6px;color:#ffd700;font-weight:700" id="igm-bj-tie-500">+$3,000</td></tr>
+          </tbody>
+        </table>
+        <p style="margin:6px 0 0;font-size:10.5px">If your tie hand is also a Blackjack, it counts as Blackjack (3:2) instead of Push, plus the tie bonus.</p>
+      </div>
+
+      <!-- Caribbean side bets -->
+      <div class="igm-rule-sec">
+        <div class="igm-rule-h">🏝 Caribbean Side Bets</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead>
+            <tr style="color:#4aabff;border-bottom:1px solid #1a2d50">
+              <th style="text-align:left;padding:4px 6px;font-weight:700;letter-spacing:.5px">SIDE BET</th>
+              <th style="text-align:center;padding:4px 6px;font-weight:700;letter-spacing:.5px">MULT</th>
+              <th style="text-align:right;padding:4px 6px;font-weight:700;letter-spacing:.5px">BONUS</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Island BJ — Suited A+K</td><td style="text-align:center;padding:5px 6px;color:#22c55e;font-weight:700">3:1</td><td style="text-align:right;padding:5px 6px;color:#4aabff;font-weight:700">+$500</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Triple 7s — three 7s</td><td style="text-align:center;padding:5px 6px;color:#22c55e;font-weight:700">5:1</td><td style="text-align:right;padding:5px 6px;color:#4aabff;font-weight:700">+$2,500</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Rum Runner — 3-card 21</td><td style="text-align:center;padding:5px 6px;color:#22c55e;font-weight:700">4:1</td><td style="text-align:right;padding:5px 6px;color:#4aabff;font-weight:700">+$1,000</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Dealer Bust @ 22</td><td style="text-align:center;padding:5px 6px;color:#22c55e;font-weight:700">1.5:1</td><td style="text-align:right;padding:5px 6px;color:#445566">—</td></tr>
+            <tr><td style="padding:5px 6px;color:#e8c96a">Full Sweep — 5 wins in a row</td><td style="text-align:center;padding:5px 6px;color:#22c55e;font-weight:700">2× bonus</td><td style="text-align:right;padding:5px 6px;color:#445566">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Rules sub -->
+  <div id="igm-sub-rules" class="igm-sub" style="overflow-y:auto">
+    <div class="igm-sub-head" style="position:sticky;top:0;z-index:1;background:#080f1e"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Blackjack Rules</span></div>
+    <div style="padding:16px;font-size:12px;line-height:1.6;color:#7a9ac0">
+      <div class="igm-rule-sec"><div class="igm-rule-h">📋 Basic Rules</div><ul style="padding-left:16px;margin:0">
+        <li>Beat dealer — get closer to 21 without going over</li>
+        <li>Blackjack (A + 10-value) pays <strong style="color:#ffd700">3:2</strong></li>
+        <li>Dealer stands on soft 17</li>
+        <li>Double down on any first 2 cards</li>
+        <li>Split matching pairs — play as 2 separate hands</li>
+        <li>Split Aces: one card each, auto-stand</li>
+        <li>Insurance: fixed $50 bet, pays 2:1 if dealer has Blackjack</li>
+      </ul></div>
+      <div class="igm-rule-sec"><div class="igm-rule-h">🎯 Tie Bet</div><ul style="padding-left:16px;margin:0"><li>Place $100 during betting phase</li><li>Win <strong style="color:#ffd700">$2,000 Bonus</strong> if your total equals dealer's total</li><li>Works even if both player and dealer bust with same total</li><li>$500 main bet earns <strong style="color:#ffd700">$3,000 Bonus</strong> on a tie</li><li>Independent of round result — you can lose the round and still win the bonus</li></ul></div>
+      <div class="igm-rule-sec"><div class="igm-rule-h">💰 Payouts</div><ul style="padding-left:16px;margin:0">
+        <li>Blackjack: <strong style="color:#ffd700">3:2</strong></li>
+        <li>Win: 1:1</li>
+        <li>Push: bet returned</li>
+        <li>Insurance: 2:1</li>
+      </ul></div>
+      <div class="igm-rule-sec"><div class="igm-rule-h">🏝 Caribbean Side Bets</div><ul style="padding-left:16px;margin:0">
+        <li><strong style="color:#e8c96a">Island BJ</strong> — Suited A+K — 3:1 +$500</li>
+        <li><strong style="color:#e8c96a">Triple 7s</strong> — Three 7s — 5:1 +$2,500</li>
+        <li><strong style="color:#e8c96a">Rum Runner</strong> — 3-card 21 — 4:1 +$1,000</li>
+        <li><strong style="color:#e8c96a">Dealer Bust Bonus</strong> — Dealer busts 22 — 1.5:1</li>
+        <li><strong style="color:#e8c96a">Full Sweep</strong> — Win 5 in a row — 2× bonus</li>
+      </ul></div>
+    </div>
+  </div>
+</div><!-- /igm-panel -->
+
+<style>
+@keyframes betPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.8;transform:scale(1.03)}}
+@keyframes resultFlash{0%{transform:scale(0.5);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+.igm-item{display:flex;align-items:center;gap:12px;padding:13px 20px;cursor:pointer;transition:background .14s;border-left:3px solid transparent}
+.igm-item:hover{background:rgba(26,140,255,.07);border-left-color:#0d4a8a}
+.igm-item.igm-danger:hover{background:rgba(239,68,68,.07);border-left-color:#ef4444}
+.igm-ico{font-size:20px;width:28px;text-align:center;flex-shrink:0}
+.igm-body{flex:1;min-width:0}
+.igm-title{font-weight:700;font-size:13px;margin-bottom:1px;color:#f0f6ff}
+.igm-desc{font-size:11px;color:#7a9ac0;line-height:1.4}
+.igm-item.igm-danger .igm-title{color:#fca5a5}
+.igm-arrow{color:#334d70;font-size:18px;flex-shrink:0}
+.igm-sub{position:absolute;inset:0;background:#080f1e;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column}
+.igm-sub.open{transform:translateX(0)}
+.igm-sub-head{padding:14px 18px;border-bottom:1px solid #1a2d50;display:flex;align-items:center;gap:14px;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:#f0f6ff;flex-shrink:0}
+.igm-back-btn{background:rgba(26,140,255,.1);border:1px solid #1a2d50;border-radius:6px;padding:5px 11px;cursor:pointer;color:#4aabff;font-size:12px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px}
+.igm-action-btn{width:100%;background:linear-gradient(135deg,#1a5aaa,#1a8cff);border:none;border-radius:8px;padding:11px;color:#fff;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:1.5px;cursor:pointer;text-transform:uppercase;transition:all .18s}
+.igm-action-btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.igm-rule-sec{margin-bottom:16px}
+.igm-rule-h{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:#4aabff;text-transform:uppercase;margin-bottom:7px}
+#chat-fab:hover{transform:scale(1.1)}
+#chat-popup{animation:chatPopIn .15s ease}
+@keyframes chatPopIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.speech-bubble{position:fixed;background:rgba(6,18,42,.97);border:1.5px solid #1a8cff;border-radius:12px;padding:8px 13px;font-size:12px;color:#e0eeff;max-width:175px;word-wrap:break-word;z-index:500;pointer-events:none;line-height:1.5;box-shadow:0 4px 20px rgba(0,0,0,.7);animation:sbIn .2s ease}
+.sb-sender{font-size:10px;font-weight:700;color:#4aabff;margin-bottom:3px;letter-spacing:.5px}
+@keyframes sbIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+</style>
+
+<script>
+// ═══ IGM — read sessionStorage BEFORE game.js clears it ═══
+let igmTableCfg=null,igmWallet=0,igmBank=0,igmToken=null;
+var myChips=0,myRoomId=null;
+(function(){try{var tj=sessionStorage.getItem('bj_table'),uj=sessionStorage.getItem('bj_user');if(tj)igmTableCfg=JSON.parse(tj);if(uj){var u=JSON.parse(uj);igmToken=u.token||null;igmWallet=igmTableCfg?(igmTableCfg.walletSize||1000):1000;myChips=igmWallet;}}catch(e){}})();
+
+// ═══ SOUND SYSTEM ═══
+let _audioCtx=null,soundEnabled=JSON.parse(localStorage.getItem('vl_sound')??'true');
+function getAudioCtx(){if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(_audioCtx.state==='suspended')_audioCtx.resume();return _audioCtx;}
+function playTone(freq,type,dur,vol,delay){type=type||'sine';dur=dur||0.15;vol=vol||0.18;delay=delay||0;if(!soundEnabled)return;try{var ctx=getAudioCtx(),osc=ctx.createOscillator(),g=ctx.createGain();osc.connect(g);g.connect(ctx.destination);osc.type=type;osc.frequency.value=freq;var t=ctx.currentTime+delay;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+0.01);g.gain.exponentialRampToValueAtTime(0.001,t+dur);osc.start(t);osc.stop(t+dur+0.05);}catch(e){}}
+var SFX={
+  click:function(){playTone(880,'sine',0.08,0.1);},
+  deal: function(){playTone(1200,'sine',0.06,0.12);setTimeout(()=>playTone(1000,'sine',0.06,0.1),60);},
+  chip: function(){playTone(700,'triangle',0.1,0.15);},
+  win:  function(){[523,659,784,1047].forEach((f,i)=>playTone(f,'sine',0.3,0.22,i*0.12));},
+  lose: function(){[300,250,200].forEach((f,i)=>playTone(f,'sawtooth',0.18,0.14,i*0.1));},
+  bj:   function(){[523,659,784,880,1047,1200].forEach((f,i)=>playTone(f,'sine',0.35,0.28,i*0.08));},
+  timer:function(){playTone(880,'square',0.05,0.08);},
+  b.style.bottom=(window.innerHeight-r.top+10)+'px';
+  b.style.transform='translateX(-50%)';
+  document.body.appendChild(b);
+  bubbleTimers[sessionId]=setTimeout(()=>{var el=document.getElementById(id);if(el){el.style.opacity='0';el.style.transition='opacity .4s';setTimeout(()=>el.remove(),400);}},5000);
+  SFX.chat();
+}
+function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ═══ CHAT ═══
+function toggleChatPopup(){var p=document.getElementById('chat-popup'),f=document.getElementById('chat-fab');if(!p)return;var o=p.style.display==='flex';p.style.display=o?'none':'flex';f.style.background=o?'#1a5caa':'#0d4a8a';if(!o)setTimeout(()=>document.getElementById('chat-bar-input')?.focus(),50);}
+document.addEventListener('click',e=>{var p=document.getElementById('chat-popup'),f=document.getElementById('chat-fab');if(p&&p.style.display==='flex'&&!p.contains(e.target)&&e.target!==f){p.style.display='none';if(f)f.style.background='#1a5caa';}});
+function chatBarSend(){var i=document.getElementById('chat-bar-input');if(!i)return;var m=i.value.trim();if(!m)return;if(typeof sendMsg==='function')sendMsg('chatMessage',{message:m});i.value='';SFX.chat();}
+
+// ═══ IGM ═══
+function toggleIngameMenu(){var p=document.getElementById('igm-panel'),c=p.style.transform;if(c==='translateX(0px)'||c==='translateX(0)')closeIngameMenu();else{syncIGM();p.style.transform='translateX(0)';document.getElementById('igm-overlay').style.display='block';}}
+function closeIngameMenu(){document.getElementById('igm-panel').style.transform='translateX(100%)';document.getElementById('igm-overlay').style.display='none';document.querySelectorAll('.igm-sub.open').forEach(s=>s.classList.remove('open'));}
+function igmBack(){document.querySelectorAll('.igm-sub.open').forEach(s=>s.classList.remove('open'));}
+function igmReplenish(){syncIGM();document.getElementById('igm-sub-replenish').classList.add('open');}
+function igmInvite(){document.getElementById('igm-sub-invite').classList.add('open');}
+function igmShowRules(){document.getElementById('igm-sub-rules').classList.add('open');}
+function igmShowPayouts(){
+  // Tier badge — Blackjack tier defined by tableMinBet (no isVip flag yet, but show table info)
+  var minBet=(igmTableCfg&&igmTableCfg.minBet)||100;
+  var tier=document.getElementById('igm-payouts-tier');
+  if(tier){
+    tier.style.background='rgba(26,140,255,.08)';tier.style.border='1px solid #1a2d50';tier.style.color='#7a9ac0';
+    tier.textContent=(minBet>=10000?'💎 VIP TABLE':'Standard table')+' (min bet $'+minBet.toLocaleString()+')';
+    if(minBet>=10000){tier.style.background='linear-gradient(135deg, rgba(201,168,76,.15), rgba(232,201,106,.05))';tier.style.border='1px solid #c9a84c';tier.style.color='#e8c96a';}
+  }
+  document.getElementById('igm-sub-payouts').classList.add('open');
+}
+function igmShowRules(){document.getElementById('igm-sub-rules').classList.add('open');}
+function igmExit(){if(confirm('Leave table? Your chips return to your bank.'))exitToLobby();}
+function syncIGM(){if(typeof myChips!=='undefined')igmWallet=myChips;document.getElementById('igm-wallet-display').textContent='Wallet: $'+igmWallet.toLocaleString();document.getElementById('igm-bank-display').textContent='$'+igmBank.toLocaleString();document.getElementById('rep-cur-wallet').textContent='$'+igmWallet.toLocaleString();document.getElementById('rep-cur-bank').textContent='$'+igmBank.toLocaleString();}
+function igmFillMax(){var max=Math.min(igmBank,Math.max(0,2000-igmWallet));var inp=document.getElementById('rep-amount');if(inp)inp.value=max;}
+async function doReplenish(){var amt=parseInt(document.getElementById('rep-amount').value,10);var err=document.getElementById('rep-err');if(!amt||amt<=0){if(err){err.textContent='Enter a valid amount.';err.style.display='block';}return;}if(amt>igmBank){if(err){err.textContent='Insufficient bank.';err.style.display='block';}return;}if(err)err.style.display='none';try{var res=await fetch('/api/game/replenish',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+igmToken},credentials:'include',body:JSON.stringify({amount:amt,tableMinBet:100,currentWallet:myChips||0})});var d=await res.json();if(d.ok){igmBank-=amt;igmWallet+=amt;myChips+=amt;if(typeof ws!=='undefined'&&ws?.readyState===1)ws.send(JSON.stringify({type:'add_wallet',amount:amt}));syncIGM();document.getElementById('my-chips').textContent='$'+myChips.toLocaleString();showIngameToast('Wallet Topped Up','+$'+amt.toLocaleString()+' added');igmBack();}else{if(err){err.textContent=d.error||'Failed';err.style.display='block';}}}catch(e){if(err){err.textContent='Server error';err.style.display='block';}}}
+
+function igmAddBot(){
+  var state=window._lastBJState;
+  var seats=state?state.seats:{};
+  var mySeat=typeof mySeatIndex!=='undefined'&&mySeatIndex!==null?seats[mySeatIndex]:null;
+  var minBet=(state&&state.config)?state.config.minBet:25;
+  var wallet=mySeat?(mySeat.wallet||0):(myChips||0);
+  if(wallet<minBet){showIngameToast('Insufficient Funds','Need at least $'+minBet+' to finance a bot.');return;}
+  if(!confirm('Add a Bot?\n\n• Bets $'+minBet+'/round from YOUR wallet\n• Winnings go back to YOU\n• Your wallet: $'+wallet.toLocaleString()+'\n\nConfirm?'))return;
+  if(typeof sendMsg==='function'){sendMsg('add_bot');showIngameToast('Bot Added','Bot joined — bets $'+minBet+'/round from your wallet.');closeIngameMenu();}
+}
+
+// ═══ INVITE ═══
+var _lobbyFriends=null;
+async function getLobbyFriends(){if(_lobbyFriends)return _lobbyFriends;try{var r=await fetch('/api/game/friends',{headers:{'Authorization':'Bearer '+igmToken}}).then(r=>r.json());_lobbyFriends=r.friends||[];return _lobbyFriends;}catch(e){return[];}}
+var _invTimer=null;
+function onLobbyInviteInput(val){var dd=document.getElementById('lobby-invite-dropdown');if(!dd)return;clearTimeout(_invTimer);var q=val.toLowerCase().trim();if(!q){getLobbyFriends().then(f=>renderLobbyDD(dd,f,[],''));return;}getLobbyFriends().then(f=>renderLobbyDD(dd,f.filter(x=>x.username.toLowerCase().includes(q)),[],q));_invTimer=setTimeout(async()=>{var friends=await getLobbyFriends();var fN=new Set(friends.map(f=>f.username.toLowerCase()));var others=[];try{var r=await fetch('/api/game/friends/search?q='+encodeURIComponent(val),{headers:{'Authorization':'Bearer '+igmToken}}).then(r=>r.json());others=(r.results||[]).filter(u=>!fN.has(u.username.toLowerCase()));}catch(e){}renderLobbyDD(dd,friends.filter(f=>f.username.toLowerCase().includes(q)),others,q);},350);}
+function onLobbyInviteFocus(){getLobbyFriends().then(f=>{var dd=document.getElementById('lobby-invite-dropdown');if(dd)renderLobbyDD(dd,f,[],'');});}
+function renderLobbyDD(dd,friends,others,q){if(!friends.length&&!others.length){dd.innerHTML=q?'<div style="padding:11px 14px;font-size:12px;color:#7a9ac0">No matches.</div>':'<div style="padding:11px 14px;font-size:12px;color:#7a9ac0">No friends yet.</div>';dd.style.display='block';return;}var row=(u,lbl,col)=>`<div onclick="selInvitee('${u}')" style="padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(26,45,80,.5)" onmouseenter="this.style.background='rgba(26,140,255,.08)'" onmouseleave="this.style.background=''"><span style="width:28px;height:28px;border-radius:50%;background:#1a2d50;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;color:#c9a84c">${u[0].toUpperCase()}</span><span style="flex:1;font-size:13px;color:#f0f6ff">${u}</span><span style="font-size:10px;color:${col}">${lbl}</span></div>`;var html='';if(friends.length)html+='<div style="padding:5px 14px 3px;font-size:9px;font-weight:700;letter-spacing:2px;color:#4aabff;text-transform:uppercase">Friends</div>'+friends.map(f=>row(f.username,'🤝','#4aabff')).join('');if(others.length)html+='<div style="padding:5px 14px 3px;font-size:9px;font-weight:700;letter-spacing:2px;color:#7a9ac0;text-transform:uppercase;border-top:1px solid #1a2d50;margin-top:2px">Others</div>'+others.map(u=>row(u.username,'👤','#7a9ac0')).join('');dd.innerHTML=html;dd.style.display='block';}
+function selInvitee(u){var inp=document.getElementById('invite-username');if(inp)inp.value=u;var dd=document.getElementById('lobby-invite-dropdown');if(dd)dd.style.display='none';}
+document.addEventListener('click',e=>{var dd=document.getElementById('lobby-invite-dropdown');if(dd&&!dd.contains(e.target)&&e.target.id!=='invite-username')dd.style.display='none';});
+async function sendLobbyInvite(){
+  var inp=document.getElementById('invite-username');
+  var st=document.getElementById('invite-status');
+  if(!inp||!st)return;
+  if(!roomId){st.textContent='⚠️ Not connected to a table yet.';st.style.color='#fca5a5';return;}
+  if(!igmToken){st.textContent='⚠️ Not logged in.';st.style.color='#fca5a5';return;}
+
+  st.textContent='Sending…';st.style.color='#7a9ac0';
+  try{
+    var res=await fetch('/api/friends/invite',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+igmToken},
+      credentials:'include',
+      body:JSON.stringify({toUsername:u, roomId:roomId, tableMinBet:(typeof BJ_TABLE!=='undefined'?BJ_TABLE.minBet:100)||100, game:'blackjack', tableConfig:(typeof BJ_TABLE!=='undefined')?{minBet:BJ_TABLE.minBet,maxBet:BJ_TABLE.maxBet,wallet:BJ_TABLE.walletSize,walletSize:BJ_TABLE.walletSize,tieBet:BJ_TABLE.tieBet,tieBetPayout:BJ_TABLE.tieBetPayout,blackjackPayout:BJ_TABLE.blackjackPayout,tier:BJ_TABLE.label}:undefined})
+    });
+    var d=await res.json();
+    if(d.ok){
+      st.textContent='✅ Invite sent to '+u+'!';
+      st.style.color='#22c55e';
+      body:JSON.stringify({toUsername:u, roomId:roomId, tableMinBet:(typeof BJ_TABLE!=='undefined'?BJ_TABLE.minBet:100)||100, game:'blackjack', tableConfig:(typeof BJ_TABLE!=='undefined')?{minBet:BJ_TABLE.minBet,maxBet:BJ_TABLE.maxBet,wallet:BJ_TABLE.walletSize,walletSize:BJ_TABLE.walletSize,tieBet:BJ_TABLE.tieBet,tieBetPayout:BJ_TABLE.tieBetPayout,blackjackPayout:BJ_TABLE.blackjackPayout,tier:BJ_TABLE.label}:undefined})
+    });
+    var d=await res.json();
+    if(d.ok){
+      st.textContent='✅ Invite sent to '+u+'!';
+      st.style.color='#22c55e';
+      inp.value='';
+      setTimeout(()=>{st.textContent='';},4000);
+    } else {
+      st.textContent='❌ '+(d.error||'Failed');
+      st.style.color='#fca5a5';
+    }
+  }catch(e){
+    st.textContent='⚠️ Server error — check connection.';
+    st.style.color='#fca5a5';
+  }
+}
+function inviteToSeat(){toggleIngameMenu();setTimeout(()=>igmInvite(),200);}
+
+// ═══ EXIT ═══
+async function exitToLobby(){
+  if (typeof _clearFreezeBet === 'function') _clearFreezeBet();
+  try{var token=igmToken;if(!window._serverSettled&&token){var wallet=(typeof myChips!=='undefined')?myChips:igmWallet;var mb=(typeof BJ_TABLE!=='undefined'&&BJ_TABLE.minBet)?BJ_TABLE.minBet:(igmTableCfg&&igmTableCfg.minBet)||100;await fetch('/api/game/bj/exit',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},credentials:'include',body:JSON.stringify({remainingWallet:wallet,tableMinBet:mb})}).then(r=>r.json()).then(d=>{if(d.ok)window._serverSettled=true;}).catch(()=>{});}sessionStorage.removeItem('bj_table');sessionStorage.removeItem('bj_tier');sessionStorage.removeItem('bj_wallet');}catch(e){}
+  if(igmToken)sessionStorage.setItem('vl_return_token',igmToken);
+  myChips=0;igmWallet=0;window._intentionalExit=true;window.location.href='/';
+function toggleIngameMenu(){var p=document.getElementById('igm-panel'),c=p.style.transform;if(c==='translateX(0px)'||c==='translateX(0)')closeIngameMenu();else{syncIGM();p.style.transform='translateX(0)';document.getElementById('igm-overlay').style.display='block';}}
+function closeIngameMenu(){document.getElementById('igm-panel').style.transform='translateX(100%)';document.getElementById('igm-overlay').style.display='none';document.querySelectorAll('.igm-sub.open').forEach(s=>s.classList.remove('open'));}
+function igmBack(){document.querySelectorAll('.igm-sub.open').forEach(s=>s.classList.remove('open'));}
+function igmReplenish(){syncIGM();document.getElementById('igm-sub-replenish').classList.add('open');}
+function igmInvite(){document.getElementById('igm-sub-invite').classList.add('open');}
+function igmShowRules(){document.getElementById('igm-sub-rules').classList.add('open');}
+function igmExit(){if(confirm('Leave table? Your chips return to your bank.'))exitToLobby();}
+function syncIGM(){if(typeof myChips!=='undefined')igmWallet=myChips;document.getElementById('igm-wallet-display').textContent='Wallet: $'+igmWallet.toLocaleString();document.getElementById('igm-bank-display').textContent='$'+igmBank.toLocaleString();document.getElementById('rep-cur-wallet').textContent='$'+igmWallet.toLocaleString();document.getElementById('rep-cur-bank').textContent='$'+igmBank.toLocaleString();}
+function igmFillMax(){var max=Math.min(igmBank,Math.max(0,2000-igmWallet));var inp=document.getElementById('rep-amount');if(inp)inp.value=max;}
+async function doReplenish(){var amt=parseInt(document.getElementById('rep-amount').value,10);var err=document.getElementById('rep-err');if(!amt||amt<=0){if(err){err.textContent='Enter a valid amount.';err.style.display='block';}return;}if(amt>igmBank){if(err){err.textContent='Insufficient bank.';err.style.display='block';}return;}if(err)err.style.display='none';try{var res=await fetch('/api/game/replenish',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+igmToken},credentials:'include',body:JSON.stringify({amount:amt,tableMinBet:100,currentWallet:myChips||0})});var d=await res.json();if(d.ok){igmBank-=amt;igmWallet+=amt;myChips+=amt;if(typeof ws!=='undefined'&&ws?.readyState===1)ws.send(JSON.stringify({type:'add_wallet',amount:amt}));syncIGM();document.getElementById('my-chips').textContent='$'+myChips.toLocaleString();showIngameToast('Wallet Topped Up','+$'+amt.toLocaleString()+' added');igmBack();}else{if(err){err.textContent=d.error||'Failed';err.style.display='block';}}}catch(e){if(err){err.textContent='Server error';err.style.display='block';}}}
+
+function igmAddBot(){
+  var state=window._lastBJState;
+  var seats=state?state.seats:{};
+  var mySeat=typeof mySeatIndex!=='undefined'&&mySeatIndex!==null?seats[mySeatIndex]:null;

@@ -1,0 +1,1374 @@
+/* ============================================================
+   SIPSAM — VURGLife Table — Mobile-First v2.0
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Rajdhani:wght@400;600;700&display=swap');
+
+:root {
+  --gold:    #c9a84c;
+  --gold-lt: #f0d080;
+  --gold-dk: #8B6914;
+  --felt:    #1060b0;
+  --felt-dk: #083a7a;
+  --bg:      #0a0a12;
+  --red:     #cc0000;
+  --black:   #000;
+  --text:    #e8dfc0;
+  --slot-bg: rgba(4,24,60,0.75);
+  --card-w:  26px;
+  --card-h:  36px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+html, body {
+  background: var(--bg);
+  font-family: 'Rajdhani', sans-serif;
+  color: var(--text);
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  -webkit-text-size-adjust: 100%;
+}
+
+.screen { display:none; width:100%; height:100%; }
+.screen.active { display:flex; flex-direction:column; }
+
+/* ── LOGIN ── */
+#screen-login.active {
+  align-items:center; justify-content:center;
+  background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0f 100%);
+}
+.login-card {
+  background: linear-gradient(145deg,#12122a,#0d0d1f);
+  border: 2px solid var(--gold);
+  border-radius: 16px;
+  padding: 40px 32px;
+  text-align: center;
+  width: min(90vw, 380px);
+  box-shadow: 0 0 60px rgba(201,168,76,0.2);
+}
+.login-card h1 {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: clamp(22px,5vw,32px); color: var(--gold-lt);
+  letter-spacing: 4px; margin-bottom: 6px;
+  text-shadow: 0 0 20px rgba(201,168,76,0.5);
+}
+.login-card .subtitle { font-size:13px; color:#888; letter-spacing:3px; text-transform:uppercase; margin-bottom:28px; }
+.login-card input {
+  width:100%; padding:14px 16px;
+  background:rgba(255,255,255,0.05);
+  border:1px solid var(--gold-dk); border-radius:8px;
+  color:var(--text); font-family:'Rajdhani',sans-serif; font-size:18px;
+  margin-bottom:16px; outline:none; transition:border-color .2s;
+}
+.login-card input:focus { border-color:var(--gold); }
+
+/* ── BUTTONS ── */
+.btn-primary {
+  width:100%; padding:14px;
+  background: linear-gradient(135deg,var(--gold-dk),var(--gold),var(--gold-dk));
+  border:none; border-radius:8px;
+  color:#1a1000; font-family:'Rajdhani',sans-serif;
+  font-size:18px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
+  cursor:pointer; transition:all .2s;
+}
+.btn-primary:hover   { filter:brightness(1.15); transform:translateY(-1px); }
+.btn-primary:active  { transform:translateY(0); }
+.btn-primary:disabled{ opacity:.4; cursor:not-allowed; transform:none; }
+.btn-secondary {
+  padding:10px 18px;
+  background:rgba(201,168,76,0.12); border:1px solid var(--gold-dk); border-radius:6px;
+  color:var(--gold-lt); font-family:'Rajdhani',sans-serif;
+  font-size:15px; font-weight:600; cursor:pointer; transition:all .2s;
+}
+.btn-secondary:hover { background:rgba(201,168,76,0.25); }
+#login-status { margin-top:12px; font-size:14px; color:#f08080; min-height:20px; }
+
+/* ── LOBBY ── */
+#screen-lobby.active {
+  align-items:center; justify-content:center;
+  background: radial-gradient(ellipse at center,#1a1a2e,#0a0a0f);
+  overflow-y:auto;
+}
+.lobby-card {
+  background:linear-gradient(145deg,#12122a,#0d0d1f);
+  border:2px solid var(--gold); border-radius:16px;
+  padding:28px 24px; text-align:center;
+  width: min(95vw, 480px);
+  box-shadow:0 0 60px rgba(201,168,76,0.15);
+}
+.lobby-card h2 { font-family:'Cinzel Decorative',serif; font-size:clamp(16px,4vw,22px); color:var(--gold-lt); letter-spacing:3px; margin-bottom:6px; }
+#lobby-status  { font-size:13px; color:#888; letter-spacing:2px; text-transform:uppercase; margin-bottom:20px; }
+.lobby-section-label { font-size:12px; color:#888; letter-spacing:3px; text-transform:uppercase; margin-bottom:10px; }
+.table-buttons { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+.btn-table {
+  padding:14px 8px; background:rgba(255,255,255,0.04); border:1px solid #444;
+  border-radius:8px; color:var(--text); font-family:'Rajdhani',sans-serif;
+  font-size:15px; font-weight:600; cursor:pointer; transition:all .2s; line-height:1.5;
+}
+.btn-table:hover    { border-color:var(--gold-dk); background:rgba(201,168,76,0.08); }
+.btn-table.selected { border-color:var(--gold); background:rgba(201,168,76,0.18); color:var(--gold-lt); }
+.rounds-buttons { display:flex; gap:10px; justify-content:center; margin-bottom:20px; }
+.btn-rounds {
+  flex:1; padding:12px 8px; background:rgba(255,255,255,0.04); border:1px solid #444;
+  border-radius:8px; color:var(--text); font-family:'Rajdhani',sans-serif;
+  font-size:15px; font-weight:600; cursor:pointer; transition:all .2s;
+}
+.btn-rounds:hover    { border-color:var(--gold-dk); }
+.btn-rounds.selected { border-color:var(--gold); background:rgba(201,168,76,0.18); color:var(--gold-lt); }
+#lobby-selection-info { font-size:14px; color:var(--gold); min-height:20px; margin-bottom:12px; }
+#player-list { margin-bottom:16px; }
+.player-list-item { font-size:15px; padding:5px 0; color:var(--text); }
+
+/* ── TOP BAR ── */
+.top-bar {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:6px 16px;
+  background:rgba(0,0,0,0.8);
+  border-bottom:1.5px solid var(--gold-dk);
+  flex-shrink:0; gap:12px; z-index:10;
+}
+#game-round  { font-size:13px; color:#999; min-width:80px; }
+#game-status { flex:1; text-align:center; font-size:14px; font-weight:700; color:var(--gold); letter-spacing:1px; }
+.timer       { font-size:26px; font-weight:700; color:var(--gold); min-width:40px; text-align:right; font-variant-numeric:tabular-nums; }
+.timer.urgent { color:#ff4444; animation:pulse .5s infinite alternate; }
+@keyframes pulse { from{opacity:1} to{opacity:.3} }
+
+/* ── GAME BODY ── */
+#screen-game.active { display:flex; flex-direction:column; overflow:hidden; }
+.game-body {
+  flex:1; display:flex; flex-direction:row;
+  align-items:center; justify-content:center;
+  padding:6px 2px; min-height:0; gap:2px;
+  overflow:hidden;
+}
+
+/* ── SIDE EXTRAS ── */
+.side-extras {
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:6px;
+  width:clamp(72px,9vw,95px); flex-shrink:0;
+}
+.side-name {
+  font-family:'Cinzel Decorative',serif;
+  font-size:clamp(7px,1.1vw,10px); color:var(--gold-lt);
+  letter-spacing:1px; text-align:center;
+  writing-mode:vertical-rl; text-orientation:mixed;
+  transform:rotate(180deg);
+  background:rgba(0,0,0,0.6);
+  border:1.5px solid var(--gold-dk);
+  border-radius:20px; padding:10px 5px;
+  white-space:nowrap;
+}
+.side-left .side-name { transform:none; }
+/* Balance in side extras */
+.side-balance {
+  background:rgba(0,0,0,0.85); border:1.5px solid var(--gold-dk);
+  border-radius:8px; padding:3px 8px;
+  font-size:clamp(10px,1.4vw,13px); font-weight:700; color:var(--gold-lt);
+  white-space:nowrap; text-align:center; width:100%;
+}
+.bet-pill {
+  background:linear-gradient(135deg,var(--gold-dk),var(--gold));
+  border-radius:16px; padding:3px 8px;
+  display:flex; flex-direction:column; align-items:center;
+  box-shadow:0 2px 6px rgba(201,168,76,0.3); min-width:46px;
+}
+.bp-label { font-size:8px; color:#1a1000; font-weight:700; letter-spacing:1px; }
+.bp-amt   { font-size:clamp(11px,1.6vw,14px); color:#1a1000; font-weight:700; }
+.special-box {
+  background:rgba(16,96,176,0.8); border:1.5px solid var(--gold);
+  border-radius:5px; padding:2px 6px;
+  font-size:clamp(6px,0.85vw,8px); font-weight:700; color:var(--gold-lt);
+  letter-spacing:0.5px; text-transform:uppercase;
+  min-width:44px; max-width:110px; text-align:center;
+  white-space:normal; word-break:break-word; line-height:1.25;
+}
+.special-box:empty { display:none; }
+
+/* ── OVAL TABLE ── */
+.oval-table {
+  position:relative;
+  width:  min(92vw, 980px);
+  height: min(70vh, 560px);
+  background:
+    radial-gradient(ellipse 100% 100% at 50% 50%, #1a6fd4 0%, #0e4d8a 45%, #073166 100%);
+  border-radius: 48px;
+  border:6px solid var(--gold);
+  box-shadow:
+    0 0 0 3px var(--gold-dk),
+    0 0 40px rgba(201,168,76,0.3),
+    inset 0 0 60px rgba(0,0,40,0.4);
+  flex-shrink:0;
+  /* Create local stacking context so .table-logo can sit at z-index:-1
+     behind every gameplay element without escaping the table */
+  isolation: isolate;
+}
+.felt-grid {
+  position:absolute; inset:0; border-radius:48px; pointer-events:none;
+  background-image:
+    repeating-linear-gradient(0deg,transparent,transparent 24px,rgba(255,255,255,0.015) 24px,rgba(255,255,255,0.015) 25px),
+    repeating-linear-gradient(90deg,transparent,transparent 24px,rgba(255,255,255,0.015) 24px,rgba(255,255,255,0.015) 25px);
+}
+
+/* VurgLife logo watermark — centred on table, BEHIND all gameplay elements */
+.table-logo {
+  position:absolute;
+  top:50%; left:50%;
+  transform:translate(-50%, -50%);
+  /* Use max-width with padding so logo never gets clipped by table border */
+  width: clamp(320px, 58%, 580px);
+  max-width: calc(100% - 40px);
+  opacity:0.22;
+  pointer-events:none;
+  /* z-index:-1 inside .oval-table's isolated stacking context puts the
+     watermark behind cards, placeholders, win/lose labels, etc. */
+  z-index:-1;
+  user-select:none;
+  /* No blend mode — full white logo shows entire VURGLife name clearly */
+  filter: drop-shadow(0 0 4px rgba(255,255,255,0.1));
+}
+
+/* ── COUNTDOWN ── */
+.countdown-box {
+  position:absolute; top:10px; left:14px;
+  width:90px; height:64px; background:#000;
+  border:2px solid #444; border-radius:4px;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  box-shadow:inset 0 0 12px rgba(0,0,0,.8);
+  overflow:hidden;
+}
+.cd-screen { position:absolute; inset:0; background:linear-gradient(160deg,#1a0000,#000); opacity:.85; }
+.cd-label-txt { position:relative; z-index:1; font-size:8px; color:#888; letter-spacing:2px; text-transform:uppercase; }
+.cd-number {
+  position:relative; z-index:1;
+  font-size:clamp(22px,4vw,30px); font-weight:700; color:var(--gold); line-height:1.1;
+  font-variant-numeric:tabular-nums; text-shadow:0 0 12px rgba(201,168,76,.8);
+}
+.cd-number.urgent { color:#ff4444; text-shadow:0 0 12px rgba(255,68,68,.8); animation:pulse .5s infinite alternate; }
+
+/* ── ZONES ── */
+.zone { position:absolute !important; }
+
+/* ── ZONE HEADER (nametag + stats row) ── */
+.zone-header {
+  display:flex; flex-direction:column; align-items:center; gap:2px; margin-bottom:4px;
+}
+.zone-nametag {
+  font-family:'Cinzel Decorative',serif;
+  font-size:clamp(8px,1.2vw,11px); letter-spacing:1px; text-transform:uppercase;
+  color:#1a1000;
+  background:linear-gradient(135deg,var(--gold-dk),var(--gold));
+  padding:3px 12px; border-radius:20px;
+  white-space:nowrap; font-weight:700;
+  box-shadow:0 2px 6px rgba(201,168,76,0.4);
+}
+.zone-stats {
+  display:flex; flex-direction:row; align-items:center;
+  gap:6px; justify-content:center; flex-wrap:wrap;
+}
+/* Balance inside zone */
+.zone-balance {
+  background:rgba(0,0,0,0.8); border:1px solid var(--gold-dk);
+  border-radius:8px; padding:2px 8px;
+  font-size:clamp(9px,1.3vw,11px); font-weight:700; color:var(--gold-lt); white-space:nowrap;
+}
+/* Bet badge inside zone (shown when bet > 0) */
+.zone-bet-display {
+  background:linear-gradient(135deg,var(--gold-dk),var(--gold));
+  border-radius:8px; padding:2px 8px;
+  font-size:clamp(9px,1.3vw,11px); font-weight:700; color:#1a1000; white-space:nowrap;
+}
+.zone-bet-display:empty { display:none; }
+
+/* BANKER — top center: 1st hand at top (furthest), 3rd at bottom (closest to centre) */
+.zone-banker {
+  top:2%; left:50%; transform:translateX(-50%);
+  display:flex; flex-direction:column; align-items:center; gap:0;
+  max-height:46%; overflow:visible;
+}
+.banker-hands { display:flex; flex-direction:column; gap:3px; align-items:center; }
+
+/* Player 2 — bottom center: 3rd hand at top (closest to centre), 1st at bottom (furthest) */
+.zone-p2 {
+  bottom:2%; left:50%; transform:translateX(-50%);
+  display:flex; flex-direction:column; align-items:center; gap:0;
+  max-height:46%; overflow:visible;
+}
+.p2-hands { display:flex; flex-direction:column; gap:3px; align-items:center; }
+.p2-footer {
+  display:flex; flex-direction:row; align-items:center;
+  gap:4px; margin-top:2px; justify-content:center; flex-wrap:wrap;
+}
+.p2-tag { margin-top:0; }
+
+/* Player 1 — right: 1st leftmost (furthest), 3rd rightmost (closest) */
+.zone-p1 { right:1%; top:50%; transform:translateY(-50%); display:flex; flex-direction:row; align-items:center; gap:2px; }
+/* Player 3 — left: 3rd leftmost (closest), 1st rightmost (furthest) */
+.zone-p3 { left:1%; top:50%; transform:translateY(-50%); display:flex; flex-direction:row; align-items:center; gap:2px; }
+
+/* ── HAND BLOCKS ── */
+.hand-block { display:flex; flex-direction:column; align-items:center; gap:2px; }
+
+/* Horizontal (Banker/P2) */
+.hb-horiz { flex-direction:row; align-items:center; gap:4px; }
+.hb-horiz .hb-label {
+  font-size:clamp(7px,1vw,9px); color:var(--gold-lt); letter-spacing:0.5px;
+  text-transform:uppercase; min-width:22px; text-align:center; font-weight:700;
+  background:var(--slot-bg); border:1.5px solid var(--gold-dk);
+  border-radius:6px; display:flex; align-items:center; justify-content:center;
+  gap:3px; padding:4px; overflow:visible;
+}
+.hb-horiz.hb-first .hb-cards { width:clamp(70px,9vw,100px); }
+
+/* Vertical (P1/P3) */
+.side-hands { display:flex; flex-direction:row; gap:8px; align-items:flex-start; }
+.hb-vert { flex-direction:column; align-items:center; gap:2px; }
+.hb-vert .hb-label.hb-label-side {
+  font-size:clamp(6px,0.9vw,8px); color:var(--gold-lt); letter-spacing:0.5px;
+  text-transform:uppercase; text-align:center; width:100%; font-weight:700;
+  background:rgba(0,0,0,0.5); border-radius:3px; padding:1px 0;
+}
+.hb-vert .hb-cards {
+  position:relative;
+  width:clamp(46px,6vw,60px); height:clamp(104px,16vh,136px);
+  background:var(--slot-bg); border:1.5px solid var(--gold-dk);
+  border-radius:6px; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:3px; padding:4px; overflow:visible;
+}
+.hb-vert.hb-first .hb-cards { height:clamp(66px,10vh,88px); }
+
+/* ── MINI CARDS ── */
+.mini-card {
+  border-radius:3px; background-size:cover; background-position:center;
+  box-shadow:0 1px 3px rgba(0,0,0,.6); flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; font-weight:700;
+}
+.hb-horiz .mini-card {
+  width:clamp(17px,2.2vw,24px); height:clamp(24px,3.5vh,32px);
+  font-size:clamp(7px,1vw,10px); line-height:1;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0;
+}
+.hb-vert .mini-card {
+  width:clamp(30px,4.2vw,42px); height:clamp(20px,3.2vh,26px);
+  font-size:clamp(8px,1.2vw,11px); line-height:1;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0;
+}
+// [LINE 360 MISSING — no Read snapshot covers it]
+// [LINE 361 MISSING — no Read snapshot covers it]
+// [LINE 362 MISSING — no Read snapshot covers it]
+// [LINE 363 MISSING — no Read snapshot covers it]
+// [LINE 364 MISSING — no Read snapshot covers it]
+// [LINE 365 MISSING — no Read snapshot covers it]
+// [LINE 366 MISSING — no Read snapshot covers it]
+// [LINE 367 MISSING — no Read snapshot covers it]
+// [LINE 368 MISSING — no Read snapshot covers it]
+// [LINE 369 MISSING — no Read snapshot covers it]
+// [LINE 370 MISSING — no Read snapshot covers it]
+// [LINE 371 MISSING — no Read snapshot covers it]
+// [LINE 372 MISSING — no Read snapshot covers it]
+// [LINE 373 MISSING — no Read snapshot covers it]
+// [LINE 374 MISSING — no Read snapshot covers it]
+// [LINE 375 MISSING — no Read snapshot covers it]
+// [LINE 376 MISSING — no Read snapshot covers it]
+// [LINE 377 MISSING — no Read snapshot covers it]
+// [LINE 378 MISSING — no Read snapshot covers it]
+// [LINE 379 MISSING — no Read snapshot covers it]
+// [LINE 380 MISSING — no Read snapshot covers it]
+// [LINE 381 MISSING — no Read snapshot covers it]
+// [LINE 382 MISSING — no Read snapshot covers it]
+// [LINE 383 MISSING — no Read snapshot covers it]
+// [LINE 384 MISSING — no Read snapshot covers it]
+// [LINE 385 MISSING — no Read snapshot covers it]
+// [LINE 386 MISSING — no Read snapshot covers it]
+// [LINE 387 MISSING — no Read snapshot covers it]
+// [LINE 388 MISSING — no Read snapshot covers it]
+// [LINE 389 MISSING — no Read snapshot covers it]
+// [LINE 390 MISSING — no Read snapshot covers it]
+// [LINE 391 MISSING — no Read snapshot covers it]
+// [LINE 392 MISSING — no Read snapshot covers it]
+// [LINE 393 MISSING — no Read snapshot covers it]
+// [LINE 394 MISSING — no Read snapshot covers it]
+// [LINE 395 MISSING — no Read snapshot covers it]
+// [LINE 396 MISSING — no Read snapshot covers it]
+// [LINE 397 MISSING — no Read snapshot covers it]
+// [LINE 398 MISSING — no Read snapshot covers it]
+// [LINE 399 MISSING — no Read snapshot covers it]
+/* Vertical (side player) mini-cards are landscape — single line */
+.hb-vert .mini-card  { flex-direction:column; gap:0; }
+
+/* ── STATUS BAR (below top-bar, above table) ── */
+.status-bar {
+  flex-shrink:0;
+  background:rgba(0,0,20,.9);
+  border-bottom:1px solid var(--gold-dk);
+  padding:5px 20px;
+  font-size:clamp(12px,1.6vw,14px);
+  color:var(--text);
+  text-align:center;
+  min-height:28px;
+  letter-spacing:0.5px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* ── MY AREA ── */
+.my-area {
+  flex-shrink:0; background:rgba(0,0,0,.75);
+  border-top:2px solid var(--gold-dk);
+  padding:8px 16px 10px; min-height:90px;
+  display:flex; flex-direction:column; gap:6px;
+  overflow-y:auto; max-height:42vh;
+}
+.my-info-bar { display:flex; align-items:center; justify-content:space-between; font-size:14px; flex-wrap:wrap; gap:6px; }
+#my-name    { font-weight:700; color:var(--gold-lt); font-size:clamp(14px,2vw,17px); }
+#my-chips   { color:var(--gold); font-size:clamp(13px,1.8vw,16px); font-weight:700; }
+.area-label { font-size:11px; color:#888; letter-spacing:1px; text-transform:uppercase; margin-bottom:3px; }
+.bet-row    { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.bet-amount { font-size:clamp(20px,3vw,26px); font-weight:700; color:var(--gold-lt); min-width:56px; text-align:center; }
+.bet-row .btn-secondary { font-size:clamp(16px,2.5vw,22px); padding:8px 16px; min-width:44px; }
+.banker-msg {
+  background:rgba(201,168,76,.1); border:1px solid var(--gold-dk);
+  border-radius:8px; padding:10px 16px; color:var(--gold);
+  font-size:clamp(13px,1.8vw,15px); text-align:center;
+}
+.raw-cards-area { display:flex; flex-direction:column; gap:4px; align-items:center; }
+#raw-card-row   { display:flex; gap:6px; flex-wrap:wrap; min-height:56px; justify-content:center; }
+
+/* Hand piles */
+.my-hands { display:flex; gap:8px; }
+.hand-pile { flex:1; }
+.pile-label {
+  font-size:clamp(10px,1.4vw,12px); color:#aaa; letter-spacing:1px;
+  text-transform:uppercase; margin-bottom:4px; text-align:center; font-weight:700;
+}
+.pile-drop {
+// [LINE 450 MISSING — no Read snapshot covers it]
+// [LINE 451 MISSING — no Read snapshot covers it]
+// [LINE 452 MISSING — no Read snapshot covers it]
+// [LINE 453 MISSING — no Read snapshot covers it]
+// [LINE 454 MISSING — no Read snapshot covers it]
+// [LINE 455 MISSING — no Read snapshot covers it]
+// [LINE 456 MISSING — no Read snapshot covers it]
+// [LINE 457 MISSING — no Read snapshot covers it]
+// [LINE 458 MISSING — no Read snapshot covers it]
+// [LINE 459 MISSING — no Read snapshot covers it]
+// [LINE 460 MISSING — no Read snapshot covers it]
+// [LINE 461 MISSING — no Read snapshot covers it]
+// [LINE 462 MISSING — no Read snapshot covers it]
+// [LINE 463 MISSING — no Read snapshot covers it]
+// [LINE 464 MISSING — no Read snapshot covers it]
+// [LINE 465 MISSING — no Read snapshot covers it]
+// [LINE 466 MISSING — no Read snapshot covers it]
+// [LINE 467 MISSING — no Read snapshot covers it]
+// [LINE 468 MISSING — no Read snapshot covers it]
+// [LINE 469 MISSING — no Read snapshot covers it]
+// [LINE 470 MISSING — no Read snapshot covers it]
+// [LINE 471 MISSING — no Read snapshot covers it]
+// [LINE 472 MISSING — no Read snapshot covers it]
+// [LINE 473 MISSING — no Read snapshot covers it]
+// [LINE 474 MISSING — no Read snapshot covers it]
+// [LINE 475 MISSING — no Read snapshot covers it]
+// [LINE 476 MISSING — no Read snapshot covers it]
+// [LINE 477 MISSING — no Read snapshot covers it]
+// [LINE 478 MISSING — no Read snapshot covers it]
+// [LINE 479 MISSING — no Read snapshot covers it]
+// [LINE 480 MISSING — no Read snapshot covers it]
+// [LINE 481 MISSING — no Read snapshot covers it]
+// [LINE 482 MISSING — no Read snapshot covers it]
+// [LINE 483 MISSING — no Read snapshot covers it]
+// [LINE 484 MISSING — no Read snapshot covers it]
+  background-position: center center;
+  background-size: 92% 92%;
+  opacity:0.08;
+  pointer-events:none;
+  z-index:0;
+}
+.card:hover    { transform:translateY(-7px); box-shadow:0 12px 24px rgba(0,0,0,.55); }
+.card.dragging { opacity:.35; transform:scale(.94); }
+/* Magnetic touch drag — card floats under the finger */
+.card.touch-dragging {
+  transform: scale(1.12) rotate(2deg);
+  box-shadow: 0 18px 36px rgba(0,0,0,.7), 0 0 22px rgba(201,168,76,.55);
+  opacity: 0.96;
+}
+.card-placeholder {
+  display: inline-block;
+  background: rgba(201,168,76,.08);
+  border: 1px dashed rgba(201,168,76,.35);
+  border-radius: 6px;
+  box-sizing: border-box;
+  margin: inherit;
+}
+/* Isolate each card's paint — changes to one card won't repaint siblings */
+.card { contain: layout style; }
+
+/* Value and suit — larger, bolder, with text shadow for contrast over leaf */
+.card.hearts,   .card.diamonds { color:#cc1111; }
+.card.spades { color:#0a1a4a; }
+.card.clubs  { color:#0a3a1a; }
+
+.mc-val {
+  font-size:1.3em; font-weight:900; line-height:1;
+  text-shadow: 0 0 4px rgba(255,255,255,1), 0 0 10px rgba(255,255,255,0.8), 0 1px 3px rgba(255,255,255,1);
+  z-index:2; position:relative;
+  letter-spacing:-0.5px;
+}
+.mc-suit {
+  font-size:1.55em; line-height:1;
+  text-shadow: 0 0 4px rgba(255,255,255,1), 0 0 10px rgba(255,255,255,0.8), 0 1px 3px rgba(255,255,255,1);
+  z-index:2; position:relative;
+}
+
+.drop-indicator {
+  width:3px; height:58px; background:var(--gold);
+  border-radius:2px; flex-shrink:0;
+  box-shadow:0 0 8px rgba(201,168,76,.9); pointer-events:none;
+  animation:indicatorPulse .35s ease infinite alternate;
+}
+@keyframes indicatorPulse { from{opacity:1} to{opacity:.3} }
+
+.status-msg { font-size:clamp(12px,1.6vw,14px); color:#999; margin-top:3px; }
+.status-msg.arrange-error {
+  color:#ff4444;
+  font-size:clamp(13px,1.8vw,16px);
+// [LINE 525 MISSING — no Read snapshot covers it]
+// [LINE 526 MISSING — no Read snapshot covers it]
+// [LINE 527 MISSING — no Read snapshot covers it]
+// [LINE 528 MISSING — no Read snapshot covers it]
+// [LINE 529 MISSING — no Read snapshot covers it]
+  margin-top:8px;
+  animation: errPulse 0.4s ease;
+}
+@keyframes errPulse {
+  0%   { transform:scale(1);   background:rgba(255,40,40,0.3); }
+  50%  { transform:scale(1.02);background:rgba(255,40,40,0.2); }
+  100% { transform:scale(1);   background:rgba(255,40,40,0.12);}
+}
+
+/* Arrange controls row */
+#arrange-controls { display:flex; flex-direction:column; gap:6px; }
+#arrange-controls > div { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+/* Disqualify panel */
+#disqualify-panel { margin-top:4px; }
+.dq-title { color:#ff9944; font-size:clamp(13px,1.8vw,15px); font-weight:700; margin-bottom:6px; letter-spacing:1px; }
+#dq-buttons { display:flex; gap:8px; flex-wrap:wrap; }
+.btn-dq {
+  padding:8px 16px;
+  background:linear-gradient(135deg,#5a0000,#cc2200);
+  border:1.5px solid #ff5533; border-radius:6px;
+  color:#fff; font-family:'Rajdhani',sans-serif;
+  font-size:clamp(13px,1.8vw,15px); font-weight:700;
+  cursor:pointer; transition:all .2s;
+}
+.btn-dq:hover { filter:brightness(1.3); transform:translateY(-1px); }
+
+/* Special button */
+.btn-special {
+  padding:10px 20px;
+  background:linear-gradient(135deg,#7a5a00,#c9a84c,#7a5a00);
+  border:2px solid var(--gold-lt); border-radius:8px;
+  color:#1a1000; font-family:'Rajdhani',sans-serif;
+  font-size:clamp(14px,2vw,16px); font-weight:700; letter-spacing:1px;
+  cursor:pointer; transition:all .2s;
+  animation:specialGlow 1.5s ease infinite alternate;
+}
+.btn-special:hover    { filter:brightness(1.2); transform:translateY(-2px); }
+.btn-special:disabled { opacity:.4; cursor:not-allowed; animation:none; }
+@keyframes specialGlow {
+  from { box-shadow:0 0 6px rgba(201,168,76,0.4); }
+  to   { box-shadow:0 0 18px rgba(201,168,76,0.9); }
+}
+.special-detected { color:var(--gold-lt)!important; font-weight:700; animation:specialGlow 1s ease infinite alternate; }
+
+/* Payout colours */
+.payout-win  { color:#44ff88; font-weight:700; }
+.payout-loss { color:#ff5555; font-weight:700; }
+
+/* Hand result indicators */
+.hb-cards.won,
+.pile-drop.won  { border-color:#44ff88 !important; box-shadow:0 0 8px rgba(68,255,136,0.5); }
+.hb-cards.lost,
+.pile-drop.lost { border-color:#ff5555 !important; box-shadow:0 0 6px rgba(255,85,85,0.3); }
+.hb-cards.tied,
+.pile-drop.tied { border-color:#aaa !important; }
+
+/* Per-hand win/lose/tie badge — sits NEXT TO the card slot, not over it */
+/* Badge is a sibling of hb-cards inside hand-block, shown inline */
+.hand-result {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(7px,0.9vw,9px); font-weight: 700;
+  letter-spacing: 0.3px; text-transform: uppercase;
+  padding: 2px 5px; border-radius: 5px;
+  white-space: normal; word-break: break-word;
+  max-width: 80px; z-index: 20;
+.pile-drop.won  { border-color:#44ff88 !important; box-shadow:0 0 8px rgba(68,255,136,0.5); }
+.hb-cards.lost,
+.pile-drop.lost { border-color:#ff5555 !important; box-shadow:0 0 6px rgba(255,85,85,0.3); }
+.hb-cards.tied,
+.pile-drop.tied { border-color:#aaa !important; }
+
+/* Per-hand win/lose/tie badge — sits NEXT TO the card slot, not over it */
+/* Badge is a sibling of hb-cards inside hand-block, shown inline */
+.hand-result {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(7px,0.9vw,9px); font-weight: 700;
+  letter-spacing: 0.3px; text-transform: uppercase;
+  padding: 2px 5px; border-radius: 5px;
+  white-space: normal; word-break: break-word;
+  max-width: 80px; z-index: 20;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  min-width: 34px; text-align: center; line-height: 1.3;
+}
+/* Horizontal hands (banker top, p2 bottom): badge to the right of card slot */
+.hb-horiz .hand-result {
+  margin-left: 4px;
+  align-self: center;
+}
+/* Vertical side players: badge below the label+cards column */
+.hb-vert .hand-result {
+  margin-top: 3px;
+  align-self: center;
+}
+.hr-win  { background: rgba(20,60,20,0.92);  color: #44ff88; border: 1px solid #44ff88; }
+.hr-lose { background: rgba(60,10,10,0.92);  color: #ff5555; border: 1px solid #ff5555; }
+.hr-tie  { background: rgba(30,30,30,0.92);  color: #aaa;    border: 1px solid #666; }
+.hr-info { background: rgba(10,30,60,0.92);  color: #88ccff; border: 1px solid #336699; }
+
+/* My pile-drop result badge — inline below the drop zone label */
+.pile-drop-result {
+  display: inline-flex; flex-direction: column; align-items: center;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(8px,1vw,11px); font-weight: 700;
+  padding: 3px 8px; border-radius: 6px; margin-top: 5px;
+  white-space: normal; word-break: break-word;
+  max-width: 160px; text-align: center;
+  white-space: nowrap; letter-spacing: 0.5px; text-transform: uppercase;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+.pile-drop-result.hr-win  { background: rgba(20,60,20,0.92);  color: #44ff88; border: 1px solid #44ff88; }
+.pile-drop-result.hr-lose { background: rgba(60,10,10,0.92);  color: #ff5555; border: 1px solid #ff5555; }
+.pile-drop-result.hr-tie  { background: rgba(30,30,30,0.92);  color: #aaa;    border: 1px solid #666; }
+.hr-info { background: rgba(10,30,60,0.92);  color: #88ccff; border: 1px solid #336699; }
+
+/* Disqualified zone */
+.zone.disqualified { opacity:0.4; }
+.zone.disqualified::after {
+  content:'❌ DQ'; position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  color:#ff3333; font-size:10px; font-weight:700;
+  background:rgba(0,0,0,.8); padding:2px 6px; border-radius:4px;
+  pointer-events:none;
+}
+
+.declared-special-badge {
+  display:inline-block; background:linear-gradient(135deg,#7a5a00,#c9a84c);
+  color:#1a1000; font-size:9px; font-weight:700;
+  padding:1px 5px; border-radius:10px; margin-left:4px; vertical-align:middle;
+}
+
+/* Special alert banner — full-width flash across the table area */
+.special-alert-banner {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  background: linear-gradient(135deg, #3a2000, #8b5e00, #3a2000);
+  border: 2px solid var(--gold);
+  color: var(--gold-lt); font-family: 'Cinzel Decorative', serif;
+  font-size: clamp(12px,2vw,18px); font-weight: 700;
+  padding: 10px 24px; border-radius: 12px; z-index: 100;
+  text-align: center; white-space: nowrap;
+  box-shadow: 0 0 30px rgba(201,168,76,0.6);
+  animation: specialBannerAnim 0.4s ease-out;
+  pointer-events: none;
+}
+@keyframes specialBannerAnim {
+  from { transform: translate(-50%,-50%) scale(0.7); opacity: 0; }
+  to   { transform: translate(-50%,-50%) scale(1);   opacity: 1; }
+}
+
+/* Special selection modal */
+.special-modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+  z-index: 200; display: flex; align-items: center; justify-content: center;
+}
+.special-modal {
+  background: linear-gradient(145deg,#12122a,#0d0d1f);
+  border: 2px solid var(--gold); border-radius: 14px;
+  padding: 24px 28px; max-width: 420px; width: 90%;
+  box-shadow: 0 0 40px rgba(201,168,76,0.4);
+}
+.special-modal h3 {
+  font-family: 'Cinzel Decorative', serif;
+  color: var(--gold-lt); font-size: clamp(14px,2vw,18px);
+  margin-bottom: 6px; text-align: center;
+}
+.special-modal .modal-sub {
+  color: #aaa; font-size: 12px; text-align: center;
+  margin-bottom: 16px; line-height: 1.4;
+}
+.special-option-btn {
+  display: block; width: 100%; margin-bottom: 8px;
+  padding: 10px 14px; border-radius: 8px;
+  background: rgba(201,168,76,0.1); border: 1.5px solid var(--gold-dk);
+  color: var(--gold-lt); font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(13px,1.6vw,15px); font-weight: 700; cursor: pointer;
+  text-align: left; transition: background 0.15s;
+}
+.special-option-btn:hover { background: rgba(201,168,76,0.25); border-color: var(--gold); }
+.special-option-detected {
+  background: rgba(201,168,76,0.2) !important;
+  border-color: var(--gold) !important;
+  color: var(--gold-lt) !important;
+}
+.special-option-detected::before {
+  content: '⭐ ';
+}
+.special-option-btn .multiplier { float:right; color:#aaa; font-weight:600; }
+.btn-cancel-special {
+  display: block; width: 100%; margin-top: 4px;
+  padding: 8px; border-radius: 8px;
+  background: transparent; border: 1px solid #555;
+  color: #888; font-family: 'Rajdhani', sans-serif;
+  font-size: 13px; cursor: pointer;
+}
+.btn-cancel-special:hover { border-color: #888; color: #ccc; }
+
+/* Game over */
+#screen-gameover.active { align-items:center; justify-content:center; background:radial-gradient(ellipse at center,#1a1a2e,#0a0a0f); }
+.gameover-card {
+  background:linear-gradient(145deg,#12122a,#0d0d1f);
+  border:2px solid var(--gold); border-radius:16px;
+  padding:36px 32px; text-align:center; max-width:480px; width:90%;
+}
+.gameover-card h2 { font-family:'Cinzel Decorative',serif; font-size:clamp(18px,4vw,24px); color:var(--gold-lt); margin-bottom:20px; }
+.score-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; border-bottom:1px solid rgba(201,168,76,.2); font-size:clamp(13px,1.8vw,15px); border-radius:4px; }
+.score-me { background:rgba(26,140,255,.08)!important; border-left:3px solid #1a8cff!important; padding-left:10px; }
+.score-winner { background:rgba(201,168,76,.08); border-left:3px solid var(--gold); padding-left:10px; }
+.btn-secondary { background:transparent; border:2px solid #1a3a5c; border-radius:8px; color:#7a9ac0; font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:700; cursor:pointer; letter-spacing:1px; transition:all .2s; }
+.btn-secondary:hover { border-color:#2a6aaa; color:#a0c8f0; background:rgba(26,90,170,.1); }
+
+/* ── BANKER PERSPECTIVE ── 
+  right: auto !important;
+  transform: translateX(-50%) !important;
+}
+
+/* Banker-pov: p1 moves to LEFT side */
+.oval-table.banker-pov .zone-p1 {
+  right: auto !important;
+  left: 2% !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  align-items: flex-start !important;
+}
+.oval-table.banker-pov .p1-hands {
+  align-items: flex-start !important;
+}
+
+/* Banker-pov: p3 moves to RIGHT side */
+.oval-table.banker-pov .zone-p3 {
+  left: auto !important;
+  right: 2% !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  align-items: flex-end !important;
+}
+.oval-table.banker-pov .p3-hands {
+  align-items: flex-end !important;
+}
+
+/* Banker-pov: countdown moves to bottom-right */
+.oval-table.banker-pov .countdown-box {
+  top: auto !important;
+  bottom: 10px !important;
+  left: auto !important;
+  right: 14px !important;
+}
+
+/* Banker-pov: pot badge moves to top-left */
+.oval-table.banker-pov .pot-badge {
+  bottom: auto !important;
+  top: 12px !important;
+  right: auto !important;
+// [LINE 791 MISSING — no Read snapshot covers it]
+// [LINE 792 MISSING — no Read snapshot covers it]
+// [LINE 793 MISSING — no Read snapshot covers it]
+// [LINE 794 MISSING — no Read snapshot covers it]
+// [LINE 795 MISSING — no Read snapshot covers it]
+// [LINE 796 MISSING — no Read snapshot covers it]
+// [LINE 797 MISSING — no Read snapshot covers it]
+// [LINE 798 MISSING — no Read snapshot covers it]
+// [LINE 799 MISSING — no Read snapshot covers it]
+  bottom: 10px !important;
+  left: auto !important;
+  right: 14px !important;
+}
+
+/* Banker-pov: pot badge moves to top-left */
+.oval-table.banker-pov .pot-badge {
+  bottom: auto !important;
+  top: 12px !important;
+  right: auto !important;
+  left: 16px !important;
+}
+
+/* ── MOBILE BREAKPOINTS ── */
+@media (max-width: 600px) {
+  .oval-table { width:96vw; height:52vw; border-radius:32px; }
+  .side-extras { width:0; overflow:hidden; padding:0; }
+  .game-body { padding:2px 0; }
+  .my-area { padding:6px 10px 8px; }
+  .my-hands { gap:4px; }
+  .bet-row .btn-secondary { font-size:22px; padding:12px 20px; min-width:50px; }
+  /* Bigger touch targets for arrange buttons on mobile */
+  #btn-arrange, #btn-declare-special { font-size:16px; padding:14px 18px; }
+  /* Bigger player cards on mobile */
+  .card { width:clamp(56px,13vw,72px); height:clamp(78px,18vw,100px); font-size:clamp(18px,4.5vw,24px); }
+  /* Bigger mini-cards on mobile */
+  .hb-horiz .mini-card { width:clamp(22px,5vw,30px); height:clamp(32px,7vw,42px); font-size:clamp(9px,2.5vw,12px); }
+  .hb-vert  .mini-card { width:clamp(32px,7vw,44px); height:clamp(22px,5vw,30px); font-size:clamp(9px,2.5vw,12px); }
+}
+
+/* ── DEAL ANIMATION (betting phase) ── */
+.deal-anim-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  overflow: visible;
+}
+.deal-anim-card {
+  position: absolute;
+  width: clamp(28px,4vw,38px);
+  height: clamp(40px,6vh,54px);
+  border-radius: 5px;
+  background-image: url('backVurgLife.png');
+  background-size: cover;
+  background-color: #1a3a8a;
+  border: 1.5px solid var(--gold-dk);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.7);
+  transform-origin: center center;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+@keyframes dealOut {
+  0%   { opacity:1; transform: translate(0,0) rotate(0deg) scale(1); }
+  70%  { opacity:1; }
+  height: clamp(44px,6.5vh,58px);
+  z-index: 49;
+  cursor: default;
+  pointer-events: none;
+}
+.deck-pile-card {
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+  background-image: url('backVurgLife.png');
+  background-size: cover;
+  background-color: #1a3a8a;
+  border: 1.5px solid var(--gold-dk);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  transition: opacity 0.15s;
+}
+
+/* ============================================================
+   MODERN BLUE-GLASS OVERLAY  (visual refresh only, no DOM changes)
+   Layered ON TOP of the rules above. Keeps the SipSam blue felt
+   and VurgLife logo; adds glassmorphism, refined typography,
+   softer shadows.
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Instrument+Serif&display=swap');
+
+:root{
+  --mg-accent:    #7ec8ff;
+  --mg-accent-2:  #aeddff;
+  --mg-line:      rgba(255,255,255,.08);
+  --mg-line-str:  rgba(255,255,255,.16);
+}
+
+/* Page bg — softer layered radial glows */
+html, body{
+  background:
+    radial-gradient(1100px 700px at 20% -10%, #102540 0%, transparent 60%),
+    radial-gradient(900px 600px at 90% 110%, #0c1f3c 0%, transparent 60%),
+    #050a14;
+}
+
+/* ── TOP BAR — frosted glass ── */
+.top-bar{
+  background: rgba(8,18,36,.6);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border-bottom: 1px solid var(--mg-line);
+  padding: 8px 16px;
+}
+#game-round  { font-family:'Manrope',sans-serif; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color: var(--mg-accent-2); }
+#game-status { font-family:'Manrope',sans-serif; font-weight:700; letter-spacing:.04em; color: var(--gold-lt); text-shadow:0 0 18px rgba(201,168,76,.35); }
+.timer       { font-family:'Manrope',sans-serif; font-weight:800; color:#f3f6fb; text-shadow:0 0 14px rgba(126,200,255,.35); }
+
+/* ── STATUS BAR — slim glass strip ── */
+.status-bar{
+  background: rgba(8,18,36,.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--mg-line);
+  font-family:'Manrope',sans-serif;
+  letter-spacing:.04em;
+  color:#cfd6e2;
+}
+
+/* ── OVAL TABLE — glass-finished blue felt (current colour preserved) ── */
+.oval-table{
+  background:
+    radial-gradient(ellipse at 30% 18%, rgba(174,221,255,.16), transparent 55%),
+    radial-gradient(ellipse at 72% 88%, rgba(126,200,255,.10), transparent 55%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, #1a6fd4 0%, #0e4d8a 45%, #073166 100%);
+  border: 1px solid rgba(201,168,76,.45);
+  border-radius: 46% / 32%;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.12),
+    inset 0 0 90px rgba(0,12,32,.55),
+    0 0 0 1px rgba(0,0,0,.4),
+    0 30px 70px -10px rgba(0,8,24,.8),
+    0 0 40px rgba(201,168,76,.10);
+  overflow: hidden;
+  isolation: isolate;
+}
+.oval-table::before{
+  content:'';
+  position:absolute; inset:0;
+  background: linear-gradient(180deg, rgba(255,255,255,.10) 0%, transparent 26%, transparent 100%);
+  pointer-events:none;
+  border-radius: inherit;
+  z-index: 0;
+}
+.oval-table::after{
+  content:'';
+  position:absolute; inset:5px;
+  border: 1px solid rgba(201,168,76,.22);
+  border-radius: inherit;
+  box-shadow: inset 0 0 28px rgba(201,168,76,.06);
+  pointer-events:none;
+  z-index: 0;
+}
+/* Drop the dated grid pattern */
+.felt-grid{ display:none; }
+
+/* Logo watermark — keep behind cards inside the table's stacking context */
+.table-logo{
+  opacity: .18;
+  filter: drop-shadow(0 0 6px rgba(255,255,255,.08));
+  z-index: -1;
+}
+
+/* ── ZONE NAMETAG — gold gloss capsule ── */
+.zone-nametag{
+  background: linear-gradient(180deg, var(--gold-lt), var(--gold) 60%, var(--gold-dk));
+  font-family:'Manrope',sans-serif;
+  font-weight: 700;
+  letter-spacing: .2em;
+  border-radius: 999px;
+  padding: 3px 14px;
+  box-shadow: 0 4px 14px rgba(201,168,76,.35), inset 0 1px 0 rgba(255,255,255,.4);
+}
+
+/* ── BALANCE PILLS — frosted glass ── */
+.zone-balance,
+.side-balance{
+  background: rgba(255,255,255,.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--mg-line-str);
+  border-radius: 999px;
+  font-family:'Manrope',sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color:#f3f6fb;
+  padding: 3px 10px;
+  box-shadow: 0 2px 10px rgba(0,4,18,.4), inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+/* ── BET DISPLAY / BET PILL — gold gloss ── */
+.zone-bet-display,
+.bet-pill{
+  background: linear-gradient(180deg, var(--gold-lt), var(--gold) 60%, var(--gold-dk));
+  border-radius: 999px;
+  box-shadow: 0 3px 12px rgba(201,168,76,.35), inset 0 1px 0 rgba(255,255,255,.35);
+  font-family:'Manrope',sans-serif;
+  font-weight: 700;
+}
+.bp-label{ font-family:'Manrope',sans-serif; }
+.bp-amt  { font-family:'Manrope',sans-serif; font-variant-numeric:tabular-nums; }
+
+/* ── SPECIAL BOX — frosted blue capsule ── */
+.special-box{
+  background: rgba(126,200,255,.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(126,200,255,.30);
+  color: var(--mg-accent-2);
+  border-radius: 8px;
+  font-family:'Manrope',sans-serif;
+  font-weight: 700;
+  letter-spacing:.08em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 10px rgba(0,16,40,.4), inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+/* ── COUNTDOWN BOX — glass instead of CRT ── */
+.countdown-box{
+  background: rgba(8,18,36,.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--mg-line-str);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0,4,18,.5), inset 0 1px 0 rgba(255,255,255,.10);
+}
+.cd-screen{ display:none; }
+.cd-label-txt{
+  font-family:'Manrope',sans-serif;
+  font-weight: 600;
+  letter-spacing:.28em;
+  color: rgba(245,247,251,.55);
+}
+.cd-number{
+  font-family:'Instrument Serif',serif;
+  font-weight: 400;
+  color: var(--gold-lt);
+  text-shadow: 0 0 24px rgba(201,168,76,.55), 0 0 8px rgba(201,168,76,.35);
+}
+.cd-number.urgent{
+  color: #ff6b78;
+  text-shadow: 0 0 20px rgba(255,68,68,.7);
+}
+
+/* ── SIDE NAME — glass vertical pill ── */
+.side-name{
+  font-family:'Manrope',sans-serif;
+  font-weight: 700;
+  letter-spacing:.24em;
+  background: rgba(8,18,36,.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--mg-line-str);
+  color: var(--mg-accent-2);
+  text-transform: uppercase;
+}
+
+/* ── MY AREA — glass top edge ── */
+.my-area{
+  background: rgba(8,18,36,.7);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border-top: 1px solid var(--mg-line);
+}
+#my-name { font-family:'Manrope',sans-serif; font-weight: 700; letter-spacing:.04em; color:#f3f6fb; }
+#my-chips{ font-family:'Manrope',sans-serif; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--gold-lt); }
+
+/* ── BUTTONS — primary gold gloss / secondary glass ── */
+.btn-primary{
+  background: linear-gradient(180deg, var(--gold-lt), var(--gold) 60%, var(--gold-dk));
+  border-radius: 14px;
+  letter-spacing:.12em;
+  box-shadow: 0 8px 24px rgba(201,168,76,.35), inset 0 1px 0 rgba(255,255,255,.4);
+  font-family:'Manrope',sans-serif;
+}
+.btn-secondary{
+  background: rgba(255,255,255,.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--mg-line-str);
+  border-radius: 12px;
+  color:#e6ecf5;
+  font-family:'Manrope',sans-serif;
+  font-weight: 600;
+  letter-spacing:.04em;
+}
+.btn-secondary:hover{
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.28);
+  color:#fff;
+}
+
+/* ── STATUS MSG — softer ── */
+.status-msg{
+  font-family:'Manrope',sans-serif;
+  color: rgba(245,247,251,.55);
+  letter-spacing:.04em;
+}
+
+/* ── MINI / DECK CARD POLISH ── */
+.mini-card,
+.deck-pile-card{
+  box-shadow: 0 4px 12px rgba(0,4,18,.55), inset 0 1px 0 rgba(255,255,255,.12);
+}
+
+
+/* ============================================================
+   MODERN BLUE-GLASS OVERLAY  (Mockup 4 — visual refresh only)
+   Layered ON TOP of the existing rules above. No DOM changes.
+   Keeps current SipSam blue felt + VurgLife logo + gold brand;
+   adds glassmorphism, refined typography, softer shadows.
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Instrument+Serif&display=swap');
+
+:root{
+  --mg-accent:    #7ec8ff;
+  --mg-accent-2:  #aeddff;
+  --mg-line:      rgba(255,255,255,.08);
+  --mg-line-str:  rgba(255,255,255,.16);
+}
+
+/* Page bg — softer, layered radial glows */
+html,body{
+  background:
+    radial-gradient(1100px 700px at 20% -10%, #102540 0%, transparent 60%),
+    radial-gradient(900px 600px at 90% 110%, #0c1f3c 0%, transparent 60%),
+    #050a14;
+}
+
+/* ── TOP BAR — frosted glass ── */
+.top-bar{
+  background: rgba(8,18,36,.6);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border-bottom: 1px solid var(--mg-line);
+  padding: 8px 16px;
+}
+#game-round  { font-family:'Manrope',sans-serif; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color: var(--mg-accent-2); }
+#game-status { font-family:'Manrope',sans-serif; font-weight:700; letter-spacing:.04em; color: var(--gold-lt); text-transform:none; text-shadow:0 0 18px rgba(201,168,76,.35); }
+.timer       { font-family:'Manrope',sans-serif; font-weight:800; color: var(--ink, #f3f6fb); text-shadow:0 0 14px rgba(126,200,255,.35); }
+
+/* ── STATUS BAR — slim glass strip ── */
+.status-bar{
+  background: rgba(8,18,36,.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--mg-line);
+  font-family:'Manrope',sans-serif;
+  letter-spacing:.04em;
+  color: #cfd6e2;
+}
+
+/* ── OVAL TABLE — glass-finished blue felt ── */
+.oval-table{
+  /* Preserved: blue felt + isolation for logo z-index */
+  background:
+    radial-gradient(ellipse at 30% 18%, rgba(174,221,255,.16), transparent 55%),
+    radial-gradient(ellipse at 72% 88%, rgba(126,200,255,.10), transparent 55%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, #1a6fd4 0%, #0e4d8a 45%, #073166 100%);
+  border: 1px solid rgba(201,168,76,.45);
+  border-radius: 46% / 32%;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.12),
+    inset 0 0 90px rgba(0,12,32,.55),
+    0 0 0 1px rgba(0,0,0,.4),
+    0 30px 70px -10px rgba(0,8,24,.8),
+    0 0 40px rgba(201,168,76,.10);
+  overflow: hidden;
+}
+/* gloss shine across the top */
+.oval-table::before{
+  content:'';
+  position:absolute; inset:0;
+  background: linear-gradient(180deg, rgba(255,255,255,.10) 0%, transparent 26%, transparent 100%);
+  pointer-events:none;
+  border-radius: inherit;
+  z-index: 0;
+}
+/* gold inner perimeter highlight */
+.oval-table::after{
+  content:'';
+  position:absolute; inset:5px;
+  border: 1px solid rgba(201,168,76,.22);
+  border-radius: inherit;
+  box-shadow: inset 0 0 28px rgba(201,168,76,.06);
+  pointer-events:none;
+  z-index: 0;
+}
+/* Drop the old grid pattern — distracting against the new gloss */
+.felt-grid{ display:none; }
+
+/* Keep logo sitting at z-index:-1 within the now-rounded table */
+.table-logo{
+  opacity: .18;
+  filter: drop-shadow(0 0 6px rgba(255,255,255,.08));
+}
+
+/* ── ZONE NAMETAGS — gold glass capsule ── */
+.zone-nametag{
+  background: linear-gradient(180deg, var(--gold-lt), var(--gold) 60%, var(--gold-dk));
+  font-family:'Manrope',sans-serif;
+  font-weight: 700;
+  letter-spacing: .2em;
+  border-radius: 999px;
+  padding: 3px 14px;
+  box-shadow: 0 4px 14px rgba(201,168,76,.35), inset 0 1px 0 rgba(255,255,255,.4);
+}
+
+/* ── ZONE / SIDE BALANCE — glass pill ── */
+.zone-balance,
+.side-balance{
+  background: rgba(255,255,255,.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--mg-line-str);
+  border-radius: 999px;
+  font-family:'Manrope',sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #f3f6fb;
+  padding: 3px 10px;
+  box-shadow: 0 2px 10px rgba(0,4,18,.4), inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+/* ── BET DISPLAY / BET PILL — gold glass ── */
+.zone-bet-display,
+.bet-pill{
+  background: linear-gradient(180deg, var(--gold-lt), var(--gold) 60%, var(--gold-dk));
+  border-radius: 999px;
+  box-shadow: 0 3px 12px rgba(201,168,76,.35), inset 0 1px 0 rgba(255,255,255,.35);
+  font-family:'Manrope',sans-serif;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.bp-label{ font-family:'Manrope',sans-serif; }
+.bp-amt  { font-family:'Manrope',sans-serif; font-variant-numeric:tabular-nums; }
+
+/* ── SPECIAL BOX — frosted blue capsule ── */
+.special-box{
+  background: rgba(126,200,255,.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(126,200,255,.30);
+  color: var(--mg-accent-2);
+  border-radius: 8px;
+  font-family:'Manrope',sans-serif;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 10px rgba(0,16,40,.4), inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+/* ── COUNTDOWN BOX — glass instead of CRT ── */
+.countdown-box{
+  background: rgba(8,18,36,.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--mg-line-str);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0,4,18,.5), inset 0 1px 0 rgba(255,255,255,.10);
+}
+.cd-screen{ display:none; }
+.cd-label-txt{
+  font-family:'Manrope',sans-serif;
+  font-weight: 600;
+  letter-spacing: .28em;
+  color: rgba(245,247,251,.55);
+}
+.cd-number{
+  font-family:'Instrument Serif',serif;
+  font-weight: 400;
+  color: var(--gold-lt);
+  text-shadow: 0 0 24px rgba(201,168,76,.55), 0 0 8px rgba(201,168,76,.35);
+}
+.cd-number.urgent{
+  color: #ff6b78;
+  text-shadow: 0 0 20px rgba(255,68,68,.7);
+}
+
+/* ── SIDE EXTRAS — vertical name pills modernized ── */
+.side-name{
+  font-family:'Manrope',sans-serif;
+  font-weight: 700;
+  letter-spacing: .24em;
+  background: rgba(8,18,36,.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--mg-line-str);
+  color: var(--mg-accent-2);
+  text-transform: uppercase;
+}
+
+/* ── MY AREA — glass top edge ── */
+.my-area{
+  background: rgba(8,18,36,.7);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border-top: 1px solid var(--mg-line);
+}
+#my-name { font-family:'Manrope',sans-serif; font-weight: 700; letter-spacing: .04em; color: #f3f6fb; }
+#my-chips{ font-family:'Manrope',sans-serif; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--gold-lt); }
+
+/* ── PRIMARY BUTTON — keep gold, soften shadow ── */
+.btn-primary{
+  background: linear-gradient(180deg, var(--gold-lt), var(--gold) 60%, var(--gold-dk));
+  border-radius: 14px;
+  letter-spacing: .12em;
+  box-shadow: 0 8px 24px rgba(201,168,76,.35), inset 0 1px 0 rgba(255,255,255,.4);
+  font-family:'Manrope',sans-serif;
+}
+/* Secondary button — frosted glass */
+.btn-secondary{
+  background: rgba(255,255,255,.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--mg-line-str);
+  border-radius: 12px;
+  color: #e6ecf5;
+  font-family:'Manrope',sans-serif;
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+.btn-secondary:hover{
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.28);
+  color: #fff;
+}
+
+/* ── PLAYER-AREA STATUS MSG — softer ── */
+.status-msg{
+  font-family:'Manrope',sans-serif;
+  color: rgba(245,247,251,.55);
+  letter-spacing: .04em;
+}
+
+/* ── PLAYING-CARD POLISH — only the outline shadow on raw mini cards ── */
+.mini-card,
+.deck-pile-card{
+  box-shadow: 0 4px 12px rgba(0,4,18,.55), inset 0 1px 0 rgba(255,255,255,.12);
+}
+
+/* ── BANKER-POV (banker viewing their own zone) — keep existing geometry,
+   just refresh the banker-side countdown styles inherited above ── */
+
+  transform: translate(-50%, -50%);
+  width: clamp(30px,4.5vw,42px);
+  height: clamp(44px,6.5vh,58px);
+  z-index: 49;
+  cursor: default;
+  pointer-events: none;
+}
+.deck-pile-card {
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+  background-image: url('backVurgLife.png');
+  background-size: cover;
+  background-color: #1a3a8a;
+  border: 1.5px solid var(--gold-dk);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  transition: opacity 0.15s;
+}

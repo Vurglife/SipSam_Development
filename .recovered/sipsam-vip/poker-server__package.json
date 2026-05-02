@@ -1,0 +1,24 @@
+{
+  "name": "poker-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@colyseus/monitor": "^0.17.7",
+    "@colyseus/playground": "^0.17.10",
+    "@colyseus/schema": "^4.0.7",
+    "@colyseus/sdk": "^0.17.8",
+    "@colyseus/ws-transport": "^0.17.8",
+    "colyseus": "^0.17.8",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "pokersolver": "^2.1.4"
+  }
+}

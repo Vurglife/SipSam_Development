@@ -1,0 +1,527 @@
+[
+  {
+    "ts": "2026-04-13T21:55:22.702Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "  const showIns  = phase === 'insurance' && mySeat && (mySeat.insuranceBet||0) === 0;",
+    "new_string": "  const showIns  = phase === 'insurance' && mySeat && (mySeat.insuranceBet||0) === 0 && !mySeat.insuranceDeclined;",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-13T22:37:55.177Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "let _cdInterval = null;\nfunction startCountdown(secs) {\n  stopCountdown();\n  let t = Math.floor(secs); const TOTAL = secs;\n  const cd      = document.getElementById('cd-number');\n  const overlay = document.getElementById('your-turn-overlay');\n  const ring    = document.getElementById('bet-ring');\n  const bc      = document.getElementById('bet-countdown');\n\n  // Show the centred overlay\n  if (overlay) { overlay.style.display = 'flex'; }",
+    "new_string": "let _cdInterval = null;\nfunction startCountdown(secs, showOverlay) {\n  stopCountdown();\n  let t = Math.floor(secs); const TOTAL = secs;\n  const cd      = document.getElementById('cd-number');\n  const overlay = document.getElementById('your-turn-overlay');\n  const ring    = document.getElementById('bet-ring');\n  const bc      = document.getElementById('bet-countdown');\n\n  // Only show the big centred overlay during player action turns, not betting/insurance\n  if (overlay) { overlay.style.display = showOverlay ? 'flex' : 'none'; }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-13T22:38:01.292Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "  if (msg.duration) startCountdown(msg.duration / 1000);\n  else              stopCountdown();\n\n  if (msg.phase === 'betting') {",
+    "new_string": "  if (msg.duration) startCountdown(msg.duration / 1000, false);\n  else              stopCountdown();\n\n  if (msg.phase === 'betting') {",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-13T22:38:06.034Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "    if (msg.duration) startCountdown(msg.duration / 1000);\n    const gs = document.getElementById('game-status');",
+    "new_string": "    if (msg.duration) startCountdown(msg.duration / 1000, true);\n    const gs = document.getElementById('game-status');",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-13T22:43:53.894Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "// Persisted to localStorage so it survives page refresh.\nlet _frozenBet     = 0;       // 0 = not frozen\nlet _frozenTie     = false;   // whether tie bet is also frozen\nlet _freezePending = false;   // freeze was changed mid-round — apply next round\n\nfunction _loadFreeze() {\n  try {\n    const saved = JSON.parse(localStorage.getItem('vl_bj_freeze') || 'null');\n    if (saved) { _frozenBet = saved.bet || 0; _frozenTie = saved.tie || false; }\n  } catch(e) {}\n}\n\nfunction _saveFreeze() {\n  try {\n    localStorage.setItem('vl_bj_freeze', JSON.stringify({ bet: _frozenBet, tie: _frozenTie }));\n  } catch(e) {}\n}",
+    "new_string": "// Session-only freeze — never persists across games\nlet _frozenBet     = 0;       // 0 = not frozen\nlet _frozenTie     = false;   // whether tie bet is also frozen\nlet _freezePending = false;   // freeze was changed mid-round — apply next round\n\n// Remove any stale freeze from previous sessions\ntry { localStorage.removeItem('vl_bj_freeze'); } catch(e) {}\n\nfunction _loadFreeze() { /* no-op — freeze is session-only */ }\nfunction _saveFreeze() { /* no-op — freeze is session-only */ }\n\nfunction _clearFreezeBet() {\n  _frozenBet = 0; _frozenTie = false; _freezePending = false;\n  _updateFreezeUI();\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-13T22:44:51.539Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "    case 'kicked':      window._serverSettled=true; setTimeout(()=>exitToLobby(),1500); break;",
+    "new_string": "    case 'kicked':      _clearFreezeBet(); window._serverSettled=true; setTimeout(()=>exitToLobby(),1500); break;",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-15T22:05:21.824Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "    const res = await fetch('/api/game/invite', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },\n      credentials: 'include',\n      body: JSON.stringify({\n        toUsername:   username,\n        roomId:       roomId,\n        tableMinBet:  100,\n        game:         'blackjack',\n        expiresIn:    300  // 5 minutes\n      })\n    });",
+    "new_string": "    const res = await fetch('/api/friends/invite', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },\n      credentials: 'include',\n      body: JSON.stringify({\n        toUsername:   username,\n        roomId:       roomId,\n        tableMinBet:  100,\n        game:         'blackjack',\n        expiresIn:    300  // 5 minutes\n      })\n    });",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-15T22:12:46.371Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "    // bj_user + bj_table — full auto-enter (from invite accept or joinLiveTable)\n    // Safety: only skip lobby if bj_table has a valid roomId AND enterHandled flag\n    const table = JSON.parse(tj);\n    if (!table?.minBet || !table?.roomId) {\n      // Incomplete or stale bj_table — show lobby\n      sessionStorage.removeItem('bj_user');\n      sessionStorage.removeItem('bj_table');\n      _showStep('lobby-step-choose');\n      return;\n    }\n\n    sessionStorage.removeItem('bj_user');\n    sessionStorage.removeItem('bj_table');\n\n    const raw = user.avatar || '';\n    window._myAvatar = (raw==='default'||raw==='null') ? '' : raw;\n    myUsername = user.username;\n    _isSinglePlayer = table.single || false;\n    _lobbyMode      = _isSinglePlayer ? 'single' : 'multi';\n\n    const roomId = table.roomId || `bj_100_${Date.now()}`;\n    window._bjRoomId = roomId;\n\n    document.getElementById('screen-lobby').classList.remove('active');\n    document.getElementById('screen-game').classList.add('active');\n    document.getElementById('ingame-menu-btn').style.display = 'flex';\n\n    connectWS(user.username, user.token, roomId);\n\n    if (!table.enterHandled) {\n      fetch('/api/game/enter', {\n        method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+user.token},\n        credentials:'include', body:JSON.stringify({tableMinBet: table.minBet})\n      }).then(r=>r.json()).then(d => {\n        if (d.ok && typeof igmBank !== 'undefined') igmBank = d.newBankBalance;\n      }).catch(()=>{});\n    }",
+    "new_string": "    // bj_user + bj_table — auto-enter (from invite accept or joinLiveTable)\n    const table = JSON.parse(tj);\n    if (!table?.minBet || !table?.roomId) {\n      sessionStorage.removeItem('bj_user');\n      sessionStorage.removeItem('bj_table');\n      _showStep('lobby-step-choose');\n      return;\n    }\n\n    sessionStorage.removeItem('bj_user');\n    sessionStorage.removeItem('bj_table');\n\n    const raw = user.avatar || '';\n    window._myAvatar = (raw==='default'||raw==='null') ? '' : raw;\n    myUsername = user.username;\n    _isSinglePlayer = table.single || false;\n    _lobbyMode      = _isSinglePlayer ? 'single' : 'multi';\n\n    const roomId = table.roomId || `bj_100_${Date.now()}`;\n    window._bjRoomId   = roomId;\n    _pendingRoomId     = roomId;\n    _multiRoomId       = roomId;\n\n    // If invited joiner: show waiting lobby (no host controls)\n    if (table.isInvitedJoiner) {\n      _setupInvitedJoinerLobby(roomId, user);\n    } else {\n      // Normal auto-enter — skip lobby, go straight to game\n      document.getElementById('screen-lobby').classList.remove('active');\n      document.getElementById('screen-game').classList.add('active');\n      document.getElementById('ingame-menu-btn').style.display = 'flex';\n      connectWS(user.username, user.token, roomId);\n    }\n\n    if (!table.enterHandled) {\n      fetch('/api/game/enter', {\n        method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+user.token},\n        credentials:'include', body:JSON.stringify({tableMinBet: table.minBet})\n      }).then(r=>r.json()).then(d => {\n        if (d.ok && typeof igmBank !== 'undefined') igmBank = d.newBankBalance;\n      }).catch(()=>{});\n    }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-18T16:46:17.745Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "let _multiWaitTimer  = null;  // interval for 5-min countdown\nlet _multiWaitSecs   = 300;   // 5 minutes\nlet _multiRoomId     = null;  // room created for multiplayer waiting",
+    "new_string": "let _multiWaitTimer  = null;  // interval for 5-min countdown\nlet _multiWaitSecs   = 300;   // 5 minutes\nlet _multiRoomId     = null;  // room created for multiplayer waiting\nlet _isInvitedJoiner = false; // true when entering via an accepted invite\n\n// When an invited friend enters via accepted invite: show the multi lobby\n// with host controls hidden. Mid-game join fast-forwards automatically once\n// the server pushes active game state over the WebSocket.\nfunction _setupInvitedJoinerLobby(roomId, user) {\n  _isInvitedJoiner = true;\n  _showStep('lobby-step-multi');\n\n  ['lobby-multi-timer-row','lobby-multi-invite-panel','lobby-multi-host-actions']\n    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });\n\n  const seatsList = document.getElementById('lobby-seats-list');\n  if (seatsList && !document.getElementById('invited-wait-msg')) {\n    const msg = document.createElement('div');\n    msg.id = 'invited-wait-msg';\n    msg.style.cssText = 'text-align:center;margin:14px 0;color:#c9a84c;font-weight:700;font-size:15px';\n    msg.textContent = 'Waiting for host to start the game…';\n    seatsList.insertAdjacentElement('afterend', msg);\n\n    const exitBtn = document.createElement('button');\n    exitBtn.className = 'btn-secondary';\n    exitBtn.style.cssText = 'width:100%;margin-top:8px;font-size:12px;padding:10px 14px';\n    exitBtn.textContent = '← Exit';\n    exitBtn.onclick = () => { window._intentionalExit = true; window.location.replace('/'); };\n    msg.insertAdjacentElement('afterend', exitBtn);\n  }\n\n  connectWS(user.username, user.token, roomId);\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-18T17:17:26.751Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "function applyState(state) {\n  if (!state) return;\n  window._lastBJState = state;\n\n  // Find my seat",
+    "new_string": "function applyState(state) {\n  if (!state) return;\n  window._lastBJState = state;\n\n  // Invited joiner: server only pushes state once the game is active, so the\n  // first state arrival is our signal to leave the waiting lobby and enter the game.\n  if (_isInvitedJoiner) {\n    const lobby = document.getElementById('screen-lobby');\n    const game  = document.getElementById('screen-game');\n    if (lobby && lobby.classList.contains('active')) {\n      lobby.classList.remove('active');\n      if (game) game.classList.add('active');\n      const menu = document.getElementById('ingame-menu-btn');\n      if (menu) menu.style.display = 'flex';\n    }\n  }\n\n  // Find my seat",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-18T17:24:47.977Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "function applyState(state) {\n  if (!state) return;\n  window._lastBJState = state;\n\n  // Invited joiner: server only pushes state once the game is active, so the\n  // first state arrival is our signal to leave the waiting lobby and enter the game.\n  if (_isInvitedJoiner) {\n    const lobby = document.getElementById('screen-lobby');\n    const game  = document.getElementById('screen-game');\n    if (lobby && lobby.classList.contains('active')) {\n      lobby.classList.remove('active');\n      if (game) game.classList.add('active');\n      const menu = document.getElementById('ingame-menu-btn');\n      if (menu) menu.style.display = 'flex';\n    }\n  }\n\n  // Find my seat",
+    "new_string": "function applyState(state) {\n  if (!state) return;\n  window._lastBJState = state;\n\n  // While any player is sitting in lobby-step-multi, keep the player list in\n  // sync with the server's seat map so everyone sees the same roster.\n  const lobbyStep = document.getElementById('lobby-step-multi');\n  if (lobbyStep && lobbyStep.style.display !== 'none' && state.seats) {\n    const entries = Object.entries(state.seats).sort((a,b)=>(+a[0])-(+b[0]));\n    const players = entries.map(([idx,s],i) => ({\n      username: s.displayName || s.userId || 'Player',\n      isHost: i === 0\n    }));\n    _renderMultiSeats(players);\n  }\n\n  // Find my seat",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-18T17:24:54.713Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "function handlePhase(msg) {\n  const gs = document.getElementById('game-status');\n  if (gs) gs.textContent = fmtPhase(msg.phase);",
+    "new_string": "function handlePhase(msg) {\n  // First transition out of the waiting lobby: when the server signals the\n  // round is starting (any phase other than 'waiting'), move everyone still on\n  // the lobby screen to the game screen.\n  if (msg.phase && msg.phase !== 'waiting') {\n    const lobby = document.getElementById('screen-lobby');\n    if (lobby && lobby.classList.contains('active')) {\n      lobby.classList.remove('active');\n      const game = document.getElementById('screen-game');\n      if (game) game.classList.add('active');\n      const menu = document.getElementById('ingame-menu-btn');\n      if (menu) menu.style.display = 'flex';\n    }\n  }\n\n  const gs = document.getElementById('game-status');\n  if (gs) gs.textContent = fmtPhase(msg.phase);",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-18T17:25:06.127Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  } else {\n    _pendingRoomId = 'bj_100_' + Date.now();\n    _multiRoomId   = _pendingRoomId;\n    window._bjRoomId = _pendingRoomId;\n    _showStep('lobby-step-multi');\n    _startMultiWait();\n    _loadMultiFriends();\n  }\n}",
+    "new_string": "  } else {\n    _pendingRoomId = 'bj_100_' + Date.now();\n    _multiRoomId   = _pendingRoomId;\n    window._bjRoomId = _pendingRoomId;\n    _showStep('lobby-step-multi');\n    _startMultiWait();\n    _loadMultiFriends();\n    _connectHostToLobby();\n  }\n}\n\n// Host joins its own WS room as soon as it enters the multi lobby, so that any\n// invited friend who joins later sees the host in the player list and so that\n// a single 'startGame' message from the host can kick betting for everyone.\nasync function _connectHostToLobby() {\n  try {\n    const res = await fetch('/api/game/enter', {\n      method:'POST',\n      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(igmToken||'')},\n      credentials:'include',\n      body: JSON.stringify({ tableMinBet: 100 })\n    });\n    const d = await res.json();\n    if (d.ok && typeof igmBank !== 'undefined') igmBank = d.newBankBalance;\n  } catch(e) {}\n  connectWS(myUsername, igmToken, _multiRoomId);\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-18T17:25:10.364Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "function startNow() {\n  if (_multiWaitTimer) { clearInterval(_multiWaitTimer); _multiWaitTimer = null; }\n  enterTableNow();\n}",
+    "new_string": "function startNow() {\n  if (_multiWaitTimer) { clearInterval(_multiWaitTimer); _multiWaitTimer = null; }\n  if (ws && ws.readyState === WebSocket.OPEN) {\n    sendMsg('startGame');\n  } else {\n    enterTableNow();\n  }\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-18T17:25:14.894Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "    if (_multiWaitSecs <= 0) {\n      clearInterval(_multiWaitTimer);\n      _multiWaitTimer = null;\n      // Time's up — enter with whoever joined\n      enterTableNow();\n    }",
+    "new_string": "    if (_multiWaitSecs <= 0) {\n      clearInterval(_multiWaitTimer);\n      _multiWaitTimer = null;\n      // Time's up — start the round with whoever joined\n      startNow();\n    }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-18T18:27:03.860Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "function _updateFreezeUI() {\n  const isFrozen = _frozenBet > 0;\n\n  // Overlay freeze button\n  const fb = document.getElementById('btn-freeze-overlay');\n  if (fb) {\n    fb.textContent = isFrozen\n      ? `🔓 Unfreeze ($${_frozenBet.toLocaleString()})`\n      : `🔒 Freeze This Bet`;\n    fb.className = isFrozen ? 'freeze-btn freeze-btn-active' : 'freeze-btn';\n  }\n\n  // Bottom bar freeze button — always visible, shows full state",
+    "new_string": "function _updateFreezeUI() {\n  const isFrozen = _frozenBet > 0;\n\n  // Bottom bar freeze button — always visible, shows full state",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-18T18:27:14.499Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  // Hide chips, show bet confirmation + freeze option + tie bet\n  const chipSection   = document.getElementById('bet-chips-section');\n  const betConfirm    = document.getElementById('bet-confirm-section');\n  const tieBetSection = document.getElementById('bet-tiebet-section');\n  const freezeSection = document.getElementById('bet-freeze-section');\n  const alt           = document.getElementById('bet-alert-text');\n\n  if (chipSection)   chipSection.style.display   = 'none';\n  if (betConfirm)    betConfirm.style.display    = 'none';\n  if (tieBetSection) tieBetSection.style.display = 'flex';\n  if (freezeSection) freezeSection.style.display = 'flex';\n  if (alt) alt.textContent = `✓ Bet $${pendingBet.toLocaleString()} placed`;\n\n  // Update freeze button text in overlay\n  const fb = document.getElementById('btn-freeze-overlay');\n  if (fb) {\n    fb.textContent = _frozenBet > 0\n      ? `🔓 Unfreeze ($${_frozenBet.toLocaleString()})`\n      : `🔒 Freeze $${pendingBet.toLocaleString()} for next rounds`;\n    fb.className = _frozenBet > 0 ? 'freeze-btn freeze-btn-active' : 'freeze-btn';\n  }\n\n  // Auto-close overlay after 3 seconds — player can still tap Freeze before then",
+    "new_string": "  // Hide chips, keep tie bet visible after bet placed\n  const chipSection   = document.getElementById('bet-chips-section');\n  const betConfirm    = document.getElementById('bet-confirm-section');\n  const tieBetSection = document.getElementById('bet-tiebet-section');\n  const alt           = document.getElementById('bet-alert-text');\n\n  if (chipSection)   chipSection.style.display   = 'none';\n  if (betConfirm)    betConfirm.style.display    = 'none';\n  if (tieBetSection) tieBetSection.style.display = 'flex';\n  if (alt) alt.textContent = `✓ Bet $${pendingBet.toLocaleString()} placed`;\n\n  // Auto-close overlay after 3 seconds — player can still tap Tie Bet before then",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:30:57.756Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "const BJ_WS_URL = `ws://${location.hostname}:3002`;\nconst BJ_TABLE  = { minBet:100, maxBet:500, walletSize:2500 };",
+    "new_string": "const BJ_WS_URL = `ws://${location.hostname}:3002`;\n// Default table config — overwritten by sessionStorage 'bj_table' (from dashboard / invite)\nlet BJ_TABLE  = { minBet:100, maxBet:500, walletSize:2500, tieBet:100, tieBetPayout:2000, label:'standard' };\n// Refresh BJ_TABLE from sessionStorage if present\ntry {\n  const _tj = sessionStorage.getItem('bj_table');\n  if (_tj) BJ_TABLE = Object.assign(BJ_TABLE, JSON.parse(_tj));\n} catch(e) {}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:31:06.865Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  const url = `${BJ_WS_URL}/blackjack?roomId=${encodeURIComponent(roomId)}&userId=${encodeURIComponent(username)}&sessionId=${encodeURIComponent(mySessionId)}&minBet=100`;\n  ws = new WebSocket(url);\n\n  const timeout = setTimeout(() => { ws.close(); rmOv(); showIngameToast('Connection Failed','Server not responding.'); }, 10000);",
+    "new_string": "  const tableMinBet = BJ_TABLE.minBet || 100;\n  const tokParam = token ? `&token=${encodeURIComponent(token)}` : '';\n  const url = `${BJ_WS_URL}/blackjack?roomId=${encodeURIComponent(roomId)}&userId=${encodeURIComponent(username)}&sessionId=${encodeURIComponent(mySessionId)}&minBet=${tableMinBet}${tokParam}`;\n  ws = new WebSocket(url);\n\n  const timeout = setTimeout(() => { ws.close(); rmOv(); showIngameToast('Connection Failed','Server not responding.'); }, 10000);",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:31:12.572Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "function reconnectWS(token,roomId) {\n  if (window._intentionalExit || window._serverSettled) return;\n  const url = `${BJ_WS_URL}/blackjack?roomId=${encodeURIComponent(roomId)}&userId=${encodeURIComponent(myUsername)}&sessionId=${encodeURIComponent(mySessionId)}&minBet=100`;",
+    "new_string": "function reconnectWS(token,roomId) {\n  if (window._intentionalExit || window._serverSettled) return;\n  const tableMinBet = BJ_TABLE.minBet || 100;\n  const tokParam = token ? `&token=${encodeURIComponent(token)}` : '';\n  const url = `${BJ_WS_URL}/blackjack?roomId=${encodeURIComponent(roomId)}&userId=${encodeURIComponent(myUsername)}&sessionId=${encodeURIComponent(mySessionId)}&minBet=${tableMinBet}${tokParam}`;",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:31:38.871Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "async function _connectHostToLobby() {\n  try {\n    const res = await fetch('/api/game/enter', {\n      method:'POST',\n      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(igmToken||'')},\n      credentials:'include',\n      body: JSON.stringify({ tableMinBet: 100 })\n    });\n    const d = await res.json();\n    if (d.ok && typeof igmBank !== 'undefined') igmBank = d.newBankBalance;\n  } catch(e) {}\n  connectWS(myUsername, igmToken, _multiRoomId);\n}",
+    "new_string": "async function _connectHostToLobby() {\n  try {\n    const res = await fetch('/api/game/bj/enter', {\n      method:'POST',\n      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(igmToken||'')},\n      credentials:'include',\n      body: JSON.stringify({ tableMinBet: BJ_TABLE.minBet || 100 })\n    });\n    const d = await res.json();\n    if (d.ok && typeof igmBank !== 'undefined') igmBank = d.newBankBalance;\n  } catch(e) {}\n  connectWS(myUsername, igmToken, _multiRoomId);\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:31:43.895Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  try {\n    const d = await fetch('/api/game/enter', {\n      method:'POST',\n      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(user.token||igmToken||'')},\n      credentials:'include',\n      body: JSON.stringify({ tableMinBet: 100 })\n    }).then(r => r.json());\n    if (d.ok && typeof igmBank !== 'undefined') igmBank = d.newBankBalance;\n  } catch(e) {}",
+    "new_string": "  try {\n    const d = await fetch('/api/game/bj/enter', {\n      method:'POST',\n      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(user.token||igmToken||'')},\n      credentials:'include',\n      body: JSON.stringify({ tableMinBet: BJ_TABLE.minBet || 100 })\n    }).then(r => r.json());\n    if (d.ok && typeof igmBank !== 'undefined') igmBank = d.newBankBalance;\n  } catch(e) {}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:31:48.973Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "      if (!JSON.parse(sessionStorage.getItem('bj_table') || '{}').enterHandled) {\n        fetch('/api/game/enter', {\n          method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+user.token},\n          credentials:'include', body:JSON.stringify({tableMinBet: Number(urlMinBet) || 100})\n        }).catch(() => {});\n      }",
+    "new_string": "      if (!JSON.parse(sessionStorage.getItem('bj_table') || '{}').enterHandled) {\n        fetch('/api/game/bj/enter', {\n          method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+user.token},\n          credentials:'include', body:JSON.stringify({tableMinBet: Number(urlMinBet) || 100})\n        }).catch(() => {});\n      }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:31:54.074Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "    if (!table.enterHandled) {\n      fetch('/api/game/enter', {\n        method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+user.token},\n        credentials:'include', body:JSON.stringify({tableMinBet: table.minBet})\n      }).then(r=>r.json()).then(d => {\n        if (d.ok && typeof igmBank !== 'undefined') igmBank = d.newBankBalance;\n      }).catch(()=>{});\n    }",
+    "new_string": "    if (!table.enterHandled) {\n      fetch('/api/game/bj/enter', {\n        method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+user.token},\n        credentials:'include', body:JSON.stringify({tableMinBet: table.minBet})\n      }).then(r=>r.json()).then(d => {\n        if (d.ok && typeof igmBank !== 'undefined') igmBank = d.newBankBalance;\n      }).catch(()=>{});\n    }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:32:00.777Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "window.addEventListener('beforeunload', () => {\n  if (window._intentionalExit||window._serverSettled||!igmToken||!myChips) return;\n  navigator.sendBeacon('/api/game/exit-beacon?token='+encodeURIComponent(igmToken),\n    new Blob([JSON.stringify({remainingWallet:myChips,tableMinBet:100})],{type:'application/json'}));\n});",
+    "new_string": "window.addEventListener('beforeunload', () => {\n  if (window._intentionalExit||window._serverSettled||!igmToken||!myChips) return;\n  const mb = BJ_TABLE.minBet || 100;\n  navigator.sendBeacon('/api/game/bj/exit-beacon?token='+encodeURIComponent(igmToken),\n    new Blob([JSON.stringify({remainingWallet:myChips,tableMinBet:mb})],{type:'application/json'}));\n});",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:33:30.963Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "const BJ_WS_URL = `ws://${location.hostname}:3002`;\n// Default table config — overwritten by sessionStorage 'bj_table' (from dashboard / invite)\nlet BJ_TABLE  = { minBet:100, maxBet:500, walletSize:2500, tieBet:100, tieBetPayout:2000, label:'standard' };\n// Refresh BJ_TABLE from sessionStorage if present\ntry {\n  const _tj = sessionStorage.getItem('bj_table');\n  if (_tj) BJ_TABLE = Object.assign(BJ_TABLE, JSON.parse(_tj));\n} catch(e) {}",
+    "new_string": "const BJ_WS_URL = `ws://${location.hostname}:3002`;\n// Default table config — overwritten by sessionStorage 'bj_tier' (dashboard tier pick)\n// or 'bj_table' (from invite accept).\nlet BJ_TABLE  = { minBet:100, maxBet:500, walletSize:2500, tieBet:100, tieBetPayout:2000, blackjackPayout:null, label:'standard' };\ntry {\n  const _tierJson  = sessionStorage.getItem('bj_tier');\n  const _tableJson = sessionStorage.getItem('bj_table');\n  if (_tierJson)  BJ_TABLE = Object.assign(BJ_TABLE, JSON.parse(_tierJson));\n  if (_tableJson) BJ_TABLE = Object.assign(BJ_TABLE, JSON.parse(_tableJson));\n} catch(e) {}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:34:08.157Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  // Sync tie bet button\n  const tieBetVal = mySeat?.tieBet || 0;\n  const tbBtn = document.getElementById('btn-tie-bet');\n  if (tbBtn) {\n    tbBtn.classList.toggle('tie-bet-active', tieBetVal > 0);\n    tbBtn.textContent = tieBetVal > 0 ? '✓ TIE BET ($100)' : 'TIE BET $100';\n  }",
+    "new_string": "  // Sync tie bet button — amount is tier-specific\n  const tieBetVal = mySeat?.tieBet || 0;\n  const tieBetAmt = BJ_TABLE.tieBet || 100;\n  const tbBtn = document.getElementById('btn-tie-bet');\n  if (tbBtn) {\n    const amtLabel = '$' + tieBetAmt.toLocaleString();\n    tbBtn.classList.toggle('tie-bet-active', tieBetVal > 0);\n    tbBtn.textContent = tieBetVal > 0 ? `✓ TIE BET (${amtLabel})` : `🎯 TIE BET — ${amtLabel}`;\n  }\n  // Sync tie bet hint payout copy\n  const hint = document.getElementById('bet-tiebet-hint');\n  if (hint) {\n    const payout = BJ_TABLE.tieBetPayout || 2000;\n    if (BJ_TABLE.label === 'vip') {\n      hint.innerHTML = `<strong style=\"color:#ffd700\">$${payout.toLocaleString()} Bonus</strong><br>Wins if your total = dealer's total`;\n    } else {\n      hint.innerHTML = `<strong style=\"color:#ffd700\">$2,000 Bonus</strong> · $500 main bet: <strong style=\"color:#ffd700\">$3,000 Bonus</strong><br>Wins if your total = dealer's total`;\n    }\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:34:20.402Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "          // Per-hand result\n          const r = seat.result?.[hi];\n          if (r) {\n            const rb = document.createElement('div');\n            rb.className = 'result-badge-inline ' + r;\n            rb.textContent = r==='blackjack'?'BLACKJACK!':r.toUpperCase();\n            wrapper.appendChild(rb);\n          }",
+    "new_string": "          // Per-hand result\n          const r = seat.result?.[hi];\n          if (r) {\n            const rb = document.createElement('div');\n            rb.className = 'result-badge-inline ' + r;\n            rb.textContent = r==='blackjack'?'BLACKJACK!':(r==='tie'?'TIE!':r.toUpperCase());\n            wrapper.appendChild(rb);\n          }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:34:26.425Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "    // Result badge\n    const rs = document.getElementById(`seat${vz}-result`);\n    if (rs && seat.result?.some(r => r !== null)) {\n      const priority = ['blackjack','win','push','bust','lose'];\n      const best = priority.find(p => seat.result.includes(p)) || seat.result.find(r => r);\n      if (best) { rs.className = 'result-badge-inline ' + best; rs.textContent = best==='blackjack'?'BLACKJACK!':best.toUpperCase(); }\n    }",
+    "new_string": "    // Result badge — 'tie' ranks above 'push' so players see they hit the tie bet\n    const rs = document.getElementById(`seat${vz}-result`);\n    if (rs && seat.result?.some(r => r !== null)) {\n      const priority = ['blackjack','win','tie','push','bust','lose'];\n      const best = priority.find(p => seat.result.includes(p)) || seat.result.find(r => r);\n      if (best) {\n        rs.className = 'result-badge-inline ' + best;\n        rs.textContent = best==='blackjack'?'BLACKJACK!':(best==='tie'?'TIE!':best.toUpperCase());\n      }\n    }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:34:39.943Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "function flashTable(result) {\n  const oval = document.getElementById('oval-table'); if (!oval) return;\n  oval.classList.remove('flash-win','flash-lose','flash-bj');\n  if (result==='blackjack') { oval.classList.add('flash-bj'); if(typeof SFX!=='undefined')SFX.bj?.(); }\n  else if (result==='win')  { oval.classList.add('flash-win'); if(typeof SFX!=='undefined')SFX.win(); }\n  else if (result==='lose'||result==='bust') { oval.classList.add('flash-lose'); if(typeof SFX!=='undefined')SFX.lose(); }\n  else if (result==='push') { if(typeof SFX!=='undefined')SFX.push?.(); }\n  setTimeout(() => oval.classList.remove('flash-win','flash-lose','flash-bj'), 700);\n\n  const flash = document.getElementById('result-flash');\n  const txt   = document.getElementById('result-flash-text');\n  // Don't overwrite an active tie win celebration\n  if (flash && flash._tieTimer) return;\n  if (flash && txt) {\n    const labels = {blackjack:'BLACKJACK!',win:'WIN',lose:'LOSE',bust:'BUST',push:'PUSH'};",
+    "new_string": "function flashTable(result) {\n  const oval = document.getElementById('oval-table'); if (!oval) return;\n  oval.classList.remove('flash-win','flash-lose','flash-bj');\n  if (result==='blackjack') { oval.classList.add('flash-bj'); if(typeof SFX!=='undefined')SFX.bj?.(); }\n  else if (result==='win')  { oval.classList.add('flash-win'); if(typeof SFX!=='undefined')SFX.win(); }\n  else if (result==='tie')  { oval.classList.add('flash-bj');  if(typeof SFX!=='undefined')SFX.win?.(); }\n  else if (result==='lose'||result==='bust') { oval.classList.add('flash-lose'); if(typeof SFX!=='undefined')SFX.lose(); }\n  else if (result==='push') { if(typeof SFX!=='undefined')SFX.push?.(); }\n  setTimeout(() => oval.classList.remove('flash-win','flash-lose','flash-bj'), 700);\n\n  const flash = document.getElementById('result-flash');\n  const txt   = document.getElementById('result-flash-text');\n  // Don't overwrite an active tie win celebration\n  if (flash && flash._tieTimer) return;\n  if (flash && txt) {\n    const labels = {blackjack:'BLACKJACK!',win:'WIN',tie:'TIE!',lose:'LOSE',bust:'BUST',push:'PUSH'};",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:34:48.262Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "    const colors = {blackjack:'#ffd700',win:'#44ff88',lose:'#ff5555',bust:'#ff5555',push:'#4ab8ff'};",
+    "new_string": "    const colors = {blackjack:'#ffd700',win:'#44ff88',tie:'#ffd700',lose:'#ff5555',bust:'#ff5555',push:'#4ab8ff'};",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:36:01.957Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "      body: JSON.stringify({\n        toUsername:   username,\n        roomId:       roomId,\n        tableMinBet:  100,\n        game:         'blackjack',\n        expiresIn:    300  // 5 minutes\n      })",
+    "new_string": "      body: JSON.stringify({\n        toUsername:   username,\n        roomId:       roomId,\n        tableMinBet:  BJ_TABLE.minBet || 100,\n        game:         'blackjack',\n        tableConfig:  {\n          minBet: BJ_TABLE.minBet || 100,\n          maxBet: BJ_TABLE.maxBet || 500,\n          wallet: BJ_TABLE.walletSize || 2500,\n          walletSize: BJ_TABLE.walletSize || 2500,\n          tieBet: BJ_TABLE.tieBet || 100,\n          tieBetPayout: BJ_TABLE.tieBetPayout || 2000,\n          blackjackPayout: BJ_TABLE.blackjackPayout || null,\n          tier: BJ_TABLE.label || 'standard',\n        },\n        expiresIn:    300  // 5 minutes\n      })",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:36:26.752Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  if (mode === 'single') {\n    _showStep('lobby-step-single');\n    _pendingRoomId = 'bj_100_' + Date.now() + '_private';\n    startAdCountdown(() => enterTableNow());\n  } else {\n    _pendingRoomId = 'bj_100_' + Date.now();\n    _multiRoomId   = _pendingRoomId;\n    window._bjRoomId = _pendingRoomId;\n    _showStep('lobby-step-multi');\n    _startMultiWait();\n    _loadMultiFriends();\n    _connectHostToLobby();\n  }",
+    "new_string": "  const tmb = BJ_TABLE.minBet || 100;\n  if (mode === 'single') {\n    _showStep('lobby-step-single');\n    _pendingRoomId = `bj_${tmb}_${Date.now()}_private`;\n    startAdCountdown(() => enterTableNow());\n  } else {\n    _pendingRoomId = `bj_${tmb}_${Date.now()}`;\n    _multiRoomId   = _pendingRoomId;\n    window._bjRoomId = _pendingRoomId;\n    _showStep('lobby-step-multi');\n    _startMultiWait();\n    _loadMultiFriends();\n    _connectHostToLobby();\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:36:33.076Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  const roomId = _pendingRoomId || `bj_100_${Date.now()}`;",
+    "new_string": "  const roomId = _pendingRoomId || `bj_${BJ_TABLE.minBet||100}_${Date.now()}`;",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:36:36.203Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "    const roomId = table.roomId || `bj_100_${Date.now()}`;",
+    "new_string": "    const roomId = table.roomId || `bj_${BJ_TABLE.minBet||100}_${Date.now()}`;",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:48:18.880Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  if (state.phase === 'betting' && lastPhase !== 'betting') {\n    _betPlaced = false; pendingBet = 0; updateBetDisplay();\n    // Restore chip section visibility for new round — only if not frozen\n    if (_frozenBet === 0) {\n      const chipSection   = document.getElementById('bet-chips-section');\n      const betConfirm    = document.getElementById('bet-confirm-section');\n      const tieBetSection = document.getElementById('bet-tiebet-section');\n      if (chipSection)   chipSection.style.display   = 'flex';\n      if (betConfirm)    betConfirm.style.display    = 'block';\n      if (tieBetSection) tieBetSection.style.display = 'flex';\n      const alt = document.getElementById('bet-alert-text');\n      if (alt) alt.textContent = 'Tap a chip to bet';\n    }\n    if (_frozenBet > 0) {\n      setTimeout(() => _applyFreezeIfActive(), 300);\n    }\n  }",
+    "new_string": "  if (state.phase === 'betting' && lastPhase !== 'betting') {\n    _betPlaced = false; pendingBet = 0; updateBetDisplay();\n    // Restore chip section visibility for new round — only if not frozen\n    if (_frozenBet === 0) {\n      _applyBetUIMode();\n    }\n    if (_frozenBet > 0) {\n      setTimeout(() => _applyFreezeIfActive(), 300);\n    } else if (BJ_TABLE.label === 'vip') {\n      // VIP: auto-place the fixed bet after a short delay so UI has time to render\n      setTimeout(() => _autoPlaceFixedBet(), 300);\n    }\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:48:28.359Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  if (msg.phase === 'betting') {\n    _betPlaced = false; pendingBet = 0; updateBetDisplay();\n    const rl = document.getElementById('bet-round-label');\n    if (rl) rl.textContent = window._lastBJState?.roundNum || '—';\n\n    if (_frozenBet > 0) {\n      // FREEZE IS ACTIVE — never show betting overlay, auto-place silently\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'none';\n      _updateFreezeUI();\n      setTimeout(() => _applyFreezeIfActive(), 300);\n    } else {\n      // No freeze — show full betting overlay normally\n      const chipSection   = document.getElementById('bet-chips-section');\n      const betConfirm    = document.getElementById('bet-confirm-section');\n      const tieBetSection = document.getElementById('bet-tiebet-section');\n      if (chipSection)   chipSection.style.display   = 'flex';\n      if (betConfirm)    betConfirm.style.display    = 'block';\n      if (tieBetSection) tieBetSection.style.display = 'flex';\n      const alt = document.getElementById('bet-alert-text');\n      if (alt) alt.textContent = 'Tap a chip to bet';\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'flex';\n      _updateFreezeUI();\n    }\n  } else {",
+    "new_string": "  if (msg.phase === 'betting') {\n    _betPlaced = false; pendingBet = 0; updateBetDisplay();\n    const rl = document.getElementById('bet-round-label');\n    if (rl) rl.textContent = window._lastBJState?.roundNum || '—';\n\n    if (_frozenBet > 0) {\n      // FREEZE IS ACTIVE — never show betting overlay, auto-place silently\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'none';\n      _updateFreezeUI();\n      setTimeout(() => _applyFreezeIfActive(), 300);\n    } else {\n      // No freeze — show betting overlay (VIP-aware via _applyBetUIMode)\n      _applyBetUIMode();\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'flex';\n      _updateFreezeUI();\n      if (BJ_TABLE.label === 'vip') {\n        setTimeout(() => _autoPlaceFixedBet(), 300);\n      }\n    }\n  } else {",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:48:36.144Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "    if (wasInBetting) {\n      // Show betting overlay immediately so player can choose their bet\n      const chipSection   = document.getElementById('bet-chips-section');\n      const betConfirm    = document.getElementById('bet-confirm-section');\n      const tieBetSection = document.getElementById('bet-tiebet-section');\n      if (chipSection)   chipSection.style.display   = 'flex';\n      if (betConfirm)    betConfirm.style.display    = 'block';\n      if (tieBetSection) tieBetSection.style.display = 'flex';\n      const alt = document.getElementById('bet-alert-text');\n      if (alt) alt.textContent = 'Tap a chip to bet';\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'flex';\n      showIngameToast('🔓 Freeze Removed', 'Choose your bet for this round.');",
+    "new_string": "    if (wasInBetting) {\n      // Show betting overlay immediately so player can choose their bet\n      _applyBetUIMode();\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'flex';\n      if (BJ_TABLE.label === 'vip') {\n        setTimeout(() => _autoPlaceFixedBet(), 200);\n        showIngameToast('🔓 Freeze Removed', 'Fixed bet auto-placed.');\n      } else {\n        showIngameToast('🔓 Freeze Removed', 'Choose your bet for this round.');\n      }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:48:51.547Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "// ─────────────────────────────────────────────────────\n// BET CONTROLS\n// ─────────────────────────────────────────────────────\nfunction addChip(val) {",
+    "new_string": "// ─────────────────────────────────────────────────────\n// BET CONTROLS\n// ─────────────────────────────────────────────────────\n\n// Configure the betting overlay for the current tier.\n// Standard tiers: show chip grid. VIP: hide chips, show fixed-bet display.\nfunction _applyBetUIMode() {\n  const chipSection   = document.getElementById('bet-chips-section');\n  const betConfirm    = document.getElementById('bet-confirm-section');\n  const fixedSection  = document.getElementById('bet-fixed-section');\n  const tieBetSection = document.getElementById('bet-tiebet-section');\n  const alt           = document.getElementById('bet-alert-text');\n  const isVIP = BJ_TABLE.label === 'vip';\n\n  if (chipSection)   chipSection.style.display   = 'flex';\n  if (tieBetSection) tieBetSection.style.display = 'flex';\n\n  if (isVIP) {\n    if (betConfirm)   betConfirm.style.display   = 'none';\n    if (fixedSection) {\n      fixedSection.style.display = 'flex';\n      const amtEl = document.getElementById('bet-fixed-amount');\n      if (amtEl) amtEl.textContent = '$' + (BJ_TABLE.minBet || 0).toLocaleString();\n    }\n    if (alt) alt.textContent = 'Placing your bet…';\n  } else {\n    if (betConfirm)   betConfirm.style.display   = 'block';\n    if (fixedSection) fixedSection.style.display = 'none';\n    if (alt) alt.textContent = 'Tap a chip to bet';\n  }\n}\n\n// VIP auto-placement: bet is fixed, no chip choice — send it immediately.\nfunction _autoPlaceFixedBet() {\n  if (_betPlaced) return;\n  if (BJ_TABLE.label !== 'vip') return;\n  const avail = window._lastBJState?.seats?.[mySeatIndex]?.wallet ?? myChips;\n  const amt = BJ_TABLE.minBet || 0;\n  if (!amt || amt > avail) {\n    const alt = document.getElementById('bet-alert-text');\n    if (alt) alt.textContent = 'Insufficient wallet for fixed bet';\n    return;\n  }\n  pendingBet = amt;\n  updateBetDisplay();\n  _sendBet();\n}\n\nfunction addChip(val) {",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:49:01.199Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  // Hide chips, keep tie bet visible after bet placed\n  const chipSection   = document.getElementById('bet-chips-section');\n  const betConfirm    = document.getElementById('bet-confirm-section');\n  const tieBetSection = document.getElementById('bet-tiebet-section');\n  const alt           = document.getElementById('bet-alert-text');\n\n  if (chipSection)   chipSection.style.display   = 'none';\n  if (betConfirm)    betConfirm.style.display    = 'none';\n  if (tieBetSection) tieBetSection.style.display = 'flex';\n  if (alt) alt.textContent = `✓ Bet $${pendingBet.toLocaleString()} placed`;",
+    "new_string": "  // Hide chips, keep tie bet visible after bet placed\n  const chipSection   = document.getElementById('bet-chips-section');\n  const betConfirm    = document.getElementById('bet-confirm-section');\n  const fixedSection  = document.getElementById('bet-fixed-section');\n  const tieBetSection = document.getElementById('bet-tiebet-section');\n  const alt           = document.getElementById('bet-alert-text');\n\n  if (chipSection)   chipSection.style.display   = 'none';\n  if (betConfirm)    betConfirm.style.display    = 'none';\n  if (fixedSection)  fixedSection.style.display  = 'none';\n  if (tieBetSection) tieBetSection.style.display = 'flex';\n  if (alt) alt.textContent = `✓ Bet $${pendingBet.toLocaleString()} placed`;",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:09:50.613Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "function toggleFreeze() {\n  // Cancel any pending overlay auto-close\n  const ov = document.getElementById('bet-overlay');\n  if (ov) clearTimeout(ov._closeTimer);\n\n  if (_frozenBet > 0) {\n    // Currently frozen — unfreeze\n    const wasInBetting = window._lastBJState?.phase === 'betting' && !_betPlaced;\n    _frozenBet = 0; _frozenTie = false;\n    _saveFreeze();\n    _updateFreezeUI();\n    if (wasInBetting) {\n      // Show betting overlay immediately so player can choose their bet\n      _applyBetUIMode();\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'flex';\n      if (BJ_TABLE.label === 'vip') {\n        setTimeout(() => _autoPlaceFixedBet(), 200);\n        showIngameToast('🔓 Freeze Removed', 'Fixed bet auto-placed.');\n      } else {\n        showIngameToast('🔓 Freeze Removed', 'Choose your bet for this round.');\n      }\n    } else {\n      showIngameToast('🔓 Freeze Removed', 'You will choose your bet manually next round.');\n    }\n  } else {\n    // Not frozen — freeze current bet\n    const currentBet = pendingBet || (window._lastBJState?.seats?.[mySeatIndex]?.bet) || 0;\n    if (!currentBet || currentBet < BJ_TABLE.minBet) {\n      showIngameToast('No Bet to Freeze', 'Place a bet first, then freeze it.');\n      return;\n    }\n    const tieActive = (window._lastBJState?.seats?.[mySeatIndex]?.tieBet || 0) > 0;\n    _frozenBet = currentBet;\n    _frozenTie = tieActive;\n    _saveFreeze();\n    _updateFreezeUI();\n    const tieMsg = _frozenTie ? ' + Tie Bet' : '';\n    showIngameToast('🔒 Bet Frozen', `$${_frozenBet.toLocaleString()}${tieMsg} auto-places every round.`);\n  }\n}\n\nfunction _updateFreezeUI() {\n  const isFrozen = _frozenBet > 0;\n\n  // Bottom bar freeze button — always visible, shows full state\n  const bb = document.getElementById('btn-freeze-bar');\n  if (bb) {\n    bb.textContent = isFrozen\n      ? `🔓 Unfreeze ($${_frozenBet.toLocaleString()}${_frozenTie ? ' +TIE' : ''})`\n      : `🔒 Freeze Bet`;\n    bb.className = isFrozen ? 'freeze-btn-bar freeze-btn-bar-active' : 'freeze-btn-bar';\n  }\n\n  // Freeze indicator badge\n  const si = document.getElementById('seat-freeze-indicator');\n  if (si) {\n    si.textContent = isFrozen ? `🔒 $${_frozenBet.toLocaleString()}${_frozenTie ? ' +TIE' : ''}` : '';\n    si.style.display = isFrozen ? 'inline-block' : 'none';\n  }\n}",
+    "new_string": "function toggleFreeze() {\n  // Cancel any pending overlay auto-close\n  const ov = document.getElementById('bet-overlay');\n  if (ov) clearTimeout(ov._closeTimer);\n\n  const isVIP = BJ_TABLE.label === 'vip';\n\n  // ── VIP mode: freeze only the tie bet (main bet is fixed, freezing it is meaningless) ──\n  if (isVIP) {\n    if (_frozenTie) {\n      _frozenTie = false;\n      _updateFreezeUI();\n      showIngameToast('🔓 Tie Bet Unfrozen', 'Tie bet will not auto-place next round.');\n    } else {\n      _frozenTie = true;\n      _updateFreezeUI();\n      // Place it for this round too if we're mid-betting\n      const seat = window._lastBJState?.seats?.[mySeatIndex];\n      if (window._lastBJState?.phase === 'betting' && seat && !seat.tieBet) {\n        sendMsg('place_tie');\n      }\n      showIngameToast('🔒 Tie Bet Frozen', `$${(BJ_TABLE.tieBet||100).toLocaleString()} tie bet auto-places every round.`);\n    }\n    return;\n  }\n\n  // ── Standard mode: original behaviour (freeze main bet + tie bet together) ──\n  if (_frozenBet > 0) {\n    // Currently frozen — unfreeze\n    const wasInBetting = window._lastBJState?.phase === 'betting' && !_betPlaced;\n    _frozenBet = 0; _frozenTie = false;\n    _saveFreeze();\n    _updateFreezeUI();\n    if (wasInBetting) {\n      _applyBetUIMode();\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'flex';\n      showIngameToast('🔓 Freeze Removed', 'Choose your bet for this round.');\n    } else {\n      showIngameToast('🔓 Freeze Removed', 'You will choose your bet manually next round.');\n    }\n  } else {\n    // Not frozen — freeze current bet\n    const currentBet = pendingBet || (window._lastBJState?.seats?.[mySeatIndex]?.bet) || 0;\n    if (!currentBet || currentBet < BJ_TABLE.minBet) {\n      showIngameToast('No Bet to Freeze', 'Place a bet first, then freeze it.');\n      return;\n    }\n    const tieActive = (window._lastBJState?.seats?.[mySeatIndex]?.tieBet || 0) > 0;\n    _frozenBet = currentBet;\n    _frozenTie = tieActive;\n    _saveFreeze();\n    _updateFreezeUI();\n    const tieMsg = _frozenTie ? ' + Tie Bet' : '';\n    showIngameToast('🔒 Bet Frozen', `$${_frozenBet.toLocaleString()}${tieMsg} auto-places every round.`);\n  }\n}\n\nfunction _updateFreezeUI() {\n  const isVIP = BJ_TABLE.label === 'vip';\n  const bb = document.getElementById('btn-freeze-bar');\n  const si = document.getElementById('seat-freeze-indicator');\n\n  if (isVIP) {\n    // VIP: button freezes tie bet only; main bet is always fixed\n    const on = !!_frozenTie;\n    if (bb) {\n      bb.textContent = on ? `🔓 Unfreeze Tie Bet` : `🔒 Freeze Tie Bet`;\n      bb.className   = on ? 'freeze-btn-bar freeze-btn-bar-active' : 'freeze-btn-bar';\n    }\n    if (si) {\n      si.textContent     = on ? `🔒 TIE` : '';\n      si.style.display   = on ? 'inline-block' : 'none';\n    }\n    return;\n  }\n\n  // Standard\n  const isFrozen = _frozenBet > 0;\n  if (bb) {\n    bb.textContent = isFrozen\n      ? `🔓 Unfreeze ($${_frozenBet.toLocaleString()}${_frozenTie ? ' +TIE' : ''})`\n      : `🔒 Freeze Bet`;\n    bb.className = isFrozen ? 'freeze-btn-bar freeze-btn-bar-active' : 'freeze-btn-bar';\n  }\n  if (si) {\n    si.textContent = isFrozen ? `🔒 $${_frozenBet.toLocaleString()}${_frozenTie ? ' +TIE' : ''}` : '';\n    si.style.display = isFrozen ? 'inline-block' : 'none';\n  }\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:10:03.865Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "// VIP auto-placement: bet is fixed, no chip choice — send it immediately.\nfunction _autoPlaceFixedBet() {\n  if (_betPlaced) return;\n  if (BJ_TABLE.label !== 'vip') return;\n  const avail = window._lastBJState?.seats?.[mySeatIndex]?.wallet ?? myChips;\n  const amt = BJ_TABLE.minBet || 0;\n  if (!amt || amt > avail) {\n    const alt = document.getElementById('bet-alert-text');\n    if (alt) alt.textContent = 'Insufficient wallet for fixed bet';\n    return;\n  }\n  pendingBet = amt;\n  updateBetDisplay();\n  _sendBet();\n}",
+    "new_string": "// VIP auto-placement: bet is fixed, no chip choice — send it immediately.\n// If the tie bet is frozen, also place it after the main bet.\nfunction _autoPlaceFixedBet() {\n  if (_betPlaced) return;\n  if (BJ_TABLE.label !== 'vip') return;\n  const avail = window._lastBJState?.seats?.[mySeatIndex]?.wallet ?? myChips;\n  const amt = BJ_TABLE.minBet || 0;\n  if (!amt || amt > avail) {\n    const alt = document.getElementById('bet-alert-text');\n    if (alt) alt.textContent = 'Insufficient wallet for fixed bet';\n    return;\n  }\n  pendingBet = amt;\n  updateBetDisplay();\n  _sendBet();\n  if (_frozenTie) {\n    setTimeout(() => {\n      const tieCost = BJ_TABLE.tieBet || 100;\n      const walletAfterBet = (window._lastBJState?.seats?.[mySeatIndex]?.wallet ?? myChips);\n      const alreadyPlaced  = (window._lastBJState?.seats?.[mySeatIndex]?.tieBet || 0) > 0;\n      if (!alreadyPlaced && walletAfterBet >= tieCost) sendMsg('place_tie');\n    }, 200);\n  }\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:10:12.957Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  if (chipSection)   chipSection.style.display   = 'none';\n  if (betConfirm)    betConfirm.style.display    = 'none';\n  if (fixedSection)  fixedSection.style.display  = 'none';\n  if (tieBetSection) tieBetSection.style.display = 'flex';\n  if (alt) alt.textContent = `✓ Bet $${pendingBet.toLocaleString()} placed`;\n\n  // Auto-close overlay after 3 seconds — player can still tap Tie Bet before then\n  clearTimeout(ov._closeTimer);\n  ov._closeTimer = setTimeout(() => {\n    ov.style.display = 'none';\n  }, 3000);\n}",
+    "new_string": "  if (chipSection)   chipSection.style.display   = 'none';\n  if (betConfirm)    betConfirm.style.display    = 'none';\n  if (fixedSection)  fixedSection.style.display  = 'none';\n  if (tieBetSection) tieBetSection.style.display = 'flex';\n  if (alt) alt.textContent = `✓ Bet $${pendingBet.toLocaleString()} placed`;\n\n  // Auto-close overlay after 3 seconds — but NOT in VIP: player needs the full\n  // betting window to toggle tie bet since the main bet was auto-placed.\n  clearTimeout(ov._closeTimer);\n  if (BJ_TABLE.label !== 'vip') {\n    ov._closeTimer = setTimeout(() => {\n      ov.style.display = 'none';\n    }, 3000);\n  }\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:10:25.520Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  // Drive bet overlay — never show when freeze is active\n  const overlay = document.getElementById('bet-overlay');\n  if (overlay) {\n    const show = state.phase==='betting' && mySeatIndex!==null && !_betPlaced && (mySeat?.bet||0)===0 && _frozenBet===0;\n    if (show && overlay.style.display !== 'flex') overlay.style.display = 'flex';\n    else if (!show && overlay.style.display !== 'none') overlay.style.display = 'none';\n  }",
+    "new_string": "  // Drive bet overlay — never show when freeze is active (standard only).\n  // VIP: keep overlay visible for the ENTIRE betting phase even after the fixed\n  // main bet is auto-placed, so the player can still tap the tie bet toggle.\n  const overlay = document.getElementById('bet-overlay');\n  if (overlay) {\n    const isVIP = BJ_TABLE.label === 'vip';\n    let show;\n    if (isVIP) {\n      show = state.phase === 'betting' && mySeatIndex !== null;\n    } else {\n      show = state.phase==='betting' && mySeatIndex!==null && !_betPlaced && (mySeat?.bet||0)===0 && _frozenBet===0;\n    }\n    if (show && overlay.style.display !== 'flex') overlay.style.display = 'flex';\n    else if (!show && overlay.style.display !== 'none') overlay.style.display = 'none';\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:10:40.759Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "async function enterTableNow() {\n  if (typeof SFX !== 'undefined') SFX.click();\n  const roomId = _pendingRoomId || `bj_${BJ_TABLE.minBet||100}_${Date.now()}`;\n  const user   = JSON.parse(sessionStorage.getItem('bj_user') || '{}');\n\n  try {\n    const d = await fetch('/api/game/bj/enter', {\n      method:'POST',\n      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(user.token||igmToken||'')},\n      credentials:'include',\n      body: JSON.stringify({ tableMinBet: BJ_TABLE.minBet || 100 })\n    }).then(r => r.json());\n    if (d.ok && typeof igmBank !== 'undefined') igmBank = d.newBankBalance;\n  } catch(e) {}\n\n  window._bjRoomId = roomId;\n  document.getElementById('screen-lobby').classList.remove('active');\n  document.getElementById('screen-game').classList.add('active');\n  document.getElementById('ingame-menu-btn').style.display = 'flex';\n\n  connectWS(user.username || myUsername, user.token || igmToken, roomId);\n}",
+    "new_string": "async function enterTableNow() {\n  if (typeof SFX !== 'undefined') SFX.click();\n  const roomId = _pendingRoomId || `bj_${BJ_TABLE.minBet||100}_${Date.now()}`;\n  const user   = JSON.parse(sessionStorage.getItem('bj_user') || '{}');\n\n  // Deduct wallet from bank BEFORE entering the game. If this fails, abort —\n  // otherwise exit would credit a wallet that was never drawn.\n  let enterOk = false;\n  try {\n    const d = await fetch('/api/game/bj/enter', {\n      method:'POST',\n      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(user.token||igmToken||'')},\n      credentials:'include',\n      body: JSON.stringify({ tableMinBet: BJ_TABLE.minBet || 100 })\n    }).then(r => r.json());\n    if (d?.ok) {\n      enterOk = true;\n      if (typeof igmBank !== 'undefined') igmBank = d.newBankBalance;\n    } else {\n      showIngameToast('Entry Failed', d?.error || 'Could not draw wallet from bank.');\n    }\n  } catch(e) {\n    showIngameToast('Entry Failed', 'Server error — please try again.');\n  }\n  if (!enterOk) return;\n\n  window._bjRoomId = roomId;\n  document.getElementById('screen-lobby').classList.remove('active');\n  document.getElementById('screen-game').classList.add('active');\n  document.getElementById('ingame-menu-btn').style.display = 'flex';\n\n  connectWS(user.username || myUsername, user.token || igmToken, roomId);\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:10:49.612Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "async function _connectHostToLobby() {\n  try {\n    const res = await fetch('/api/game/bj/enter', {\n      method:'POST',\n      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(igmToken||'')},\n      credentials:'include',\n      body: JSON.stringify({ tableMinBet: BJ_TABLE.minBet || 100 })\n    });\n    const d = await res.json();\n    if (d.ok && typeof igmBank !== 'undefined') igmBank = d.newBankBalance;\n  } catch(e) {}\n  connectWS(myUsername, igmToken, _multiRoomId);\n}",
+    "new_string": "async function _connectHostToLobby() {\n  let enterOk = false;\n  try {\n    const res = await fetch('/api/game/bj/enter', {\n      method:'POST',\n      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(igmToken||'')},\n      credentials:'include',\n      body: JSON.stringify({ tableMinBet: BJ_TABLE.minBet || 100 })\n    });\n    const d = await res.json();\n    if (d?.ok) {\n      enterOk = true;\n      if (typeof igmBank !== 'undefined') igmBank = d.newBankBalance;\n    } else {\n      showIngameToast('Entry Failed', d?.error || 'Could not draw wallet from bank.');\n    }\n  } catch(e) {\n    showIngameToast('Entry Failed', 'Server error — please try again.');\n  }\n  if (!enterOk) {\n    // Return to mode-select so the user can retry; session has no bank debit\n    _showStep('lobby-step-choose');\n    if (_multiWaitTimer) { clearInterval(_multiWaitTimer); _multiWaitTimer = null; }\n    return;\n  }\n  connectWS(myUsername, igmToken, _multiRoomId);\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:35:59.738Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "function _updateFreezeUI() {\n  const isVIP = BJ_TABLE.label === 'vip';\n  const bb = document.getElementById('btn-freeze-bar');\n  const si = document.getElementById('seat-freeze-indicator');\n\n  if (isVIP) {\n    // VIP: button freezes tie bet only; main bet is always fixed\n    const on = !!_frozenTie;\n    if (bb) {\n      bb.textContent = on ? `🔓 Unfreeze Tie Bet` : `🔒 Freeze Tie Bet`;\n      bb.className   = on ? 'freeze-btn-bar freeze-btn-bar-active' : 'freeze-btn-bar';\n    }\n    if (si) {\n      si.textContent     = on ? `🔒 TIE` : '';\n      si.style.display   = on ? 'inline-block' : 'none';\n    }\n    return;\n  }",
+    "new_string": "function _updateFreezeUI() {\n  const isVIP = BJ_TABLE.label === 'vip';\n  const bb = document.getElementById('btn-freeze-bar');\n  const si = document.getElementById('seat-freeze-indicator');\n\n  if (isVIP) {\n    // VIP: single button — merged tie bet + freeze control. No betting overlay at all.\n    const on  = !!_frozenTie;\n    const amt = '$' + (BJ_TABLE.tieBet || 100).toLocaleString();\n    if (bb) {\n      bb.textContent = on ? `🔓 Tie Bet Freeze ${amt}` : `🔒 Tie Bet Freeze ${amt}`;\n      bb.className   = on ? 'freeze-btn-bar freeze-btn-bar-active' : 'freeze-btn-bar';\n    }\n    if (si) {\n      si.textContent     = on ? `🔒 TIE ${amt}` : '';\n      si.style.display   = on ? 'inline-block' : 'none';\n    }\n    return;\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:36:11.129Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  // Drive bet overlay — never show when freeze is active (standard only).\n  // VIP: keep overlay visible for the ENTIRE betting phase even after the fixed\n  // main bet is auto-placed, so the player can still tap the tie bet toggle.\n  const overlay = document.getElementById('bet-overlay');\n  if (overlay) {\n    const isVIP = BJ_TABLE.label === 'vip';\n    let show;\n    if (isVIP) {\n      show = state.phase === 'betting' && mySeatIndex !== null;\n    } else {\n      show = state.phase==='betting' && mySeatIndex!==null && !_betPlaced && (mySeat?.bet||0)===0 && _frozenBet===0;\n    }\n    if (show && overlay.style.display !== 'flex') overlay.style.display = 'flex';\n    else if (!show && overlay.style.display !== 'none') overlay.style.display = 'none';\n  }",
+    "new_string": "  // Drive bet overlay — never show when freeze is active (standard only).\n  // VIP: no overlay at all. Main bet auto-places silently. Tie bet is controlled\n  // via the merged bottom-bar \"Tie Bet Freeze\" button, which works in any phase.\n  const overlay = document.getElementById('bet-overlay');\n  if (overlay) {\n    const isVIP = BJ_TABLE.label === 'vip';\n    let show;\n    if (isVIP) {\n      show = false;\n    } else {\n      show = state.phase==='betting' && mySeatIndex!==null && !_betPlaced && (mySeat?.bet||0)===0 && _frozenBet===0;\n    }\n    if (show && overlay.style.display !== 'flex') overlay.style.display = 'flex';\n    else if (!show && overlay.style.display !== 'none') overlay.style.display = 'none';\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:36:21.091Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "    if (_frozenBet > 0) {\n      // FREEZE IS ACTIVE — never show betting overlay, auto-place silently\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'none';\n      _updateFreezeUI();\n      setTimeout(() => _applyFreezeIfActive(), 300);\n    } else {\n      // No freeze — show betting overlay (VIP-aware via _applyBetUIMode)\n      _applyBetUIMode();\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'flex';\n      _updateFreezeUI();\n      if (BJ_TABLE.label === 'vip') {\n        setTimeout(() => _autoPlaceFixedBet(), 300);\n      }\n    }\n  } else {",
+    "new_string": "    if (BJ_TABLE.label === 'vip') {\n      // VIP: silent auto-place. Never show the bet overlay. The single\n      // \"Tie Bet Freeze\" bottom-bar button controls tie bet in any phase.\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'none';\n      _updateFreezeUI();\n      setTimeout(() => _autoPlaceFixedBet(), 300);\n    } else if (_frozenBet > 0) {\n      // FREEZE IS ACTIVE — never show betting overlay, auto-place silently\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'none';\n      _updateFreezeUI();\n      setTimeout(() => _applyFreezeIfActive(), 300);\n    } else {\n      // No freeze — show betting overlay (standard chips)\n      _applyBetUIMode();\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'flex';\n      _updateFreezeUI();\n    }\n  } else {",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:36:30.309Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  if (state.phase === 'betting' && lastPhase !== 'betting') {\n    _betPlaced = false; pendingBet = 0; updateBetDisplay();\n    // Restore chip section visibility for new round — only if not frozen\n    if (_frozenBet === 0) {\n      _applyBetUIMode();\n    }\n    if (_frozenBet > 0) {\n      setTimeout(() => _applyFreezeIfActive(), 300);\n    } else if (BJ_TABLE.label === 'vip') {\n      // VIP: auto-place the fixed bet after a short delay so UI has time to render\n      setTimeout(() => _autoPlaceFixedBet(), 300);\n    }\n  }",
+    "new_string": "  if (state.phase === 'betting' && lastPhase !== 'betting') {\n    _betPlaced = false; pendingBet = 0; updateBetDisplay();\n    if (BJ_TABLE.label === 'vip') {\n      // Silent auto-place; overlay stays hidden in VIP\n      setTimeout(() => _autoPlaceFixedBet(), 300);\n    } else if (_frozenBet === 0) {\n      _applyBetUIMode();\n    } else {\n      setTimeout(() => _applyFreezeIfActive(), 300);\n    }\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:36:55.779Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  // ── VIP mode: freeze only the tie bet (main bet is fixed, freezing it is meaningless) ──\n  if (isVIP) {\n    if (_frozenTie) {\n      _frozenTie = false;\n      _updateFreezeUI();\n      showIngameToast('🔓 Tie Bet Unfrozen', 'Tie bet will not auto-place next round.');\n    } else {\n      _frozenTie = true;\n      _updateFreezeUI();\n      // Place it for this round too if we're mid-betting\n      const seat = window._lastBJState?.seats?.[mySeatIndex];\n      if (window._lastBJState?.phase === 'betting' && seat && !seat.tieBet) {\n        sendMsg('place_tie');\n      }\n      showIngameToast('🔒 Tie Bet Frozen', `$${(BJ_TABLE.tieBet||100).toLocaleString()} tie bet auto-places every round.`);\n    }\n    return;\n  }",
+    "new_string": "  // ── VIP mode: merged \"Tie Bet Freeze\" — toggles tie bet preference in any phase ──\n  if (isVIP) {\n    const seat         = window._lastBJState?.seats?.[mySeatIndex];\n    const isBetting    = window._lastBJState?.phase === 'betting';\n    const tieIsPlaced  = (seat?.tieBet || 0) > 0;\n    const amt          = '$' + (BJ_TABLE.tieBet || 100).toLocaleString();\n\n    if (_frozenTie) {\n      _frozenTie = false;\n      _updateFreezeUI();\n      // If we're still in betting and a tie bet is already placed, retract it.\n      if (isBetting && tieIsPlaced) sendMsg('place_tie');\n      showIngameToast('🔓 Tie Bet Unfrozen', `Tie bet ${isBetting && tieIsPlaced ? 'removed' : 'will not auto-place'}.`);\n    } else {\n      _frozenTie = true;\n      _updateFreezeUI();\n      // If we're still in betting and no tie bet is placed, place it now.\n      if (isBetting && !tieIsPlaced) sendMsg('place_tie');\n      showIngameToast('🔒 Tie Bet Frozen', `${amt} tie bet ${isBetting ? 'placed — ' : ''}auto-places every round.`);\n    }\n    return;\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:50:32.738Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  ws.onopen = () => {\n    clearTimeout(timeout);\n    ws.send(JSON.stringify({ type:'set_wallet', wallet: BJ_TABLE.walletSize }));\n    ws.send(JSON.stringify({ type:'set_name',   name:   username }));\n    ws.send(JSON.stringify({ type:'set_avatar', avatar: window._myAvatar || '' }));",
+    "new_string": "  ws.onopen = () => {\n    clearTimeout(timeout);\n    // NOTE: wallet is server-authoritative (initialized from tier walletSize).\n    // We no longer send set_wallet — it was causing wallet resets on reconnect.\n    ws.send(JSON.stringify({ type:'set_name',   name:   username }));\n    ws.send(JSON.stringify({ type:'set_avatar', avatar: window._myAvatar || '' }));",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:50:37.092Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  ws.onopen    = () => { ws.send(JSON.stringify({type:'set_wallet',wallet:myChips||BJ_TABLE.walletSize})); ws.send(JSON.stringify({type:'set_name',name:myUsername})); };",
+    "new_string": "  ws.onopen    = () => { ws.send(JSON.stringify({type:'set_name',name:myUsername})); };",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:51:47.449Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "function toggleFreeze() {\n  // Cancel any pending overlay auto-close\n  const ov = document.getElementById('bet-overlay');\n  if (ov) clearTimeout(ov._closeTimer);\n\n  const isVIP = BJ_TABLE.label === 'vip';\n\n  // ── VIP mode: merged \"Tie Bet Freeze\" — toggles tie bet preference in any phase ──\n  if (isVIP) {\n    const seat         = window._lastBJState?.seats?.[mySeatIndex];\n    const isBetting    = window._lastBJState?.phase === 'betting';\n    const tieIsPlaced  = (seat?.tieBet || 0) > 0;\n    const amt          = '$' + (BJ_TABLE.tieBet || 100).toLocaleString();\n\n    if (_frozenTie) {\n      _frozenTie = false;\n      _updateFreezeUI();\n      // If we're still in betting and a tie bet is already placed, retract it.\n      if (isBetting && tieIsPlaced) sendMsg('place_tie');\n      showIngameToast('🔓 Tie Bet Unfrozen', `Tie bet ${isBetting && tieIsPlaced ? 'removed' : 'will not auto-place'}.`);\n    } else {\n      _frozenTie = true;\n      _updateFreezeUI();\n      // If we're still in betting and no tie bet is placed, place it now.\n      if (isBetting && !tieIsPlaced) sendMsg('place_tie');\n      showIngameToast('🔒 Tie Bet Frozen', `${amt} tie bet ${isBetting ? 'placed — ' : ''}auto-places every round.`);\n    }\n    return;\n  }",
+    "new_string": "function toggleFreeze() {\n  // Cancel any pending overlay auto-close\n  const ov = document.getElementById('bet-overlay');\n  if (ov) clearTimeout(ov._closeTimer);\n\n  const isVIP = BJ_TABLE.label === 'vip';\n\n  // ── VIP mode: the bottom-bar button is a simple Tie Bet toggle (no freeze state).\n  // The user must opt in every round during the betting phase.\n  if (isVIP) {\n    const seat         = window._lastBJState?.seats?.[mySeatIndex];\n    const isBetting    = window._lastBJState?.phase === 'betting';\n    const tieIsPlaced  = (seat?.tieBet || 0) > 0;\n    const amt          = '$' + (BJ_TABLE.tieBet || 100).toLocaleString();\n\n    if (!isBetting) {\n      showIngameToast('Betting Closed', 'Tie bet can only be placed during betting.');\n      return;\n    }\n    sendMsg('place_tie'); // server toggles\n    if (typeof SFX !== 'undefined') SFX.chip();\n    showIngameToast(tieIsPlaced ? '✕ Tie Bet Removed' : `✓ Tie Bet Placed`, `${amt}`);\n    return;\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:52:01.046Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  if (isVIP) {\n    // VIP: single button — merged tie bet + freeze control. No betting overlay at all.\n    const on  = !!_frozenTie;\n    const amt = '$' + (BJ_TABLE.tieBet || 100).toLocaleString();\n    if (bb) {\n      bb.textContent = on ? `🔓 Tie Bet Freeze ${amt}` : `🔒 Tie Bet Freeze ${amt}`;\n      bb.className   = on ? 'freeze-btn-bar freeze-btn-bar-active' : 'freeze-btn-bar';\n    }\n    if (si) {\n      si.textContent     = on ? `🔒 TIE ${amt}` : '';\n      si.style.display   = on ? 'inline-block' : 'none';\n    }\n    return;\n  }",
+    "new_string": "  if (isVIP) {\n    // VIP: single bottom-bar button — plain Tie Bet toggle, no freeze state.\n    // Mirrors server-side tie bet placement for the current round.\n    const seat = window._lastBJState?.seats?.[mySeatIndex];\n    const on   = (seat?.tieBet || 0) > 0;\n    const amt  = '$' + (BJ_TABLE.tieBet || 100).toLocaleString();\n    if (bb) {\n      bb.textContent = on ? `✓ Tie Bet ${amt}` : `🎯 Tie Bet ${amt}`;\n      bb.className   = on ? 'freeze-btn-bar freeze-btn-bar-active' : 'freeze-btn-bar';\n    }\n    if (si) {\n      si.textContent   = on ? `✓ TIE ${amt}` : '';\n      si.style.display = on ? 'inline-block' : 'none';\n    }\n    return;\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:52:13.178Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "// VIP auto-placement: bet is fixed, no chip choice — send it immediately.\n// If the tie bet is frozen, also place it after the main bet.\nfunction _autoPlaceFixedBet() {\n  if (_betPlaced) return;\n  if (BJ_TABLE.label !== 'vip') return;\n  const avail = window._lastBJState?.seats?.[mySeatIndex]?.wallet ?? myChips;\n  const amt = BJ_TABLE.minBet || 0;\n  if (!amt || amt > avail) {\n    const alt = document.getElementById('bet-alert-text');\n    if (alt) alt.textContent = 'Insufficient wallet for fixed bet';\n    return;\n  }\n  pendingBet = amt;\n  updateBetDisplay();\n  _sendBet();\n  if (_frozenTie) {\n    setTimeout(() => {\n      const tieCost = BJ_TABLE.tieBet || 100;\n      const walletAfterBet = (window._lastBJState?.seats?.[mySeatIndex]?.wallet ?? myChips);\n      const alreadyPlaced  = (window._lastBJState?.seats?.[mySeatIndex]?.tieBet || 0) > 0;\n      if (!alreadyPlaced && walletAfterBet >= tieCost) sendMsg('place_tie');\n    }, 200);\n  }\n}",
+    "new_string": "// VIP auto-placement: bet is fixed, no chip choice — send it immediately.\n// Tie bet is NOT auto-placed; the player must opt in each round via the\n// bottom-bar \"Tie Bet $X\" button while the betting timer is running.\nfunction _autoPlaceFixedBet() {\n  if (_betPlaced) return;\n  if (BJ_TABLE.label !== 'vip') return;\n  const avail = window._lastBJState?.seats?.[mySeatIndex]?.wallet ?? myChips;\n  const amt = BJ_TABLE.minBet || 0;\n  if (!amt || amt > avail) {\n    const alt = document.getElementById('bet-alert-text');\n    if (alt) alt.textContent = 'Insufficient wallet for fixed bet';\n    return;\n  }\n  pendingBet = amt;\n  updateBetDisplay();\n  _sendBet();\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T03:01:29.709Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "    if (BJ_TABLE.label === 'vip') {\n      // VIP: silent auto-place. Never show the bet overlay. The single\n      // \"Tie Bet Freeze\" bottom-bar button controls tie bet in any phase.\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'none';\n      _updateFreezeUI();\n      setTimeout(() => _autoPlaceFixedBet(), 300);\n    } else if (_frozenBet > 0) {",
+    "new_string": "    if (BJ_TABLE.label === 'vip') {\n      // VIP: silent auto-place. Never show the bet overlay. The bottom-bar\n      // \"Tie Bet $X\" button is the only per-round player action.\n      // Auto-place has a short delay (2.5s) so the player has a window to tap Tie Bet\n      // before the main bet lands and the server's shortcut advances to deal.\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'none';\n      _updateFreezeUI();\n      setTimeout(() => _autoPlaceFixedBet(), 2500);\n    } else if (_frozenBet > 0) {",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T03:01:36.402Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  if (state.phase === 'betting' && lastPhase !== 'betting') {\n    _betPlaced = false; pendingBet = 0; updateBetDisplay();\n    if (BJ_TABLE.label === 'vip') {\n      // Silent auto-place; overlay stays hidden in VIP\n      setTimeout(() => _autoPlaceFixedBet(), 300);\n    } else if (_frozenBet === 0) {\n      _applyBetUIMode();\n    } else {\n      setTimeout(() => _applyFreezeIfActive(), 300);\n    }\n  }",
+    "new_string": "  if (state.phase === 'betting' && lastPhase !== 'betting') {\n    _betPlaced = false; pendingBet = 0; updateBetDisplay();\n    if (BJ_TABLE.label === 'vip') {\n      // Silent auto-place; overlay stays hidden. Short window for Tie Bet tap.\n      setTimeout(() => _autoPlaceFixedBet(), 2500);\n    } else if (_frozenBet === 0) {\n      _applyBetUIMode();\n    } else {\n      setTimeout(() => _applyFreezeIfActive(), 300);\n    }\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T03:06:55.221Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "// ── Freeze Bet ───────────────────────────────────────────────\n// Stores the player's frozen bet amount and tie bet preference.\n// Session-only freeze — never persists across games\nlet _frozenBet     = 0;       // 0 = not frozen\nlet _frozenTie     = false;   // whether tie bet is also frozen\nlet _freezePending = false;   // freeze was changed mid-round — apply next round",
+    "new_string": "// ── Freeze Bet ───────────────────────────────────────────────\n// Stores the player's frozen bet amount and tie bet preference.\n// Session-only freeze — never persists across games\nlet _frozenBet     = 0;       // 0 = not frozen (standard tables)\nlet _frozenTie     = false;   // whether tie bet is also frozen (standard tables)\nlet _freezePending = false;   // freeze was changed mid-round — apply next round\n\n// ── VIP Tie Bet decision state ───────────────────────────────\nlet _tieDecision   = null;    // 'yes' | 'no' | null — this round's choice\nlet _tieFrozen     = false;   // true → skip overlay, apply _tieDecision every round\nlet _tiePromptTimer = null;   // active 5s auto-skip timer",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T03:07:08.468Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  // ── VIP mode: the bottom-bar button is a simple Tie Bet toggle (no freeze state).\n  // The user must opt in every round during the betting phase.\n  if (isVIP) {\n    const seat         = window._lastBJState?.seats?.[mySeatIndex];\n    const isBetting    = window._lastBJState?.phase === 'betting';\n    const tieIsPlaced  = (seat?.tieBet || 0) > 0;\n    const amt          = '$' + (BJ_TABLE.tieBet || 100).toLocaleString();\n\n    if (!isBetting) {\n      showIngameToast('Betting Closed', 'Tie bet can only be placed during betting.');\n      return;\n    }\n    sendMsg('place_tie'); // server toggles\n    if (typeof SFX !== 'undefined') SFX.chip();\n    showIngameToast(tieIsPlaced ? '✕ Tie Bet Removed' : `✓ Tie Bet Placed`, `${amt}`);\n    return;\n  }",
+    "new_string": "  // ── VIP mode: freeze button locks/unlocks the Tie Bet decision across rounds.\n  // The decision itself (YES/NO) is made via the \"Place Tie Bet?\" overlay each\n  // round UNLESS frozen, in which case the last decision auto-applies.\n  if (isVIP) {\n    if (_tieFrozen) {\n      _tieFrozen = false;\n      _updateFreezeUI();\n      showIngameToast('🔓 Decision Unfrozen', 'You will be asked again next round.');\n    } else {\n      if (!_tieDecision) {\n        showIngameToast('No Decision to Freeze', 'Pick YES or NO on a tie bet first, then freeze.');\n        return;\n      }\n      _tieFrozen = true;\n      _updateFreezeUI();\n      const label = _tieDecision === 'yes' ? 'ALWAYS PLACE TIE BET' : 'ALWAYS SKIP TIE BET';\n      showIngameToast('🔒 Decision Frozen', label);\n    }\n    return;\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T03:09:47.872Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  if (isVIP) {\n    // VIP: single bottom-bar button — plain Tie Bet toggle, no freeze state.\n    // Mirrors server-side tie bet placement for the current round.\n    const seat = window._lastBJState?.seats?.[mySeatIndex];\n    const on   = (seat?.tieBet || 0) > 0;\n    const amt  = '$' + (BJ_TABLE.tieBet || 100).toLocaleString();\n    if (bb) {\n      bb.textContent = on ? `✓ Tie Bet ${amt}` : `🎯 Tie Bet ${amt}`;\n      bb.className   = on ? 'freeze-btn-bar freeze-btn-bar-active' : 'freeze-btn-bar';\n    }\n    if (si) {\n      si.textContent   = on ? `✓ TIE ${amt}` : '';\n      si.style.display = on ? 'inline-block' : 'none';\n    }\n    return;\n  }",
+    "new_string": "  if (isVIP) {\n    // VIP: freeze button locks the player's YES/NO tie-bet decision across rounds.\n    // Without a prior decision the button is a hint to make one in the overlay.\n    if (bb) {\n      if (_tieFrozen && _tieDecision) {\n        const label = _tieDecision === 'yes' ? 'TIE: YES' : 'TIE: NO';\n        bb.textContent = `🔒 Frozen — ${label}`;\n        bb.className   = 'freeze-btn-bar freeze-btn-bar-active';\n      } else if (_tieDecision) {\n        const label = _tieDecision === 'yes' ? 'YES' : 'NO';\n        bb.textContent = `🔓 Freeze (${label})`;\n        bb.className   = 'freeze-btn-bar';\n      } else {\n        bb.textContent = `🔒 Freeze Tie Decision`;\n        bb.className   = 'freeze-btn-bar';\n      }\n    }\n    if (si) {\n      if (_tieFrozen && _tieDecision) {\n        si.textContent   = _tieDecision === 'yes' ? '🔒 TIE: YES' : '🔒 TIE: NO';\n        si.style.display = 'inline-block';\n      } else {\n        si.textContent   = '';\n        si.style.display = 'none';\n      }\n    }\n    return;\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T03:10:08.563Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "// VIP auto-placement: bet is fixed, no chip choice — send it immediately.\n// Tie bet is NOT auto-placed; the player must opt in each round via the\n// bottom-bar \"Tie Bet $X\" button while the betting timer is running.\nfunction _autoPlaceFixedBet() {\n  if (_betPlaced) return;\n  if (BJ_TABLE.label !== 'vip') return;\n  const avail = window._lastBJState?.seats?.[mySeatIndex]?.wallet ?? myChips;\n  const amt = BJ_TABLE.minBet || 0;\n  if (!amt || amt > avail) {\n    const alt = document.getElementById('bet-alert-text');\n    if (alt) alt.textContent = 'Insufficient wallet for fixed bet';\n    return;\n  }\n  pendingBet = amt;\n  updateBetDisplay();\n  _sendBet();\n}",
+    "new_string": "// VIP auto-placement: bet is fixed, no chip choice — send it immediately.\n// Tie bet is NOT auto-placed here; the tie decision is collected via the\n// \"Place Tie Bet?\" overlay (or applied from the frozen decision) before this\n// is called.\nfunction _autoPlaceFixedBet() {\n  if (_betPlaced) return;\n  if (BJ_TABLE.label !== 'vip') return;\n  const avail = window._lastBJState?.seats?.[mySeatIndex]?.wallet ?? myChips;\n  const amt = BJ_TABLE.minBet || 0;\n  if (!amt || amt > avail) {\n    const alt = document.getElementById('bet-alert-text');\n    if (alt) alt.textContent = 'Insufficient wallet for fixed bet';\n    return;\n  }\n  pendingBet = amt;\n  updateBetDisplay();\n  _sendBet();\n}\n\n// ── VIP Tie Bet prompt ───────────────────────────────────────\n// Shows the 5s \"Place Tie Bet?\" overlay at start of betting phase.\n// Player picks YES / NO (or lets it auto-skip to NO on timeout).\n// After the decision is recorded, the main bet is auto-placed.\nfunction _showTieBetPrompt() {\n  const ov = document.getElementById('tie-bet-overlay');\n  if (!ov) return;\n  const amtEl   = document.getElementById('tie-amount-display');\n  const hintEl  = document.getElementById('tie-payout-hint');\n  const rEl     = document.getElementById('tie-round-label');\n  const cdEl    = document.getElementById('tie-countdown');\n\n  const tieAmt  = BJ_TABLE.tieBet || 100;\n  const payout  = BJ_TABLE.tieBetPayout || 2000;\n  if (amtEl)  amtEl.textContent  = '$' + tieAmt.toLocaleString();\n  if (hintEl) hintEl.innerHTML   = `Wins if your total matches the dealer's — bonus: <strong style=\"color:#ffd700\">$${payout.toLocaleString()}</strong>`;\n  if (rEl)    rEl.textContent    = window._lastBJState?.roundNum || '—';\n\n  ov.style.display = 'flex';\n\n  let t = 5;\n  if (cdEl) cdEl.textContent = t;\n  clearInterval(_tiePromptTimer);\n  _tiePromptTimer = setInterval(() => {\n    t--;\n    if (cdEl) cdEl.textContent = Math.max(0, t);\n    if (t <= 0) {\n      clearInterval(_tiePromptTimer);\n      _tiePromptTimer = null;\n      // Auto-skip: default to NO\n      tieBetDecide('no', /*auto=*/true);\n    }\n  }, 1000);\n}\n\nfunction _hideTieBetPrompt() {\n  const ov = document.getElementById('tie-bet-overlay');\n  if (ov) ov.style.display = 'none';\n  if (_tiePromptTimer) { clearInterval(_tiePromptTimer); _tiePromptTimer = null; }\n}\n\nfunction tieBetDecide(choice, auto) {\n  if (choice !== 'yes' && choice !== 'no') return;\n  _tieDecision = choice;\n  _hideTieBetPrompt();\n  if (choice === 'yes' && ws) sendMsg('place_tie');\n  _updateFreezeUI();\n  if (!auto && typeof SFX !== 'undefined') SFX.click?.();\n  // Now auto-place the fixed main bet\n  setTimeout(() => _autoPlaceFixedBet(), 100);\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T03:10:24.515Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  if (state.phase === 'betting' && lastPhase !== 'betting') {\n    _betPlaced = false; pendingBet = 0; updateBetDisplay();\n    if (BJ_TABLE.label === 'vip') {\n      // Silent auto-place; overlay stays hidden. Short window for Tie Bet tap.\n      setTimeout(() => _autoPlaceFixedBet(), 2500);\n    } else if (_frozenBet === 0) {\n      _applyBetUIMode();\n    } else {\n      setTimeout(() => _applyFreezeIfActive(), 300);\n    }\n  }",
+    "new_string": "  if (state.phase === 'betting' && lastPhase !== 'betting') {\n    _betPlaced = false; pendingBet = 0; updateBetDisplay();\n    if (BJ_TABLE.label === 'vip') {\n      _startVipBettingFlow();\n    } else if (_frozenBet === 0) {\n      _applyBetUIMode();\n    } else {\n      setTimeout(() => _applyFreezeIfActive(), 300);\n    }\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T03:10:32.098Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "    if (BJ_TABLE.label === 'vip') {\n      // VIP: silent auto-place. Never show the bet overlay. The bottom-bar\n      // \"Tie Bet $X\" button is the only per-round player action.\n      // Auto-place has a short delay (2.5s) so the player has a window to tap Tie Bet\n      // before the main bet lands and the server's shortcut advances to deal.\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'none';\n      _updateFreezeUI();\n      setTimeout(() => _autoPlaceFixedBet(), 2500);\n    } else if (_frozenBet > 0) {",
+    "new_string": "    if (BJ_TABLE.label === 'vip') {\n      // VIP: 5s \"Place Tie Bet?\" overlay at start of each round, unless the\n      // player froze their last decision — in which case apply it silently and\n      // auto-place the main bet.\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'none';\n      _updateFreezeUI();\n      _startVipBettingFlow();\n    } else if (_frozenBet > 0) {",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T03:10:41.671Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "// VIP auto-placement: bet is fixed, no chip choice — send it immediately.\n// Tie bet is NOT auto-placed here; the tie decision is collected via the\n// \"Place Tie Bet?\" overlay (or applied from the frozen decision) before this\n// is called.",
+    "new_string": "// VIP betting flow entry:\n// • If the tie decision is frozen, apply it silently and auto-place the main bet.\n// • Otherwise show the 5s \"Place Tie Bet?\" overlay; tieBetDecide() triggers the\n//   main-bet auto-place once a choice is made (or on auto-skip).\nfunction _startVipBettingFlow() {\n  if (BJ_TABLE.label !== 'vip') return;\n  _hideTieBetPrompt();\n  if (_tieFrozen && _tieDecision) {\n    if (_tieDecision === 'yes' && ws) sendMsg('place_tie');\n    _updateFreezeUI();\n    setTimeout(() => _autoPlaceFixedBet(), 300);\n    return;\n  }\n  // Fresh decision required this round\n  _tieDecision = null;\n  _updateFreezeUI();\n  _showTieBetPrompt();\n}\n\n// VIP auto-placement: bet is fixed, no chip choice — send it immediately.\n// Tie bet is NOT auto-placed here; the tie decision is collected via the\n// \"Place Tie Bet?\" overlay (or applied from the frozen decision) before this\n// is called.",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T03:10:47.909Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  if (msg.phase === 'round_end') { stopCountdown(); ['player-actions','insurance-panel'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';}); }",
+    "new_string": "  if (msg.phase === 'round_end') {\n    stopCountdown();\n    ['player-actions','insurance-panel'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});\n    _hideTieBetPrompt();\n    // Clear per-round VIP tie decision when not frozen so the prompt returns next round.\n    if (BJ_TABLE.label === 'vip' && !_tieFrozen) {\n      _tieDecision = null;\n      _updateFreezeUI();\n    }\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T03:10:53.489Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  } else {\n    const ov = document.getElementById('bet-overlay');\n    if (ov) ov.style.display = 'none';\n  }\n\n  if (msg.phase === 'deal' && window._lastBJState) setTimeout(() => runDealAnim(window._lastBJState), 50);",
+    "new_string": "  } else {\n    const ov = document.getElementById('bet-overlay');\n    if (ov) ov.style.display = 'none';\n    _hideTieBetPrompt();\n  }\n\n  if (msg.phase === 'deal' && window._lastBJState) setTimeout(() => runDealAnim(window._lastBJState), 50);",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T10:47:46.650Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "// ── VIP Tie Bet decision state ───────────────────────────────\nlet _tieDecision   = null;    // 'yes' | 'no' | null — this round's choice\nlet _tieFrozen     = false;   // true → skip overlay, apply _tieDecision every round\nlet _tiePromptTimer = null;   // active 5s auto-skip timer",
+    "new_string": "// ── VIP Tie Bet decision state ───────────────────────────────\nlet _tieDecision   = null;    // 'yes' | 'no' | null — this round's choice\nlet _tieFrozen     = false;   // true → skip overlay, apply _tieDecision every round\nlet _tiePromptTimer = null;   // active 5s auto-skip timer\nlet _vipFlowActive = false;   // one-shot guard — true once VIP flow ran this round",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T10:47:54.819Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "function _startVipBettingFlow() {\n  if (BJ_TABLE.label !== 'vip') return;\n  _hideTieBetPrompt();\n  if (_tieFrozen && _tieDecision) {\n    if (_tieDecision === 'yes' && ws) sendMsg('place_tie');\n    _updateFreezeUI();\n    setTimeout(() => _autoPlaceFixedBet(), 300);\n    return;\n  }\n  // Fresh decision required this round\n  _tieDecision = null;\n  _updateFreezeUI();\n  _showTieBetPrompt();\n}",
+    "new_string": "function _startVipBettingFlow() {\n  if (BJ_TABLE.label !== 'vip') return;\n  // One-shot per round — the betting phase triggers both a `phase` and a\n  // `state` message, and both handlers call this. The server's `place_tie`\n  // is a toggle, so a second fire would silently cancel the tie bet.\n  if (_vipFlowActive) return;\n  _vipFlowActive = true;\n\n  _hideTieBetPrompt();\n  if (_tieFrozen && _tieDecision) {\n    if (_tieDecision === 'yes' && ws) sendMsg('place_tie');\n    _updateFreezeUI();\n    setTimeout(() => _autoPlaceFixedBet(), 300);\n    return;\n  }\n  // Fresh decision required this round\n  _tieDecision = null;\n  _updateFreezeUI();\n  _showTieBetPrompt();\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T10:48:01.937Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  if (msg.phase === 'round_end') {\n    stopCountdown();\n    ['player-actions','insurance-panel'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});\n    _hideTieBetPrompt();\n    // Clear per-round VIP tie decision when not frozen so the prompt returns next round.\n    if (BJ_TABLE.label === 'vip' && !_tieFrozen) {\n      _tieDecision = null;\n      _updateFreezeUI();\n    }\n  }",
+    "new_string": "  if (msg.phase === 'round_end') {\n    stopCountdown();\n    ['player-actions','insurance-panel'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});\n    _hideTieBetPrompt();\n    // Release the one-shot VIP flow guard so the next round can fire once.\n    _vipFlowActive = false;\n    // Clear per-round VIP tie decision when not frozen so the prompt returns next round.\n    if (BJ_TABLE.label === 'vip' && !_tieFrozen) {\n      _tieDecision = null;\n      _updateFreezeUI();\n    }\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T10:57:25.892Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "let _tiePromptTimer = null;   // active 5s auto-skip timer\nlet _vipFlowActive = false;   // one-shot guard — true once VIP flow ran this round",
+    "new_string": "let _tiePromptTimer = null;   // active 5s auto-skip timer\n// One-shot guard — set true when the betting-phase flow has run for the\n// current round, cleared on round_end. Prevents double-fire (server broadcasts\n// both `phase:'betting'` AND `state{phase:'betting'}` so both handlers trigger).\n// Critical for tie bets because `place_tie` on the server is a TOGGLE — a second\n// call silently cancels the bet. Applies to ALL tables (VIP + standard freeze).\nlet _bettingHandled = false;",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T10:57:33.962Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "function _startVipBettingFlow() {\n  if (BJ_TABLE.label !== 'vip') return;\n  // One-shot per round — the betting phase triggers both a `phase` and a\n  // `state` message, and both handlers call this. The server's `place_tie`\n  // is a toggle, so a second fire would silently cancel the tie bet.\n  if (_vipFlowActive) return;\n  _vipFlowActive = true;\n\n  _hideTieBetPrompt();\n  if (_tieFrozen && _tieDecision) {\n    if (_tieDecision === 'yes' && ws) sendMsg('place_tie');\n    _updateFreezeUI();\n    setTimeout(() => _autoPlaceFixedBet(), 300);\n    return;\n  }\n  // Fresh decision required this round\n  _tieDecision = null;\n  _updateFreezeUI();\n  _showTieBetPrompt();\n}",
+    "new_string": "function _startVipBettingFlow() {\n  if (BJ_TABLE.label !== 'vip') return;\n  _hideTieBetPrompt();\n  if (_tieFrozen && _tieDecision) {\n    if (_tieDecision === 'yes' && ws) sendMsg('place_tie');\n    _updateFreezeUI();\n    setTimeout(() => _autoPlaceFixedBet(), 300);\n    return;\n  }\n  // Fresh decision required this round\n  _tieDecision = null;\n  _updateFreezeUI();\n  _showTieBetPrompt();\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T10:57:40.416Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  if (state.phase === 'betting' && lastPhase !== 'betting') {\n    _betPlaced = false; pendingBet = 0; updateBetDisplay();\n    if (BJ_TABLE.label === 'vip') {\n      _startVipBettingFlow();\n    } else if (_frozenBet === 0) {\n      _applyBetUIMode();\n    } else {\n      setTimeout(() => _applyFreezeIfActive(), 300);\n    }\n  }",
+    "new_string": "  if (state.phase === 'betting' && lastPhase !== 'betting') {\n    _betPlaced = false; pendingBet = 0; updateBetDisplay();\n    if (!_bettingHandled) {\n      _bettingHandled = true;\n      if (BJ_TABLE.label === 'vip') {\n        _startVipBettingFlow();\n      } else if (_frozenBet === 0) {\n        _applyBetUIMode();\n      } else {\n        setTimeout(() => _applyFreezeIfActive(), 300);\n      }\n    }\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T10:57:53.019Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  if (msg.phase === 'betting') {\n    _betPlaced = false; pendingBet = 0; updateBetDisplay();\n    const rl = document.getElementById('bet-round-label');\n    if (rl) rl.textContent = window._lastBJState?.roundNum || '—';\n\n    if (BJ_TABLE.label === 'vip') {\n      // VIP: 5s \"Place Tie Bet?\" overlay at start of each round, unless the\n      // player froze their last decision — in which case apply it silently and\n      // auto-place the main bet.\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'none';\n      _updateFreezeUI();\n      _startVipBettingFlow();\n    } else if (_frozenBet > 0) {\n      // FREEZE IS ACTIVE — never show betting overlay, auto-place silently\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'none';\n      _updateFreezeUI();\n      setTimeout(() => _applyFreezeIfActive(), 300);\n    } else {\n      // No freeze — show betting overlay (standard chips)\n      _applyBetUIMode();\n      const ov = document.getElementById('bet-overlay');\n      if (ov) ov.style.display = 'flex';\n      _updateFreezeUI();\n    }\n  } else {",
+    "new_string": "  if (msg.phase === 'betting') {\n    _betPlaced = false; pendingBet = 0; updateBetDisplay();\n    const rl = document.getElementById('bet-round-label');\n    if (rl) rl.textContent = window._lastBJState?.roundNum || '—';\n\n    if (_bettingHandled) {\n      // Already initialised by the state-handler path for this round — just\n      // refresh UI and bail, do NOT re-send place_tie (server toggles it off).\n      _updateFreezeUI();\n    } else {\n      _bettingHandled = true;\n      if (BJ_TABLE.label === 'vip') {\n        // VIP: 5s \"Place Tie Bet?\" overlay at start of each round, unless the\n        // player froze their last decision — in which case apply it silently and\n        // auto-place the main bet.\n        const ov = document.getElementById('bet-overlay');\n        if (ov) ov.style.display = 'none';\n        _updateFreezeUI();\n        _startVipBettingFlow();\n      } else if (_frozenBet > 0) {\n        // FREEZE IS ACTIVE — never show betting overlay, auto-place silently\n        const ov = document.getElementById('bet-overlay');\n        if (ov) ov.style.display = 'none';\n        _updateFreezeUI();\n        setTimeout(() => _applyFreezeIfActive(), 300);\n      } else {\n        // No freeze — show betting overlay (standard chips)\n        _applyBetUIMode();\n        const ov = document.getElementById('bet-overlay');\n        if (ov) ov.style.display = 'flex';\n        _updateFreezeUI();\n      }\n    }\n  } else {",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T10:58:01.317Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "    _hideTieBetPrompt();\n    // Release the one-shot VIP flow guard so the next round can fire once.\n    _vipFlowActive = false;",
+    "new_string": "    _hideTieBetPrompt();\n    // Release the one-shot betting-phase guard so the next round can fire once.\n    _bettingHandled = false;",
+    "replace_all": false
+  }
+]

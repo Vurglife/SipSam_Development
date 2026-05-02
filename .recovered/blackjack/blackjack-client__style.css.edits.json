@@ -1,0 +1,30 @@
+[
+  {
+    "ts": "2026-04-19T21:35:04.882Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": ".result-badge-inline.blackjack { background:rgba(70,50,0,.95); color:#ffd700; border:1.5px solid #ffd700; display:block;\n  box-shadow:0 0 12px rgba(255,215,0,.5); animation:badgePop .3s ease both,bjGlow 1.5s ease .3s infinite alternate; }\n@keyframes bjGlow { to{box-shadow:0 0 24px rgba(255,215,0,.9);} }",
+    "new_string": ".result-badge-inline.blackjack { background:rgba(70,50,0,.95); color:#ffd700; border:1.5px solid #ffd700; display:block;\n  box-shadow:0 0 12px rgba(255,215,0,.5); animation:badgePop .3s ease both,bjGlow 1.5s ease .3s infinite alternate; }\n.result-badge-inline.tie       { background:rgba(70,50,0,.95); color:#ffd700; border:1.5px solid #ffd700; display:block;\n  box-shadow:0 0 12px rgba(255,215,0,.5); animation:badgePop .3s ease both,bjGlow 1.5s ease .3s infinite alternate; }\n@keyframes bjGlow { to{box-shadow:0 0 24px rgba(255,215,0,.9);} }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-22T22:12:13.156Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": ".oval-table {\n  position: relative;\n  width:  min(94vw, 1020px);\n  height: min(76vh, 620px);\n  /* D-shape: flat top, semicircle bottom */\n  border-radius: 0 0 700px 700px / 0 0 320px 320px;\n  border: 0;\n  outline: 7px solid var(--gold);\n  outline-offset: -1px;\n  /* Modern deep navy-to-midnight felt */\n  background:\n    radial-gradient(ellipse 80% 60% at 50% 30%,\n      rgba(26,80,140,0.35) 0%, transparent 70%),\n    radial-gradient(ellipse 120% 100% at 50% 10%,\n      #0d1f3a 0%, #080f1e 40%, #050a14 100%);\n  box-shadow:\n    0 0 0 3px var(--gold-dk),\n    0 0 0 6px rgba(201,168,76,.15),\n    0 0 60px rgba(201,168,76,.25),\n    0 0 120px rgba(10,20,50,.8),\n    inset 0 0 100px rgba(0,10,30,.6);\n  flex-shrink: 0;\n  overflow: visible;\n}",
+    "new_string": ".oval-table {\n  position: relative;\n  width:  min(94vw, 1020px);\n  height: min(76vh, 620px);\n  /* D-shape: flat top, semicircle bottom */\n  border-radius: 0 0 700px 700px / 0 0 320px 320px;\n  border: 0;\n  outline: 7px solid var(--gold);\n  outline-offset: -1px;\n  /* Modern deep navy-to-midnight felt */\n  background:\n    radial-gradient(ellipse 80% 60% at 50% 30%,\n      rgba(26,80,140,0.35) 0%, transparent 70%),\n    radial-gradient(ellipse 120% 100% at 50% 10%,\n      #0d1f3a 0%, #080f1e 40%, #050a14 100%);\n  box-shadow:\n    0 0 0 3px var(--gold-dk),\n    0 0 0 6px rgba(201,168,76,.15),\n    0 0 60px rgba(201,168,76,.25),\n    0 0 120px rgba(10,20,50,.8),\n    inset 0 0 100px rgba(0,10,30,.6);\n  flex-shrink: 0;\n  overflow: visible;\n  /* Local stacking context so .table-logo's z-index:-1 stays inside the table */\n  isolation: isolate;\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-22T22:12:29.327Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "/* VurgLife logo watermark — horizontal across the felt */\n/* PNG is white-on-black. mix-blend-mode:screen makes black invisible,\n   white shows through as a clean watermark on any dark background */\n.table-logo {\n  position: absolute;\n  top: 46%; left: 50%;\n  transform: translate(-50%, -50%);\n  width: clamp(360px, 62%, 580px);\n  opacity: 0.22;\n  pointer-events: none;\n  z-index: 2;\n  user-select: none;\n  mix-blend-mode: screen;   /* black = transparent, white = visible */\n  filter: brightness(0.85);\n}",
+    "new_string": "/* VurgLife logo watermark — horizontal across the felt, BEHIND all gameplay */\n/* PNG is white-on-black. mix-blend-mode:screen makes black invisible,\n   white shows through as a clean watermark on any dark background */\n.table-logo {\n  position: absolute;\n  top: 46%; left: 50%;\n  transform: translate(-50%, -50%);\n  width: clamp(360px, 62%, 580px);\n  opacity: 0.22;\n  pointer-events: none;\n  /* z-index:-1 inside .oval-table's isolated stacking context puts the\n     watermark behind cards, placeholders, win/lose labels, etc. */\n  z-index: -1;\n  user-select: none;\n  mix-blend-mode: screen;   /* black = transparent, white = visible */\n  filter: brightness(0.85);\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-22T22:12:34.463Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": ".table-logo { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);\n  width:clamp(300px,52%,520px); max-width:calc(100% - 40px); opacity:0.18;\n  pointer-events:none; z-index:1; user-select:none; }\n\n/* ── COUNTDOWN — SipSam-identical ── */",
+    "new_string": "/* ── COUNTDOWN — SipSam-identical ── */",
+    "replace_all": false
+  }
+]

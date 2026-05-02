@@ -1,0 +1,177 @@
+[
+  {
+    "ts": "2026-04-13T21:52:03.457Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "  _insurance(si, take) {\n    if (this.phase!=='insurance') return;\n    const s=this.seats[si]; if (!s||s.insuranceBet>0) return;\n    if (take) {\n      const a = INSURANCE_AMOUNT; // Fixed $50 insurance\n      if (a > s.wallet) return;\n      s.insuranceBet = a;\n      s.wallet -= a;\n    }\n    this._broadcast({ type:'state', state:this._state() });\n  }",
+    "new_string": "  _insurance(si, take) {\n    if (this.phase!=='insurance') return;\n    const s=this.seats[si]; if (!s||s.insuranceBet>0||s.insuranceDeclined) return;\n    if (take) {\n      const a = INSURANCE_AMOUNT; // Fixed $50 insurance\n      if (a > s.wallet) return;\n      s.insuranceBet = a;\n      s.wallet -= a;\n    } else {\n      s.insuranceDeclined = true;\n    }\n    this._broadcast({ type:'state', state:this._state() });\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-13T21:55:08.155Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "        bet:0, insuranceBet:0, tieBet:0, sideBet:null, sideBetAmt:0,",
+    "new_string": "        bet:0, insuranceBet:0, insuranceDeclined:false, tieBet:0, sideBet:null, sideBetAmt:0,",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-13T21:55:17.172Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "        wallet:s.wallet, bet:s.bet, insuranceBet:s.insuranceBet, tieBet:s.tieBet,",
+    "new_string": "        wallet:s.wallet, bet:s.bet, insuranceBet:s.insuranceBet, insuranceDeclined:s.insuranceDeclined, tieBet:s.tieBet,",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-18T17:24:32.932Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "    this._sendTo(ws, { type:'state',       state: this._state(userId) });\n    this._sendTo(ws, { type:'chatHistory', messages: this.chatHistory });\n\n    if (this.phase === 'waiting' && Object.keys(this.seats).length >= 1) {\n      setTimeout(() => { if (this.phase==='waiting') this._startBetting(); }, 2000);\n    }\n  }",
+    "new_string": "    this._sendTo(ws, { type:'state',       state: this._state(userId) });\n    this._sendTo(ws, { type:'chatHistory', messages: this.chatHistory });\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-18T17:24:37.507Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "      case 'chatMessage': this._chat(info, msg.message); break;\n      case 'leave':       this._leave(ws, userId, si); break;\n    }",
+    "new_string": "      case 'chatMessage': this._chat(info, msg.message); break;\n      case 'leave':       this._leave(ws, userId, si); break;\n      case 'startGame':   if (this.phase === 'waiting') this._startBetting(); break;\n    }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-18T18:14:27.687Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "    this._sendTo(ws, { type:'state',       state: this._state(userId) });\n    this._sendTo(ws, { type:'chatHistory', messages: this.chatHistory });\n  }",
+    "new_string": "    this._sendTo(ws, { type:'state',       state: this._state(userId) });\n    this._sendTo(ws, { type:'chatHistory', messages: this.chatHistory });\n    // Tell everyone else at the table that a new seat was filled\n    this._broadcast({ type:'state', state: this._state() });\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-18T18:14:34.030Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "      case 'set_wallet':  { const s=this.seats[si]; if(s) s.wallet=msg.wallet; break; }\n      case 'set_name':    { const s=this.seats[si]; if(s&&!s.isBot) s.displayName=String(msg.name||'').slice(0,20); break; }\n      case 'set_avatar':  { const s=this.seats[si]; if(s) s.avatar=String(msg.avatar||'').slice(0,10); break; }",
+    "new_string": "      case 'set_wallet':  { const s=this.seats[si]; if(s) { s.wallet=msg.wallet; this._broadcast({type:'state',state:this._state()}); } break; }\n      case 'set_name':    { const s=this.seats[si]; if(s&&!s.isBot) { s.displayName=String(msg.name||'').slice(0,20); this._broadcast({type:'state',state:this._state()}); } break; }\n      case 'set_avatar':  { const s=this.seats[si]; if(s) { s.avatar=String(msg.avatar||'').slice(0,10); this._broadcast({type:'state',state:this._state()}); } break; }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:27:06.858Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "const MAX_SEATS    = 6;\nconst SIDE_BETS    = ['island_blackjack','triple_7s','rum_runner','dealer_bust_bonus','tie_bet'];\nconst TIE_BET_AMOUNT   = 100;   // Fixed $100 tie bet stake\nconst TIE_BONUS_STD    = 2000;  // $2,000 bonus for any main bet\nconst TIE_BONUS_VIP    = 3000;  // $3,000 bonus for $500 main bet\nconst INSURANCE_AMOUNT  = 50;   // Fixed $50 insurance",
+    "new_string": "const MAX_SEATS    = 6;\nconst SIDE_BETS    = ['island_blackjack','triple_7s','rum_runner','dealer_bust_bonus','tie_bet'];\nconst INSURANCE_AMOUNT  = 50;   // Fixed $50 insurance",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:27:12.538Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  addClient(ws, userId, sessionId) {\n    let si = this._findSeatForSession(sessionId) ?? this._claimSeat(userId, sessionId);\n    if (si === null) { ws.close(1008, 'Table full'); return; }\n\n    this.clients.set(ws, { userId, sessionId, seatIndex: si });",
+    "new_string": "  addClient(ws, userId, sessionId, token) {\n    let si = this._findSeatForSession(sessionId) ?? this._claimSeat(userId, sessionId);\n    if (si === null) { ws.close(1008, 'Table full'); return; }\n\n    // Store the JWT on the seat so server-side settle calls can authenticate\n    if (token && this.seats[si]) this.seats[si].token = token;\n\n    this.clients.set(ws, { userId, sessionId, seatIndex: si });",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:27:19.418Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  _newSeat(userId, sessionId, index, isBot=false, ownerIdx=null) {\n    return {\n      userId, sessionId, index, isBot, ownerIdx,\n      wallet:0, bet:0, insuranceBet:0, tieBet:0, sideBet:null, sideBetAmt:0,",
+    "new_string": "  _newSeat(userId, sessionId, index, isBot=false, ownerIdx=null) {\n    return {\n      userId, sessionId, index, isBot, ownerIdx, token:null,\n      wallet:0, bet:0, insuranceBet:0, tieBet:0, sideBet:null, sideBetAmt:0,",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:27:40.674Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "      for (let hi=0; hi<seat.hands.length; hi++) {\n        const result = resolveHand(seat.hands[hi], this.dealerCards, seat.busted[hi]);\n        const ins    = hi===0 ? seat.insuranceBet : 0;\n        // calcPayout returns total chips to credit back (0 for lose/bust)\n        const credit = calcPayout(result, seat.bet, ins, dealerBJ);\n        seat.result[hi]=result; seat.payout[hi]=credit; delta+=credit;\n      }\n\n      // ── Tie Bet evaluation ───────────────────────────────────\n      // Tie Bet: pays fixed $2,000 bonus ($3,000 for $500 main bet)\n      // Works even if both bust with same total\n      // Player still loses their round bet if they bust — tie bet is independent\n      if (seat.tieBet > 0) {\n        const { total: pTotal } = calcHandFull(seat.hands[0] || []);\n        const playerTotal = pTotal;\n        const dealerTotal = dTotal;\n        if (playerTotal === dealerTotal && playerTotal > 0) {\n          // Fixed bonus: $3,000 for $500 main bet, $2,000 for all others\n          const bonus      = seat.bet >= 500 ? TIE_BONUS_VIP : TIE_BONUS_STD;\n          // Player receives: tie bet back + fixed bonus\n          const tiePayout  = seat.tieBet + bonus;\n          delta += tiePayout;\n          const label = `🎯 TIE BET WINS! +$${bonus.toLocaleString()} Bonus`;\n          seat.sideBetResult = (seat.sideBetResult ? seat.sideBetResult + ' · ' : '') + label;\n          hasTieWin = true;\n          // Broadcast tie win BEFORE payout reveal\n          this._broadcast({ type:'tie_win', displayName:seat.displayName, bonus, totalCredit:tiePayout });\n        }\n      }",
+    "new_string": "      for (let hi=0; hi<seat.hands.length; hi++) {\n        const result = resolveHand(seat.hands[hi], this.dealerCards, seat.busted[hi]);\n        const ins    = hi===0 ? seat.insuranceBet : 0;\n        // calcPayout returns total chips to credit back (0 for lose/bust)\n        const credit = calcPayout(result, seat.bet, ins, dealerBJ, this.config.blackjackPayout);\n        seat.result[hi]=result; seat.payout[hi]=credit; delta+=credit;\n      }\n\n      // ── Tie Bet evaluation ───────────────────────────────────\n      // Tie Bet: independent side wager — pays a flat per-tier bonus when\n      // player total === dealer total (even on double bust, even on blackjack push).\n      // Checks ALL hands (for splits). If any hand ties, tie bet wins once.\n      // Winning hand's main-bet result is relabeled 'tie' so the UI can\n      // distinguish it from an ordinary push.\n      if (seat.tieBet > 0) {\n        const dealerTotal = dTotal;\n        let tiedHandIdx = -1;\n        for (let hi = 0; hi < seat.hands.length; hi++) {\n          const { total: pTotal } = calcHandFull(seat.hands[hi] || []);\n          if (pTotal === dealerTotal && pTotal > 0) { tiedHandIdx = hi; break; }\n        }\n        if (tiedHandIdx !== -1) {\n          const isStandard = this.config.label === 'standard';\n          // Legacy standard-table rule: $3,000 bonus for a $500 main bet\n          const bonus = isStandard\n            ? (seat.bet >= 500 ? (this.config.tieBetPayoutVIP || 3000) : (this.config.tieBetPayout || 2000))\n            : (this.config.tieBetPayout || 2000);\n          // Player receives: tie bet stake back + fixed bonus\n          const tiePayout = seat.tieBet + bonus;\n          delta += tiePayout;\n\n          // Relabel the winning hand's result so the UI shows TIE, not PUSH\n          seat.result[tiedHandIdx] = 'tie';\n\n          const label = `TIE BET WINS! +$${bonus.toLocaleString()} Bonus`;\n          seat.sideBetResult = (seat.sideBetResult ? seat.sideBetResult + ' · ' : '') + label;\n          hasTieWin = true;\n          // Broadcast tie win BEFORE payout reveal so celebration shows first\n          this._broadcast({ type:'tie_win', displayName:seat.displayName, bonus, totalCredit:tiePayout });\n        }\n      }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:27:47.571Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  _placeTieBet(si) {\n    if (this.phase !== 'betting') return;\n    const s = this.seats[si]; if (!s || s.isBot) return;\n    // Toggle: if already placed, remove it\n    if (s.tieBet > 0) {\n      s.wallet += s.tieBet;\n      s.tieBet = 0;\n      this._broadcast({ type:'state', state:this._state() });\n      return;\n    }\n    if (s.wallet < TIE_BET_AMOUNT) {\n      return; // not enough chips\n    }\n    s.tieBet = TIE_BET_AMOUNT;\n    s.wallet -= TIE_BET_AMOUNT;\n    this._broadcast({ type:'state', state:this._state() });\n  }",
+    "new_string": "  _placeTieBet(si) {\n    if (this.phase !== 'betting') return;\n    const s = this.seats[si]; if (!s || s.isBot) return;\n    const tieAmount = this.config.tieBet || 100;\n    // Toggle: if already placed, remove it\n    if (s.tieBet > 0) {\n      s.wallet += s.tieBet;\n      s.tieBet = 0;\n      this._broadcast({ type:'state', state:this._state() });\n      return;\n    }\n    if (s.wallet < tieAmount) return; // not enough chips\n    s.tieBet = tieAmount;\n    s.wallet -= tieAmount;\n    this._broadcast({ type:'state', state:this._state() });\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:27:59.892Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  async _settle(seat) {\n    const now=Date.now(), last=this._recentExits.get(seat.userId)||0;\n    if (now-last<10000) return;\n    this._recentExits.set(seat.userId, now);\n    try {\n      await this._callPlatform('/api/game/exit',\n        { userId:seat.userId, remainingWallet:Math.max(0,seat.wallet), tableMinBet:this.config.minBet });\n      await this._callPlatform('/api/game/record-result', {\n        userId:seat.userId,\n        isWin: seat.result.some(r=>r==='win'||r==='blackjack'),\n        mode:  this.config.label, gameType:'blackjack', tableMinBet:this.config.minBet,\n      });\n    } catch(e) { console.error('[BJ] settle error:', e.message); }\n  }\n\n  async _callPlatform(route, body) {\n    const ctrl=new AbortController(), t=setTimeout(()=>ctrl.abort(),8000);\n    try {\n      const r=await fetch(`${PLATFORM_URL}${route}`,{\n        method:'POST', headers:{'Content-Type':'application/json'},\n        body:JSON.stringify(body), signal:ctrl.signal,\n      });\n      return r.json();\n    } finally { clearTimeout(t); }\n  }",
+    "new_string": "  async _settle(seat) {\n    const now=Date.now(), last=this._recentExits.get(seat.userId)||0;\n    if (now-last<10000) return;\n    this._recentExits.set(seat.userId, now);\n    try {\n      // Client-side exit is the source of truth for wallet-to-bank return.\n      // The server-side settle only records the win for stats tracking.\n      await this._callPlatform('/api/game/record-result', {\n        userId:seat.userId,\n        isWin: seat.result.some(r=>r==='win'||r==='blackjack'),\n        mode:  this.config.label, gameType:'blackjack', tableMinBet:this.config.minBet,\n      }, seat.token);\n    } catch(e) { console.error('[BJ] settle error:', e.message); }\n  }\n\n  async _callPlatform(route, body, token) {\n    const ctrl=new AbortController(), t=setTimeout(()=>ctrl.abort(),8000);\n    const headers = {'Content-Type':'application/json'};\n    if (token) headers['Authorization'] = 'Bearer ' + token;\n    try {\n      const r=await fetch(`${PLATFORM_URL}${route}`,{\n        method:'POST', headers,\n        body:JSON.stringify(body), signal:ctrl.signal,\n      });\n      const text = await r.text();\n      try { return JSON.parse(text); }\n      catch { return { ok:false, raw:text.slice(0,100) }; }\n    } finally { clearTimeout(t); }\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:28:33.620Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  async _settle(seat) {\n    const now=Date.now(), last=this._recentExits.get(seat.userId)||0;\n    if (now-last<10000) return;\n    this._recentExits.set(seat.userId, now);\n    try {\n      // Client-side exit is the source of truth for wallet-to-bank return.\n      // The server-side settle only records the win for stats tracking.\n      await this._callPlatform('/api/game/record-result', {\n        userId:seat.userId,\n        isWin: seat.result.some(r=>r==='win'||r==='blackjack'),\n        mode:  this.config.label, gameType:'blackjack', tableMinBet:this.config.minBet,\n      }, seat.token);\n    } catch(e) { console.error('[BJ] settle error:', e.message); }\n  }",
+    "new_string": "  async _settle(seat) {\n    const now=Date.now(), last=this._recentExits.get(seat.userId)||0;\n    if (now-last<10000) return;\n    this._recentExits.set(seat.userId, now);\n    if (!seat.token) return; // no auth token — client exits via beacon instead\n    try {\n      // Client-side exit is the source of truth for wallet-to-bank return.\n      // Record win/loss for stats tracking only.\n      await this._callPlatform('/api/game/game/record-win', {\n        isWin: seat.result.some(r=>r==='win'||r==='blackjack'),\n        tableMinBet: this.config.minBet,\n      }, seat.token);\n    } catch(e) { /* stats-only call — swallow errors */ }\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:28:40.469Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "    if (this.phase === 'waiting' || this.phase === 'betting' || this.phase === 'round_end') {\n      // Safe to remove immediately — not mid-round\n      if (seat.wallet > 0) {\n        this._callPlatform('/api/game/exit', {\n          userId, remainingWallet: seat.wallet, tableMinBet: this.config.minBet\n        }).catch(e => console.error('[BJ] exit on disconnect:', e.message));\n      }",
+    "new_string": "    if (this.phase === 'waiting' || this.phase === 'betting' || this.phase === 'round_end') {\n      // Safe to remove immediately — not mid-round\n      if (seat.wallet > 0 && seat.token) {\n        this._callPlatform('/api/game/exit', {\n          remainingWallet: seat.wallet, tableMinBet: this.config.minBet\n        }, seat.token).catch(e => console.error('[BJ] exit on disconnect:', e.message));\n      }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:28:45.503Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "        } else {\n          // Can't afford min bet — settle ($0) and remove completely\n          this._callPlatform('/api/game/exit', {\n            userId: s.userId, remainingWallet: 0, tableMinBet: this.config.minBet\n          }).catch(() => {});",
+    "new_string": "        } else {\n          // Can't afford min bet — settle ($0) and remove completely\n          if (s.token) {\n            this._callPlatform('/api/game/exit', {\n              remainingWallet: 0, tableMinBet: this.config.minBet\n            }, s.token).catch(() => {});\n          }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:28:50.136Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "          // Final wallet settlement if not already done in _onDisconnect\n          if (s.wallet > 0) {\n            this._callPlatform('/api/game/exit', {\n              userId: s.userId, remainingWallet: s.wallet, tableMinBet: this.config.minBet\n            }).catch(e => console.error('[BJ] exit on round_end:', e.message));\n          }",
+    "new_string": "          // Final wallet settlement if not already done in _onDisconnect\n          if (s.wallet > 0 && s.token) {\n            this._callPlatform('/api/game/exit', {\n              remainingWallet: s.wallet, tableMinBet: this.config.minBet\n            }, s.token).catch(e => console.error('[BJ] exit on round_end:', e.message));\n          }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-19T21:28:54.930Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  async _leave(ws, userId, si) {\n    const s=this.seats[si]; if (!s) return;\n    if (s.wallet>0) {\n      await this._callPlatform('/api/game/exit',\n        { userId, remainingWallet:s.wallet, tableMinBet:this.config.minBet });\n    }",
+    "new_string": "  async _leave(ws, userId, si) {\n    const s=this.seats[si]; if (!s) return;\n    if (s.wallet>0 && s.token) {\n      await this._callPlatform('/api/game/exit',\n        { remainingWallet:s.wallet, tableMinBet:this.config.minBet }, s.token);\n    }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:23:45.208Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "    // Deal immediately if ALL human players have now placed bets — no need to wait\n    const humans = Object.values(this.seats).filter(s => !s.isBot);\n    const allBet  = humans.length > 0 && humans.every(s => s.bet > 0);\n    if (allBet) {\n      this._clearTimer();\n      setTimeout(() => this._deal(), 500); // tiny pause so client sees the bet before dealing\n    }\n  }",
+    "new_string": "    // Deal immediately if ALL human players have now placed bets — no need to wait.\n    // EXCEPT for VIP tables: the main bet auto-places, so short-circuiting here would\n    // leave the player no time to toggle the tie bet. Run the full betting timer.\n    const humans = Object.values(this.seats).filter(s => !s.isBot);\n    const allBet  = humans.length > 0 && humans.every(s => s.bet > 0);\n    if (allBet && this.config.label !== 'vip') {\n      this._clearTimer();\n      setTimeout(() => this._deal(), 500); // tiny pause so client sees the bet before dealing\n    }\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:50:12.480Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "'/api/game/exit'",
+    "new_string": "'/api/game/bj/exit'",
+    "replace_all": true
+  },
+  {
+    "ts": "2026-04-21T02:50:18.033Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  _newSeat(userId, sessionId, index, isBot=false, ownerIdx=null) {\n    return {\n      userId, sessionId, index, isBot, ownerIdx, token:null,\n      wallet:0, bet:0, insuranceBet:0, tieBet:0, sideBet:null, sideBetAmt:0,",
+    "new_string": "  _newSeat(userId, sessionId, index, isBot=false, ownerIdx=null) {\n    // Humans start with the configured walletSize; bots hold no chips.\n    const initialWallet = isBot ? 0 : (this.config.walletSize || 0);\n    return {\n      userId, sessionId, index, isBot, ownerIdx, token:null,\n      wallet:initialWallet, bet:0, insuranceBet:0, tieBet:0, sideBet:null, sideBetAmt:0,",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:50:23.539Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "      case 'set_wallet':  { const s=this.seats[si]; if(s) { s.wallet=msg.wallet; this._broadcast({type:'state',state:this._state()}); } break; }",
+    "new_string": "      // set_wallet is IGNORED — wallet is server-authoritative. Kept for backward\n      // compat with old clients that still emit it on connect; silently drop.\n      case 'set_wallet':  break;",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T02:51:23.805Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "      // set_wallet is IGNORED — wallet is server-authoritative. Kept for backward\n      // compat with old clients that still emit it on connect; silently drop.\n      case 'set_wallet':  break;",
+    "new_string": "      // set_wallet is IGNORED — wallet is server-authoritative. Kept for backward\n      // compat with old clients that still emit it on connect; silently drop.\n      case 'set_wallet':  break;\n      // add_wallet: used by the replenish flow. Platform route /api/game/replenish\n      // already deducted the bank, so we trust a bounded positive delta here.\n      case 'add_wallet': {\n        const s = this.seats[si]; if (!s) break;\n        const delta = Math.max(0, Math.min(Number(msg.amount)||0, 1_000_000));\n        if (delta > 0) {\n          s.wallet += delta;\n          this._broadcast({ type:'state', state:this._state() });\n        }\n        break;\n      }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T03:01:06.090Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "    // Deal immediately if ALL human players have now placed bets — no need to wait.\n    // EXCEPT for VIP tables: the main bet auto-places, so short-circuiting here would\n    // leave the player no time to toggle the tie bet. Run the full betting timer.\n    const humans = Object.values(this.seats).filter(s => !s.isBot);\n    const allBet  = humans.length > 0 && humans.every(s => s.bet > 0);\n    if (allBet && this.config.label !== 'vip') {\n      this._clearTimer();\n      setTimeout(() => this._deal(), 500); // tiny pause so client sees the bet before dealing\n    }\n  }",
+    "new_string": "    // Deal immediately if ALL human players have now placed bets — no need to wait.\n    // Applies to all tiers: VIP auto-places the main bet, so the shortcut fires fast.\n    // Players opt in to the tie bet via the bottom-bar button BEFORE the main bet lands\n    // (or they skip it for that round).\n    const humans = Object.values(this.seats).filter(s => !s.isBot);\n    const allBet  = humans.length > 0 && humans.every(s => s.bet > 0);\n    if (allBet) {\n      this._clearTimer();\n      setTimeout(() => this._deal(), 500); // tiny pause so client sees the bet before dealing\n    }\n  }",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-21T10:37:14.640Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "      // ── Tie Bet evaluation ───────────────────────────────────\n      // Tie Bet: independent side wager — pays a flat per-tier bonus when\n      // player total === dealer total (even on double bust, even on blackjack push).\n      // Checks ALL hands (for splits). If any hand ties, tie bet wins once.\n      // Winning hand's main-bet result is relabeled 'tie' so the UI can\n      // distinguish it from an ordinary push.\n      if (seat.tieBet > 0) {\n        const dealerTotal = dTotal;\n        let tiedHandIdx = -1;\n        for (let hi = 0; hi < seat.hands.length; hi++) {\n          const { total: pTotal } = calcHandFull(seat.hands[hi] || []);\n          if (pTotal === dealerTotal && pTotal > 0) { tiedHandIdx = hi; break; }\n        }\n        if (tiedHandIdx !== -1) {\n          const isStandard = this.config.label === 'standard';\n          // Legacy standard-table rule: $3,000 bonus for a $500 main bet\n          const bonus = isStandard\n            ? (seat.bet >= 500 ? (this.config.tieBetPayoutVIP || 3000) : (this.config.tieBetPayout || 2000))\n            : (this.config.tieBetPayout || 2000);\n          // Player receives: tie bet stake back + fixed bonus\n          const tiePayout = seat.tieBet + bonus;\n          delta += tiePayout;\n\n          // Relabel the winning hand's result so the UI shows TIE, not PUSH\n          seat.result[tiedHandIdx] = 'tie';\n\n          const label = `TIE BET WINS! +$${bonus.toLocaleString()} Bonus`;\n          seat.sideBetResult = (seat.sideBetResult ? seat.sideBetResult + ' · ' : '') + label;\n          hasTieWin = true;\n          // Broadcast tie win BEFORE payout reveal so celebration shows first\n          this._broadcast({ type:'tie_win', displayName:seat.displayName, bonus, totalCredit:tiePayout });\n        }\n      }",
+    "new_string": "      // ── Tie Bet evaluation ───────────────────────────────────\n      // Tie Bet: independent side wager — pays a flat per-tier bonus when\n      // player total === dealer total (even on double bust, even on blackjack push).\n      //\n      // SPLITS: one tie bet per seat (never multiplied across split hands).\n      // It covers the whole seat: if ANY of the player's hands ties the dealer,\n      // the tie bet wins the bonus once. Players gain more tie chances when\n      // splitting but don't pay more. This is by design.\n      //\n      // BJ+BJ HOUSE RULE: when the player places the tie bet AND both the\n      // player and dealer land a natural Blackjack, the hand pays BOTH the\n      // full blackjack bonus AND the tie bonus (standard rules would push).\n      if (seat.tieBet > 0) {\n        const dealerTotal = dTotal;\n        let tiedHandIdx = -1;\n        for (let hi = 0; hi < seat.hands.length; hi++) {\n          const { total: pTotal } = calcHandFull(seat.hands[hi] || []);\n          if (pTotal === dealerTotal && pTotal > 0) { tiedHandIdx = hi; break; }\n        }\n        if (tiedHandIdx !== -1) {\n          const isStandard = this.config.label === 'standard';\n          // Legacy standard-table rule: $3,000 bonus for a $500 main bet\n          const bonus = isStandard\n            ? (seat.bet >= 500 ? (this.config.tieBetPayoutVIP || 3000) : (this.config.tieBetPayout || 2000))\n            : (this.config.tieBetPayout || 2000);\n          // Player receives: tie bet stake back + fixed bonus\n          const tiePayout = seat.tieBet + bonus;\n          delta += tiePayout;\n\n          // ── BJ+BJ with tie bet placed: upgrade main bet to full blackjack ──\n          // Normally resolveHand returns 'push' for BJ vs BJ and calcPayout\n          // credits only the stake back. With the tie bet in play we credit\n          // the blackjack bonus as well and relabel the hand 'blackjack'.\n          const handBJ = isBlackjack(seat.hands[tiedHandIdx] || []);\n          if (handBJ && dealerBJ && seat.result[tiedHandIdx] === 'push') {\n            const bjCredit = calcPayout('blackjack', seat.bet, 0, false, this.config.blackjackPayout);\n            const oldCredit = seat.payout[tiedHandIdx] || 0;\n            delta += (bjCredit - oldCredit);\n            seat.payout[tiedHandIdx] = bjCredit;\n            seat.result[tiedHandIdx] = 'blackjack';\n          } else {\n            // Relabel the winning hand's result so the UI shows TIE, not PUSH\n            seat.result[tiedHandIdx] = 'tie';\n          }\n\n          // Fold the tie payout into the hand's payout line so the client's\n          // \"net profit\" calc (sum of seat.payout) includes the tie bonus.\n          seat.payout[tiedHandIdx] = (seat.payout[tiedHandIdx] || 0) + tiePayout;\n\n          const label = (handBJ && dealerBJ)\n            ? `TIE BET + BLACKJACK! +$${bonus.toLocaleString()} Tie Bonus`\n            : `TIE BET WINS! +$${bonus.toLocaleString()} Bonus`;\n          seat.sideBetResult = (seat.sideBetResult ? seat.sideBetResult + ' · ' : '') + label;\n          hasTieWin = true;\n          // Broadcast tie win BEFORE payout reveal so celebration shows first\n          this._broadcast({ type:'tie_win', displayName:seat.displayName, bonus, totalCredit:tiePayout });\n        }\n      }",
+    "replace_all": false
+  }
+]

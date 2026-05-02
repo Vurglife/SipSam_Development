@@ -1,0 +1,15 @@
+{
+  "name": "blackjack-server",
+  "version": "1.0.0",
+  "description": "VurgLife Blackjack WebSocket Server",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "node-fetch": "^3.3.2",
+    "ws": "^8.19.0"
+  }
+}

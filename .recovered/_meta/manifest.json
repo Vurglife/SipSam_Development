@@ -1,0 +1,111 @@
+{
+  "sipsam-vip": {
+    "vurglife-platform/server/index.js": {
+      "writes": 1,
+      "edits": 19,
+      "latestWriteTs": "2026-04-04T01:01:35.187Z",
+      "latestWriteSource": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+      "latestWriteSize": 7731
+    },
+    "vurglife-platform/server/routes/game.js": {
+      "writes": 0,
+      "edits": 24,
+      "latestWriteTs": null,
+      "latestWriteSource": null,
+      "latestWriteSize": 0
+    },
+    "vurglife-platform/client/public/index.html": {
+      "writes": 0,
+      "edits": 65,
+      "latestWriteTs": null,
+      "latestWriteSource": null,
+      "latestWriteSize": 0
+    },
+    "poker-server/logic.js": {
+      "writes": 0,
+      "edits": 9,
+      "latestWriteTs": null,
+      "latestWriteSource": null,
+      "latestWriteSize": 0
+    },
+    "poker-server/PokerRoom.js": {
+      "writes": 0,
+      "edits": 38,
+      "latestWriteTs": null,
+      "latestWriteSource": null,
+      "latestWriteSize": 0
+    },
+    "poker-client/game.js": {
+      "writes": 0,
+      "edits": 31,
+      "latestWriteTs": null,
+      "latestWriteSource": null,
+      "latestWriteSize": 0
+    },
+    "poker-client/style.css": {
+      "writes": 0,
+      "edits": 5,
+      "latestWriteTs": null,
+      "latestWriteSource": null,
+      "latestWriteSize": 0
+    },
+    "poker-client/index.html": {
+      "writes": 0,
+      "edits": 22,
+      "latestWriteTs": null,
+      "latestWriteSource": null,
+      "latestWriteSize": 0
+    },
+    "poker-server/index.js": {
+      "writes": 1,
+      "edits": 0,
+      "latestWriteTs": "2026-04-12T12:23:43.749Z",
+      "latestWriteSource": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+      "latestWriteSize": 8797
+    }
+  },
+  "blackjack": {
+    "blackjack-client/index.html": {
+      "writes": 0,
+      "edits": 21,
+      "latestWriteTs": null,
+      "latestWriteSource": null,
+      "latestWriteSize": 0
+    },
+    "blackjack-client/game.js": {
+      "writes": 0,
+      "edits": 75,
+      "latestWriteTs": null,
+      "latestWriteSource": null,
+      "latestWriteSize": 0
+    },
+    "blackjack-server/BlackjackRoom.js": {
+      "writes": 0,
+      "edits": 25,
+      "latestWriteTs": null,
+      "latestWriteSource": null,
+      "latestWriteSize": 0
+    },
+    "blackjack-server/index.js": {
+      "writes": 0,
+      "edits": 2,
+      "latestWriteTs": null,
+      "latestWriteSource": null,
+      "latestWriteSize": 0
+    },
+    "blackjack-server/logic.js": {
+      "writes": 0,
+      "edits": 1,
+      "latestWriteTs": null,
+      "latestWriteSource": null,
+      "latestWriteSize": 0
+    },
+    "blackjack-client/style.css": {
+      "writes": 0,
+      "edits": 4,
+      "latestWriteTs": null,
+      "latestWriteSource": null,
+      "latestWriteSize": 0
+    }
+  }
+}

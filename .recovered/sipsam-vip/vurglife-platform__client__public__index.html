@@ -1,0 +1,2191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VurgLife — Where Every Game Counts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cinzel:wght@400;600;700&family=Exo+2:ital,wght@0,300;0,400;0,600;0,800;1,400&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════
+   VURGLIFE PLATFORM — COMPLETE DASHBOARD
+   ═══════════════════════════════════════════════════════ */
+:root {
+  --bg-void:   #020609;
+  --bg-deep:   #050a14;
+  --bg-dark:   #080f1e;
+  --bg-card:   #0b1528;
+  --bg-panel:  #0f1e38;
+  --bg-raised: #142040;
+  --border:    #1a2d50;
+  --border-hi: #243d6a;
+  --blue:      #1a8cff;
+  --blue-hi:   #4aabff;
+  --blue-dim:  #0d4a8a;
+  --gold:      #c9a84c;
+  --gold-hi:   #e8c96a;
+  --gold-dim:  #7a6030;
+  --red:       #ef4444;
+  --green:     #22c55e;
+  --text-hi:   #f0f6ff;
+  --text-mid:  #7a9ac0;
+  --text-dim:  #334d70;
+  --radius:    10px;
+  --radius-lg: 18px;
+  --sw:        280px;
+  --nav-h:     56px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family:'Exo 2',sans-serif;overflow-x:hidden}
+
+/* ── SCREENS ── */
+.screen{display:none;min-height:100vh}
+.screen.active{display:flex;flex-direction:column}
+
+/* ── AUTH ── */
+.auth-wrap{align-items:center;justify-content:center;padding:40px 20px;
+  background:radial-gradient(ellipse 80% 80% at 20% 50%,rgba(10,30,70,.6),transparent 60%),
+             radial-gradient(ellipse 60% 60% at 80% 20%,rgba(5,20,50,.5),transparent 60%),var(--bg-deep)}
+.auth-box{width:100%;max-width:420px;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--radius-lg);overflow:hidden;box-shadow:0 40px 80px rgba(0,0,0,.7);animation:su .4s ease-out}
+@keyframes su{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.auth-head{background:linear-gradient(135deg,#040d1c,#0a1e3c);padding:30px;text-align:center;border-bottom:1px solid var(--border)}
+.auth-logo{height:40px;filter:drop-shadow(0 0 14px rgba(26,140,255,.5));margin-bottom:10px}
+.auth-brand{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;
+  background:linear-gradient(135deg,#fff,var(--blue-hi));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.auth-sub{font-size:11px;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;margin-top:2px}
+.auth-body{padding:26px}
+.auth-foot{padding:0 26px 22px;text-align:center;font-size:13px;color:var(--text-mid)}
+
+/* ── FORM ── */
+.fg{margin-bottom:16px}
+.fl{display:block;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;
+  letter-spacing:2px;color:var(--text-mid);text-transform:uppercase;margin-bottom:6px}
+.fi{width:100%;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;
+  padding:10px 13px;color:var(--text-hi);font-family:'Exo 2',sans-serif;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s}
+.fi:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,140,255,.1)}
+.fi::placeholder{color:var(--text-dim)}
+.fh{font-size:11px;color:var(--text-dim);margin-top:4px}
+.err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:7px;
+  padding:9px 13px;color:#fca5a5;font-size:13px;margin-bottom:14px;display:none}
+.err.show{display:block}
+.ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);border-radius:7px;
+  padding:9px 13px;color:#86efac;font-size:13px;margin-bottom:14px;display:none}
+.ok.show{display:block}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 22px;
+  border:none;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;
+  letter-spacing:1.5px;cursor:pointer;transition:all .18s;text-transform:uppercase;white-space:nowrap}
+.bp{background:linear-gradient(135deg,#1a5aaa,var(--blue));color:#fff;box-shadow:0 4px 16px rgba(26,140,255,.25)}
+.bp:hover{background:linear-gradient(135deg,#1e6cc7,#2a9dff);transform:translateY(-1px)}
+.bg{background:linear-gradient(135deg,#8a6820,var(--gold));color:#0a0a00}
+.bg:hover{background:linear-gradient(135deg,#a07a28,var(--gold-hi));transform:translateY(-1px)}
+.bo{background:transparent;border:1px solid var(--border-hi);color:var(--blue-hi)}
+.bo:hover{background:rgba(26,140,255,.08)}
+.bgh{background:transparent;border:1px solid var(--border);color:var(--text-mid)}
+.bgh:hover{border-color:var(--text-mid);color:var(--text-hi)}
+.bfull{width:100%}
+.bsm{padding:7px 14px;font-size:12px}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
+.al{color:var(--blue-hi);cursor:pointer;font-weight:600}
+.al:hover{color:#fff;text-decoration:underline}
+.div{height:1px;background:var(--border);margin:18px 0}
+.sp{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ═══════════════════════════════════════════════════════
+   LANDING
+   ═══════════════════════════════════════════════════════ */
+#screen-landing{align-items:center;justify-content:center;flex-direction:column;
+  background:radial-gradient(ellipse 80% 60% at 50% -10%,#0a2a5a,transparent 60%),var(--bg-void);position:relative;overflow:hidden}
+#screen-landing::after{content:'';position:absolute;inset:0;z-index:0;
+  background-image:linear-gradient(rgba(26,92,170,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(26,92,170,.05) 1px,transparent 1px);
+  background-size:60px 60px;animation:gm 25s linear infinite}
+@keyframes gm{to{background-position:60px 60px}}
+.land-hero{position:relative;z-index:1;text-align:center;padding:60px 24px 0;max-width:820px;margin:0 auto}
+.land-logo{height:72px;filter:drop-shadow(0 0 30px rgba(26,140,255,.55));animation:glow 4s ease-in-out infinite;margin-bottom:18px}
+@keyframes glow{0%,100%{filter:drop-shadow(0 0 30px rgba(26,140,255,.55))}50%{filter:drop-shadow(0 0 52px rgba(26,140,255,.85))}}
+.land-tag{font-family:'Rajdhani',sans-serif;font-size:12px;letter-spacing:5px;color:var(--blue-hi);margin-bottom:18px}
+.land-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(56px,12vw,96px);line-height:.9;
+  background:linear-gradient(135deg,#fff 0%,var(--blue-hi) 50%,var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px}
+.land-sub{font-size:15px;color:var(--text-mid);letter-spacing:2px;margin-bottom:40px;font-weight:300}
+.land-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:54px}
+.games-wrap{position:relative;z-index:1;width:100%;max-width:920px;margin:0 auto;padding:0 24px 60px;text-align:center}
+.sec-tag{font-family:'Rajdhani',sans-serif;font-size:11px;letter-spacing:4px;color:var(--text-dim);text-transform:uppercase;margin-bottom:16px}
+.games-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.gcard{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:26px 18px;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
+.gcard:hover:not(.soon){border-color:var(--blue-dim);transform:translateY(-3px)}
+.gcard.live{border-color:var(--gold-dim)}
+.gcard.live::after,.gcard.soon::after{position:absolute;top:10px;right:10px;font-family:'Rajdhani',sans-serif;font-size:9px;font-weight:700;letter-spacing:2px;padding:3px 8px;border-radius:4px}
+.gcard.live::after{content:'PLAY NOW';color:var(--gold);background:rgba(201,168,76,.15);border:1px solid rgba(201,168,76,.3)}
+.gcard.soon::after{content:'COMING SOON';color:var(--text-dim);background:rgba(60,80,100,.3);border:1px solid rgba(60,80,100,.3)}
+.gcard.soon{opacity:.45;cursor:default}
+.gi{font-size:42px;margin-bottom:12px}
+.gn{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;margin-bottom:4px}
+.gd{font-size:12px;color:var(--text-mid);line-height:1.5}
+
+/* ═══════════════════════════════════════════════════════
+   DASHBOARD LAYOUT
+   ═══════════════════════════════════════════════════════ */
+#screen-dashboard{flex-direction:row;height:100vh;overflow:hidden}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sw);min-width:var(--sw);background:var(--bg-dark);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;height:100vh;overflow:hidden;z-index:40;transition:transform .3s}
+.sb-head{padding:18px 18px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.sb-logo{height:26px;filter:drop-shadow(0 0 10px rgba(26,140,255,.4))}
+.sb-brand{font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:2px;
+  background:linear-gradient(135deg,#fff,var(--blue-hi));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.sb-user{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.sb-av{width:38px;height:38px;border-radius:50%;background:var(--bg-panel);border:2px solid var(--blue-dim);
+  display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.sb-uname{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-bal{font-size:11px;color:var(--gold);font-weight:600}
+.sb-nav{flex:1;overflow-y:auto;padding:6px 0;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.sb-nav::-webkit-scrollbar{width:3px}
+.sb-nav::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.nav-sec{padding:8px 14px 3px;font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase}
+.ni{display:flex;align-items:center;gap:9px;padding:9px 18px;cursor:pointer;transition:all .14s;
+  border-left:3px solid transparent;font-size:13px;color:var(--text-mid)}
+.ni:hover{background:rgba(26,140,255,.06);color:var(--text-hi);border-left-color:var(--blue-dim)}
+.ni.active{background:rgba(26,140,255,.1);color:var(--blue-hi);border-left-color:var(--blue)}
+.ni-ico{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+.ni-lbl{flex:1}
+.ni-bdg{background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px}
+.sb-foot{padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0}
+
+/* ── MAIN ── */
+.dash-main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg-void)}
+.topbar{height:var(--nav-h);background:rgba(8,15,30,.95);border-bottom:1px solid var(--border);
+  padding:0 22px;display:flex;align-items:center;gap:14px;flex-shrink:0;backdrop-filter:blur(8px)}
+.topbar-title{font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:2px}
+.tb-bal{display:flex;align-items:center;gap:7px;background:var(--bg-panel);border:1px solid var(--border);
+  border-radius:8px;padding:5px 12px;cursor:pointer;margin-left:auto;transition:border-color .2s}
+.tb-bal:hover{border-color:var(--gold-dim)}
+.tb-amt{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;color:var(--gold-hi)}
+.tb-lbl{font-size:10px;letter-spacing:1px;color:var(--text-dim)}
+.dash-content{flex:1;overflow-y:auto;padding:24px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.dash-content::-webkit-scrollbar{width:5px}
+.dash-content::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── PANELS ── */
+.panel{display:none}
+.panel.active{display:block;animation:fi .2s ease}
+@keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideInRight{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:translateX(0)}}
+.ptitle{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;margin-bottom:3px}
+.psub{font-size:13px;color:var(--text-mid);margin-bottom:22px}
+.sh{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:var(--text-hi);
+  margin:20px 0 10px;display:flex;align-items:center;gap:8px}
+.sh::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent)}
+
+/* ── STAT CARDS ── */
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:22px}
+.sc{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.sc-lbl{font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;margin-bottom:5px}
+.sc-val{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px}
+.sc-val.gold{color:var(--gold-hi)} .sc-val.blue{color:var(--blue-hi)} .sc-val.green{color:var(--green)}
+
+/* ── TABLE CARDS ── */
+.tgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px}
+.tc{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;cursor:pointer;transition:all .22s;position:relative;overflow:hidden}
+.tc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--blue),transparent);opacity:0;transition:opacity .3s}
+.tc:hover:not(.locked){border-color:var(--blue-dim);transform:translateY(-2px)}
+.tc:hover:not(.locked)::before{opacity:1}
+.tc.locked{opacity:.38;cursor:not-allowed}
+.tc.locked::after{content:'🔒 LOCKED';position:absolute;top:10px;right:10px;font-size:9px;font-weight:700;letter-spacing:1px;color:var(--text-dim);background:var(--bg-panel);border:1px solid var(--border);padding:3px 8px;border-radius:4px}
+.tc-bet{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--gold-hi);margin-bottom:1px}
+.tc-name{font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:600;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;margin-bottom:12px}
+.tc-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+.tc-l{color:var(--text-dim)} .tc-r{color:var(--text-mid);font-weight:600} .tc-r.gold{color:var(--gold)}
+
+/* ── PROFILE ── */
+.prof-grid{display:grid;grid-template-columns:auto 1fr;gap:22px;margin-bottom:24px;align-items:start}
+.prof-av{width:90px;height:90px;border-radius:50%;background:var(--bg-panel);border:3px solid var(--blue-dim);
+  display:flex;align-items:center;justify-content:center;font-size:38px;position:relative}
+.av-edit{position:absolute;bottom:0;right:0;background:var(--blue);border:2px solid var(--bg-dark);border-radius:50%;
+  width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px}
+.av-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-top:8px}
+.av-opt{width:42px;height:42px;border-radius:50%;border:2px solid var(--border);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:20px;transition:border-color .2s;background:var(--bg-panel)}
+.av-opt:hover,.av-opt.sel{border-color:var(--blue)}
+
+/* ── MESSAGES ── */
+.msg-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:9px}
+.msg-head{display:flex;justify-content:space-between;margin-bottom:7px}
+.msg-from{font-weight:700;font-size:13px}
+.msg-time{font-size:11px;color:var(--text-dim)}
+.msg-body{font-size:13px;color:var(--text-mid);line-height:1.5}
+.msg-reply{margin-top:9px;display:flex;gap:7px}
+.msg-reply input{flex:1;background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text-hi);font-size:13px;outline:none;font-family:'Exo 2',sans-serif}
+.msg-reply input:focus{border-color:var(--blue)}
+
+/* ── BANK / HISTORY ── */
+.brow{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px 16px;display:grid;grid-template-columns:28px 1fr auto auto;gap:10px;align-items:center;margin-bottom:8px}
+.brow-num{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--text-dim)}
+.brow-game{font-weight:600;font-size:13px}
+.brow-date{font-size:11px;color:var(--text-dim)}
+.brow-chips{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px}
+.brow-pl{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:12px;padding:3px 8px;border-radius:5px}
+.brow-pl.pos{background:rgba(34,197,94,.12);color:var(--green)}
+.brow-pl.neg{background:rgba(239,68,68,.12);color:var(--red)}
+.hist-item{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:13px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.hi-badge{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.hi-badge.win{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3)}
+.hi-badge.loss{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25)}
+
+/* ── GET CHIPS ── */
+.ctabs{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:18px;width:fit-content}
+.ctab{padding:8px 20px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;
+  cursor:pointer;transition:all .2s;color:var(--text-dim);text-transform:uppercase}
+.ctab.active{background:var(--blue);color:#fff}
+.ctab:hover:not(.active){background:var(--bg-raised);color:var(--text-hi)}
+.pkg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:11px}
+.pkg{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px 13px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
+.pkg:hover{border-color:var(--gold-dim);transform:translateY(-2px)}
+.pkg.pop{border-color:var(--gold-dim)}
+.pkg.pop::before{content:'⭐ BEST VALUE';position:absolute;top:-1px;left:50%;transform:translateX(-50%);
+  background:var(--gold);color:#000;font-size:8px;font-weight:900;letter-spacing:1px;padding:2px 10px;border-radius:0 0 6px 6px}
+.pkg-chips{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--gold-hi);margin-bottom:2px}
+.pkg-lbl{font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:9px}
+.pkg-price{font-size:19px;font-weight:800;margin-bottom:12px}
+.pkg-price span{font-size:12px;font-weight:400;color:var(--text-dim)}
+
+/* ── REWARDS ── */
+.rcard{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;margin-bottom:9px;display:flex;gap:14px;align-items:flex-start}
+.r-ico{font-size:26px;flex-shrink:0;width:40px;text-align:center}
+.r-body{flex:1}
+.r-title{font-weight:700;font-size:14px;margin-bottom:2px}
+.r-desc{font-size:12px;color:var(--text-mid);line-height:1.5;margin-bottom:5px}
+.r-date{font-size:11px;color:var(--text-dim)}
+.r-amt{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;color:var(--gold-hi);flex-shrink:0;text-align:right}
+.r-claimed{font-size:10px;color:var(--green);margin-top:2px;letter-spacing:1px}
+.r-pending{font-size:10px;color:var(--gold);margin-top:2px;letter-spacing:1px;cursor:pointer}
+.r-pending:hover{text-decoration:underline}
+
+/* ── FRIENDS ── */
+.fcard{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:13px 15px;display:flex;align-items:center;gap:11px;margin-bottom:8px}
+.f-av{width:36px;height:36px;border-radius:50%;background:var(--bg-panel);border:2px solid var(--border-hi);
+  display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.f-name{font-weight:700;font-size:14px}
+.f-status{font-size:11px;color:var(--text-dim)}
+.f-status.online{color:var(--green)}
+.f-acts{display:flex;gap:5px;margin-left:auto;flex-shrink:0}
+
+/* ── AD PANEL ── */
+.adp{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:12px}
+.adp-info h3{font-weight:700;font-size:14px;margin-bottom:3px}
+.adp-info p{font-size:12px;color:var(--text-mid)}
+.ad-st{font-size:12px;margin-top:5px}
+.ad-st.ready{color:var(--green)} .ad-st.cool{color:var(--gold)}
+
+/* ═══════════════════════════════════════════════════════
+   RULES
+   ═══════════════════════════════════════════════════════ */
+.rtabs{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:20px}
+.rtab{padding:7px 15px;background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;
+  font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .2s;color:var(--text-mid);text-transform:uppercase}
+.rtab.active{background:rgba(26,140,255,.15);border-color:var(--blue);color:var(--blue-hi)}
+.rtab:hover:not(.active){border-color:var(--border-hi);color:var(--text-hi)}
+.rc{display:none}
+.rc.active{display:block;animation:fi .2s ease}
+.rsec{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:12px}
+.rsec h3{font-family:'Cinzel',sans-serif;font-size:14px;font-weight:600;color:var(--gold-hi);margin-bottom:10px;
+// [LINE 300 MISSING — no Read snapshot covers it]
+// [LINE 301 MISSING — no Read snapshot covers it]
+// [LINE 302 MISSING — no Read snapshot covers it]
+// [LINE 303 MISSING — no Read snapshot covers it]
+// [LINE 304 MISSING — no Read snapshot covers it]
+// [LINE 305 MISSING — no Read snapshot covers it]
+// [LINE 306 MISSING — no Read snapshot covers it]
+// [LINE 307 MISSING — no Read snapshot covers it]
+// [LINE 308 MISSING — no Read snapshot covers it]
+// [LINE 309 MISSING — no Read snapshot covers it]
+// [LINE 310 MISSING — no Read snapshot covers it]
+// [LINE 311 MISSING — no Read snapshot covers it]
+// [LINE 312 MISSING — no Read snapshot covers it]
+// [LINE 313 MISSING — no Read snapshot covers it]
+// [LINE 314 MISSING — no Read snapshot covers it]
+// [LINE 315 MISSING — no Read snapshot covers it]
+// [LINE 316 MISSING — no Read snapshot covers it]
+// [LINE 317 MISSING — no Read snapshot covers it]
+// [LINE 318 MISSING — no Read snapshot covers it]
+// [LINE 319 MISSING — no Read snapshot covers it]
+// [LINE 320 MISSING — no Read snapshot covers it]
+// [LINE 321 MISSING — no Read snapshot covers it]
+// [LINE 322 MISSING — no Read snapshot covers it]
+// [LINE 323 MISSING — no Read snapshot covers it]
+// [LINE 324 MISSING — no Read snapshot covers it]
+// [LINE 325 MISSING — no Read snapshot covers it]
+// [LINE 326 MISSING — no Read snapshot covers it]
+// [LINE 327 MISSING — no Read snapshot covers it]
+// [LINE 328 MISSING — no Read snapshot covers it]
+// [LINE 329 MISSING — no Read snapshot covers it]
+// [LINE 330 MISSING — no Read snapshot covers it]
+// [LINE 331 MISSING — no Read snapshot covers it]
+// [LINE 332 MISSING — no Read snapshot covers it]
+// [LINE 333 MISSING — no Read snapshot covers it]
+// [LINE 334 MISSING — no Read snapshot covers it]
+// [LINE 335 MISSING — no Read snapshot covers it]
+// [LINE 336 MISSING — no Read snapshot covers it]
+// [LINE 337 MISSING — no Read snapshot covers it]
+// [LINE 338 MISSING — no Read snapshot covers it]
+// [LINE 339 MISSING — no Read snapshot covers it]
+// [LINE 340 MISSING — no Read snapshot covers it]
+// [LINE 341 MISSING — no Read snapshot covers it]
+// [LINE 342 MISSING — no Read snapshot covers it]
+// [LINE 343 MISSING — no Read snapshot covers it]
+// [LINE 344 MISSING — no Read snapshot covers it]
+// [LINE 345 MISSING — no Read snapshot covers it]
+// [LINE 346 MISSING — no Read snapshot covers it]
+// [LINE 347 MISSING — no Read snapshot covers it]
+// [LINE 348 MISSING — no Read snapshot covers it]
+// [LINE 349 MISSING — no Read snapshot covers it]
+// [LINE 350 MISSING — no Read snapshot covers it]
+// [LINE 351 MISSING — no Read snapshot covers it]
+// [LINE 352 MISSING — no Read snapshot covers it]
+// [LINE 353 MISSING — no Read snapshot covers it]
+// [LINE 354 MISSING — no Read snapshot covers it]
+// [LINE 355 MISSING — no Read snapshot covers it]
+// [LINE 356 MISSING — no Read snapshot covers it]
+// [LINE 357 MISSING — no Read snapshot covers it]
+// [LINE 358 MISSING — no Read snapshot covers it]
+// [LINE 359 MISSING — no Read snapshot covers it]
+<body>
+
+<!-- ═══════════ LANDING ═══════════ -->
+<div id="screen-landing" class="screen active">
+  <div class="land-hero">
+    <img src="/images/vurglife-logo.png" alt="VurgLife" class="land-logo" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+    <span style="display:none;font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:4px;background:linear-gradient(135deg,#fff,var(--blue-hi));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">VURG</span>
+    <p class="land-tag">Where Every Game Counts</p>
+    <h1 class="land-title">VURGLIFE</h1>
+    <p class="land-sub">The Premier Online Card Gaming Platform</p>
+    <div class="land-cta">
+      <button class="btn bg" onclick="showScreen('screen-register')">♠ Create Account — Free</button>
+      <button class="btn bo" onclick="showScreen('screen-login')">Sign In</button>
+    </div>
+  </div>
+  <div class="games-wrap">
+    <p class="sec-tag">Card Games</p>
+    <div class="games-grid">
+      <div class="gcard live" onclick="showScreen('screen-register')">
+        <div class="gi">🃏</div><div class="gn">SipSam</div>
+        <div class="gd">The Caribbean card game. 3 hands. Beat the Banker. Specials pay big.</div>
+      </div>
+      <div class="gcard live" onclick="showScreen('screen-register')"><div class="gi">🥃</div><div class="gn">Rhum 32</div><div class="gd">Beat the Dealer. Stay under 32. Specials pay big.</div></div>
+      <div class="gcard live" onclick="showScreen('screen-register')"><div class="gi">🤠</div><div class="gn">Texas Hold'em</div><div class="gd">World-famous poker variant. Bluff, bet, and dominate.</div></div>
+      <div class="gcard live" onclick="showScreen('screen-register')"><div class="gi">🎴</div><div class="gn">Black Jack</div><div class="gd">Beat the dealer to 21. Classic casino action.</div></div>
+      <div class="gcard live" onclick="showScreen('screen-register')"><div class="gi">🎡</div><div class="gn">Roulette</div><div class="gd">American or European wheel. Spin to win. 35:1 straight up.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ LOGIN ═══════════ -->
+<div id="screen-login" class="screen auth-wrap">
+  <div class="auth-box">
+    <div class="auth-head">
+      <img src="/images/vurglife-logo.png" alt="VurgLife" class="auth-logo" onerror="this.style.display='none'">
+      <div class="auth-brand">VurgLife</div>
+      <div class="auth-sub">Sign in to your account</div>
+    </div>
+    <div class="auth-body">
+      <div id="login-err" class="err"></div>
+      <div class="fg"><label class="fl">Email or Username</label>
+        <input id="login-id" type="text" class="fi" placeholder="Email or username"></div>
+      <div class="fg" style="margin-bottom:6px"><label class="fl">Password</label>
+        <input id="login-pw" type="password" class="fi" placeholder="Password"></div>
+      <div style="text-align:right;margin-bottom:14px"><span class="al" style="font-size:12px" onclick="showScreen('screen-forgot')">Forgot password?</span></div>
+      <button id="login-btn" class="btn bp bfull" onclick="doLogin()">Sign In</button>
+    </div>
+    <div class="auth-foot">No account? <span class="al" onclick="showScreen('screen-register')">Create one free</span><br><br>
+      <span class="al" style="font-size:12px" onclick="showScreen('screen-landing')">← Back</span></div>
+  </div>
+</div>
+
+<!-- ═══════════ REGISTER ═══════════ -->
+<div id="screen-register" class="screen auth-wrap">
+  <div class="auth-box">
+    <div class="auth-head">
+      <img src="/images/vurglife-logo.png" alt="VurgLife" class="auth-logo" onerror="this.style.display='none'">
+      <div class="auth-brand">VurgLife</div>
+      <div class="auth-sub">Create your free account</div>
+    </div>
+    <div class="auth-body">
+      <div id="reg-err" class="err"></div><div id="reg-ok" class="ok"></div>
+      <div class="fg"><label class="fl">Email Address</label><input id="reg-email" type="email" class="fi" placeholder="you@example.com"></div>
+      <div class="fg"><label class="fl">Username (Alias)</label><input id="reg-user" type="text" class="fi" placeholder="Your unique alias">
+        <div class="fh">3–20 characters · Letters, numbers, underscores only</div></div>
+      <div class="fg" style="margin-bottom:0"><label class="fl">Password</label><input id="reg-pw" type="password" class="fi" placeholder="At least 8 characters"></div>
+      <div class="div"></div>
+      <button id="reg-btn" class="btn bg bfull" onclick="doRegister()">♠ Create Account — Get 5,000 Free Chips</button>
+    </div>
+    <div class="auth-foot">Already registered? <span class="al" onclick="showScreen('screen-login')">Sign in</span><br><br>
+      <span class="al" style="font-size:12px" onclick="showScreen('screen-landing')">← Back</span></div>
+  </div>
+</div>
+
+<!-- ═══════════ FORGOT ═══════════ -->
+<div id="screen-forgot" class="screen auth-wrap">
+  <div class="auth-box">
+    <div class="auth-head">
+      <img src="/images/vurglife-logo.png" alt="VurgLife" class="auth-logo" onerror="this.style.display='none'">
+      <div class="auth-brand">VurgLife</div><div class="auth-sub">Reset your password</div>
+    </div>
+    <div class="auth-body">
+      <div id="forgot-err" class="err"></div><div id="forgot-ok" class="ok"></div>
+      <div class="fg" style="margin-bottom:0"><label class="fl">Email Address</label><input id="forgot-email" type="email" class="fi" placeholder="you@example.com"></div>
+      <div class="div"></div>
+      <button class="btn bp bfull" onclick="doForgot()">Send Reset Link</button>
+    </div>
+    <div class="auth-foot"><span class="al" onclick="showScreen('screen-login')">← Back to Sign In</span></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     DASHBOARD
+     ═══════════════════════════════════════════════════════ -->
+<div id="screen-dashboard" class="screen" style="flex-direction:row;height:100vh;overflow:hidden">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-head">
+      <img src="/images/vurglife-logo.png" alt="" class="sb-logo" onerror="this.style.display='none'">
+      <span class="sb-brand">VurgLife</span>
+    </div>
+    <div class="sb-user">
+      <div class="sb-av" id="sb-av">👤</div>
+      <div style="flex:1;min-width:0">
+        <div class="sb-uname" id="sb-uname">—</div>
+        <div class="sb-bal" id="sb-bal">🪙 $0</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="nav-sec">Main</div>
+      <div class="ni active" onclick="showPanel('home')"><span class="ni-ico">🏠</span><span class="ni-lbl">Home</span></div>
+      <div class="ni" onclick="showPanel('profile')"><span class="ni-ico">👤</span><span class="ni-lbl">Player Profile</span></div>
+      <div class="ni" onclick="showPanel('messages')"><span class="ni-ico">💬</span><span class="ni-lbl">Messages</span><span class="ni-bdg" id="msg-bdg" style="display:none">0</span></div>
+      <div class="nav-sec">Finance</div>
+      <div class="ni" onclick="showPanel('bank')"><span class="ni-ico">🏦</span><span class="ni-lbl">Bank</span></div>
+      <div class="ni" onclick="showPanel('getchips')"><span class="ni-ico">🪙</span><span class="ni-lbl">Get Chips</span></div>
+      <div class="nav-sec">Games</div>
+      <div class="ni" onclick="showPanel('play')"><span class="ni-ico">♠</span><span class="ni-lbl">Play SipSam</span></div>
+      <div class="ni" onclick="showPanel('play-rhum32')"><span class="ni-ico">🥃</span><span class="ni-lbl">Play Rhum32</span></div>
+      <div class="ni" onclick="showPanel('play-rhum32')"><span class="ni-ico">🥃</span><span class="ni-lbl">Play Rhum32</span></div>
+      <div class="ni" onclick="showPanel('play-blackjack')"><span class="ni-ico">🎴</span><span class="ni-lbl">Play Blackjack</span></div>
+      <div class="ni" onclick="showPanel('play-holdem')"><span class="ni-ico">🤠</span><span class="ni-lbl">Play Hold'em</span></div>
+      <div class="ni" onclick="showPanel('play-roulette')"><span class="ni-ico">🎡</span><span class="ni-lbl">Play Roulette</span></div>
+      <div class="ni" onclick="showPanel('history')"><span class="ni-ico">📊</span><span class="ni-lbl">Game History</span></div>
+      <div class="ni" onclick="showPanel('rewards')"><span class="ni-ico">🏆</span><span class="ni-lbl">Rewards & Milestones</span></div>
+      <div class="nav-sec">Social</div>
+      <div class="ni" onclick="showPanel('friends')"><span class="ni-ico">👥</span><span class="ni-lbl">Friends Network</span></div>
+      <div class="nav-sec">Info</div>
+      <div class="ni" onclick="showPanel('rules')"><span class="ni-ico">📖</span><span class="ni-lbl">Rules</span></div>
+    </nav>
+    <div class="sb-foot">
+      <button class="btn bgh bfull bsm" onclick="doLogout()">🚪 Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="dash-main">
+    <div class="topbar">
+      <span class="mob-tog" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</span>
+      <span class="topbar-title" id="topbar-title">Home</span>
+      <div class="tb-bal" onclick="showPanel('bank')">
+        <span style="color:var(--gold);font-size:14px">🪙</span>
+        <div><div class="tb-amt" id="tb-amt">$0</div><div class="tb-lbl">BANK</div></div>
+      </div>
+    </div>
+
+    <div class="dash-content">
+
+      <!-- HOME -->
+      <div id="panel-home" class="panel active">
+        <div class="ptitle">Welcome Back, <span style="color:var(--gold-hi)" id="home-name">—</span></div>
+        <div class="psub" id="home-notif">Loading your account...</div>
+        <div class="stat-row">
+          <div class="sc"><div class="sc-lbl">Bank Balance</div><div class="sc-val gold" id="home-bank">$0</div></div>
+          <div class="sc"><div class="sc-lbl">Total Wins</div><div class="sc-val blue" id="home-wins">0</div></div>
+          <div class="sc"><div class="sc-lbl">Games Played</div><div class="sc-val" id="home-games">0</div></div>
+          <div class="sc"><div class="sc-lbl">Win Rate</div><div class="sc-val" id="home-wr">—</div></div>
+        </div>
+        <div class="sh">Choose Your Game</div>
+        <div class="games-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:20px">
+          <div class="gcard live" onclick="showPanel('play')"><div class="gi">🃏</div><div class="gn">SipSam</div><div class="gd">Beat the Banker. 3 hands. Specials pay big.</div></div>
+          <div class="gcard live" onclick="showPanel('play-rhum32')"><div class="gi">🥃</div><div class="gn">Rhum 32</div><div class="gd">Beat the Dealer. Stay under 32.</div></div>
+          <div class="gcard live" onclick="showPanel('play-blackjack')"><div class="gi">🎴</div><div class="gn">Black Jack</div><div class="gd">Beat the dealer to 21.</div></div>
+          <div class="gcard live" onclick="showPanel('play-holdem')"><div class="gi">🤠</div><div class="gn">Texas Hold'em</div><div class="gd">Bluff, bet, dominate.</div></div>
+          <div class="gcard live" onclick="showPanel('play-roulette')"><div class="gi">🎡</div><div class="gn">Roulette</div><div class="gd">Spin the wheel. American or European.</div></div>
+        </div>
+        <div class="sh">📺 Earn Free Chips</div>
+        <div class="adp">
+          <div class="adp-info" style="flex:1">
+            <h3>Watch Ads → Earn $500 Chips Per Ad</h3>
+            <p>Up to 5 ads per session · 1-hour cooldown between sessions</p>
+            <div class="ad-st ready" id="ad-st-home">✅ Ready to watch</div>
+          </div>
+          <button class="btn bp bsm" onclick="startAd('reward')">Watch Now →</button>
+        </div>
+      </div>
+
+      <!-- PROFILE -->
+      <div id="panel-profile" class="panel">
+        <div class="ptitle">Player Profile</div>
+        <div class="psub">Manage your identity on VurgLife</div>
+        <div class="prof-grid">
+          <div style="position:relative">
+            <div class="prof-av" id="prof-av">👤</div>
+            <div class="av-edit" title="Change avatar">✏️</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:13px">
+            <div class="fg" style="margin:0"><label class="fl">Username (Alias)</label>
+              <div style="display:flex;gap:8px"><input id="p-uname" class="fi" type="text" style="flex:1"><button class="btn bp bsm" onclick="saveAlias()">Save</button></div></div>
+            <div class="fg" style="margin:0"><label class="fl">Status Message</label>
+              <div style="display:flex;gap:8px"><input id="p-status" class="fi" type="text" placeholder="e.g. Ready to play!" maxlength="60" style="flex:1"><button class="btn bp bsm" onclick="saveStatus()">Save</button></div></div>
+          </div>
+        </div>
+        <div class="sh">Choose Avatar</div>
+        <div class="av-grid">
+          <div class="av-opt" onclick="pickAvatar('🃏')">🃏</div><div class="av-opt" onclick="pickAvatar('👑')">👑</div>
+          <div class="av-opt" onclick="pickAvatar('🦁')">🦁</div><div class="av-opt" onclick="pickAvatar('🐯')">🐯</div>
+          <div class="av-opt" onclick="pickAvatar('🦊')">🦊</div><div class="av-opt" onclick="pickAvatar('🐺')">🐺</div>
+          <div class="av-opt" onclick="pickAvatar('🎭')">🎭</div><div class="av-opt" onclick="pickAvatar('💎')">💎</div>
+          <div class="av-opt" onclick="pickAvatar('🔱')">🔱</div><div class="av-opt" onclick="pickAvatar('⚡')">⚡</div>
+          <div class="av-opt" onclick="pickAvatar('🌙')">🌙</div><div class="av-opt" onclick="pickAvatar('🎯')">🎯</div>
+        </div>
+      </div>
+
+      <!-- MESSAGES -->
+      <div id="panel-messages" class="panel">
+        <div class="ptitle">Messages</div>
+        <div class="psub">Game notifications and friend messages</div>
+        <div class="sh">System Notifications</div>
+        <div id="sys-msgs">
+          <div class="msg-card"><div class="msg-head"><span class="msg-from">🎉 VurgLife</span><span class="msg-time">Now</span></div>
+            <div class="msg-body">Welcome to VurgLife! Your account has been created and 5,000 chips added to your bank.</div></div>
+        </div>
+        <div class="sh" style="margin-top:18px">Friend Messages</div>
+        <div id="friend-msgs"><div style="color:var(--text-dim);font-size:13px;padding:12px 0">No friend messages yet. Add friends to start chatting!</div></div>
+      </div>
+
+      <!-- BANK -->
+      <div id="panel-bank" class="panel">
+        <div class="ptitle">Bank</div>
+        <div class="psub">Your chips balance and recent game performance</div>
+        <div class="stat-row" style="grid-template-columns:1fr 1fr;max-width:380px">
+          <div class="sc"><div class="sc-lbl">Current Balance</div><div class="sc-val gold" id="bank-bal">$0</div></div>
+          <div class="sc"><div class="sc-lbl">Total Earned</div><div class="sc-val green" id="bank-earned">$0</div></div>
+        </div>
+        <div class="sh">Last 5 Games — Chip Balance</div>
+        <div id="bank-hist"><div style="color:var(--text-dim);font-size:13px;padding:10px 0">No games played yet.</div></div>
+        <div style="text-align:right;margin-top:14px">
+          <button class="btn bp bsm" onclick="showPanel('getchips')">➕ Get More Chips →</button>
+        </div>
+      </div>
+
+      <!-- GET CHIPS -->
+      <div id="panel-getchips" class="panel">
+        <div class="ptitle">Get Chips</div>
+        <div class="psub">Earn free chips or purchase a package</div>
+        <div class="ctabs">
+          <div class="ctab active" onclick="chipTab('ads',this)">📺 Watch Ads</div>
+          <div class="ctab" onclick="chipTab('buy',this)">💳 Purchase</div>
+        </div>
+        <div id="ct-ads">
+          <div class="adp">
+            <div class="adp-info" style="flex:1">
+              <h3>Earn $500 Chips Per Ad</h3>
+              <p>Up to 5 ads per session · 1-hour cooldown · Max $2,500 per session</p>
+              <div class="ad-st ready" id="ad-st-chips">✅ Ready to watch</div>
+            </div>
+            <button class="btn bp" onclick="startAd('reward')">Watch Ad →</button>
+          </div>
+        </div>
+        <div id="ct-buy" style="display:none">
+          <div class="pkg-grid" id="pkg-grid"></div>
+          <p style="font-size:11px;color:var(--text-dim);margin-top:14px;text-align:center">Secured via Stripe · PayPal · WiPay (Caribbean) coming soon</p>
+        </div>
+      </div>
+
+      <!-- PLAY -->
+      <div id="panel-play" class="panel">
+        <div class="ptitle">Play SipSam</div>
+        <div class="psub">Select a table — your bank must meet the minimum requirement</div>
+        <div class="tgrid" id="tgrid-play"></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;font-size:13px;color:var(--text-mid);margin-top:4px">
+          💡 <strong style="color:var(--text-hi)">How it works:</strong> When you enter a table, your wallet is funded from your bank. It is returned when you exit. If your wallet runs low, use <em>Replenish Wallet</em> from the in-game menu.
+        </div>
+        <div class="sh" style="margin-top:20px">Other VurgLife Games</div>
+        <div class="games-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+          <div class="gcard live" onclick="showPanel('play-rhum32')"><div class="gi">🥃</div><div class="gn">Rhum 32</div><div class="gd">Beat the Dealer!</div></div>
+          <div class="gcard live" onclick="showPanel('play-blackjack')"><div class="gi">🎴</div><div class="gn">Black Jack</div><div class="gd">Beat the dealer to 21!</div></div>
+          <div class="gcard live" onclick="showPanel('play-holdem')"><div class="gi">🤠</div><div class="gn">Texas Hold'em</div><div class="gd">Bluff, bet, dominate!</div></div>
+        </div>
+      </div>
+
+      <!-- PLAY RHUM32 -->
+      <div id="panel-play-rhum32" class="panel">
+        <div class="ptitle">Play Rhum32</div>
+        <div class="psub">Beat the Dealer — stay under 32. Select a table below.</div>
+        <div class="tgrid" id="tgrid-rhum32"></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;font-size:13px;color:var(--text-mid);margin-top:4px">
+          💡 <strong style="color:var(--text-hi)">How it works:</strong> Place a Front Bet to enter each round. After seeing 4 cards (and one of the dealer's), double down with a Back Bet or fold. Dealer busts over 32 — specials pay up to 100:1!
+        </div>
+        <div class="sh" style="margin-top:20px">Table Requirements</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;color:var(--text-mid)">
+          <thead><tr style="border-bottom:1px solid var(--border);text-align:left">
+            <th style="padding:8px">Table</th><th style="padding:8px">Max Front Bet</th><th style="padding:8px">Tie Bet Range</th><th style="padding:8px">Min Bank</th>
+          </tr></thead>
+          <tbody>
+            <tr><td style="padding:6px 8px">$100</td><td style="padding:6px 8px">$500</td><td style="padding:6px 8px">$50 – $100</td><td style="padding:6px 8px">$3,000</td></tr>
+            <tr><td style="padding:6px 8px">$500</td><td style="padding:6px 8px">$3,000</td><td style="padding:6px 8px">$100 – $500</td><td style="padding:6px 8px">$15,000</td></tr>
+            <tr><td style="padding:6px 8px">$1,000</td><td style="padding:6px 8px">$5,000</td><td style="padding:6px 8px">$500 – $1,000</td><td style="padding:6px 8px">$25,000</td></tr>
+            <tr><td style="padding:6px 8px">$5,000</td><td style="padding:6px 8px">$10,000</td><td style="padding:6px 8px">$1,000 – $5,000</td><td style="padding:6px 8px">$100,000</td></tr>
+            <tr><td style="padding:6px 8px">VIP $10,000</td><td style="padding:6px 8px">$100,000</td><td style="padding:6px 8px">No Limit</td><td style="padding:6px 8px">$1,000,000</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- PLAY BLACKJACK -->
+      <div id="panel-play-blackjack" class="panel">
+        <div class="ptitle">Play Blackjack</div>
+        <div class="psub">Select a table — your bank must meet the minimum requirement</div>
+        <div class="tgrid" id="tgrid-bj"></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;font-size:13px;color:var(--text-mid);margin-top:4px">
+          💡 <strong style="color:var(--text-hi)">How it works:</strong> Get dealt cards, try to beat the dealer without going over 21. Hit, stand, double down, or split. Classic casino rules.
+        </div>
+        <div class="sh" style="margin-top:20px">Other VurgLife Games</div>
+        <div class="games-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+          <div class="gcard live" onclick="showPanel('play')"><div class="gi">🃏</div><div class="gn">SipSam</div><div class="gd">Beat the Banker!</div></div>
+          <div class="gcard live" onclick="showPanel('play-rhum32')"><div class="gi">🥃</div><div class="gn">Rhum 32</div><div class="gd">Beat the Dealer!</div></div>
+          <div class="gcard live" onclick="showPanel('play-holdem')"><div class="gi">🤠</div><div class="gn">Texas Hold'em</div><div class="gd">Bluff, bet, dominate!</div></div>
+        </div>
+      </div>
+
+      <!-- PLAY HOLDEM -->
+      <div id="panel-play-holdem" class="panel">
+        <div class="ptitle">Texas Hold'em</div>
+        <div class="psub">Select a table — your bank must meet the minimum requirement</div>
+        <div class="tgrid" id="tgrid-holdem"></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;font-size:13px;color:var(--text-mid);margin-top:4px">
+          💡 <strong style="color:var(--text-hi)">How it works:</strong> Two hole cards, five community cards. Bet in rounds: pre-flop, flop, turn, river. Best 5-card hand wins the pot.
+        </div>
+        <div class="sh" style="margin-top:20px">Other VurgLife Games</div>
+        <div class="games-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+          <div class="gcard live" onclick="showPanel('play')"><div class="gi">🃏</div><div class="gn">SipSam</div><div class="gd">Beat the Banker!</div></div>
+          <div class="gcard live" onclick="showPanel('play-rhum32')"><div class="gi">🥃</div><div class="gn">Rhum 32</div><div class="gd">Beat the Dealer!</div></div>
+          <div class="gcard live" onclick="showPanel('play-blackjack')"><div class="gi">🎴</div><div class="gn">Black Jack</div><div class="gd">Beat the dealer to 21!</div></div>
+        </div>
+      </div>
+
+      <!-- PLAY ROULETTE -->
+      <div id="panel-play-roulette" class="panel">
+        <div class="ptitle">Play Roulette</div>
+        <div class="psub">Place your chips. Spin the wheel. Pick a table — variant (American or European) chosen at the table.</div>
+        <div class="tgrid" id="tgrid-roulette"></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;font-size:13px;color:var(--text-mid);margin-top:4px">
+          💡 <strong style="color:var(--text-hi)">How it works:</strong> Place chips on numbers, colors, dozens, or columns during a 20s betting window. The wheel spins. Straight-up pays 35:1, even-money bets pay 1:1. European tables follow the <em>la partage</em> rule (half stake returned on zero for even-money bets).
+        </div>
+        <div class="sh" style="margin-top:20px">Table Requirements</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;color:var(--text-mid)">
+          <thead><tr style="border-bottom:1px solid var(--border);text-align:left">
+            <th style="padding:8px">Table</th><th style="padding:8px">Max Bet</th><th style="padding:8px">Wallet Size</th><th style="padding:8px">Min Bank</th>
+          </tr></thead>
+          <tbody>
+            <tr><td style="padding:6px 8px">$100</td><td style="padding:6px 8px">$500</td><td style="padding:6px 8px">$2,500</td><td style="padding:6px 8px">$2,500</td></tr>
+            <tr><td style="padding:6px 8px">$1,000</td><td style="padding:6px 8px">$5,000</td><td style="padding:6px 8px">$25,000</td><td style="padding:6px 8px">$25,000</td></tr>
+            <tr><td style="padding:6px 8px">$5,000</td><td style="padding:6px 8px">$25,000</td><td style="padding:6px 8px">$120,000</td><td style="padding:6px 8px">$120,000</td></tr>
+            <tr><td style="padding:6px 8px">VIP $10,000</td><td style="padding:6px 8px">$50,000</td><td style="padding:6px 8px">$250,000</td><td style="padding:6px 8px">$250,000</td></tr>
+            <tr><td style="padding:6px 8px">VIP $50,000</td><td style="padding:6px 8px">$250,000</td><td style="padding:6px 8px">$1,000,000</td><td style="padding:6px 8px">$1,000,000</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- PLAY RHUM32 -->
+      <div id="panel-play-rhum32" class="panel">
+        <div class="ptitle">Play Rhum32</div>
+        <div class="psub">Beat the Dealer — stay under 32. Select a table below.</div>
+        <div class="tgrid" id="tgrid-rhum32"></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;font-size:13px;color:var(--text-mid);margin-top:4px">
+          💡 <strong style="color:var(--text-hi)">How it works:</strong> Place a Front Bet to enter each round. After seeing 4 cards (and one of the dealer's), double down with a Back Bet or fold. Dealer busts over 32 — specials pay up to 100:1!
+        </div>
+        <div class="sh" style="margin-top:20px">Table Requirements</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;color:var(--text-mid)">
+          <thead><tr style="border-bottom:1px solid var(--border);text-align:left">
+            <th style="padding:8px">Table</th><th style="padding:8px">Max Front Bet</th><th style="padding:8px">Tie Bet Range</th><th style="padding:8px">Min Bank</th>
+          </tr></thead>
+          <tbody>
+            <tr><td style="padding:6px 8px">$100</td><td style="padding:6px 8px">$500</td><td style="padding:6px 8px">$50 – $100</td><td style="padding:6px 8px">$3,000</td></tr>
+            <tr><td style="padding:6px 8px">$500</td><td style="padding:6px 8px">$3,000</td><td style="padding:6px 8px">$100 – $500</td><td style="padding:6px 8px">$15,000</td></tr>
+            <tr><td style="padding:6px 8px">$1,000</td><td style="padding:6px 8px">$5,000</td><td style="padding:6px 8px">$500 – $1,000</td><td style="padding:6px 8px">$25,000</td></tr>
+            <tr><td style="padding:6px 8px">$5,000</td><td style="padding:6px 8px">$10,000</td><td style="padding:6px 8px">$1,000 – $5,000</td><td style="padding:6px 8px">$100,000</td></tr>
+            <tr><td style="padding:6px 8px">VIP $10,000</td><td style="padding:6px 8px">$100,000</td><td style="padding:6px 8px">No Limit</td><td style="padding:6px 8px">$1,000,000</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- PLAY BLACKJACK -->
+      <div id="panel-play-blackjack" class="panel">
+        <div class="ptitle">Play Blackjack</div>
+        <div class="psub">Select a table — your bank must meet the minimum requirement</div>
+        <div class="tgrid" id="tgrid-bj"></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;font-size:13px;color:var(--text-mid);margin-top:4px">
+          💡 <strong style="color:var(--text-hi)">How it works:</strong> Get dealt cards, try to beat the dealer without going over 21. Hit, stand, double down, or split. Classic casino rules.
+        </div>
+        <div class="sh" style="margin-top:20px">Other VurgLife Games</div>
+        <div class="games-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+          <div class="gcard live" onclick="showPanel('play')"><div class="gi">🃏</div><div class="gn">SipSam</div><div class="gd">Beat the Banker!</div></div>
+          <div class="gcard live" onclick="showPanel('play-rhum32')"><div class="gi">🥃</div><div class="gn">Rhum 32</div><div class="gd">Beat the Dealer!</div></div>
+          <div class="gcard live" onclick="showPanel('play-holdem')"><div class="gi">🤠</div><div class="gn">Texas Hold'em</div><div class="gd">Bluff, bet, dominate!</div></div>
+        </div>
+      </div>
+
+      <!-- PLAY HOLDEM -->
+      <div id="panel-play-holdem" class="panel">
+        <div class="ptitle">Texas Hold'em</div>
+        <div class="psub">Select a table — your bank must meet the minimum requirement</div>
+        <div class="tgrid" id="tgrid-holdem"></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;font-size:13px;color:var(--text-mid);margin-top:4px">
+          💡 <strong style="color:var(--text-hi)">How it works:</strong> Two hole cards, five community cards. Bet in rounds: pre-flop, flop, turn, river. Best 5-card hand wins the pot.
+        </div>
+        <div class="sh" style="margin-top:20px">Other VurgLife Games</div>
+        <div class="games-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+          <div class="gcard live" onclick="showPanel('play')"><div class="gi">🃏</div><div class="gn">SipSam</div><div class="gd">Beat the Banker!</div></div>
+          <div class="gcard live" onclick="showPanel('play-rhum32')"><div class="gi">🥃</div><div class="gn">Rhum 32</div><div class="gd">Beat the Dealer!</div></div>
+          <div class="gcard live" onclick="showPanel('play-blackjack')"><div class="gi">🎴</div><div class="gn">Black Jack</div><div class="gd">Beat the dealer to 21!</div></div>
+        </div>
+      </div>
+
+      <!-- HISTORY -->
+      <div id="panel-history" class="panel">
+        <div class="ptitle">Game History</div>
+        <div class="psub">Your wins and losses with dates</div>
+        <div class="stat-row">
+          <div class="sc"><div class="sc-lbl">Total Games</div><div class="sc-val" id="ht-total">0</div></div>
+          <div class="sc"><div class="sc-lbl">Wins</div><div class="sc-val green" id="ht-wins">0</div></div>
+          <div class="sc"><div class="sc-lbl">Losses</div><div class="sc-val" style="color:var(--red)" id="ht-losses">0</div></div>
+          <div class="sc"><div class="sc-lbl">Win Rate</div><div class="sc-val blue" id="ht-wr">—</div></div>
+        </div>
+        <div class="sh">Recent Games</div>
+        <div id="hist-list"><div style="color:var(--text-dim);font-size:13px;padding:10px 0">No games played yet.</div></div>
+      </div>
+
+      <!-- REWARDS -->
+      <div id="panel-rewards" class="panel">
+            <div class="r-desc">Reach 50 total wins across all SipSam games. Watch a 30-second ad to claim.</div>
+            <div class="r-date">Progress: <span id="r50-p">0</span>/50 wins</div></div>
+          <div><div class="r-amt">$1,500</div><div id="r50-btn"></div></div></div>
+        <div class="rcard"><div class="r-ico">🏆</div>
+          <div class="r-body"><div class="r-title">First 100 Wins</div>
+            <div class="r-desc">Reach 100 total wins. Watch a 30-second ad to claim.</div>
+            <div class="r-date">Progress: <span id="r100-p">0</span>/100 wins</div></div>
+          <div><div class="r-amt">$5,000</div><div id="r100-btn"></div></div></div>
+        <div class="rcard"><div class="r-ico">🎖️</div>
+          <div class="r-body"><div class="r-title">Every 100 Wins After</div>
+            <div class="r-desc">For every additional 100 wins beyond 100, earn a repeating milestone reward. Watch a 30-second ad to claim.</div>
+            <div class="r-date">Repeating — resets every 100 wins</div></div>
+          <div><div class="r-amt">$2,000</div><div style="font-size:10px;color:var(--text-dim);margin-top:3px">EACH TIME</div></div></div>
+        <div class="rcard"><div class="r-ico">🥇</div>
+          <div class="r-body"><div class="r-title">Game Winner Bonus</div>
+            <div class="r-desc">Finish a full game session with the most chips among human players. Bots do not qualify. Auto-awarded at game end.</div>
+            <div class="r-date">Per completed game session</div></div>
+          <div><div class="r-amt">$1,000</div></div></div>
+        <div class="rcard"><div class="r-ico">🎁</div>
+          <div class="r-body"><div class="r-title">Daily Login Bonus</div>
+            <div class="r-desc">Log in every day to receive a free chip bonus. Automatically applied on first login each day.</div>
+            <div class="r-date">Resets every 24 hours</div></div>
+          <div><div class="r-amt">$500</div><div style="font-size:10px;color:var(--text-dim);margin-top:3px">PER DAY</div></div></div>
+      </div>
+
+      <!-- FRIENDS -->
+      <div id="panel-friends" class="panel">
+        <div class="ptitle">Friends Network</div>
+        <div class="psub">Connect, chat, send chips and join games</div>
+        <div style="display:flex;gap:9px;margin-bottom:18px;flex-wrap:wrap">
+          <button class="btn bp bsm" onclick="toggleAddFriend()">➕ Add Friend</button>
+      <div id="panel-friends" class="panel">
+        <div class="ptitle">Friends Network</div>
+        <div class="psub">Connect, chat, send chips and join games</div>
+        <div style="display:flex;gap:9px;margin-bottom:18px;flex-wrap:wrap">
+          <button class="btn bp bsm" onclick="toggleAddFriend()">➕ Add Friend</button>
+          <button class="btn bgh bsm" onclick="showPanel('messages')">💬 Messages</button>
+        </div>
+        <div id="add-friend-box" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:16px">
+          <div class="sh" style="margin-top:0">Search Players</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <input id="friend-q" class="fi" type="text" placeholder="Enter username..." style="flex:1">
+            <button class="btn bp bsm" onclick="searchFriend()">Search</button>
+          </div>
+          <div id="friend-results"></div>
+        </div>
+        <div class="sh">My Friends</div>
+        <div id="friends-list"><div style="color:var(--text-dim);font-size:13px;padding:10px 0">No friends added yet.</div></div>
+        <div class="sh" style="margin-top:18px">Pending Requests</div>
+        <div id="friend-reqs"><div style="color:var(--text-dim);font-size:13px;padding:10px 0">No pending requests.</div></div>
+      </div>
+
+      <!-- RULES -->
+      <div id="panel-rules" class="panel">
+        <div class="ptitle">Rules & How to Play</div>
+        <div class="psub">Complete guide to all VurgLife card games</div>
+        <div class="rtabs">
+          <div class="rtab active" onclick="showRules('sipsam',this)">🃏 SipSam</div>
+          <div class="rtab" onclick="showRules('rhum32',this)">🥃 Rhum 32</div>
+          <div class="rtab" onclick="showRules('holdem',this)">🤠 Texas Hold'em</div>
+          <div class="rtab" onclick="showRules('blackjack',this)">🎴 Black Jack</div>
+        </div>
+
+        <!-- SIPSAM -->
+        <div id="rc-sipsam" class="rc active">
+          <div class="rsec"><h3>Game Overview</h3>
+            <p>SipSam is a Caribbean card game played between <strong>4 players</strong> — one designated <strong>Banker</strong> and three regular players. Each player receives <strong>13 cards</strong> from a standard 52-card deck. Players compete solely against the Banker — never each other. The Banker role is <strong>randomly assigned</strong> at game start and remains fixed for that game.</p>
+          </div>
+          <div class="rsec"><h3>Table Selection &amp; Bank Requirements</h3>
+            <table class="stbl">
+              <tr><th>Table</th><th>Min Bet</th><th>Increment</th><th>Max Bet</th><th>Min Bank</th><th>Wallet</th></tr>
+              <tr><td>$100 Table</td><td>$100</td><td>$50</td><td>$150</td><td>$5,000</td><td>$3,000</td></tr>
+              <tr><td>$250 Table</td><td>$250</td><td>$50</td><td>$500</td><td>$15,000</td><td>$10,000</td></tr>
+              <tr><td>$500 Table</td><td>$500</td><td>$100</td><td>$1,000</td><td>$30,000</td><td>$20,000</td></tr>
+              <tr><td>$1,000 Table</td><td>$1,000</td><td>$500</td><td>$2,000</td><td>$60,000</td><td>$40,000</td></tr>
+            </table>
+            <div class="hl" style="margin-top:10px"><p>Your bank must meet the minimum to enter. Your wallet is funded from your bank on entry and returned on exit.</p></div>
+          </div>
+          <div class="rsec"><h3>Dealing Logic</h3>
+            <p>One card is flipped face-up. Its value determines who receives the first card dealt:</p>
+            <ul><li><strong>A, 5, 9, K</strong> → Banker receives first</li><li><strong>2, 6, 10</strong> → Player 1</li><li><strong>3, 7, J</strong> → Player 2</li><li><strong>4, 8, Q</strong> → Player 3</li></ul>
+            <p>Cards then rotate clockwise until each player holds 13 cards.</p>
+          </div>
+          <div class="rsec"><h3>Hand Arrangement (3 Hands)</h3>
+            <p>Each player splits 13 cards into 3 hands arranged from weakest → strongest toward themselves:</p>
+            <ul>
+              <li><strong>1st Hand</strong> — 3 cards — <em>weakest</em> — placed furthest from player (toward center)</li>
+              <li><strong>2nd Hand</strong> — 5 cards — stronger than 1st — placed in middle</li>
+              <li><strong>3rd Hand</strong> — 5 cards — <em>strongest</em> — placed closest to player</li>
+            </ul>
+            <div class="hl"><p>⚠️ Hands MUST be in ascending strength order: 1st (weakest) → 2nd → 3rd (strongest). Violation = disqualification.</p></div>
+          </div>
+          <div class="rsec"><h3>Betting</h3>
+            <p>Bets are placed each round before declaring. Minimum is the table default; maximum is the table limit. Bets <strong>cannot be reduced</strong> below the table minimum.</p>
+            <ul><li>$100 Table: $100 → $150 in $50 increments</li><li>$250 Table: $250 → $500 in $50 increments</li>
+              <li>$500 Table: $500 → $1,000 in $100 increments</li><li>$1,000 Table: $1,000 → $2,000 in $500 increments</li></ul>
+          </div>
+          <div class="rsec"><h3>Hand Values (Strongest → Weakest)</h3>
+            <ol><li><strong>Royal Flush</strong> — A K Q J 10 same suit</li><li><strong>Straight Flush</strong> — 5 consecutive same suit</li>
+              <li><strong>Four of a Kind</strong></li><li><strong>Full House</strong> — 3-of-a-kind + pair</li>
+              <li><strong>Flush</strong> — 5 same suit <em>(beats Straight in SipSam)</em></li><li><strong>Straight</strong> — 5 consecutive mixed</li>
+              <li><strong>Three of a Kind</strong></li><li><strong>Two Pair</strong></li><li><strong>One Pair</strong></li><li><strong>High Card</strong></li></ol>
+            <div class="hl"><p>🃏 <strong>Flush ALWAYS beats Straight</strong> in SipSam — this differs from standard poker.</p></div>
+          </div>
+          <div class="rsec"><h3>Tie-Breaking</h3>
+            <ul><li>Banker wins all ties — <strong>except flush ties</strong></li>
+              <li>Flush ties broken by suit: <strong>Hearts &gt; Spades &gt; Diamonds &gt; Clubs</strong></li>
+              <li>Within same suit flush: compare cards positionally, highest card first</li></ul>
+          </div>
+          <div class="rsec"><h3>Payouts</h3>
+            <table class="stbl">
+              <tr><th>Result</th><th>Payout</th></tr>
+              <tr><td>Win all 3 hands</td><td style="color:var(--green)">+2× bet (Banker pays)</td></tr>
+              <tr><td>Win 2 of 3 hands</td><td style="color:var(--green)">+1× bet (Banker pays)</td></tr>
+              <tr><td>Win 1 of 3 hands</td><td style="color:var(--red)">−1× bet (pay Banker)</td></tr>
+              <tr><td>Lose all 3 hands</td><td style="color:var(--red)">−2× bet (pay Banker)</td></tr>
+            </table>
+          </div>
+          <div class="rsec"><h3>Specials (Override Normal Hand Comparison)</h3>
+            <p>When a Special is declared, it applies to the <strong>entire round</strong> and overrides all normal hand comparisons. A Special payout replaces the standard 1×/2× hand result — the multiplier applies to the round bet. Ranked lowest to highest payout:</p>
+            <table class="stbl">
+              <tr><th>Rank</th><th>Special Name</th><th>Description</th><th>Payout</th></tr>
+              <tr><td><span class="rnk">#1</span>No Face</td><td>No Face</td><td>All 13 cards are non-face cards (no J, Q, K, A — numbered cards only)</td><td style="color:var(--gold-hi)">2 to 1</td></tr>
+              <tr><td><span class="rnk">#2</span>Four of a Kind</td><td>Four of a Kind</td><td>Any hand among the 3 contains four cards of the same rank</td><td style="color:var(--gold-hi)">3 to 1</td></tr>
+              <tr><td><span class="rnk">#2</span>Straight Flush</td><td>Straight Flush</td><td>Any hand among the 3 contains 5 consecutive cards of the same suit</td><td style="color:var(--gold-hi)">3 to 1</td></tr>
+              <tr><td><span class="rnk">#3</span>Straight-Straight-Straight</td><td>Three Straights</td><td>All 3 hands are straights (5 consecutive cards, mixed suits)</td><td style="color:var(--gold-hi)">5 to 1</td></tr>
+              <tr><td><span class="rnk">#3</span>Flush-Flush-Flush</td><td>Three Flushes</td><td>All 3 hands are flushes (5 cards of the same suit)</td><td style="color:var(--gold-hi)">5 to 1</td></tr>
+              <tr><td><span class="rnk top">#4</span>Royal Flush</td><td>Royal Flush</td><td>Any hand contains A-K-Q-J-10 of the same suit</td><td style="color:var(--gold-hi)">7 to 1</td></tr>
+              <tr><td><span class="rnk top">#5</span>6½ Pairs</td><td>Six and a Half</td><td>6 matching pairs among all 13 cards (one card left over — the "half")</td><td style="color:var(--gold-hi)">8 to 1</td></tr>
+              <tr><td><span class="rnk top">#6</span>Full Suit</td><td>Full Suit</td><td>All 13 cards are of the same suit</td><td style="color:var(--gold-hi)">10 to 1</td></tr>
+            </table>
+          <div class="rsec"><h3>Send &amp; Receive Chips (In-Game)</h3>
+            <ul><li><strong>Send Chips</strong> — limited to the <strong>max bet of the current table</strong></li>
+              <li><strong>Request Chips</strong> — send a request message to a specific player or the Banker</li>
+              <li>Chip transfers are instantly deducted from sender's wallet</li></ul>
+          </div>
+          <div class="rsec"><h3>Replenishing Chips Mid-Game</h3>
+            <p>If your wallet runs low, use <em>Replenish Wallet</em> from the in-game menu. Chips are drawn from your <strong>bank balance</strong>, limited to the table's wallet size. Your bank must have sufficient funds.</p>
+          </div>
+          <div class="rsec"><h3>Disqualifications</h3>
+            <table class="stbl">
+              <tr><th>Violation</th><th>Consequence</th></tr>
+              <tr><td>Fail to declare within timer</td><td style="color:var(--red)">Lose the round bet</td></tr>
+              <tr><td>Declare wrong Special</td><td style="color:var(--red)">Lose the round bet</td></tr>
+              <tr><td>Banker has Special, plays normal hands (caught by Players)</td><td style="color:var(--red)">Banker pays all players 2× bet (or Special rate)</td></tr>
+              <tr><td>Player has Special, plays normal hands (caught by Banker)</td><td style="color:var(--red)">Player loses bet and pays Banker 2× bet</td></tr>
+            </table>
+          </div>
+          <div class="rsec"><h3>Exit Game</h3>
+            <p>Exit at any time from the in-game menu. Your remaining wallet is returned to your bank. Progress in a current round may be forfeited if you exit mid-round.</p>
+// [LINE 850 MISSING — no Read snapshot covers it]
+// [LINE 851 MISSING — no Read snapshot covers it]
+// [LINE 852 MISSING — no Read snapshot covers it]
+// [LINE 853 MISSING — no Read snapshot covers it]
+// [LINE 854 MISSING — no Read snapshot covers it]
+// [LINE 855 MISSING — no Read snapshot covers it]
+// [LINE 856 MISSING — no Read snapshot covers it]
+// [LINE 857 MISSING — no Read snapshot covers it]
+// [LINE 858 MISSING — no Read snapshot covers it]
+// [LINE 859 MISSING — no Read snapshot covers it]
+// [LINE 860 MISSING — no Read snapshot covers it]
+// [LINE 861 MISSING — no Read snapshot covers it]
+// [LINE 862 MISSING — no Read snapshot covers it]
+// [LINE 863 MISSING — no Read snapshot covers it]
+// [LINE 864 MISSING — no Read snapshot covers it]
+// [LINE 865 MISSING — no Read snapshot covers it]
+// [LINE 866 MISSING — no Read snapshot covers it]
+// [LINE 867 MISSING — no Read snapshot covers it]
+// [LINE 868 MISSING — no Read snapshot covers it]
+// [LINE 869 MISSING — no Read snapshot covers it]
+// [LINE 870 MISSING — no Read snapshot covers it]
+// [LINE 871 MISSING — no Read snapshot covers it]
+// [LINE 872 MISSING — no Read snapshot covers it]
+// [LINE 873 MISSING — no Read snapshot covers it]
+// [LINE 874 MISSING — no Read snapshot covers it]
+// [LINE 875 MISSING — no Read snapshot covers it]
+// [LINE 876 MISSING — no Read snapshot covers it]
+// [LINE 877 MISSING — no Read snapshot covers it]
+// [LINE 878 MISSING — no Read snapshot covers it]
+      <div id="panel-play-blackjack" class="panel">
+        <div class="ptitle">Play Blackjack</div>
+        <div class="psub">Select a table — your bank must meet the minimum requirement</div>
+        <div class="tgrid" id="tgrid-bj"></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;font-size:13px;color:var(--text-mid);margin-top:4px">
+          💡 <strong style="color:var(--text-hi)">VurgLife rules:</strong> Single 52-card deck · Dealer stands on soft 17 · Blackjack pays 3:2 · Double, Split (up to 4 hands), Insurance $50 · <strong style="color:#ffd700">Tie Bet $100 → $2,000 Bonus ($3,000 for $500 bets)</strong>
+        </div>
+        <div class="sh" style="margin-top:20px">Other VurgLife Games</div>
+        <div class="games-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+          <div class="gcard live" onclick="showPanel('play')"><div class="gi">🃏</div><div class="gn">SipSam</div><div class="gd">The Caribbean card game. Beat the Banker.</div></div>
+          <div class="gcard live" onclick="showPanel('play-holdem')"><div class="gi">🤠</div><div class="gn">Texas Hold'em</div><div class="gd">No-Limit Hold'em. Up to 9 players.</div></div>
+          <div class="gcard soon"><div class="gi">🥃</div><div class="gn">Rhum 32</div><div class="gd">Coming soon</div></div>
+          <div class="gcard soon"><div class="gi">🎡</div><div class="gn">European Roulette</div><div class="gd">Single zero · Coming soon</div></div>
+          <div class="gcard soon"><div class="gi">🎰</div><div class="gn">American Roulette</div><div class="gd">Double zero · Coming soon</div></div>
+        </div>
+      </div>
+
+      <!-- PLAY HOLDEM -->
+      <div id="panel-play-holdem" class="panel">
+        <div class="ptitle">Texas Hold'em</div>
+        <div class="psub">Select a table — your bank must meet the minimum requirement</div>
+        <div class="tgrid" id="tgrid-holdem"></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;font-size:13px;color:var(--text-mid);margin-top:4px">
+          💡 <strong style="color:var(--text-hi)">VurgLife Hold'em rules:</strong>
+          No-Limit Texas Hold'em &middot; Dealer bot always present — game starts instantly &middot;
+          6-max tables (Micro &amp; Starter) for faster action &middot;
+          9-max tables (Standard, High Roller, VIP) for full-ring play &middot;
+          Best 5-card hand from 7 cards wins &middot; Blinds, side pots, all-in &amp; player-funded bots supported &middot;
+          <strong style="color:var(--gold)">5 tiers: Micro ($10 BB) → Starter ($50 BB) → Standard ($100 BB) → High Roller ($500 BB) → VIP ($1,000 BB)</strong>
+        </div>
+        <div class="sh" style="margin-top:20px">Other VurgLife Games</div>
+        <div class="games-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+          <div class="gcard live" onclick="showPanel('play')"><div class="gi">🃏</div><div class="gn">SipSam</div><div class="gd">The Caribbean card game. Beat the Banker.</div></div>
+          <div class="gcard live" onclick="showPanel('play-blackjack')"><div class="gi">🎴</div><div class="gn">Black Jack</div><div class="gd">Beat the dealer to 21. Blackjack pays 3:2.</div></div>
+          <div class="gcard soon"><div class="gi">🥃</div><div class="gn">Rhum 32</div><div class="gd">Coming soon</div></div>
+          <div class="gcard soon"><div class="gi">🎡</div><div class="gn">European Roulette</div><div class="gd">Single zero · Coming soon</div></div>
+          <div class="gcard soon"><div class="gi">🎰</div><div class="gn">American Roulette</div><div class="gd">Double zero · Coming soon</div></div>
+        </div>
+      </div>
+
+      <!-- HISTORY -->
+      <div id="panel-history" class="panel">
+        <div class="ptitle">Game History</div>
+        <div class="psub">Your wins and losses with dates</div>
+        <div class="stat-row">
+          <div class="sc"><div class="sc-lbl">Total Games</div><div class="sc-val" id="ht-total">0</div></div>
+          <div class="sc"><div class="sc-lbl">Wins</div><div class="sc-val green" id="ht-wins">0</div></div>
+          <div class="sc"><div class="sc-lbl">Losses</div><div class="sc-val" style="color:var(--red)" id="ht-losses">0</div></div>
+          <div class="sc"><div class="sc-lbl">Win Rate</div><div class="sc-val blue" id="ht-wr">—</div></div>
+        </div>
+// [LINE 929 MISSING — no Read snapshot covers it]
+// [LINE 930 MISSING — no Read snapshot covers it]
+// [LINE 931 MISSING — no Read snapshot covers it]
+// [LINE 932 MISSING — no Read snapshot covers it]
+// [LINE 933 MISSING — no Read snapshot covers it]
+// [LINE 934 MISSING — no Read snapshot covers it]
+// [LINE 935 MISSING — no Read snapshot covers it]
+
+<!-- ═══════════ TOAST ═══════════ -->
+<div id="toast" class="toast">
+  <div class="toast-t" id="toast-t"></div>
+  <div class="toast-m" id="toast-m"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// VURGLIFE DASHBOARD CLIENT
+// ═══════════════════════════════════════════════════════
+let currentUser = null, authToken = localStorage.getItem('vurglife_token') || null;
+let pendingTable = null, adCtx = null, adTimer = null;
+
+        </div>
+      </div><!-- /rules panel -->
+
+    </div><!-- /dash-content -->
+  </div><!-- /dash-main -->
+</div><!-- /dashboard -->
+
+<!-- ═══════════ PRE-GAME AD MODAL ═══════════ -->
+<div id="mo-pregame" class="mo">
+  <div class="modal">
+    <h2>⚡ Quick Ad Break</h2>
+    <p>Watch a short ad to enter the table. Your seat is reserved.</p>
+    <div class="ad-sim"><div class="al" style="cursor:default">ADVERTISEMENT</div><div class="ai">📺</div><div style="font-size:11px;color:var(--text-dim)">Ad plays here</div></div>
+    <div class="ad-bar"><div class="ad-fill" id="pg-fill" style="width:0%"></div></div>
+    <div class="ad-cnt" id="pg-cnt">10</div>
+    <div class="mbts">
+      <button class="btn bgh bsm" onclick="cancelPregame()">Cancel</button>
+      <button id="pg-enter" class="btn bp bsm" disabled onclick="confirmEnter()">Enter Table →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ REWARD AD MODAL ═══════════ -->
+<div id="mo-reward" class="mo">
+  <div class="modal">
+    <h2 id="rwd-title">📺 Watch &amp; Earn</h2>
+    <p id="rwd-desc">Watch this ad to receive your chip reward.</p>
+    <div class="ad-sim"><div class="al" style="cursor:default">ADVERTISEMENT</div><div class="ai">📺</div><div style="font-size:11px;color:var(--text-dim)">Ad plays here</div></div>
+    <div class="ad-bar"><div class="ad-fill" id="rwd-fill" style="width:0%"></div></div>
+    <div class="ad-cnt" id="rwd-cnt">30</div>
+    <div class="mbts">
+      <button class="btn bgh bsm" onclick="cancelAd()">No Thanks</button>
+      <button id="rwd-claim" class="btn bg bsm" disabled onclick="claimAd()">Claim →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ TOAST ═══════════ -->
+<div id="toast" class="toast">
+  <div class="toast-t" id="toast-t"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// VURGLIFE DASHBOARD CLIENT
+// ═══════════════════════════════════════════════════════
+let currentUser = null, authToken = localStorage.getItem('vurglife_token') || null;
+let pendingTable = null, adCtx = null, adTimer = null;
+
+const TABLES = {
+  100:   {minBet:100,   inc:50,    maxBet:150,   minBank:5000,    wallet:3000   },
+  250:   {minBet:250,   inc:50,    maxBet:500,   minBank:15000,   wallet:10000  },
+  500:   {minBet:500,   inc:100,   maxBet:1000,  minBank:30000,   wallet:20000  },
+  1000:  {minBet:1000,  inc:500,   maxBet:2000,  minBank:60000,   wallet:40000  },
+  10000: {minBet:10000, inc:10000, maxBet:50000, minBank:2000000, wallet:1000000}
+};
+
+const RHUM32_TABLES = {
+  100:   {minBet:100,   maxBet:500,    tieBetMin:50,   tieBetMax:100,   minBank:3000,    wallet:3000  },
+  500:   {minBet:500,   maxBet:3000,   tieBetMin:100,  tieBetMax:500,   minBank:15000,   wallet:15000 },
+  1000:  {minBet:1000,  maxBet:5000,   tieBetMin:500,  tieBetMax:1000,  minBank:25000,   wallet:25000 },
+  5000:  {minBet:5000,  maxBet:10000,  tieBetMin:1000, tieBetMax:5000,  minBank:100000,  wallet:100000},
+  10000: {minBet:10000, maxBet:100000, tieBetMin:0,    tieBetMax:999999,minBank:1000000, wallet:500000}
+};
+
+const RHUM32_TABLES = {
+  100:   {minBet:100,   maxBet:500,    tieBetMin:50,   tieBetMax:100,   minBank:3000,    wallet:3000  },
+  500:   {minBet:500,   maxBet:3000,   tieBetMin:100,  tieBetMax:500,   minBank:15000,   wallet:15000 },
+  1000:  {minBet:1000,  maxBet:5000,   tieBetMin:500,  tieBetMax:1000,  minBank:25000,   wallet:25000 },
+  5000:  {minBet:5000,  maxBet:10000,  tieBetMin:1000, tieBetMax:5000,  minBank:100000,  wallet:100000},
+  10000: {minBet:10000, maxBet:100000, tieBetMin:0,    tieBetMax:999999,minBank:1000000, wallet:500000}
+};
+
+const BJ_TABLES = {
+  100:   { minBet:100,   maxBet:500,   wallet:2500,    minBank:2500,    tier:'standard', label:'Standard',   tieBet:100,  tieBetPayout:2000,   blackjackPayout:null },
+  1000:  { minBet:1000,  maxBet:1000,  wallet:30000,   minBank:50000,   tier:'vip',      label:'VIP Bronze', tieBet:500,  tieBetPayout:10000,  blackjackPayout:5000 },
+  5000:  { minBet:5000,  maxBet:5000,  wallet:120000,  minBank:150000,  tier:'vip',      label:'VIP Silver', tieBet:1000, tieBetPayout:30000,  blackjackPayout:15000 },
+  10000: { minBet:10000, maxBet:10000, wallet:240000,  minBank:300000,  tier:'vip',      label:'VIP Gold',   tieBet:2000, tieBetPayout:75000,  blackjackPayout:30000 },
+  20000: { minBet:20000, maxBet:20000, wallet:500000,  minBank:750000,  tier:'vip',      label:'VIP Platinum',tieBet:3000,tieBetPayout:125000, blackjackPayout:70000 },
+  50000: { minBet:50000, maxBet:50000, wallet:1000000, minBank:1500000, tier:'vip',      label:'VIP Diamond',tieBet:5000, tieBetPayout:250000, blackjackPayout:170000 },
+};
+
+const HOLDEM_TABLES = {
+  10:   { minBet:10,   maxBet:100,   wallet:1000,  minBank:2000,  maxSeats:6, label:'Micro',        tier:'Beginner',   inc:5   },
+  50:   { minBet:50,   maxBet:500,   wallet:5000,  minBank:8000,  maxSeats:6, label:'Starter',      tier:'Casual',     inc:25  },
+  100:  { minBet:100,  maxBet:1000,  wallet:10000, minBank:20000, maxSeats:9, label:'Standard',     tier:'Regular',    inc:50  },
+  500:  { minBet:500,  maxBet:5000,  wallet:50000, minBank:75000, maxSeats:9, label:'High Roller',  tier:'Premium',    inc:250 },
+  1000: { minBet:1000, maxBet:10000, wallet:100000,minBank:150000,maxSeats:9, label:'VIP Nosebleed',tier:'VIP',        inc:500 },
+};
+
+const ROULETTE_TABLES = {
+  100:   { minBet:100,   maxBet:500,    wallet:2500,    minBank:2500,    label:'Standard'   },
+  1000:  { minBet:1000,  maxBet:5000,   wallet:25000,   minBank:25000,   label:'Premium'    },
+  5000:  { minBet:5000,  maxBet:25000,  wallet:120000,  minBank:120000,  label:'High Stakes'},
+  10000: { minBet:10000, maxBet:50000,  wallet:250000,  minBank:250000,  label:'VIP'        },
+  50000: { minBet:50000, maxBet:250000, wallet:1000000, minBank:1000000, label:'VIP Whale'  },
+};
+
+const PKGS = [
+  {id:'p1',chips:20000,  usd:'$1.99'},
+  {id:'p2',chips:50000,  usd:'$3.99'},
+  {id:'p3',chips:100000, usd:'$5.50',pop:true},
+  {id:'p4',chips:500000, usd:'$9.99'},
+  {id:'p5',chips:1000000,usd:'$15.99'}
+];
+
+// ── API ────────────────────────────────────────────────
+async function api(method, path, body) {
+  const h = {'Content-Type':'application/json'};
+  if (authToken) h['Authorization'] = 'Bearer ' + authToken;
+  const opts = {method, headers:h, credentials:'include'};
+  if (body) opts.body = JSON.stringify(body);
+  try { const r = await fetch(path, opts); return r.json(); }
+  catch(e) { return {error:e.message}; }
+}
+const apiGet  = p   => api('GET', p);
+const apiPost = (p,b) => api('POST', p, b);
+
+// ── SCREENS & PANELS ──────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id)?.classList.add('active');
+}
+
+const PANEL_TITLES = {
+  home:'Home',profile:'Player Profile',messages:'Messages',
+  bank:'Bank',getchips:'Get Chips',play:'Play SipSam',
+  'play-rhum32':'Play Rhum32',
+  'play-blackjack':'Play Blackjack',
+  'play-holdem':'Texas Hold\'em',
+  'play-roulette':'Play Roulette',
+  history:'Game History',rewards:'Rewards & Milestones',
+  friends:'Friends Network',rules:'Rules'
+};
+
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-'+name)?.classList.add('active');
+  document.querySelectorAll('.ni').forEach(n => {
+    n.classList.toggle('active', n.getAttribute('onclick')?.includes("'"+name+"'"));
+  });
+  const t = document.getElementById('topbar-title');
+  if (t) t.textContent = PANEL_TITLES[name] || name;
+  if (name==='play')          buildGrid('tgrid-play');
+  if (name==='play-rhum32')     buildRhum32Grid('tgrid-rhum32');
+  if (name==='play-blackjack') buildBJGrid('tgrid-bj');
+  if (name==='play-holdem')    buildHoldemGrid('tgrid-holdem');
+  if (name==='play-roulette')  buildRouletteGrid('tgrid-roulette');
+  if (name==='getchips')       buildPkgs();
+  if (name==='rewards')  refreshRewards();
+  if (name==='history')  loadHistory();
+  if (name==='friends')  { loadFriends(); loadPendingRequests(); }
+}
+
+// ── TOAST ─────────────────────────────────────────────
+function toast(title, msg, dur=4000) {
+  document.getElementById('toast-t').textContent = title;
+  document.getElementById('toast-m').textContent = msg;
+  const el = document.getElementById('toast');
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), dur);
+}
+
+// ── AUTH ──────────────────────────────────────────────
+async function doRegister() {
+  const btn=document.getElementById('reg-btn');
+  const err=document.getElementById('reg-err'); const ok=document.getElementById('reg-ok');
+  err.classList.remove('show'); ok.classList.remove('show');
+  const email=document.getElementById('reg-email').value.trim();
+  const user=document.getElementById('reg-user').value.trim();
+  const pw=document.getElementById('reg-pw').value;
+  btn.disabled=true; btn.innerHTML='<span class="sp"></span> Creating...';
+  const res = await apiPost('/api/auth/register',{email,username:user,password:pw});
+  btn.disabled=false; btn.innerHTML='♠ Create Account — Get 5,000 Free Chips';
+  if (res.error) { err.textContent=res.error; err.classList.add('show'); return; }
+  if (res.token) { authToken=res.token; localStorage.setItem('vurglife_token', authToken); }
+  currentUser=res.user;
+  ok.textContent=`Welcome, ${user}! Loading dashboard...`; ok.classList.add('show');
+  setTimeout(loadDashboard,1000);
+}
+
+async function doLogin() {
+  const btn=document.getElementById('login-btn');
+  const err=document.getElementById('login-err'); err.classList.remove('show');
+  const identifier=document.getElementById('login-id').value.trim();
+  const password=document.getElementById('login-pw').value;
+  btn.disabled=true; btn.innerHTML='<span class="sp"></span> Signing in...';
+  const res = await apiPost('/api/auth/login',{identifier,password});
+  btn.disabled=false; btn.innerHTML='Sign In';
+  if (res.error) { err.textContent=res.error; err.classList.add('show'); return; }
+  if (res.token) { authToken=res.token; localStorage.setItem('vurglife_token', authToken); }
+  currentUser=res.user;
+  loadDashboard();
+}
+
+async function doLogout() {
+  try { await apiPost('/api/auth/logout',{}); } catch(e) {}
+  currentUser=null; authToken=null; localStorage.removeItem('vurglife_token');
+  showScreen('screen-landing');
+}
+
+async function doForgot() {
+  const email=document.getElementById('forgot-email').value.trim();
+  const err=document.getElementById('forgot-err'); const ok=document.getElementById('forgot-ok');
+  err.classList.remove('show'); ok.classList.remove('show');
+  const res = await apiPost('/api/auth/forgot-password',{email});
+  if (res.error) { err.textContent=res.error; err.classList.add('show'); return; }
+  ok.textContent=res.message||'Reset link sent!'; ok.classList.add('show');
+}
+
+// ── DASHBOARD ─────────────────────────────────────────
+async function loadDashboard() {
+  if (!currentUser) {
+    const res = await apiGet('/api/auth/me');
+    if (!res?.ok) { showScreen('screen-login'); return; }
+    currentUser=res.user; if (res.token) { authToken=res.token; localStorage.setItem('vurglife_token', authToken); }
+  }
+  refreshUI();
+  buildPkgs();
+  refreshRewards();
+  checkAdStatus();
+  showScreen('screen-dashboard');
+}
+
+function getBank() { return currentUser?.bankBalance ?? currentUser?.bank_balance ?? 0; }
+
+function refreshUI() {
+  const u=currentUser; if (!u) return;
+  const bank=getBank();
+  const wins=u.totalWins??u.total_wins??0;
+  const games=u.totalGames??u.total_games??0;
+  const wr=games>0?Math.round(wins/games*100)+'%':'—';
+  const av=u.avatarPreset||u.username[0].toUpperCase();
+  document.getElementById('sb-av').textContent=av;
+  document.getElementById('sb-uname').textContent=u.username;
+  document.getElementById('sb-bal').textContent='🪙 $'+bank.toLocaleString();
+  document.getElementById('tb-amt').textContent='$'+bank.toLocaleString();
+  document.getElementById('home-name').textContent=u.username;
+  document.getElementById('home-bank').textContent='$'+bank.toLocaleString();
+  document.getElementById('home-wins').textContent=wins;
+  document.getElementById('home-games').textContent=games;
+  document.getElementById('home-wr').textContent=wr;
+  document.getElementById('bank-bal').textContent='$'+bank.toLocaleString();
+  document.getElementById('ht-total').textContent=games;
+  document.getElementById('ht-wins').textContent=wins;
+  document.getElementById('ht-losses').textContent=games-wins;
+  document.getElementById('ht-wr').textContent=wr;
+  document.getElementById('p-uname').value=u.username;
+  document.getElementById('prof-av').textContent=av;
+  const notif=document.getElementById('home-notif');
+  if (notif && u.dailyBonusApplied) notif.textContent='🎁 Daily login bonus of $500 applied!';
+  else if (notif) notif.textContent='Ready to play, '+u.username+'!';
+}
+
+// ── TABLE GRID ────────────────────────────────────────
+function buildGrid(gridId) {
+  const grid=document.getElementById(gridId); if (!grid) return;
+  const bank=getBank(); grid.innerHTML='';
+  Object.values(TABLES).forEach(t => {
+    const ok=bank>=t.minBank;
+    const vipLabel = t.minBet===10000 ? 'VIP ' : '';
+    const d=document.createElement('div');
+    d.className='tc'+(ok?'':' locked');
+    d.innerHTML=`<div class="tc-bet">${vipLabel}$${t.minBet.toLocaleString()}</div>
+      <div class="tc-name">${t.minBet===10000?'VIP Table':'Minimum Bet Table'}</div>
+      <div>
+        <div class="tc-row"><span class="tc-l">Min Bank Required</span><span class="tc-r">$${t.minBank.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Wallet Size</span><span class="tc-r gold">$${t.wallet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Bet Increment</span><span class="tc-r">$${t.inc}</span></div>
+        <div class="tc-row"><span class="tc-l">Max Bet</span><span class="tc-r">$${t.maxBet.toLocaleString()}</span></div>
+      </div>
+      <div style="margin-top:14px">
+        ${ok?`<button class="btn bp bsm bfull" onclick="enterTable(${t.minBet})">Enter Table →</button>`
+            :`<div style="font-size:11px;color:var(--text-dim)">Need $${t.minBank.toLocaleString()} in bank</div>`}
+      </div>`;
+    grid.appendChild(d);
+  });
+}
+
+// ── RHUM32 TABLE GRID ────────────────────────────────
+function buildRhum32Grid(gridId) {
+  const grid=document.getElementById(gridId); if (!grid) return;
+  const bank=getBank(); grid.innerHTML='';
+  Object.values(RHUM32_TABLES).forEach(t => {
+    const ok=bank>=t.minBank;
+    const vipLabel = t.minBet===10000 ? 'VIP ' : '';
+    const d=document.createElement('div');
+    d.className='tc'+(ok?'':' locked');
+    d.innerHTML=`<div class="tc-bet">${vipLabel}$${t.minBet.toLocaleString()}</div>
+      <div class="tc-name">Rhum32 Table</div>
+      <div>
+        <div class="tc-row"><span class="tc-l">Min Bank Required</span><span class="tc-r">$${t.minBank.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Wallet Size</span><span class="tc-r gold">$${t.wallet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Max Front Bet</span><span class="tc-r">$${t.maxBet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Tie Bet</span><span class="tc-r">${t.tieBetMin===0?'No Limit':'$'+t.tieBetMin.toLocaleString()+' – $'+t.tieBetMax.toLocaleString()}</span></div>
+      </div>
+      <div style="margin-top:14px">
+        ${ok?`<button class="btn bp bsm bfull" onclick="enterRhum32Table(${t.minBet})">Enter Table →</button>`
+            :`<div style="font-size:11px;color:var(--text-dim)">Need $${t.minBank.toLocaleString()} in bank</div>`}
+      </div>`;
+    grid.appendChild(d);
+  });
+}
+
+// ── TABLE ENTRY ───────────────────────────────────────
+let pendingGameType = 'sipsam'; // track which game we're entering
+
+function enterTable(minBet) {
+  pendingTable=TABLES[Number(minBet)];
+  pendingGameType='sipsam';
+  if (!pendingTable) return;
+  runAd('pregame',10,'⚡ Quick Ad Break','Watch a short ad to enter the table. Your seat is reserved.');
+}
+
+function enterRhum32Table(minBet) {
+  const t=RHUM32_TABLES[Number(minBet)];
+  if (!t) { console.error('[Dashboard] No RHUM32 table for minBet:', minBet); return; }
+  const bank=getBank();
+  if (bank<t.minBank) { toast('Insufficient Balance',`You need $${t.minBank.toLocaleString()} in your bank to enter this table.`); return; }
+
+  const userData = {
+    id: currentUser.id||currentUser.user_id||0,
+    username: currentUser.username,
+    token: authToken||'',
+    bankBalance: currentUser.bankBalance||currentUser.bank_balance||0,
+  };
+  console.log('[Dashboard] Setting rhum32 session:', userData.username, 'table:', t.minBet);
+  sessionStorage.setItem('rhum32_table', JSON.stringify(t));
+  sessionStorage.setItem('rhum32_user', JSON.stringify(userData));
+
+  // Verify it was stored
+  const check = sessionStorage.getItem('rhum32_user');
+  console.log('[Dashboard] Verified rhum32_user in sessionStorage:', check ? 'YES' : 'NO');
+
+  window.location.href='/rhum32/';
+}
+
+// ── BLACKJACK TABLE GRID ─────────────────────────────
+function buildBJGrid(gridId) {
+  const grid=document.getElementById(gridId); if (!grid) return;
+  const bank=getBank(); grid.innerHTML='';
+  Object.values(BJ_TABLES).forEach(t => {
+    const ok=bank>=t.minBank;
+    const isVIP=t.tier==='vip';
+    const d=document.createElement('div');
+    d.className='tc'+(ok?'':' locked')+(isVIP?' tc-vip':'');
+    const betRows = isVIP
+      ? `<div class="tc-row"><span class="tc-l">Bet</span><span class="tc-r">$${t.minBet.toLocaleString()}</span></div>
+         <div class="tc-row"><span class="tc-l">Blackjack Payout</span><span class="tc-r gold">$${t.blackjackPayout.toLocaleString()}</span></div>
+         <div class="tc-row"><span class="tc-l">Tie Bet</span><span class="tc-r">$${t.tieBet.toLocaleString()}</span></div>
+         <div class="tc-row"><span class="tc-l">Tie Payout</span><span class="tc-r gold">$${t.tieBetPayout.toLocaleString()}</span></div>`
+      : `<div class="tc-row"><span class="tc-l">Min Bet</span><span class="tc-r">$${t.minBet.toLocaleString()}</span></div>
+         <div class="tc-row"><span class="tc-l">Max Bet</span><span class="tc-r">$${t.maxBet.toLocaleString()}</span></div>
+         <div class="tc-row"><span class="tc-l">Tie Bet</span><span class="tc-r">$${t.tieBet.toLocaleString()}</span></div>`;
+    d.innerHTML=`
+      ${isVIP?'<div style="font-size:9px;font-weight:700;color:var(--gold);letter-spacing:2px;margin-bottom:4px">VIP</div>':''}
+      <div class="tc-bet">$${t.minBet.toLocaleString()}</div>
+      <div class="tc-name">${t.label} Table</div>
+      <div>
+        <div class="tc-row"><span class="tc-l">Min Bank Required</span><span class="tc-r">$${t.minBank.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Wallet Size</span><span class="tc-r gold">$${t.wallet.toLocaleString()}</span></div>
+        ${betRows}
+      </div>
+      <div style="margin-top:14px">
+        ${ok?`<button class="btn bp bsm bfull" onclick="enterBJTable(${t.minBet})">Enter Table →</button>`
+            :`<div style="font-size:11px;color:var(--text-dim)">Need $${t.minBank.toLocaleString()} in bank</div>`}
+      </div>`;
+    grid.appendChild(d);
+  });
+}
+
+async function enterBJTable(minBet) {
+  const t=BJ_TABLES[Number(minBet)];
+  if (!t) return;
+  const bank=getBank();
+  if (bank<t.minBank) { toast('Insufficient Balance',`You need $${t.minBank.toLocaleString()} in your bank to enter this table.`); return; }
+  sessionStorage.setItem('bj_user', JSON.stringify({
+    id: currentUser.id||currentUser.user_id||0,
+    username: currentUser.username,
+    token: authToken||'',
+    avatar: currentUser.avatarPreset||currentUser.avatar_preset||'',
+    bankBalance: currentUser.bankBalance||currentUser.bank_balance||0,
+  }));
+  // Persist the chosen tier so the blackjack client uses the right bet, wallet & payouts
+  sessionStorage.setItem('bj_tier', JSON.stringify({
+    minBet: t.minBet, maxBet: t.maxBet, walletSize: t.wallet,
+    tieBet: t.tieBet, tieBetPayout: t.tieBetPayout,
+    blackjackPayout: t.blackjackPayout, label: t.tier,
+  }));
+  sessionStorage.removeItem('bj_table');
+  window.location.href='/blackjack/';
+}
+
+// ── HOLDEM TABLE GRID ────────────────────────────────
+function buildHoldemGrid(gridId) {
+  const grid=document.getElementById(gridId); if (!grid) return;
+  const bank=getBank(); grid.innerHTML='';
+  let recBet=null;
+  Object.values(HOLDEM_TABLES).forEach(t => { if (bank>=t.minBank) recBet=t.minBet; });
+  Object.values(HOLDEM_TABLES).forEach(t => {
+    const ok=bank>=t.minBank;
+    const rec=ok&&t.minBet===recBet;
+    const d=document.createElement('div');
+    d.className='tc'+(ok?'':' locked')+(rec?' tc-recommended':'');
+    d.innerHTML=`
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim)">${t.maxSeats}-MAX &middot; ${t.tier.toUpperCase()}</div>
+        ${rec?'<div style="font-size:9px;font-weight:700;color:var(--gold);background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.25);padding:2px 7px;border-radius:8px;letter-spacing:1px">RECOMMENDED</div>':''}
+      </div>
+      <div class="tc-bet">$${t.minBet.toLocaleString()}</div>
+      <div class="tc-name">${t.label} Table</div>
+      <div>
+        <div class="tc-row"><span class="tc-l">Min Bank Required</span><span class="tc-r">$${t.minBank.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Wallet Size</span><span class="tc-r gold">$${t.wallet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Big Blind</span><span class="tc-r">$${t.minBet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Max Seats</span><span class="tc-r">${t.maxSeats} players</span></div>
+      </div>
+      <div style="margin-top:14px">
+        ${ok?`<button class="btn bp bsm bfull" onclick="enterHoldemTable(${t.minBet})">Enter Table →</button>`
+            :`<div style="font-size:11px;color:var(--text-dim)">Need $${t.minBank.toLocaleString()} in bank</div>`}
+      </div>`;
+    grid.appendChild(d);
+  });
+}
+
+async function enterHoldemTable(minBet) {
+  const t=HOLDEM_TABLES[Number(minBet)];
+  if (!t) return;
+  const bank=getBank();
+  if (bank<t.minBank) { toast('Insufficient Balance',`You need $${t.minBank.toLocaleString()} in your bank to enter this table.`); return; }
+  sessionStorage.setItem('holdem_table', JSON.stringify({...t, minBet}));
+  sessionStorage.setItem('holdem_user', JSON.stringify({
+    id: currentUser.id||currentUser.user_id||0,
+    username: currentUser.username,
+    token: authToken||'',
+    avatar: currentUser.avatarPreset||currentUser.avatar_preset||'',
+    bankBalance: currentUser.bankBalance||currentUser.bank_balance||0,
+  }));
+  window.location.href='/holdem/';
+}
+
+// ── ROULETTE TABLE GRID ──────────────────────────────
+function buildRouletteGrid(gridId) {
+  const grid=document.getElementById(gridId); if (!grid) return;
+  const bank=getBank(); grid.innerHTML='';
+  Object.values(ROULETTE_TABLES).forEach(t => {
+    const ok=bank>=t.minBank;
+    const isVIP = t.minBet>=10000;
+    const d=document.createElement('div');
+    d.className='tc'+(ok?'':' locked');
+    d.innerHTML=`
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim)">${t.label.toUpperCase()}</div>
+        ${isVIP?'<div style="font-size:9px;font-weight:700;color:var(--gold);background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.25);padding:2px 7px;border-radius:8px;letter-spacing:1px">VIP</div>':''}
+      </div>
+      <div class="tc-bet">$${t.minBet.toLocaleString()}</div>
+      <div class="tc-name">${t.label} Table</div>
+      <div>
+        <div class="tc-row"><span class="tc-l">Min Bank Required</span><span class="tc-r">$${t.minBank.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Wallet Size</span><span class="tc-r gold">$${t.wallet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Min Bet</span><span class="tc-r">$${t.minBet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Max Bet</span><span class="tc-r">$${t.maxBet.toLocaleString()}</span></div>
+      </div>
+      <div style="margin-top:14px">
+        ${ok?`<button class="btn bp bsm bfull" onclick="enterRouletteTable(${t.minBet})">Enter Table →</button>`
+            :`<div style="font-size:11px;color:var(--text-dim)">Need $${t.minBank.toLocaleString()} in bank</div>`}
+      </div>`;
+    grid.appendChild(d);
+  });
+}
+
+async function enterRouletteTable(minBet) {
+  const t=ROULETTE_TABLES[Number(minBet)];
+  if (!t) return;
+  const bank=getBank();
+  if (bank<t.minBank) { toast('Insufficient Balance',`You need $${t.minBank.toLocaleString()} in your bank to enter this table.`); return; }
+
+  // Deduct wallet from bank on the platform
+  try {
+    const res = await apiPost('/api/game/roulette/enter', { tableMinBet: minBet });
+    if (res.error) { toast('⚠️ Error', res.error); return; }
+    if (res.newBankBalance != null) {
+      currentUser.bankBalance  = res.newBankBalance;
+      currentUser.bank_balance = res.newBankBalance;
+      refreshUI();
+    }
+  } catch(e) {
+    console.warn('[Roulette enter] platform call failed — continuing anyway:', e);
+  }
+
+  sessionStorage.setItem('roulette_table', JSON.stringify({...t, minBet}));
+  sessionStorage.setItem('roulette_user', JSON.stringify({
+    id: currentUser.id||currentUser.user_id||0,
+    username: currentUser.username,
+    token: authToken||'',
+    avatar: currentUser.avatarPreset||currentUser.avatar_preset||'',
+    bankBalance: currentUser.bankBalance||currentUser.bank_balance||0,
+  }));
+
+  // Pass handoff via URL so the roulette client picks it up directly.
+  const params = new URLSearchParams({
+    minBet:   String(t.minBet),
+    wallet:   String(t.wallet),
+    username: currentUser.username,
+    userId:   String(currentUser.id||currentUser.user_id||0),
+  });
+  window.location.href='/roulette/?' + params.toString();
+}
+
+function cancelPregame() { stopAd(); document.getElementById('mo-pregame').classList.remove('show'); pendingTable=null; pendingGameType='sipsam'; }
+
+async function confirmEnter() {
+  stopAd();
+  document.getElementById('mo-pregame').classList.remove('show');
+async function enterHoldemTable(minBet) {
+  const t=HOLDEM_TABLES[Number(minBet)];
+  if (!t) return;
+  const bank=getBank();
+  if (bank<t.minBank) { toast('Insufficient Balance',`You need $${t.minBank.toLocaleString()} in your bank to enter this table.`); return; }
+  sessionStorage.setItem('holdem_table', JSON.stringify({...t, minBet}));
+  sessionStorage.setItem('holdem_user', JSON.stringify({
+    id: currentUser.id||currentUser.user_id||0,
+    username: currentUser.username,
+    token: authToken||'',
+    avatar: currentUser.avatarPreset||currentUser.avatar_preset||'',
+    bankBalance: currentUser.bankBalance||currentUser.bank_balance||0,
+  }));
+  window.location.href='/holdem/';
+}
+
+function cancelPregame() { stopAd(); document.getElementById('mo-pregame').classList.remove('show'); pendingTable=null; pendingGameType='sipsam'; }
+
+async function confirmEnter() {
+  stopAd();
+  document.getElementById('mo-pregame').classList.remove('show');
+
+  const gameType = pendingGameType || 'sipsam';
+  const storagePrefix = gameType === 'rhum32' ? 'rhum32' : 'sipsam';
+
+  } catch(e) {
+    console.warn('[VurgLife] Enter API call failed — continuing anyway:', e);
+  }
+
+  // Redirect to game
+  window.location.href = gameType === 'rhum32' ? '/rhum32' : '/sipsam';
+}
+
+// ── AD ENGINE ─────────────────────────────────────────
+function runAd(type, duration, title, desc) {
+  adCtx={type,duration};
+  if (type==='pregame') {
+    document.getElementById('mo-pregame').classList.add('show');
+    document.getElementById('pg-enter').disabled=true;
+    document.getElementById('pg-cnt').textContent=duration;
+    document.getElementById('pg-fill').style.width='0%';
+  } else {
+    document.getElementById('rwd-title').textContent=title;
+    document.getElementById('rwd-desc').textContent=desc;
+    document.getElementById('mo-reward').classList.add('show');
+    document.getElementById('rwd-claim').disabled=true;
+    document.getElementById('rwd-cnt').textContent=duration;
+    document.getElementById('rwd-fill').style.width='0%';
+  }
+  clearInterval(adTimer);
+  let rem=duration;
+  adTimer=setInterval(()=>{
+    rem--;
+    const pct=((duration-rem)/duration*100)+'%';
+    if (type==='pregame') {
+      document.getElementById('pg-cnt').textContent=rem;
+      document.getElementById('pg-fill').style.width=pct;
+      if (rem<=0) { clearInterval(adTimer); document.getElementById('pg-enter').disabled=false; document.getElementById('pg-cnt').textContent='✓'; }
+    } else {
+      document.getElementById('rwd-cnt').textContent=rem;
+      document.getElementById('rwd-fill').style.width=pct;
+      if (rem<=0) { clearInterval(adTimer); document.getElementById('rwd-claim').disabled=false; document.getElementById('rwd-cnt').textContent='✓'; }
+    }
+  },1000);
+}
+
+function stopAd() { clearInterval(adTimer); }
+
+function startAd(type) {
+  adCtx={type};
+  runAd('reward',30,'📺 Earn 500 Chips','Watch this 30-second ad to earn $500 chips.');
+}
+
+function cancelAd() { stopAd(); document.getElementById('mo-reward').classList.remove('show'); adCtx=null; }
+
+async function claimAd() {
+  stopAd(); document.getElementById('mo-reward').classList.remove('show');
+  if (!adCtx) return;
+  if (adCtx.type==='reward') {
+    const res = await apiPost('/api/game/media/watch',{adType:'reward'});
+    if (res.error) { toast('⚠️ Error',res.error); return; }
+    currentUser.bankBalance=res.newBankBalance; currentUser.bank_balance=res.newBankBalance;
+    refreshUI(); checkAdStatus();
+    toast('🎉 Chips Earned!',`+$500 added! (${res.adsWatched}/${res.maxAds} ads today)`);
+    if (!res.sessionComplete) setTimeout(()=>{ if(confirm('Watch another ad for +$500 chips?')) startAd('reward'); },800);
+  } else if (adCtx.type==='milestone') {
+    const res = await apiPost('/api/game/rewards/claim',{milestoneId:adCtx.mid});
+    if (res.error) { toast('⚠️ Error',res.error); return; }
+    currentUser.bankBalance=res.newBankBalance; currentUser.bank_balance=res.newBankBalance;
+    refreshUI(); refreshRewards();
+    toast('🏆 Reward Claimed!',`+$${(res.chips||0).toLocaleString()} chips!`);
+  }
+  adCtx=null;
+}
+
+async function checkAdStatus() {
+  const res = await apiGet('/api/game/media/status');
+  if (!res?.ok) return;
+  const msg=res.onCooldown?`⏱ Cooldown — ${Math.ceil(res.secondsRemaining/60)}min`:'✅ Ready to watch';
+  ['ad-st-home','ad-st-chips'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent=msg; });
+}
+
+// ── REWARDS ───────────────────────────────────────────
+function refreshRewards() {
+  const u=currentUser; if (!u) return;
+  const wins=u.totalWins??u.total_wins??0;
+  const m=u.milestones||{};
+  document.getElementById('r50-p').textContent=Math.min(wins,50);
+  document.getElementById('r100-p').textContent=Math.min(wins,100);
+  const r50=document.getElementById('r50-btn'); const r100=document.getElementById('r100-btn');
+  if (wins>=50&&!m.m50) r50.innerHTML=`<div class="r-pending" onclick="claimMilestone('m50')">▶ Claim (watch ad)</div>`;
+  else if (m.m50) r50.innerHTML=`<div class="r-claimed">✅ CLAIMED</div>`;
+  if (wins>=100&&!m.m100) r100.innerHTML=`<div class="r-pending" onclick="claimMilestone('m100')">▶ Claim (watch ad)</div>`;
+  else if (m.m100) r100.innerHTML=`<div class="r-claimed">✅ CLAIMED</div>`;
+}
+
+  runAd('reward',30,'🏆 Milestone Reward',`Watch ad to claim your $${amt.toLocaleString()} chip reward!`);
+}
+
+// ── PACKAGES ──────────────────────────────────────────
+function buildPkgs() {
+  const g=document.getElementById('pkg-grid'); if(!g) return;
+  g.innerHTML='';
+  PKGS.forEach(p=>{
+    const d=document.createElement('div');
+    d.className='pkg'+(p.pop?' pop':'');
+    d.innerHTML=`<div class="pkg-chips">${(p.chips/1000).toFixed(0)}K</div>
+      <div class="pkg-lbl">CHIPS</div>
+      <div class="pkg-price">${p.usd} <span>USD</span></div>
+      <button class="btn bg bsm bfull" onclick="buyPkg('${p.id}')">Buy Now</button>`;
+    g.appendChild(d);
+  });
+}
+
+function chipTab(tab, el) {
+  document.querySelectorAll('.ctab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('ct-ads').style.display=tab==='ads'?'block':'none';
+  document.getElementById('ct-buy').style.display=tab==='buy'?'block':'none';
+}
+
+async function buyPkg(id) { toast('🛒 Coming Soon','Payment integration launching soon!'); }
+
+// ── PROFILE ───────────────────────────────────────────
+function saveAlias() {
+  const v=document.getElementById('p-uname').value.trim();
+  if (!v||v.length<3) { toast('⚠️ Invalid','Username must be at least 3 characters.'); return; }
+  if (currentUser) { currentUser.username=v; refreshUI(); }
+  toast('✅ Saved','Username updated.');
+}
+function saveStatus() { toast('✅ Saved','Status updated.'); }
+
+// ── FRIENDS ───────────────────────────────────────────
+function toggleAddFriend() {
+  const b=document.getElementById('add-friend-box');
+  b.style.display=b.style.display==='none'?'block':'none';
+}
+async function searchFriend() {
+  const q=document.getElementById('friend-q').value.trim(); if (!q) return;
+  const el=document.getElementById('friend-results');
+  el.innerHTML='<div style="color:var(--text-dim);font-size:13px">Searching...</div>';
+  try {
+    const r=await fetch('/api/friends/search',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},body:JSON.stringify({query:q})});
+function toggleAddFriend() {
+  const b=document.getElementById('add-friend-box');
+  b.style.display=b.style.display==='none'?'block':'none';
+}
+async function searchFriend() {
+  const q=document.getElementById('friend-q').value.trim(); if (!q) return;
+  const el=document.getElementById('friend-results');
+  el.innerHTML='<div style="color:var(--text-dim);font-size:13px">Searching...</div>';
+  try {
+    const d=await apiPost('/api/friends/search',{query:q});
+    if (!d.ok||!d.users?.length) { el.innerHTML='<div style="color:var(--text-dim);font-size:13px">No users found.</div>'; return; }
+    el.innerHTML=d.users.map(u=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="color:var(--text)">${esc(u.username)}</span>
+      ${u.isFriend?'<span style="color:var(--gold);font-size:12px">Already friends</span>':'<button class="btn bp bsm" onclick="sendFriendRequest('+u.id+',this)">Add Friend</button>'}
+    </div>`).join('');
+  } catch(e) { el.innerHTML='<div style="color:#f55;font-size:13px">Error searching.</div>'; }
+}
+async function sendFriendRequest(userId,btn) {
+  btn.disabled=true; btn.textContent='Sending...';
+  try {
+    const d=await apiPost('/api/friends/request',{targetUserId:userId});
+    btn.textContent=d.ok?'Sent!':d.error||'Failed';
+  } catch(e) { btn.textContent='Error'; }
+}
+async function loadFriends() {
+  const el=document.getElementById('friends-list');
+  try {
+    const d=await apiGet('/api/friends');
+    if (!d.ok||!d.friends?.length) { el.innerHTML='<div style="color:var(--text-dim);font-size:13px;padding:10px 0">No friends added yet.</div>'; return; }
+    el.innerHTML=d.friends.map(f=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="color:var(--text)">${esc(f.username)}</span>
+      <div style="display:flex;gap:6px">
+        <button class="btn bp bsm" onclick="inviteFriendToGame(${f.id},'${esc(f.username)}')" title="Invite to game">🎮</button>
+        <button class="btn bgh bsm" onclick="removeFriend(${f.id},this)" title="Remove">✕</button>
+      </div>
+    </div>`).join('');
+  } catch(e) { el.innerHTML='<div style="color:#f55;font-size:13px">Error loading friends.</div>'; }
+}
+async function loadPendingRequests() {
+  const el=document.getElementById('friend-reqs');
+  try {
+    const d=await apiGet('/api/friends/pending');
+    if (!d.ok||!d.pending?.length) { el.innerHTML='<div style="color:var(--text-dim);font-size:13px;padding:10px 0">No pending requests.</div>'; return; }
+    el.innerHTML=d.pending.map(p=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="color:var(--text)">${esc(p.from_username)}</span>
+      <div style="display:flex;gap:6px">
+        <button class="btn bp bsm" onclick="acceptFriendReq(${p.from_id},this)">Accept</button>
+        <button class="btn bgh bsm" onclick="rejectFriendReq(${p.from_id},this)">Reject</button>
+      </div>
+    </div>`).join('');
+  } catch(e) { el.innerHTML='<div style="color:#f55;font-size:13px">Error loading requests.</div>'; }
+}
+async function acceptFriendReq(fromId,btn) {
+  btn.disabled=true;
+  await apiPost('/api/friends/accept',{fromUserId:fromId});
+  loadFriends(); loadPendingRequests();
+}
+async function rejectFriendReq(targetId,btn) {
+  btn.disabled=true;
+  await apiPost('/api/friends/reject',{targetUserId:targetId});
+  loadPendingRequests();
+}
+async function removeFriend(targetId,btn) {
+  if (!confirm('Remove this friend?')) return;
+  btn.disabled=true;
+  await apiPost('/api/friends/reject',{targetUserId:targetId});
+  loadFriends();
+}
+
+// ── RULES ─────────────────────────────────────────────
+function showRules(game, el) {
+  document.querySelectorAll('.rc').forEach(c=>c.classList.remove('active'));
+  document.querySelectorAll('.rtab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('rc-'+game)?.classList.add('active');
+  el.classList.add('active');
+}
+
+// ── HISTORY ───────────────────────────────────────────
+async function loadHistory() {
+  // Placeholder — wire to real API when available
+}
+
+// ── GAME INVITE POLLING ───────────────────────────────
+let _seenInvites = new Set();
+let _invitePollTimer = null;
+
+function startInvitePolling() {
+  if (_invitePollTimer) return;
+  _invitePollTimer = setInterval(pollInvites, 5000);
+  pollInvites(); // first check immediately
+}
+
+function stopInvitePolling() {
+  if (_invitePollTimer) { clearInterval(_invitePollTimer); _invitePollTimer = null; }
+}
+
+async function pollInvites() {
+  if (!authToken && !currentUser) return;
+  try {
+    const res = await apiGet('/api/friends/invites');
+    if (!res?.ok || !res.invites?.length) return;
+    res.invites.forEach(inv => {
+      if (_seenInvites.has(inv.inviteId)) return;
+      _seenInvites.add(inv.inviteId);
+      showInvitePopup(inv);
+    });
+  } catch(e) {}
+}
+
+function showInvitePopup(inv) {
+  const existing = document.getElementById('invite-popup-' + inv.inviteId);
+  if (existing) return;
+  const gameNames = {sipsam:'SipSam',rhum32:'Rhum 32',blackjack:'Blackjack',holdem:"Hold'em"};
+  const gameName = gameNames[inv.game] || inv.game;
+  const el = document.createElement('div');
+  el.id = 'invite-popup-' + inv.inviteId;
+  el.style.cssText = 'position:fixed;top:20px;right:20px;z-index:99999;background:linear-gradient(135deg,#0d1a2a,#1a2a3a);border:2px solid var(--gold,#c9a84c);border-radius:14px;padding:18px 22px;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,0.6),0 0 20px rgba(201,168,76,0.2);animation:slideInRight 0.3s ease-out;font-family:sans-serif;color:#e8dfc0';
+  const secs = Math.max(0, Math.round((inv.expiresAt - Date.now()) / 1000));
+  el.innerHTML = `
+    <div style="font-size:11px;color:#8a9a7a;margin-bottom:6px">GAME INVITE</div>
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px">${inv.fromUsername} invited you!</div>
+    <div style="font-size:13px;color:#a0b090;margin-bottom:12px">${gameName} &mdash; $${inv.tableMinBet} table &bull; Expires in ${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}</div>
+    <div style="display:flex;gap:8px">
+      <button onclick="acceptGameInvite('${inv.inviteId}','${inv.game}',${inv.tableMinBet})" style="flex:1;padding:8px;border:none;border-radius:8px;background:linear-gradient(135deg,#8B6914,#c9a84c);color:#1a1000;font-weight:700;font-size:13px;cursor:pointer">Join Game</button>
+      <button onclick="dismissInvite('${inv.inviteId}')" style="padding:8px 14px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;background:transparent;color:#999;font-size:13px;cursor:pointer">Dismiss</button>
+    </div>`;
+  document.body.appendChild(el);
+  // Auto-dismiss after expiry
+  setTimeout(() => dismissInvite(inv.inviteId), secs * 1000);
+}
+
+function dismissInvite(inviteId) {
+  const el = document.getElementById('invite-popup-' + inviteId);
+  if (el) el.remove();
+}
+
+async function acceptGameInvite(inviteId, game, tableMinBet) {
+  dismissInvite(inviteId);
+  try {
+    const res = await apiPost('/api/friends/invite/accept', { inviteId });
+    if (!res?.ok) { toast('Invite Error', res?.error || 'Could not accept invite'); return; }
+    const roomId = res.roomId || null;
+    const inviteConfig = res.tableConfig || null;
+
+    // Deduct wallet from bank
+    if (game === 'rhum32') {
+      const tbl = inviteConfig || RHUM32_TABLES[tableMinBet] || RHUM32_TABLES[100];
+      const walletAmt = tbl.wallet || tbl.walletSize || 3000;
+      // Deduct bank balance
+      const newBank = (currentUser.bankBalance || currentUser.bank_balance || 0) - walletAmt;
+      currentUser.bankBalance = newBank; currentUser.bank_balance = newBank;
+      try { await apiPost('/api/game/rhum32/enter', {tableMinBet}); } catch(e) {}
+
+      sessionStorage.setItem('rhum32_table', JSON.stringify({...tbl, roomId, enterHandled: true}));
+      sessionStorage.setItem('rhum32_user', JSON.stringify({
+        id: currentUser.id || currentUser.user_id || 0,
+        username: currentUser.username,
+        token: authToken || ''
+      }));
+      window.location.href = '/rhum32';
+    } else if (game === 'sipsam') {
+      const tbl = inviteConfig || TABLES[tableMinBet] || TABLES[100];
+      const walletAmt = tbl.wallet || tbl.walletSize || 5000;
+      const newBank = (currentUser.bankBalance || currentUser.bank_balance || 0) - walletAmt;
+      currentUser.bankBalance = newBank; currentUser.bank_balance = newBank;
+      try { await apiPost('/api/game/enter', {tableMinBet}); } catch(e) {}
+
+      sessionStorage.setItem('sipsam_table', JSON.stringify({...tbl, roomId, enterHandled: true}));
+      sessionStorage.setItem('sipsam_user', JSON.stringify({
+        id: currentUser.id || currentUser.user_id || 0,
+        username: currentUser.username,
+        token: authToken || ''
+      }));
+      window.location.href = '/sipsam';
+    } else if (game === 'blackjack') {
+      const tbl = inviteConfig || BJ_TABLES[tableMinBet] || BJ_TABLES[100];
+      const walletAmt = tbl.wallet || tbl.walletSize || 2500;
+      const newBank = (currentUser.bankBalance || currentUser.bank_balance || 0) - walletAmt;
+      currentUser.bankBalance = newBank; currentUser.bank_balance = newBank;
+      try { await apiPost('/api/game/bj/enter', {tableMinBet}); } catch(e) {}
+
+      sessionStorage.setItem('bj_table', JSON.stringify({...tbl, minBet:tbl.minBet||tableMinBet, roomId, enterHandled: true, isInvitedJoiner: true}));
+      // Persist tier for the BJ client's top-level BJ_TABLE init
+      sessionStorage.setItem('bj_tier', JSON.stringify({
+        minBet: tbl.minBet || tableMinBet,
+        maxBet: tbl.maxBet,
+        walletSize: tbl.wallet || tbl.walletSize,
+        tieBet: tbl.tieBet || 100,
+        tieBetPayout: tbl.tieBetPayout || 2000,
+        blackjackPayout: tbl.blackjackPayout || null,
+        label: tbl.tier || (tbl.label || 'standard').toLowerCase(),
+      }));
+      sessionStorage.setItem('bj_user', JSON.stringify({
+        id: currentUser.id || currentUser.user_id || 0,
+        username: currentUser.username,
+        token: authToken || ''
+      }));
+      window.location.href = '/blackjack';
+    } else if (game === 'holdem') {
+      const tbl = inviteConfig || HOLDEM_TABLES[tableMinBet] || HOLDEM_TABLES[10];
+      const walletAmt = tbl.wallet || tbl.walletSize || 1000;
+      const newBank = (currentUser.bankBalance || currentUser.bank_balance || 0) - walletAmt;
+      currentUser.bankBalance = newBank; currentUser.bank_balance = newBank;
+      try { await apiPost('/api/game/holdem/enter', {tableMinBet}); } catch(e) {}
+
+      sessionStorage.setItem('holdem_table', JSON.stringify({
+        ...tbl,
+        minBet:  tbl.minBet || tableMinBet,
+        _roomId: roomId,
+        roomId,
+        enterHandled: true,
+        isInvitedJoiner: true
+      }));
+      sessionStorage.setItem('holdem_user', JSON.stringify({
+        id: currentUser.id || currentUser.user_id || 0,
+        username: currentUser.username,
+        token: authToken || '',
+        avatar: currentUser.avatar_url || currentUser.avatar || '',
+        bankBalance: newBank
+      }));
+      window.location.href = '/holdem';
+    }
+  } catch(e) { toast('Error', 'Failed to accept invite'); }
+}
+
+// ── ENTER KEYS ────────────────────────────────────────
+async function loadFriends() {
+  const el=document.getElementById('friends-list');
+  try {
+    const r=await fetch('/api/friends',{headers:{'Authorization':'Bearer '+authToken}});
+    const d=await r.json();
+    if (!d.ok||!d.friends?.length) { el.innerHTML='<div style="color:var(--text-dim);font-size:13px;padding:10px 0">No friends added yet.</div>'; return; }
+    el.innerHTML=d.friends.map(f=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="color:var(--text)">${esc(f.username)}</span>
+      <div style="display:flex;gap:6px">
+        <button class="btn bgh bsm" onclick="removeFriend(${f.id},this)" title="Remove">✕</button>
+      </div>
+    </div>`).join('');
+  } catch(e) { el.innerHTML='<div style="color:#f55;font-size:13px">Error loading friends.</div>'; }
+}
+async function loadPendingRequests() {
+  const el=document.getElementById('friend-reqs');
+  try {
+    const r=await fetch('/api/friends/pending',{headers:{'Authorization':'Bearer '+authToken}});
+    const d=await r.json();
+    if (!d.ok||!d.pending?.length) { el.innerHTML='<div style="color:var(--text-dim);font-size:13px;padding:10px 0">No pending requests.</div>'; return; }
+    el.innerHTML=d.pending.map(p=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="color:var(--text)">${esc(p.from_username)}</span>
+      <div style="display:flex;gap:6px">
+        <button class="btn bp bsm" onclick="acceptFriendReq(${p.from_id},this)">Accept</button>
+        <button class="btn bgh bsm" onclick="rejectFriendReq(${p.from_id},this)">Reject</button>
+      </div>
+    </div>`).join('');
+  } catch(e) { el.innerHTML='<div style="color:#f55;font-size:13px">Error loading requests.</div>'; }
+}
+async function acceptFriendReq(fromId,btn) {
+  btn.disabled=true;
+  await fetch('/api/friends/accept',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},body:JSON.stringify({fromUserId:fromId})});
+  loadFriends(); loadPendingRequests();
+}
+async function rejectFriendReq(targetId,btn) {
+  btn.disabled=true;
+  await fetch('/api/friends/reject',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},body:JSON.stringify({targetUserId:targetId})});
+  loadPendingRequests();
+}
+async function removeFriend(targetId,btn) {
+  if (!confirm('Remove this friend?')) return;
+  btn.disabled=true;
+  await fetch('/api/friends/reject',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},body:JSON.stringify({targetUserId:targetId})});
+  loadFriends();
+}
+
+// ── RULES ─────────────────────────────────────────────
+function showRules(game, el) {
+  document.querySelectorAll('.rc').forEach(c=>c.classList.remove('active'));
+  document.querySelectorAll('.rtab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('rc-'+game)?.classList.add('active');
+  el.classList.add('active');
+}
+
+// ── HISTORY ───────────────────────────────────────────
+async function loadHistory() {
+  // Placeholder — wire to real API when available
+}
+
+// ── GAME INVITE POLLING ───────────────────────────────
+  const id=document.querySelector('.screen.active')?.id;
+  if (id==='screen-login')    doLogin();
+  if (id==='screen-register') doRegister();
+  if (id==='screen-forgot')   doForgot();
+});
+
+// ── AUTO LOGIN ────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async ()=>{
+  const params=new URLSearchParams(window.location.search);
+  if (params.get('verified')==='success') toast('✅ Email Verified','Your account is now fully active!');
+
+async function pollInvites() {
+  if (!authToken && !currentUser) return;
+  try {
+    const res = await apiGet('/api/friends/invites');
+    if (!res?.ok || !res.invites?.length) return;
+    res.invites.forEach(inv => {
+      if (_seenInvites.has(inv.inviteId)) return;
+      _seenInvites.add(inv.inviteId);
+      showInvitePopup(inv);
+    });
+  } catch(e) {}
+}
+
+function showInvitePopup(inv) {
+  const existing = document.getElementById('invite-popup-' + inv.inviteId);
+  if (existing) return;
+  const gameNames = {sipsam:'SipSam',rhum32:'Rhum 32',blackjack:'Blackjack',holdem:"Hold'em"};
+  const gameName = gameNames[inv.game] || inv.game;
+  const el = document.createElement('div');
+  el.id = 'invite-popup-' + inv.inviteId;
+  el.style.cssText = 'position:fixed;top:20px;right:20px;z-index:99999;background:linear-gradient(135deg,#0d1a2a,#1a2a3a);border:2px solid var(--gold,#c9a84c);border-radius:14px;padding:18px 22px;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,0.6),0 0 20px rgba(201,168,76,0.2);animation:slideInRight 0.3s ease-out;font-family:sans-serif;color:#e8dfc0';
+  const secs = Math.max(0, Math.round((inv.expiresAt - Date.now()) / 1000));
+  el.innerHTML = `
+    <div style="font-size:11px;color:#8a9a7a;margin-bottom:6px">GAME INVITE</div>
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px">${inv.fromUsername} invited you!</div>
+    <div style="font-size:13px;color:#a0b090;margin-bottom:12px">${gameName} &mdash; $${inv.tableMinBet} table &bull; Expires in ${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}</div>
+    <div style="display:flex;gap:8px">
+      <button onclick="acceptGameInvite('${inv.inviteId}','${inv.game}',${inv.tableMinBet})" style="flex:1;padding:8px;border:none;border-radius:8px;background:linear-gradient(135deg,#8B6914,#c9a84c);color:#1a1000;font-weight:700;font-size:13px;cursor:pointer">Join Game</button>
+      <button onclick="dismissInvite('${inv.inviteId}')" style="padding:8px 14px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;background:transparent;color:#999;font-size:13px;cursor:pointer">Dismiss</button>
+  el.innerHTML = `
+    <div style="font-size:11px;color:#8a9a7a;margin-bottom:6px">GAME INVITE</div>
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px">${inv.fromUsername} invited you!</div>
+    <div style="font-size:13px;color:#a0b090;margin-bottom:12px">${gameName} &mdash; $${inv.tableMinBet} table &bull; Expires in ${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}</div>
+    <div style="display:flex;gap:8px">
+      <button onclick="acceptGameInvite('${inv.inviteId}','${inv.game}',${inv.tableMinBet})" style="flex:1;padding:8px;border:none;border-radius:8px;background:linear-gradient(135deg,#8B6914,#c9a84c);color:#1a1000;font-weight:700;font-size:13px;cursor:pointer">Join Game</button>
+      <button onclick="dismissInvite('${inv.inviteId}')" style="padding:8px 14px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;background:transparent;color:#999;font-size:13px;cursor:pointer">Dismiss</button>
+    </div>`;
+  document.body.appendChild(el);
+  // Auto-dismiss after expiry
+  setTimeout(() => dismissInvite(inv.inviteId), secs * 1000);
+}
+
+function dismissInvite(inviteId) {
+  const el = document.getElementById('invite-popup-' + inviteId);
+  if (el) el.remove();
+}
+
+async function acceptGameInvite(inviteId, game, tableMinBet) {
+  dismissInvite(inviteId);
+  try {
+    const res = await apiPost('/api/friends/invite/accept', { inviteId });
+    if (!res?.ok) { toast('Invite Error', res?.error || 'Could not accept invite'); return; }
+    const roomId = res.roomId || null;
+    const inviteConfig = res.tableConfig || null;
+
+    // Deduct wallet from bank
+    if (game === 'rhum32') {
+      const tbl = inviteConfig || RHUM32_TABLES[tableMinBet] || RHUM32_TABLES[100];
+      const walletAmt = tbl.wallet || tbl.walletSize || 3000;
+      // Deduct bank balance
+      const newBank = (currentUser.bankBalance || currentUser.bank_balance || 0) - walletAmt;
+      currentUser.bankBalance = newBank; currentUser.bank_balance = newBank;
+      try { await apiPost('/api/game/rhum32/enter', {tableMinBet}); } catch(e) {}
+
+      sessionStorage.setItem('rhum32_table', JSON.stringify({...tbl, roomId, enterHandled: true}));
+      sessionStorage.setItem('rhum32_user', JSON.stringify({
+        id: currentUser.id || currentUser.user_id || 0,
+        username: currentUser.username,
+async function acceptGameInvite(inviteId, game, tableMinBet) {
+  dismissInvite(inviteId);
+  try {
+    const res = await apiPost('/api/friends/invite/accept', { inviteId });
+    if (!res?.ok) { toast('Invite Error', res?.error || 'Could not accept invite'); return; }
+    const roomId = res.roomId || null;
+    const inviteConfig = res.tableConfig || null;
+
+    // Deduct wallet from bank
+    if (game === 'rhum32') {
+      const tbl = inviteConfig || RHUM32_TABLES[tableMinBet] || RHUM32_TABLES[100];
+      const walletAmt = tbl.wallet || tbl.walletSize || 3000;
+      // Deduct bank balance
+      const newBank = (currentUser.bankBalance || currentUser.bank_balance || 0) - walletAmt;
+      currentUser.bankBalance = newBank; currentUser.bank_balance = newBank;
+      try { await apiPost('/api/game/rhum32/enter', {tableMinBet}); } catch(e) {}
+
+      sessionStorage.setItem('rhum32_table', JSON.stringify({...tbl, roomId, enterHandled: true}));
+      sessionStorage.setItem('rhum32_user', JSON.stringify({
+        id: currentUser.id || currentUser.user_id || 0,
+        username: currentUser.username,
+        token: authToken || ''
+      }));
+      window.location.href = '/rhum32';
+    } else if (game === 'sipsam') {
+      const tbl = inviteConfig || TABLES[tableMinBet] || TABLES[100];
+      const walletAmt = tbl.wallet || tbl.walletSize || 5000;
+      const newBank = (currentUser.bankBalance || currentUser.bank_balance || 0) - walletAmt;
+      currentUser.bankBalance = newBank; currentUser.bank_balance = newBank;
+      try { await apiPost('/api/game/enter', {tableMinBet}); } catch(e) {}
+
+      sessionStorage.setItem('sipsam_table', JSON.stringify({...tbl, roomId, enterHandled: true}));
+      sessionStorage.setItem('sipsam_user', JSON.stringify({
+        id: currentUser.id || currentUser.user_id || 0,
+        username: currentUser.username,
+        token: authToken || ''
+      }));
+      window.location.href = '/sipsam';
+    } else if (game === 'blackjack') {
+      const tbl = inviteConfig || BJ_TABLES[tableMinBet] || BJ_TABLES[100];
+      const walletAmt = tbl.wallet || tbl.walletSize || 2500;
+      const newBank = (currentUser.bankBalance || currentUser.bank_balance || 0) - walletAmt;
+      currentUser.bankBalance = newBank; currentUser.bank_balance = newBank;
+      try { await apiPost('/api/game/bj/enter', {tableMinBet}); } catch(e) {}
+
+      sessionStorage.setItem('bj_table', JSON.stringify({...tbl, minBet:tbl.minBet||tableMinBet, roomId, enterHandled: true, isInvitedJoiner: true}));
+      // Persist tier for the BJ client's top-level BJ_TABLE init
+      sessionStorage.setItem('bj_tier', JSON.stringify({
+        minBet: tbl.minBet || tableMinBet,
+        maxBet: tbl.maxBet,
+        walletSize: tbl.wallet || tbl.walletSize,
+        tieBet: tbl.tieBet || 100,
+        tieBetPayout: tbl.tieBetPayout || 2000,
+        blackjackPayout: tbl.blackjackPayout || null,
+        label: tbl.tier || (tbl.label || 'standard').toLowerCase(),
+      }));
+      sessionStorage.setItem('bj_user', JSON.stringify({
+        id: currentUser.id || currentUser.user_id || 0,
+        username: currentUser.username,
+        token: authToken || ''
+      }));
+      window.location.href = '/blackjack';
+    } else if (game === 'holdem') {
+      window.location.href = '/holdem';
+    }
+  } catch(e) { toast('Error', 'Failed to accept invite'); }
+}
+
+// ── ENTER KEYS ────────────────────────────────────────
+document.addEventListener('keydown', e=>{
+  if (e.key!=='Enter') return;
+  const id=document.querySelector('.screen.active')?.id;
+  if (id==='screen-login')    doLogin();
+  if (id==='screen-register') doRegister();
+  if (id==='screen-forgot')   doForgot();
+});
+
+// ── AUTO LOGIN ────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async ()=>{
+  const params=new URLSearchParams(window.location.search);
+  if (params.get('verified')==='success') toast('✅ Email Verified','Your account is now fully active!');
+  const res = await apiGet('/api/auth/me');
+  if (res?.ok && res.user) {
+    currentUser=res.user; if (res.token) { authToken=res.token; localStorage.setItem('vurglife_token', authToken); }
+    loadDashboard();
+    // Handle hash-based panel navigation (e.g. /#rhum32 from game exit)
+    const hash = window.location.hash.replace('#','');
+    const HASH_PANELS = { rhum32:'play-rhum32', sipsam:'play', blackjack:'play-blackjack', holdem:'play-holdem', bank:'bank', profile:'profile' };
+    if (hash && HASH_PANELS[hash]) { showPanel(HASH_PANELS[hash]); window.location.hash=''; }
+  }
+});
+</script>
+</body>
+</html>
+
+  const blitzRoomId = 'sipsam_' + pendingTable.minBet + '_blitz_' + Date.now();
+  const _blitzWallet = pendingTable.wallet || pendingTable.walletSize || 0;
+  sessionStorage.setItem('sipsam_table', JSON.stringify({
+    ...pendingTable,
+    walletSize: _blitzWallet,
+    wallet:     _blitzWallet,
+    rounds:     5,
+    blitz:      true,
+    roomId:     blitzRoomId,
+    enterHandled: true
+  }));
+  sessionStorage.setItem('sipsam_wallet', String(_blitzWallet));
+  sessionStorage.setItem('sipsam_user', JSON.stringify({
+    id:       currentUser.id       || currentUser.user_id || 0,
+    username: currentUser.username,
+    token:    authToken || '',
+    avatar:   currentUser.avatarPreset || currentUser.avatar_preset || ''
+  }));
+  stopAd();
+  document.getElementById('mo-pregame').classList.remove('show');
+
+  // Deduct wallet from bank locally so UI updates immediately

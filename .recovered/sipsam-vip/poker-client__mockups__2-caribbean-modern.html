@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SipSam — Caribbean Modern mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#0b1614;
+    --bg-1:#0f1f1c;
+    --emerald:#0e6b5b;
+    --emerald-deep:#063d33;
+    --emerald-light:#1a9c83;
+    --rose-gold:#d99977;
+    --rose-gold-2:#e8b69a;
+    --sand:#f3e8d8;
+    --ink:#f7f1e6;
+    --ink-dim:#9bb3ae;
+    --line:rgba(217,153,119,.22);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg-0);color:var(--ink);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased}
+  body{
+    background:
+      radial-gradient(ellipse at top, #163530 0%, #0b1614 60%),
+      var(--bg-0);
+    min-height:100vh;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative}
+
+  /* ── Top bar ── */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 18px 10px;
+    background:linear-gradient(180deg, rgba(11,22,20,.92), rgba(11,22,20,.6) 70%, transparent);
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:10;
+  }
+  .brand{font-family:'Fraunces',serif;font-size:24px;font-weight:600;font-variation-settings:'opsz' 144;color:var(--sand);letter-spacing:-.01em}
+  .brand small{display:block;font-family:'Inter',sans-serif;font-size:9px;letter-spacing:.32em;color:var(--rose-gold);font-weight:500;margin-top:-3px;text-transform:uppercase}
+  .wallet{display:flex;align-items:center;gap:10px;background:rgba(217,153,119,.08);padding:6px 12px 6px 14px;border-radius:24px;border:1px solid var(--line)}
+  .wallet-amt{font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--rose-gold-2);letter-spacing:-.01em}
+  .wallet-amt::before{content:'$';font-size:13px;opacity:.7;vertical-align:1px;margin-right:1px}
+  .wallet-icon{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--rose-gold-2),#a06a4f);display:grid;place-items:center;font-size:13px;color:#3a1a0c;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+
+  /* ── Sub-bar ── */
+  .subbar{display:flex;align-items:center;justify-content:space-between;padding:8px 18px 10px;font-size:11px;color:var(--ink-dim)}
+  .subbar .tier{color:var(--rose-gold-2);font-weight:600;letter-spacing:.04em}
+  .subbar .hand-no{font-variant-numeric:tabular-nums;letter-spacing:.18em;text-transform:uppercase;font-weight:500}
+
+  /* ── Table ── */
+  .table-wrap{flex:1;display:grid;place-items:center;padding:8px 14px 14px;position:relative}
+  .table{
+    width:100%;aspect-ratio:5/7;max-height:62vh;
+    border-radius:46% / 32%;
+    background:
+      radial-gradient(ellipse at 50% 35%, var(--emerald) 0%, var(--emerald-deep) 70%, #04241e 100%);
+    border:none;
+    box-shadow:
+      inset 0 0 0 1px rgba(217,153,119,.4),
+      inset 0 0 0 8px rgba(11,22,20,.95),
+      inset 0 0 0 9px rgba(217,153,119,.55),
+      inset 0 0 100px rgba(0,0,0,.35),
+      0 24px 60px -10px rgba(0,0,0,.6);
+    position:relative;
+    isolation:isolate;
+    overflow:hidden;
+  }
+  /* subtle felt grain */
+  .table::before{
+    content:'';position:absolute;inset:0;
+    background-image:radial-gradient(rgba(255,255,255,.018) 1px, transparent 1px);
+    background-size:3px 3px;
+    z-index:0;pointer-events:none;
+  }
+  /* palm-frond corner accent */
+  .table::after{
+    content:'';position:absolute;inset:0;
+    background:
+      radial-gradient(circle at 0% 0%, rgba(26,156,131,.18), transparent 30%),
+      radial-gradient(circle at 100% 100%, rgba(26,156,131,.18), transparent 30%);
+    z-index:0;pointer-events:none;
+  }
+
+  .table-mark{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    font-family:'Fraunces',serif;font-size:60px;font-weight:600;font-style:italic;
+    color:rgba(243,232,216,.06);letter-spacing:-.01em;
+    z-index:1;pointer-events:none;user-select:none;text-align:center;
+  }
+  .table-mark small{display:block;font-style:normal;font-size:11px;letter-spacing:.5em;color:rgba(217,153,119,.18);margin-top:0;font-family:'Inter',sans-serif;font-weight:600;text-transform:uppercase}
+
+  /* ── Pot ── */
+  .pot{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);z-index:3;text-align:center}
+  .pot-label{font-size:9px;letter-spacing:.36em;color:rgba(243,232,216,.5);text-transform:uppercase;margin-bottom:4px;font-weight:600}
+  .pot-amt{font-family:'Fraunces',serif;font-size:30px;font-weight:600;color:var(--sand);letter-spacing:-.01em;text-shadow:0 2px 8px rgba(0,0,0,.4)}
+  .pot-amt::before{content:'$';font-size:18px;opacity:.7;vertical-align:3px;margin-right:1px}
+
+  /* ── Seats ── */
+  .seat{position:absolute;z-index:4;display:flex;flex-direction:column;align-items:center;gap:5px}
+  .seat-banker{top:5%;left:50%;transform:translateX(-50%)}
+  .seat-1{bottom:32%;left:6%}
+  .seat-2{bottom:6%;left:24%}
+  .seat-3{bottom:6%;right:24%}
+  .seat-4{bottom:32%;right:6%}
+
+  .av{
+    width:50px;height:50px;border-radius:50%;
+    background:linear-gradient(135deg,#1f3a35,#0d201c);
+    border:2px solid var(--rose-gold);
+    display:grid;place-items:center;
+    font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--sand);
+    box-shadow:0 4px 12px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.06);
+    position:relative;
+  }
+  .av.banker{border-color:var(--rose-gold-2);background:linear-gradient(135deg,#a06a4f,#5a3a2c)}
+  .av.banker::after{
+    content:'BANKER';position:absolute;top:-12px;left:50%;transform:translateX(-50%);
+    font-size:8px;letter-spacing:.28em;color:#3a1a0c;font-weight:700;
+    background:var(--rose-gold-2);padding:2px 7px;border-radius:8px;
+    box-shadow:0 2px 6px rgba(0,0,0,.4);
+  }
+  .av.you{border-width:3px;border-color:var(--sand);box-shadow:0 0 0 2px var(--rose-gold), 0 0 18px rgba(232,182,154,.4)}
+  .seat-name{font-size:10px;color:var(--ink);letter-spacing:.04em;font-weight:600;text-align:center;line-height:1.2}
+  .seat-chips{font-family:'Fraunces',serif;font-size:14px;color:var(--rose-gold-2);font-weight:600}
+  .seat-bet{
+    margin-top:2px;font-size:9px;color:var(--sand);letter-spacing:.12em;font-weight:600;
+    background:linear-gradient(180deg,rgba(217,153,119,.25),rgba(217,153,119,.1));padding:2px 9px;border-radius:10px;border:1px solid var(--line);
+  }
+
+  /* ── Cards ── */
+  .cards{display:flex;gap:3px;margin-top:5px}
+  .card{
+    width:24px;height:32px;border-radius:4px;
+    background:
+      linear-gradient(135deg, #d99977 0%, #a06a4f 50%, #d99977 100%),
+      #d99977;
+    border:1px solid var(--rose-gold-2);
+    box-shadow:0 2px 6px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.2);
+    position:relative;
+  }
+  .card.face{
+    background:linear-gradient(180deg, #fdf8eb 0%, #f3e8d8 100%);
+    border-color:#d6c89a;color:#1a3530;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-family:'Fraunces',serif;font-weight:600;font-size:11px;line-height:1;
+    box-shadow:0 3px 8px rgba(0,0,0,.5);
+  }
+  .card.red{color:#c4453a}
+  .card.face .rk{font-size:11px}
+  .card.face .st{font-size:9px;margin-top:1px}
+
+  /* ── Action bar ── */
+  .action-bar{
+    padding:12px 16px calc(16px + env(safe-area-inset-bottom));
+    background:linear-gradient(0deg, rgba(11,22,20,.96), rgba(11,22,20,.7) 70%, transparent);
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    border-top:1px solid var(--line);
+    display:flex;gap:8px;
+  }
+  .btn{
+    flex:1;height:50px;border-radius:14px;border:1px solid var(--line);
+    background:rgba(217,153,119,.06);
+    color:var(--ink);font-family:'Inter',sans-serif;font-size:12px;font-weight:600;letter-spacing:.06em;
+    cursor:pointer;transition:all .15s ease;
+  }
+  .btn:hover{background:rgba(217,153,119,.14);color:var(--rose-gold-2);border-color:var(--rose-gold)}
+  .btn.primary{
+    background:linear-gradient(180deg,var(--rose-gold-2),var(--rose-gold) 60%,#a06a4f);
+    color:#3a1a0c;border-color:var(--rose-gold-2);font-weight:700;letter-spacing:.04em;
+    box-shadow:0 4px 14px rgba(217,153,119,.3), inset 0 1px 0 rgba(255,255,255,.4);
+  }
+  .btn.primary:hover{filter:brightness(1.05)}
+
+  .menu-fab{
+    position:fixed;bottom:82px;right:18px;
+    width:48px;height:48px;border-radius:50%;
+    background:linear-gradient(135deg,#1f3a35,#0d201c);
+    border:1.5px solid var(--rose-gold);
+    display:grid;place-items:center;color:var(--rose-gold-2);font-size:20px;
+    box-shadow:0 8px 24px rgba(0,0,0,.5);
+    z-index:50;cursor:pointer;
+  }
+
+  .caption{position:fixed;top:6px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.4em;color:var(--ink-dim);text-transform:uppercase;background:#0b1614;padding:4px 10px;border:1px solid var(--line);border-radius:0 0 6px 6px;z-index:99}
+</style>
+</head>
+<body>
+<div class="caption">Mockup 2 · Caribbean Modern</div>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">VurgLife<small>SipSam</small></div>
+    <div class="wallet">
+      <span class="wallet-amt">12,400</span>
+      <span class="wallet-icon">$</span>
+    </div>
+  </div>
+  <div class="subbar">
+    <span class="tier">VIP · $10,000 min</span>
+    <span class="hand-no">Hand 14</span>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table">
+      <div class="table-mark">VurgLife<small>SipSam</small></div>
+
+      <div class="pot">
+        <div class="pot-label">Pot</div>
+        <div class="pot-amt">42,500</div>
+      </div>
+
+      <div class="seat seat-banker">
+        <div class="av banker">JD</div>
+        <div class="seat-name">JordanD</div>
+        <div class="cards"><div class="card"></div><div class="card"></div><div class="card"></div></div>
+      </div>
+
+      <div class="seat seat-1">
+        <div class="av">M</div>
+        <div class="seat-name">Marcus</div>
+        <div class="seat-chips">8,200</div>
+        <div class="seat-bet">$2,000</div>
+      </div>
+
+      <div class="seat seat-2">
+        <div class="av">L</div>
+        <div class="seat-name">Lisa</div>
+        <div class="seat-chips">14,750</div>
+        <div class="seat-bet">$2,000</div>
+      </div>
+
+      <div class="seat seat-3">
+        <div class="av you">YOU</div>
+        <div class="seat-name">You</div>
+        <div class="seat-chips">12,400</div>
+        <div class="cards">
+          <div class="card face red"><span class="rk">A</span><span class="st">♥</span></div>
+          <div class="card face"><span class="rk">K</span><span class="st">♠</span></div>
+          <div class="card face red"><span class="rk">Q</span><span class="st">♦</span></div>
+        </div>
+      </div>
+
+      <div class="seat seat-4">
+        <div class="av">R</div>
+        <div class="seat-name">Renee</div>
+        <div class="seat-chips">9,800</div>
+        <div class="seat-bet">$2,000</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="menu-fab">⋯</div>
+
+  <div class="action-bar">
+    <button class="btn">Freeze Bet</button>
+    <button class="btn primary">Arrange Hands</button>
+    <button class="btn">Special</button>
+  </div>
+</div>
+</body>
+</html>

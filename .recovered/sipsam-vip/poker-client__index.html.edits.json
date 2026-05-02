@@ -1,0 +1,156 @@
+[
+  {
+    "ts": "2026-04-06T13:48:54.760Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "    <!-- Manual selectors (shown only when NOT coming from dashboard) -->\n    <div id=\"lobby-manual-select\">\n      <p class=\"lobby-section-label\">Select Table (minimum bet):</p>\n      <div class=\"table-buttons\">\n        <button class=\"btn-table\" onclick=\"selectTable(100,this)\">$100 Table<br><small>Need $5,000</small></button>\n        <button class=\"btn-table\" onclick=\"selectTable(250,this)\">$250 Table<br><small>Need $15,000</small></button>\n        <button class=\"btn-table\" onclick=\"selectTable(500,this)\">$500 Table<br><small>Need $30,000</small></button>\n        <button class=\"btn-table\" onclick=\"selectTable(1000,this)\">$1,000 Table<br><small>Need $60,000</small></button>\n      </div>\n      <p class=\"lobby-section-label\">Select number of rounds:</p>\n      <div class=\"rounds-buttons\">\n        <button class=\"btn-rounds\" onclick=\"selectRounds(10,this)\">10 Rounds</button>\n        <button class=\"btn-rounds\" onclick=\"selectRounds(20,this)\">20 Rounds</button>\n        <button class=\"btn-rounds\" onclick=\"selectRounds(30,this)\">30 Rounds</button>\n      </div>\n    </div>",
+    "new_string": "    <!-- Manual table selector (shown only when NOT coming from dashboard) -->\n    <div id=\"lobby-manual-select\">\n      <p class=\"lobby-section-label\">Select Table (minimum bet):</p>\n      <div class=\"table-buttons\">\n        <button class=\"btn-table\" onclick=\"selectTable(100,this)\">$100 Table<br><small>Need $5,000</small></button>\n        <button class=\"btn-table\" onclick=\"selectTable(250,this)\">$250 Table<br><small>Need $15,000</small></button>\n        <button class=\"btn-table\" onclick=\"selectTable(500,this)\">$500 Table<br><small>Need $30,000</small></button>\n        <button class=\"btn-table\" onclick=\"selectTable(1000,this)\">$1,000 Table<br><small>Need $60,000</small></button>\n      </div>\n    </div>\n\n    <!-- Round selector (always visible — player must pick rounds) -->\n    <div id=\"lobby-round-select\">\n      <p class=\"lobby-section-label\">Select number of rounds:</p>\n      <div class=\"rounds-buttons\">\n        <button class=\"btn-rounds\" onclick=\"selectRounds(5,this)\">⚡ Blitz</button>\n        <button class=\"btn-rounds\" onclick=\"selectRounds(10,this)\">10 Rounds</button>\n        <button class=\"btn-rounds\" onclick=\"selectRounds(20,this)\">20 Rounds</button>\n        <button class=\"btn-rounds\" onclick=\"selectRounds(30,this)\">30 Rounds</button>\n      </div>\n    </div>",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-12T12:30:07.518Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "      <p id=\"bet-msg\" class=\"status-msg\" style=\"margin-top:10px;text-align:center\"></p>\n    </div>\n\n    <!-- Dummy hidden container so existing bet-controls references don't break -->\n    <div id=\"bet-controls\" style=\"display:none;\">\n    </div>",
+    "new_string": "      <!-- Freeze bet row -->\n      <div style=\"display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px\">\n        <button id=\"btn-freeze\" onclick=\"toggleFreezeBet()\" style=\"\n          font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;\n          padding:6px 16px;border-radius:8px;cursor:pointer;\n          background:transparent;border:1px solid #334155;color:#7a9ac0;\n          letter-spacing:1px;transition:all .2s ease;\n        \">&#x1F512; Freeze Bet</button>\n        <span id=\"freeze-indicator\" style=\"\n          display:none;font-size:12px;color:#38bdf8;font-weight:700;\n          letter-spacing:1px;\n        \"></span>\n      </div>\n      <p id=\"bet-msg\" class=\"status-msg\" style=\"margin-top:10px;text-align:center\"></p>\n    </div>\n\n    <!-- Dummy hidden container so existing bet-controls references don't break -->\n    <div id=\"bet-controls\" style=\"display:none;\">\n    </div>",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-12T12:31:30.463Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "<script src=\"game.js\"></script>",
+    "new_string": "<script src=\"game.js?v=7\"></script>",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-12T18:38:13.542Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "    <!-- Invite Friends -->\n    <div id=\"invite-section\" style=\"margin-top:16px;border-top:1px solid #1a2d50;padding-top:16px\">",
+    "new_string": "    <!-- Invite Friends (hidden until lobby opens after round selection) -->\n    <div id=\"invite-section\" style=\"display:none;margin-top:16px;border-top:1px solid #1a2d50;padding-top:16px\">",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-12T18:38:20.886Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "    <div style=\"height:1px;background:#1a2d50;margin:4px 0\"></div>\n\n    <!-- Replenish Wallet -->",
+    "new_string": "    <!-- Invite Friends -->\n    <div class=\"igm-item\" onclick=\"igmInviteFriend()\">\n      <div class=\"igm-ico\">👥</div>\n      <div class=\"igm-body\">\n        <div class=\"igm-title\">Invite Friends</div>\n        <div class=\"igm-desc\">Invite a friend to join this table</div>\n      </div>\n      <span class=\"igm-arrow\">›</span>\n    </div>\n\n    <div style=\"height:1px;background:#1a2d50;margin:4px 0\"></div>\n\n    <!-- Replenish Wallet -->",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-12T18:38:39.024Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "  <!-- Sub-panels (shown inside the slide-out) -->\n\n\n\n  <div id=\"igm-sub-replenish\" class=\"igm-sub\">",
+    "new_string": "  <!-- Sub-panels (shown inside the slide-out) -->\n\n  <!-- Invite Friends sub-panel -->\n  <div id=\"igm-sub-invite\" class=\"igm-sub\">\n    <div class=\"igm-sub-head\"><button onclick=\"igmBack()\" class=\"igm-back-btn\">← Back</button><span>Invite Friends</span></div>\n    <div style=\"padding:20px\">\n      <div style=\"position:relative\">\n        <div style=\"display:flex;gap:8px\">\n          <input id=\"igm-invite-username\" type=\"text\" placeholder=\"Type name or pick from friends...\"\n            style=\"flex:1;background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:8px 12px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:13px;outline:none\"\n            oninput=\"onIgmInviteInput(this.value)\"\n            onfocus=\"onIgmInviteFocus()\"\n            autocorrect=\"off\" autocapitalize=\"none\" spellcheck=\"false\" autocomplete=\"off\"\n            onkeydown=\"if(event.key==='Enter')sendIgmInvite()\"/>\n          <button onclick=\"sendIgmInvite()\" style=\"background:#1a5caa;border:none;border-radius:7px;padding:8px 16px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap\">Invite</button>\n        </div>\n        <div id=\"igm-invite-dropdown\" style=\"display:none;position:absolute;top:100%;left:0;right:40px;background:#06111f;border:1px solid #1a2d50;border-radius:8px;z-index:200;max-height:180px;overflow-y:auto;margin-top:3px;box-shadow:0 8px 20px rgba(0,0,0,.6)\"></div>\n      </div>\n      <div id=\"igm-invite-status\" style=\"font-size:11px;margin-top:6px;min-height:16px\"></div>\n    </div>\n  </div>\n\n  <div id=\"igm-sub-replenish\" class=\"igm-sub\">",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-12T18:39:18.105Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "function igmShowRules() { igmShowSub('rules'); }\n\nfunction igmExit() {",
+    "new_string": "function igmShowRules() { igmShowSub('rules'); }\n\n// ── IN-GAME INVITE FRIENDS ─────────────────────────────\nlet _igmFriendsList = [];\nfunction igmInviteFriend() {\n  const statusEl = document.getElementById('igm-invite-status');\n  if (statusEl) statusEl.textContent = '';\n  const input = document.getElementById('igm-invite-username');\n  if (input) input.value = '';\n  // Pre-fetch friends list\n  _fetchIgmFriends();\n  igmShowSub('invite');\n}\nasync function _fetchIgmFriends() {\n  try {\n    const token = igmToken || (() => { try { return JSON.parse(sessionStorage.getItem('sipsam_user')||'{}').token||null; } catch(e){ return null; }})();\n    if (!token) return;\n    const res = await fetch('/api/game/friends', { headers:{ 'Authorization':'Bearer '+token }, credentials:'include' });\n    if (res.ok) { const d = await res.json(); _igmFriendsList = d.friends || []; }\n  } catch(e) { console.warn('Failed to fetch friends for igm:', e); }\n}\nfunction onIgmInviteInput(val) {\n  const dd = document.getElementById('igm-invite-dropdown');\n  if (!dd) return;\n  if (!val.trim()) { _showIgmFriendsList(dd); return; }\n  const q = val.toLowerCase();\n  const matches = _igmFriendsList.filter(f => f.username.toLowerCase().includes(q));\n  dd.innerHTML = matches.map(f => `<div style=\"padding:8px 12px;cursor:pointer;color:#f0f6ff;font-size:13px;border-bottom:1px solid #1a2d50\" onclick=\"selectIgmInvitee('${f.username}')\">${f.username}</div>`).join('');\n  dd.style.display = matches.length ? 'block' : 'none';\n}\nfunction onIgmInviteFocus() {\n  const dd = document.getElementById('igm-invite-dropdown');\n  if (dd) _showIgmFriendsList(dd);\n}\nfunction _showIgmFriendsList(dd) {\n  dd.innerHTML = _igmFriendsList.map(f => `<div style=\"padding:8px 12px;cursor:pointer;color:#f0f6ff;font-size:13px;border-bottom:1px solid #1a2d50\" onclick=\"selectIgmInvitee('${f.username}')\">${f.username}</div>`).join('');\n  dd.style.display = _igmFriendsList.length ? 'block' : 'none';\n}\nfunction selectIgmInvitee(name) {\n  const input = document.getElementById('igm-invite-username');\n  if (input) input.value = name;\n  const dd = document.getElementById('igm-invite-dropdown');\n  if (dd) dd.style.display = 'none';\n}\nasync function sendIgmInvite() {\n  const input    = document.getElementById('igm-invite-username');\n  const statusEl = document.getElementById('igm-invite-status');\n  if (!input || !statusEl) return;\n  const username = input.value.trim();\n  if (!username) { statusEl.textContent = '⚠️ Enter a username.'; statusEl.style.color = '#fca5a5'; return; }\n  statusEl.textContent = 'Sending invite...'; statusEl.style.color = '#7a9ac0';\n  try {\n    const token = igmToken || (() => { try { return JSON.parse(sessionStorage.getItem('sipsam_user')||'{}').token||null; } catch(e){ return null; }})();\n    if (!token) { statusEl.textContent = '⚠️ Not authenticated.'; statusEl.style.color = '#fca5a5'; return; }\n    const tableConfig = igmTableCfg || {};\n    const res = await fetch('/api/friends/invite', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },\n      credentials: 'include',\n      body: JSON.stringify({\n        toUsername: username, game: 'sipsam', roomId: myRoomId,\n        tableMinBet: tableConfig.minBet || selectedMinBet,\n        tableConfig: {\n          minBet: tableConfig.minBet || selectedMinBet, maxBet: tableConfig.maxBet,\n          walletSize: tableConfig.walletSize || tableConfig.wallet,\n          wallet: tableConfig.walletSize || tableConfig.wallet,\n          inc: tableConfig.increment || tableConfig.inc,\n          minBank: tableConfig.minBank || tableConfig.bankRequired,\n          rounds: window._gameOverState?.maxRounds || selectedRounds || 10,\n          blitz: false, roomId: myRoomId\n        }\n      })\n    });\n    const data = await res.json();\n    if (data.ok) {\n      statusEl.textContent = `✅ Invite sent to ${username}!`; statusEl.style.color = '#22c55e';\n      input.value = '';\n      setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 4000);\n    } else {\n      statusEl.textContent = '❌ ' + (data.error || 'Failed to send.'); statusEl.style.color = '#fca5a5';\n    }\n  } catch(e) {\n    statusEl.textContent = '⚠️ Server error.'; statusEl.style.color = '#fca5a5';\n  }\n}\n\nfunction igmExit() {",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-12T18:39:39.660Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "game.js?v=7",
+    "new_string": "game.js?v=8",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-14T00:23:32.054Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "game.js?v=8",
+    "new_string": "game.js?v=9",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-14T23:46:41.898Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "game.js?v=9",
+    "new_string": "game.js?v=10",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-14T23:46:53.094Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "game.js?v=9",
+    "new_string": "game.js?v=10",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-15T00:42:40.234Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "game.js?v=10",
+    "new_string": "game.js?v=11",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-15T00:48:09.093Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "    <div id=\"disqualify-panel\" style=\"display:none;\">\n      <div class=\"dq-title\">⚠️ Disqualify a Player</div>\n      <div id=\"dq-buttons\"></div>\n      <p id=\"dq-msg\" class=\"status-msg\"></p>\n    </div>",
+    "new_string": "",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-15T08:51:36.412Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "game.js?v=11",
+    "new_string": "game.js?v=12",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-15T09:01:31.161Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "    <div style=\"margin-top:20px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap\">\n      <button class=\"btn-primary\" onclick=\"playAgain()\" style=\"padding:12px 28px\">⚡ Play Again</button>\n      <button class=\"btn-secondary\" onclick=\"exitToLobby()\" style=\"padding:12px 28px\">🏠 Return to Dashboard</button>\n    </div>",
+    "new_string": "    <div style=\"margin-top:20px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap\">\n      <button class=\"btn-primary\" onclick=\"exitToLobby()\" style=\"padding:14px 32px;font-size:15px\">🏠 Return to Dashboard</button>\n    </div>",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-15T09:01:53.731Z",
+    "source": "e411b8d6-c704-4389-8ec7-09d029ade1fd.jsonl",
+    "old_string": "game.js?v=12",
+    "new_string": "game.js?v=13",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-22T22:16:39.366Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "    <!-- Rules -->\n    <div class=\"igm-item\" onclick=\"igmShowRules()\">\n      <div class=\"igm-ico\">📖</div>\n      <div class=\"igm-body\">\n        <div class=\"igm-title\">Game Rules</div>\n        <div class=\"igm-desc\">Quick reference — hands, specials, payouts</div>\n      </div>\n      <span class=\"igm-arrow\">›</span>\n    </div>",
+    "new_string": "    <!-- Payouts & Specials — quick payout reference -->\n    <div class=\"igm-item\" onclick=\"igmShowPayouts()\">\n      <div class=\"igm-ico\">💎</div>\n      <div class=\"igm-body\">\n        <div class=\"igm-title\">Payouts &amp; Specials</div>\n        <div class=\"igm-desc\" id=\"igm-payouts-desc\">Verify every multiplier &amp; bonus for this table</div>\n      </div>\n      <span class=\"igm-arrow\">›</span>\n    </div>\n\n    <div style=\"height:1px;background:#1a2d50;margin:4px 0\"></div>\n\n    <!-- Rules -->\n    <div class=\"igm-item\" onclick=\"igmShowRules()\">\n      <div class=\"igm-ico\">📖</div>\n      <div class=\"igm-body\">\n        <div class=\"igm-title\">Game Rules</div>\n        <div class=\"igm-desc\">Quick reference — hands, specials, payouts</div>\n      </div>\n      <span class=\"igm-arrow\">›</span>\n    </div>",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-22T22:17:00.925Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "  <div id=\"igm-sub-rules\" class=\"igm-sub\" style=\"overflow-y:auto\">",
+    "new_string": "  <!-- Payouts & Specials — focused payout reference (auto-renders for VIP / non-VIP) -->\n  <div id=\"igm-sub-payouts\" class=\"igm-sub\" style=\"overflow-y:auto\">\n    <div class=\"igm-sub-head\" style=\"position:sticky;top:0;z-index:1;background:#080f1e\">\n      <button onclick=\"igmBack()\" class=\"igm-back-btn\">← Back</button>\n      <span>Payouts &amp; Specials</span>\n    </div>\n    <div style=\"padding:16px;font-size:12px;line-height:1.6;color:#7a9ac0\">\n\n      <!-- Table tier badge -->\n      <div id=\"igm-payouts-tier\" style=\"margin-bottom:12px;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:700;letter-spacing:1px;text-align:center;text-transform:uppercase\">\n        <!-- Filled by JS -->\n      </div>\n\n      <!-- Round payouts -->\n      <div class=\"igm-rule-sec\">\n        <div class=\"igm-rule-h\">💰 Round Payouts (per bet placed)</div>\n        <table style=\"width:100%;border-collapse:collapse;font-size:11px\">\n          <tbody>\n            <tr style=\"border-bottom:1px solid rgba(255,255,255,.05)\"><td style=\"padding:5px 6px\">Win all 3 hands</td><td style=\"text-align:right;padding:5px 6px;color:#22c55e;font-weight:700\">+2× bet</td></tr>\n            <tr style=\"border-bottom:1px solid rgba(255,255,255,.05)\"><td style=\"padding:5px 6px\">Win 2 of 3 hands</td><td style=\"text-align:right;padding:5px 6px;color:#22c55e;font-weight:700\">+1× bet</td></tr>\n            <tr style=\"border-bottom:1px solid rgba(255,255,255,.05)\"><td style=\"padding:5px 6px\">Win 1 of 3 hands</td><td style=\"text-align:right;padding:5px 6px;color:#ef4444;font-weight:700\">−1× bet</td></tr>\n            <tr><td style=\"padding:5px 6px\">Lose all 3 hands</td><td style=\"text-align:right;padding:5px 6px;color:#ef4444;font-weight:700\">−2× bet</td></tr>\n          </tbody>\n        </table>\n        <p style=\"margin:6px 0 0;font-size:10.5px\">Tie hands count for the Banker (except suited flush ties).</p>\n      </div>\n\n      <!-- Specials — multiplier + bonus (tier-aware) -->\n      <div class=\"igm-rule-sec\">\n        <div class=\"igm-rule-h\">⭐ Specials — Multiplier + House Bonus</div>\n        <p style=\"margin:0 0 8px;font-size:11px\">Declare BEFORE arranging. Winner receives <strong style=\"color:#22c55e\">multiplier × bet</strong> from loser PLUS the house bonus shown below — bonus is paid by the house, not by other players.</p>\n        <table style=\"width:100%;border-collapse:collapse;font-size:11px\">\n          <thead>\n            <tr style=\"color:#4aabff;border-bottom:1px solid #1a2d50\">\n              <th style=\"text-align:left;padding:4px 6px;font-weight:700;letter-spacing:.5px\">SPECIAL</th>\n              <th style=\"text-align:center;padding:4px 6px;font-weight:700;letter-spacing:.5px\">MULT</th>\n              <th style=\"text-align:right;padding:4px 6px;font-weight:700;letter-spacing:.5px\" id=\"igm-payouts-bonus-col\">BONUS</th>\n            </tr>\n          </thead>\n          <tbody id=\"igm-payouts-tbody\">\n            <!-- Filled by JS based on table tier -->\n          </tbody>\n        </table>\n        <p style=\"margin:8px 0 0;font-size:10.5px;color:#7a9ac0\">Both players keep their own special's bonus from the house, regardless of who wins the round.</p>\n      </div>\n\n      <!-- DQ penalties — players need to know the cost of fouls -->\n      <div class=\"igm-rule-sec\">\n        <div class=\"igm-rule-h\">⚠️ Disqualification Costs</div>\n        <ul style=\"padding-left:16px;margin:0;font-size:11px\">\n          <li>Miss countdown timer → lose round bet</li>\n          <li>Wrong special declared → lose round bet</li>\n          <li><strong style=\"color:#fca5a5\">Player hides a real special</strong> → lose bet + pay Banker 2× bet</li>\n          <li><strong style=\"color:#fca5a5\">Banker hides a real special</strong> → pay every player 2× their bet</li>\n        </ul>\n      </div>\n\n    </div>\n  </div>\n\n  <div id=\"igm-sub-rules\" class=\"igm-sub\" style=\"overflow-y:auto\">",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-22T22:17:24.910Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "function igmShowRules() { igmShowSub('rules'); }",
+    "new_string": "function igmShowRules() { igmShowSub('rules'); }\n\n// ── PAYOUTS & SPECIALS — focused payout reference ─────────────\n// Mirrors poker-server/logic.js: SPECIAL_BONUS (non-VIP) and SPECIAL_BONUS_VIP.\n// VIP tier = tableMinBet >= 10000 (matches PokerRoom.js: this.gameState.isVip = cfg.minBet >= 10000)\nconst SIPSAM_SPECIALS = [\n  { name:'No Face',                     mult:2,  bonus:1000,    bonusVip:100000 },\n  { name:'Four of a Kind',              mult:3,  bonus:2500,    bonusVip:250000 },\n  { name:'Straight Flush',              mult:3,  bonus:2500,    bonusVip:250000 },\n  { name:'Straight-Straight-Straight',  mult:5,  bonus:7000,    bonusVip:500000 },\n  { name:'Flush-Flush-Flush',           mult:5,  bonus:7000,    bonusVip:500000 },\n  { name:'Royal Flush',                 mult:7,  bonus:10000,   bonusVip:750000 },\n  { name:'6½ Pairs',                    mult:8,  bonus:15000,   bonusVip:1000000 },\n  { name:'Full Suit',                   mult:10, bonus:50000,   bonusVip:3000000 },\n];\n\nfunction igmShowPayouts() {\n  const minBet = (igmTableCfg?.minBet) || (window._lastState?.tableMinBet) || 0;\n  const isVip  = minBet >= 10000;\n\n  // Tier badge\n  const tier = document.getElementById('igm-payouts-tier');\n  if (tier) {\n    if (isVip) {\n      tier.style.background = 'linear-gradient(135deg, rgba(201,168,76,.15), rgba(232,201,106,.05))';\n      tier.style.border = '1px solid #c9a84c';\n      tier.style.color = '#e8c96a';\n      tier.textContent = '💎 VIP TABLE — High-tier bonuses active (min bet $' + minBet.toLocaleString() + ')';\n    } else {\n      tier.style.background = 'rgba(26,140,255,.08)';\n      tier.style.border = '1px solid #1a2d50';\n      tier.style.color = '#7a9ac0';\n      tier.textContent = 'Standard table (min bet $' + minBet.toLocaleString() + ')';\n    }\n  }\n\n  // Bonus column header reflects tier\n  const bonusCol = document.getElementById('igm-payouts-bonus-col');\n  if (bonusCol) bonusCol.textContent = isVip ? 'BONUS (VIP)' : 'BONUS';\n\n  // Render table body\n  const tbody = document.getElementById('igm-payouts-tbody');\n  if (tbody) {\n    const rows = SIPSAM_SPECIALS.map((s, i) => {\n      const bonus = isVip ? s.bonusVip : s.bonus;\n      const last  = i === SIPSAM_SPECIALS.length - 1;\n      const border = last ? '' : 'border-bottom:1px solid rgba(255,255,255,.05);';\n      return `<tr style=\"${border}\">\n        <td style=\"padding:5px 6px;color:#e8c96a\">${s.name}</td>\n        <td style=\"text-align:center;padding:5px 6px;color:#22c55e;font-weight:700\">${s.mult}×</td>\n        <td style=\"text-align:right;padding:5px 6px;color:#4aabff;font-weight:700\">+$${bonus.toLocaleString()}</td>\n      </tr>`;\n    }).join('');\n    tbody.innerHTML = rows;\n  }\n\n  igmShowSub('payouts');\n}",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-28T21:49:48.068Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "<link rel=\"stylesheet\" href=\"style.css\">",
+    "new_string": "<link rel=\"stylesheet\" href=\"style.css?v=2\">",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-28T22:46:56.150Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "<link rel=\"stylesheet\" href=\"style.css\">",
+    "new_string": "<link rel=\"stylesheet\" href=\"style.css?v=2\">",
+    "replace_all": false
+  },
+  {
+    "ts": "2026-04-28T22:47:05.994Z",
+    "source": "e2f442c3-c90c-4205-b831-4ab5bcdb4b1d.jsonl",
+    "old_string": "<link rel=\"stylesheet\" href=\"style.css\">",
+    "new_string": "<link rel=\"stylesheet\" href=\"style.css?v=2\">",
+    "replace_all": false
+  }
+]

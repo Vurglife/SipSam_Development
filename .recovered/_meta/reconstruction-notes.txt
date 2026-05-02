@@ -1,0 +1,197 @@
+Reconstruction run at 2026-05-02T18:12:25.528Z
+Scanned 51 transcripts
+
+=== blackjack/blackjack-client/game.js ===
+  base: 59 Reads (max line 1499, covered 1321)
+  edits: 75 (applied=40, failed=35)
+  output size: 74445 bytes
+
+=== blackjack/blackjack-client/index.html ===
+  base: 28 Reads (max line 609, covered 609)
+  edits: 21 (applied=10, failed=11)
+  output size: 61428 bytes
+
+=== blackjack/blackjack-client/style.css ===
+  base: 7 Reads (max line 604, covered 225)
+  edits: 4 (applied=4, failed=0)
+  output size: 29279 bytes
+
+=== blackjack/blackjack-client/vl-card.css ===
+  base: 1 Reads (max line 0, covered 0)
+  edits: 0 (applied=0, failed=0)
+  output size: 0 bytes
+
+=== blackjack/blackjack-server/BlackjackRoom.js ===
+  base: 29 Reads (max line 812, covered 812)
+  edits: 25 (applied=6, failed=19)
+  output size: 32310 bytes
+
+=== blackjack/blackjack-server/index.js ===
+  base: 7 Reads (max line 144, covered 144)
+  edits: 2 (applied=0, failed=2)
+  output size: 4477 bytes
+
+=== blackjack/blackjack-server/logic.js ===
+  base: 5 Reads (max line 268, covered 268)
+  edits: 1 (applied=0, failed=1)
+  output size: 8036 bytes
+
+=== blackjack/blackjack-server/package.json ===
+  base: 2 Reads (max line 16, covered 16)
+  edits: 0 (applied=0, failed=0)
+  output size: 311 bytes
+
+=== sipsam-vip/poker-client/game(1).js ===
+  base: 1 Reads (max line 1199, covered 50)
+  edits: 0 (applied=0, failed=0)
+  output size: 61219 bytes
+
+=== sipsam-vip/poker-client/game.js ===
+  base: 133 Reads (max line 2280, covered 1782)
+  edits: 31 (applied=16, failed=15)
+  output size: 116468 bytes
+
+=== sipsam-vip/poker-client/index.html ===
+  base: 68 Reads (max line 1359, covered 1179)
+  edits: 22 (applied=8, failed=14)
+  output size: 78481 bytes
+
+=== sipsam-vip/poker-client/mockups/1-onyx-lounge.html ===
+  base: Write @2026-04-26T00:51:14.554Z
+  edits: 0 (applied=0, failed=0)
+  output size: 11578 bytes
+
+=== sipsam-vip/poker-client/mockups/2-caribbean-modern.html ===
+  base: Write @2026-04-26T00:52:17.086Z
+  edits: 0 (applied=0, failed=0)
+  output size: 11407 bytes
+
+=== sipsam-vip/poker-client/mockups/3-glass-premium.html ===
+  base: Write @2026-04-26T00:53:19.091Z
+  edits: 0 (applied=0, failed=0)
+  output size: 12375 bytes
+
+=== sipsam-vip/poker-client/mockups/4-blue-glass.html ===
+  base: Write @2026-04-26T01:21:33.184Z
+  edits: 0 (applied=0, failed=0)
+  output size: 12653 bytes
+
+=== sipsam-vip/poker-client/mockups/index.html ===
+  base: Write @2026-04-26T00:53:37.256Z
+  edits: 0 (applied=0, failed=0)
+  output size: 3094 bytes
+
+=== sipsam-vip/poker-client/style.css ===
+  base: 48 Reads (max line 890, covered 801)
+  edits: 5 (applied=3, failed=2)
+  output size: 51725 bytes
+
+=== sipsam-vip/poker-client/test.html ===
+  base: 1 Reads (max line 68, covered 68)
+  edits: 0 (applied=0, failed=0)
+  output size: 2195 bytes
+
+=== sipsam-vip/poker-client/vl-card.css ===
+  base: 2 Reads (max line 0, covered 0)
+  edits: 0 (applied=0, failed=0)
+  output size: 0 bytes
+
+=== sipsam-vip/poker-server/PokerRoom.js ===
+  base: 97 Reads (max line 1439, covered 1439)
+  edits: 38 (applied=9, failed=29)
+  output size: 72318 bytes
+
+=== sipsam-vip/poker-server/RoomManager.js ===
+  base: Write @2026-04-12T00:55:37.323Z
+  edits: 2 (applied=2, failed=0)
+  output size: 7408 bytes
+
+=== sipsam-vip/poker-server/SipSam_index.js ===
+  base: 2 Reads (max line 192, covered 192)
+  edits: 0 (applied=0, failed=0)
+  output size: 7245 bytes
+
+=== sipsam-vip/poker-server/SipSam_logic.js ===
+  base: 6 Reads (max line 974, covered 974)
+  edits: 0 (applied=0, failed=0)
+  output size: 41948 bytes
+
+=== sipsam-vip/poker-server/game-logic.js ===
+  base: 1 Reads (max line 0, covered 0)
+  edits: 0 (applied=0, failed=0)
+  output size: 0 bytes
+
+=== sipsam-vip/poker-server/index.js ===
+  base: Write @2026-04-12T12:23:43.749Z
+  edits: 0 (applied=0, failed=0)
+  output size: 8797 bytes
+
+=== sipsam-vip/poker-server/logic.js ===
+  base: 34 Reads (max line 854, covered 755)
+  edits: 9 (applied=6, failed=3)
+  output size: 48750 bytes
+
+=== sipsam-vip/poker-server/package.json ===
+  base: 1 Reads (max line 25, covered 25)
+  edits: 0 (applied=0, failed=0)
+  output size: 558 bytes
+
+=== sipsam-vip/vurglife-platform/SETUP.md ===
+  base: 1 Reads (max line 190, covered 190)
+  edits: 0 (applied=0, failed=0)
+  output size: 4486 bytes
+
+=== sipsam-vip/vurglife-platform/client/public/index.html ===
+  base: 145 Reads (max line 1791, covered 1695)
+  edits: 65 (applied=35, failed=30)
+  output size: 133505 bytes
+
+=== sipsam-vip/vurglife-platform/fix-balance.js ===
+  base: 1 Reads (max line 48, covered 48)
+  edits: 0 (applied=0, failed=0)
+  output size: 1481 bytes
+
+=== sipsam-vip/vurglife-platform/package.json ===
+  base: 6 Reads (max line 27, covered 27)
+  edits: 0 (applied=0, failed=0)
+  output size: 599 bytes
+
+=== sipsam-vip/vurglife-platform/scripts/grant-chips.js ===
+  base: Write @2026-04-11T19:29:47.942Z
+  edits: 3 (applied=3, failed=0)
+  output size: 3106 bytes
+
+=== sipsam-vip/vurglife-platform/server/db/database.js ===
+  base: 13 Reads (max line 379, covered 379)
+  edits: 4 (applied=0, failed=4)
+  output size: 14736 bytes
+
+=== sipsam-vip/vurglife-platform/server/index.js ===
+  base: Write @2026-04-04T01:01:35.187Z
+  edits: 19 (applied=10, failed=9)
+  output size: 12445 bytes
+
+=== sipsam-vip/vurglife-platform/server/middleware/auth.js ===
+  base: 8 Reads (max line 43, covered 43)
+  edits: 0 (applied=0, failed=0)
+  output size: 1298 bytes
+
+=== sipsam-vip/vurglife-platform/server/routes/auth.js ===
+  base: 11 Reads (max line 272, covered 272)
+  edits: 0 (applied=0, failed=0)
+  output size: 11268 bytes
+
+=== sipsam-vip/vurglife-platform/server/routes/friends.js ===
+  base: Write @2026-04-02T00:30:20.140Z
+  edits: 10 (applied=6, failed=4)
+  output size: 7519 bytes
+
+=== sipsam-vip/vurglife-platform/server/routes/game.js ===
+  base: 31 Reads (max line 483, covered 483)
+  edits: 24 (applied=19, failed=5)
+  output size: 33994 bytes
+
+=== sipsam-vip/vurglife-platform/server/utils/email.js ===
+  base: 1 Reads (max line 58, covered 58)
+  edits: 0 (applied=0, failed=0)
+  output size: 2415 bytes

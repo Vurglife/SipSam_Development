@@ -1,0 +1,1595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>SipSam — VURGLife</title>
+  <meta name="theme-color" content="#020609">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VurgLife">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/images/icon-192.png">
+<link rel="stylesheet" href="style.css?v=2">
+  <style>
+    /* Lobby config banner (pre-selected from dashboard) */
+    .lobby-title { font-family:'Bebas Neue',serif; font-size:2rem; letter-spacing:4px; margin:0 0 4px; }
+    .lobby-wait-label { color:#7a9ac0; font-size:12px; letter-spacing:2px; text-transform:uppercase; margin:0 0 20px; }
+    .lobby-config-banner {
+      display:flex; align-items:stretch; gap:0;
+      background:linear-gradient(135deg,#0d1b30,#0a1525);
+      border:1px solid #1a3050; border-radius:10px;
+      padding:14px 10px; margin:0 0 20px;
+    }
+    .lobby-config-item {
+      flex:1; display:flex; flex-direction:column;
+      align-items:center; gap:4px; padding:0 8px;
+    }
+    .lobby-config-divider { width:1px; background:#1a3050; margin:4px 0; }
+    .lci-label { font-size:9px; letter-spacing:2px; color:#4a6a8a; text-transform:uppercase; font-weight:700; }
+    .lci-value { font-size:15px; font-weight:800; color:#c9a84c; font-family:'Bebas Neue',sans-serif; letter-spacing:1px; }
+  </style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<!-- Redirect overlay — shown instantly if user lands on /sipsam without a session -->
+<div id="screen-redirect" style="
+  position:fixed;inset:0;z-index:9999;
+  background:#0a0f1a;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+">
+  <div style="font-family:'Bebas Neue',serif;font-size:48px;letter-spacing:6px;color:#c9a84c">VURGLIFE</div>
+  <div style="color:#7a9ac0;font-size:13px;letter-spacing:2px">Redirecting to dashboard...</div>
+</div>
+
+<div id="screen-login" class="screen active" style="display:none">
+  <div class="login-card">
+    <h1>SIPSAM</h1>
+    <p class="subtitle">The Ultimate Card Game</p>
+    <input type="text" id="username-input" placeholder="Enter your name" maxlength="20" autocomplete="off">
+    <button class="btn-primary" onclick="connect(document.getElementById('username-input').value.trim())">Join Game</button>
+    <p id="login-status"></p>
+  </div>
+</div>
+
+<!-- ===================== LOBBY ===================== -->
+<div id="screen-lobby" class="screen">
+  <div class="lobby-card">
+    <h2 class="lobby-title">SIPSAM <span style="color:#c9a84c">LOBBY</span></h2>
+    <p id="lobby-status" class="lobby-wait-label">Waiting for players...</p>
+
+    <!-- Pre-selected config display (shown when coming from dashboard) -->
+    <div id="lobby-preselected" style="display:none">
+      <div class="lobby-config-banner">
+        <div class="lobby-config-item">
+          <span class="lci-label">TABLE</span>
+          <span class="lci-value" id="lci-table">—</span>
+        </div>
+        <div class="lobby-config-divider"></div>
+        <div class="lobby-config-item">
+          <span class="lci-label">MIN BET</span>
+          <span class="lci-value" id="lci-minbet">—</span>
+        </div>
+        <div class="lobby-config-divider"></div>
+        <div class="lobby-config-item">
+          <span class="lci-label">ROUNDS</span>
+          <span class="lci-value" id="lci-rounds">—</span>
+        </div>
+        <div class="lobby-config-divider"></div>
+        <div class="lobby-config-item">
+          <span class="lci-label">WALLET</span>
+          <span class="lci-value" id="lci-wallet">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manual table selector (shown only when NOT coming from dashboard) -->
+    <div id="lobby-manual-select">
+      <p class="lobby-section-label">Select Table (minimum bet):</p>
+      <div class="table-buttons">
+        <button class="btn-table" onclick="selectTable(100,this)">$100 Table<br><small>Need $5,000</small></button>
+        <button class="btn-table" onclick="selectTable(250,this)">$250 Table<br><small>Need $15,000</small></button>
+        <button class="btn-table" onclick="selectTable(500,this)">$500 Table<br><small>Need $30,000</small></button>
+        <button class="btn-table" onclick="selectTable(1000,this)">$1,000 Table<br><small>Need $60,000</small></button>
+      </div>
+    </div>
+
+    <!-- Round selector (always visible — player must pick rounds) -->
+    <div id="lobby-round-select">
+      <p class="lobby-section-label">Select number of rounds:</p>
+      <div class="rounds-buttons">
+        <button class="btn-rounds" onclick="selectRounds(5,this)">⚡ Blitz</button>
+        <button class="btn-rounds" onclick="selectRounds(10,this)">10 Rounds</button>
+        <button class="btn-rounds" onclick="selectRounds(20,this)">20 Rounds</button>
+        <button class="btn-rounds" onclick="selectRounds(30,this)">30 Rounds</button>
+      </div>
+    </div>
+
+    <p id="lobby-selection-info"></p>
+    <div id="player-list"></div>
+
+    <!-- Invite Friends (hidden until lobby opens after round selection) -->
+    <div id="invite-section" style="display:none;margin-top:16px;border-top:1px solid #1a2d50;padding-top:16px">
+      <div style="font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:#7a9ac0;text-transform:uppercase;margin-bottom:10px">👥 Invite a Player</div>
+      <div style="position:relative">
+        <div style="display:flex;gap:8px">
+          <input id="invite-username" type="text" placeholder="Type name or pick from friends..."
+            style="flex:1;background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:8px 12px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:13px;outline:none"
+            oninput="onLobbyInviteInput(this.value)"
+            onfocus="onLobbyInviteFocus()"
+            autocorrect="off" autocapitalize="none" spellcheck="false" autocomplete="off"
+            onkeydown="if(event.key==='Enter')sendLobbyInvite()"/>
+          <button onclick="sendLobbyInvite()" style="background:#1a5caa;border:none;border-radius:7px;padding:8px 16px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Send Invite</button>
+        </div>
+        <div id="lobby-invite-dropdown" style="display:none;position:absolute;top:100%;left:0;right:40px;background:#06111f;border:1px solid #1a2d50;border-radius:8px;z-index:200;max-height:180px;overflow-y:auto;margin-top:3px;box-shadow:0 8px 20px rgba(0,0,0,.6)"></div>
+      </div>
+      <div id="invite-status" style="font-size:11px;margin-top:6px;min-height:16px"></div>
+    </div>
+
+    <button id="btn-start-game" class="btn-primary" onclick="startGame()" disabled style="margin-top:16px">Start Game</button>
+  </div>
+</div>
+
+<!-- ===================== GAME ===================== -->
+<div id="screen-game" class="screen">
+
+  <div class="top-bar">
+    <span id="game-round">Round —</span>
+    <span id="game-status">—</span>
+    <span class="timer" id="game-timer">—</span>
+  </div>
+  <div class="status-bar" id="table-message"></div>
+
+  <div class="game-body">
+
+    <!-- LEFT extras: P3 -->
+    <div class="side-extras side-left">
+      <div class="side-name" id="p3-name">Player 3</div>
+      <div class="side-balance" id="p3-balance">$—</div>
+      <div class="bet-pill" id="p3-bet-pill">
+        <span class="bp-label">BET</span>
+        <span class="bp-amt" id="p3-bet-amt">—</span>
+      </div>
+      <div class="special-box" id="p3-special"></div>
+    </div>
+
+    <!-- TABLE: rounded rectangle -->
+    <div class="oval-table">
+      <div class="felt-grid"></div>
+
+      <!-- VurgLife logo watermark — centred on table -->
+      <img src="VurgLife_logo_table.png" class="table-logo" alt="VurgLife" draggable="false">
+
+      <!-- Countdown top-left -->
+      <div class="countdown-box">
+        <div class="cd-screen" id="cd-screen"></div>
+        <div class="cd-label-txt">Countdown</div>
+        <div class="cd-number" id="cd-number">—</div>
+      </div>
+
+      <!-- BANKER (top) — 1st hand furthest from centre (topmost), 3rd closest -->
+      <div class="zone zone-banker">
+        <div class="zone-header">
+          <div class="zone-nametag" id="banker-name">BANKER</div>
+          <div class="zone-stats">
+            <span class="zone-balance" id="banker-chips">$1000</span>
+            <span class="zone-bet-display" id="banker-bet-display"></span>
+            <span class="special-box" id="banker-special"></span>
+          </div>
+        </div>
+        <!-- Banker: 3RD top (furthest/closest to edge), 2ND middle, 1ST bottom (closest to centre) -->
+        <div class="banker-hands">
+          <div class="hand-block hb-horiz">
+            <div class="hb-label">3RD</div>
+            <div class="hb-cards" id="banker-cards-3"></div>
+          </div>
+          <div class="hand-block hb-horiz">
+            <div class="hb-label">2ND</div>
+            <div class="hb-cards" id="banker-cards-2"></div>
+          </div>
+          <div class="hand-block hb-horiz hb-first">
+            <div class="hb-label">1ST</div>
+            <div class="hb-cards" id="banker-cards-1"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P1 (right): horizontal rows, 1ST closest to centre, 3RD closest to right edge -->
+      <div class="zone zone-p1">
+        <div class="p1-hands">
+          <div class="hand-block hb-horiz hb-first">
+            <div class="hb-label">1ST</div>
+            <div class="hb-cards" id="p1-cards-1"></div>
+          </div>
+          <div class="hand-block hb-horiz">
+            <div class="hb-label">2ND</div>
+            <div class="hb-cards" id="p1-cards-2"></div>
+          </div>
+          <div class="hand-block hb-horiz">
+            <div class="hb-label">3RD</div>
+            <div class="hb-cards" id="p1-cards-3"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P2 (bottom): 1ST top (closest to centre), 2ND middle, 3RD bottom (closest to edge) -->
+      <div class="zone zone-p2">
+        <div class="p2-hands">
+          <div class="hand-block hb-horiz hb-first">
+            <div class="hb-label">1ST</div>
+            <div class="hb-cards" id="p2-cards-1"></div>
+          </div>
+          <div class="hand-block hb-horiz">
+            <div class="hb-label">2ND</div>
+            <div class="hb-cards" id="p2-cards-2"></div>
+          </div>
+          <div class="hand-block hb-horiz">
+            <div class="hb-label">3RD</div>
+            <div class="hb-cards" id="p2-cards-3"></div>
+          </div>
+        </div>
+        <div class="p2-footer">
+          <div class="zone-nametag p2-tag" id="p2-name">Player 2</div>
+          <div class="zone-balance" id="p2-balance">$—</div>
+          <div class="bet-pill" id="p2-bet-pill">
+            <span class="bp-label">BET</span>
+            <span class="bp-amt" id="p2-bet-amt">—</span>
+          </div>
+          <div class="special-box" id="p2-special"></div>
+        </div>
+      </div>
+
+      <!-- P3 (left): horizontal rows, 3RD closest to left edge, 1ST closest to centre -->
+      <div class="zone zone-p3">
+        <div class="p3-hands">
+          <div class="hand-block hb-horiz hb-first">
+            <div class="hb-label">1ST</div>
+            <div class="hb-cards" id="p3-cards-1"></div>
+          </div>
+          <div class="hand-block hb-horiz">
+            <div class="hb-label">2ND</div>
+            <div class="hb-cards" id="p3-cards-2"></div>
+          </div>
+          <div class="hand-block hb-horiz">
+            <div class="hb-label">3RD</div>
+            <div class="hb-cards" id="p3-cards-3"></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /oval-table -->
+
+    <!-- RIGHT extras: P1 -->
+    <div class="side-extras side-right">
+      <div class="side-name" id="p1-name">Player 1</div>
+      <div class="side-balance" id="p1-balance">$—</div>
+      <div class="bet-pill" id="p1-bet-pill">
+        <span class="bp-label">BET</span>
+        <span class="bp-amt" id="p1-bet-amt">—</span>
+      </div>
+      <div class="special-box" id="p1-special"></div>
+    </div>
+
+  </div><!-- /game-body -->
+
+  <!-- MY AREA -->
+  <div class="my-area">
+    <div class="my-info-bar">
+      <span id="my-name">—</span>
+      <span id="my-chips">$1000</span>
+      <span id="my-payout"></span>
+    </div>
+    <!-- Full-screen bet overlay — shown during betting phase -->
+    <div id="bet-overlay" style="
+      display:none;
+      position:fixed;
+      inset:0;
+      z-index:900;
+      background:rgba(2,8,20,.45);
+      backdrop-filter:blur(1px);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:0;
+    ">
+      <!-- Glowing card suit decoration -->
+      <div style="font-size:48px;margin-bottom:8px;animation:betSuitSpin 4s linear infinite;opacity:.18;position:absolute;top:18%;left:50%;transform:translateX(-50%)">♠ ♥ ♣ ♦</div>
+
+      <!-- Main prompt -->
+      <div style="
+        font-family:'Rajdhani',sans-serif;
+        font-size:13px;
+        font-weight:700;
+        letter-spacing:4px;
+        text-transform:uppercase;
+        color:#7a9ac0;
+        margin-bottom:10px;
+      ">Round <span id="bet-round-label">—</span></div>
+
+      <div id="bet-alert-text" style="
+        font-family:'Rajdhani',sans-serif;
+        font-size:clamp(28px,5vw,46px);
+        font-weight:900;
+        letter-spacing:4px;
+        text-transform:uppercase;
+        color:#c9a84c;
+        text-align:center;
+        line-height:1.1;
+        animation:betPulse 1.1s ease-in-out infinite;
+        text-shadow:0 0 30px rgba(201,168,76,.6), 0 0 60px rgba(201,168,76,.25);
+        margin-bottom:6px;
+      ">Place Your Bet</div>
+
+      <!-- Countdown ring -->
+      <div style="position:relative;width:80px;height:80px;margin:16px auto">
+        <svg viewBox="0 0 80 80" style="position:absolute;inset:0;transform:rotate(-90deg)">
+          <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="6"/>
+          <circle id="bet-ring" cx="40" cy="40" r="34" fill="none" stroke="#c9a84c" stroke-width="6"
+            stroke-dasharray="213.6" stroke-dashoffset="0" stroke-linecap="round"
+            style="transition:stroke-dashoffset .9s linear,stroke .3s"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column">
+          <span id="bet-countdown" style="font-family:'Rajdhani',sans-serif;font-size:26px;font-weight:900;color:#f0f6ff;line-height:1">10</span>
+          <span style="font-size:9px;color:#7a9ac0;letter-spacing:1px">SECS</span>
+        </div>
+      </div>
+
+      <!-- Bet controls -->
+      <div style="display:flex;align-items:center;gap:14px;margin-top:6px">
+        <button id="btn-bet-down" class="btn-secondary" style="font-size:16px;padding:10px 22px;border-radius:10px">−</button>
+        <div style="text-align:center">
+          <div id="bet-display" style="
+            font-family:'Rajdhani',sans-serif;
+            font-size:clamp(24px,4vw,36px);
+            font-weight:900;
+            color:#c9a84c;
+            letter-spacing:2px;
+            min-width:130px;
+            text-align:center;
+          ">$0</div>
+          <div id="max-bet-label" style="font-size:10px;color:#7a9ac0;letter-spacing:1px;margin-top:2px"></div>
+        </div>
+        <button id="btn-bet-up" class="btn-secondary" style="font-size:16px;padding:10px 22px;border-radius:10px">+</button>
+      </div>
+      <!-- Freeze bet row -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px">
+        <button id="btn-freeze" onclick="toggleFreezeBet()" style="
+          font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;
+          padding:6px 16px;border-radius:8px;cursor:pointer;
+          background:transparent;border:1px solid #334155;color:#7a9ac0;
+          letter-spacing:1px;transition:all .2s ease;
+        ">&#x1F512; Freeze Bet</button>
+        <span id="freeze-indicator" style="
+          display:none;font-size:12px;color:#38bdf8;font-weight:700;
+          letter-spacing:1px;
+        "></span>
+      </div>
+      <!-- Freeze bet row -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px">
+        <button id="btn-freeze" onclick="toggleFreezeBet()" style="
+          font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;
+          padding:6px 16px;border-radius:8px;cursor:pointer;
+          background:transparent;border:1px solid #334155;color:#7a9ac0;
+          letter-spacing:1px;transition:all .2s ease;
+        ">&#x1F512; Freeze Bet</button>
+        <span id="freeze-indicator" style="
+          display:none;font-size:12px;color:#38bdf8;font-weight:700;
+          letter-spacing:1px;
+        "></span>
+      </div>
+      <p id="bet-msg" class="status-msg" style="margin-top:10px;text-align:center"></p>
+    </div>
+
+    <!-- Dummy hidden container so existing bet-controls references don't break -->
+    <div id="bet-controls" style="display:none;">
+    </div>
+
+    <!-- Full-screen reveal validation overlay -->
+    <div id="reveal-overlay" style="
+      display:none;
+// [LINE 380 MISSING — no Read snapshot covers it]
+// [LINE 381 MISSING — no Read snapshot covers it]
+// [LINE 382 MISSING — no Read snapshot covers it]
+// [LINE 383 MISSING — no Read snapshot covers it]
+// [LINE 384 MISSING — no Read snapshot covers it]
+// [LINE 385 MISSING — no Read snapshot covers it]
+// [LINE 386 MISSING — no Read snapshot covers it]
+// [LINE 387 MISSING — no Read snapshot covers it]
+// [LINE 388 MISSING — no Read snapshot covers it]
+// [LINE 389 MISSING — no Read snapshot covers it]
+// [LINE 390 MISSING — no Read snapshot covers it]
+// [LINE 391 MISSING — no Read snapshot covers it]
+// [LINE 392 MISSING — no Read snapshot covers it]
+// [LINE 393 MISSING — no Read snapshot covers it]
+// [LINE 394 MISSING — no Read snapshot covers it]
+// [LINE 395 MISSING — no Read snapshot covers it]
+// [LINE 396 MISSING — no Read snapshot covers it]
+// [LINE 397 MISSING — no Read snapshot covers it]
+// [LINE 398 MISSING — no Read snapshot covers it]
+// [LINE 399 MISSING — no Read snapshot covers it]
+// [LINE 400 MISSING — no Read snapshot covers it]
+// [LINE 401 MISSING — no Read snapshot covers it]
+// [LINE 402 MISSING — no Read snapshot covers it]
+// [LINE 403 MISSING — no Read snapshot covers it]
+// [LINE 404 MISSING — no Read snapshot covers it]
+// [LINE 405 MISSING — no Read snapshot covers it]
+// [LINE 406 MISSING — no Read snapshot covers it]
+// [LINE 407 MISSING — no Read snapshot covers it]
+// [LINE 408 MISSING — no Read snapshot covers it]
+// [LINE 409 MISSING — no Read snapshot covers it]
+// [LINE 410 MISSING — no Read snapshot covers it]
+// [LINE 411 MISSING — no Read snapshot covers it]
+// [LINE 412 MISSING — no Read snapshot covers it]
+// [LINE 413 MISSING — no Read snapshot covers it]
+// [LINE 414 MISSING — no Read snapshot covers it]
+// [LINE 415 MISSING — no Read snapshot covers it]
+// [LINE 416 MISSING — no Read snapshot covers it]
+// [LINE 417 MISSING — no Read snapshot covers it]
+// [LINE 418 MISSING — no Read snapshot covers it]
+// [LINE 419 MISSING — no Read snapshot covers it]
+// [LINE 420 MISSING — no Read snapshot covers it]
+// [LINE 421 MISSING — no Read snapshot covers it]
+// [LINE 422 MISSING — no Read snapshot covers it]
+// [LINE 423 MISSING — no Read snapshot covers it]
+// [LINE 424 MISSING — no Read snapshot covers it]
+// [LINE 425 MISSING — no Read snapshot covers it]
+// [LINE 426 MISSING — no Read snapshot covers it]
+// [LINE 427 MISSING — no Read snapshot covers it]
+// [LINE 428 MISSING — no Read snapshot covers it]
+// [LINE 429 MISSING — no Read snapshot covers it]
+// [LINE 430 MISSING — no Read snapshot covers it]
+// [LINE 431 MISSING — no Read snapshot covers it]
+// [LINE 432 MISSING — no Read snapshot covers it]
+// [LINE 433 MISSING — no Read snapshot covers it]
+// [LINE 434 MISSING — no Read snapshot covers it]
+// [LINE 435 MISSING — no Read snapshot covers it]
+// [LINE 436 MISSING — no Read snapshot covers it]
+// [LINE 437 MISSING — no Read snapshot covers it]
+// [LINE 438 MISSING — no Read snapshot covers it]
+// [LINE 439 MISSING — no Read snapshot covers it]
+// [LINE 440 MISSING — no Read snapshot covers it]
+// [LINE 441 MISSING — no Read snapshot covers it]
+// [LINE 442 MISSING — no Read snapshot covers it]
+// [LINE 443 MISSING — no Read snapshot covers it]
+// [LINE 444 MISSING — no Read snapshot covers it]
+// [LINE 445 MISSING — no Read snapshot covers it]
+// [LINE 446 MISSING — no Read snapshot covers it]
+// [LINE 447 MISSING — no Read snapshot covers it]
+// [LINE 448 MISSING — no Read snapshot covers it]
+// [LINE 449 MISSING — no Read snapshot covers it]
+// [LINE 450 MISSING — no Read snapshot covers it]
+// [LINE 451 MISSING — no Read snapshot covers it]
+// [LINE 452 MISSING — no Read snapshot covers it]
+// [LINE 453 MISSING — no Read snapshot covers it]
+// [LINE 454 MISSING — no Read snapshot covers it]
+// [LINE 455 MISSING — no Read snapshot covers it]
+// [LINE 456 MISSING — no Read snapshot covers it]
+// [LINE 457 MISSING — no Read snapshot covers it]
+// [LINE 458 MISSING — no Read snapshot covers it]
+// [LINE 459 MISSING — no Read snapshot covers it]
+// [LINE 460 MISSING — no Read snapshot covers it]
+// [LINE 461 MISSING — no Read snapshot covers it]
+  </div>
+
+  <!-- ── CHAT BUBBLE BUTTON + POPUP ── Floating, no overlap -->
+  <!-- Toggle button: bottom-right corner -->
+  <button id="chat-fab" onclick="toggleChatPopup()" style="
+    position:fixed;bottom:18px;right:18px;
+    width:44px;height:44px;border-radius:50%;
+    background:#1a5caa;border:2px solid #2a7fff;
+    color:#fff;font-size:20px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 4px 16px rgba(0,0,0,.5);
+    z-index:300;transition:transform .15s;
+  ">💬</button>
+
+  <!-- Chat popup — appears above the button -->
+  <div id="chat-popup" style="
+    position:fixed;bottom:72px;right:18px;
+    width:260px;
+    background:#06111f;border:1px solid #1a3a5c;border-radius:12px;
+    box-shadow:0 8px 32px rgba(0,0,0,.7);
+    z-index:299;display:none;
+    flex-direction:column;overflow:hidden;
+  ">
+    <div style="padding:8px 12px;border-bottom:1px solid #1a3a5c;font-size:11px;color:#7a9ac0;letter-spacing:1px;text-transform:uppercase">
+      Table Chat — bubbles appear at your seat
+    </div>
+    <div style="padding:10px;display:flex;gap:6px;align-items:center">
+      <input
+        id="chat-bar-input"
+        type="text"
+        inputmode="text"
+        autocorrect="off" autocapitalize="sentences"
+        maxlength="120"
+        placeholder="Type a message..."
+        style="
+          flex:1;background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;
+          color:#e0eeff;font-size:13px;padding:6px 10px;outline:none;
+          font-family:inherit;
+        "
+        onkeydown="if(event.key==='Enter'){chatBarSend();toggleChatPopup();}"
+// [LINE 502 MISSING — no Read snapshot covers it]
+// [LINE 503 MISSING — no Read snapshot covers it]
+// [LINE 504 MISSING — no Read snapshot covers it]
+// [LINE 505 MISSING — no Read snapshot covers it]
+// [LINE 506 MISSING — no Read snapshot covers it]
+// [LINE 507 MISSING — no Read snapshot covers it]
+// [LINE 508 MISSING — no Read snapshot covers it]
+// [LINE 509 MISSING — no Read snapshot covers it]
+// [LINE 510 MISSING — no Read snapshot covers it]
+// [LINE 511 MISSING — no Read snapshot covers it]
+// [LINE 512 MISSING — no Read snapshot covers it]
+// [LINE 513 MISSING — no Read snapshot covers it]
+// [LINE 514 MISSING — no Read snapshot covers it]
+// [LINE 515 MISSING — no Read snapshot covers it]
+// [LINE 516 MISSING — no Read snapshot covers it]
+// [LINE 517 MISSING — no Read snapshot covers it]
+// [LINE 518 MISSING — no Read snapshot covers it]
+// [LINE 519 MISSING — no Read snapshot covers it]
+// [LINE 520 MISSING — no Read snapshot covers it]
+// [LINE 521 MISSING — no Read snapshot covers it]
+// [LINE 522 MISSING — no Read snapshot covers it]
+// [LINE 523 MISSING — no Read snapshot covers it]
+// [LINE 524 MISSING — no Read snapshot covers it]
+// [LINE 525 MISSING — no Read snapshot covers it]
+// [LINE 526 MISSING — no Read snapshot covers it]
+// [LINE 527 MISSING — no Read snapshot covers it]
+// [LINE 528 MISSING — no Read snapshot covers it]
+// [LINE 529 MISSING — no Read snapshot covers it]
+// [LINE 530 MISSING — no Read snapshot covers it]
+// [LINE 531 MISSING — no Read snapshot covers it]
+// [LINE 532 MISSING — no Read snapshot covers it]
+// [LINE 533 MISSING — no Read snapshot covers it]
+// [LINE 534 MISSING — no Read snapshot covers it]
+// [LINE 535 MISSING — no Read snapshot covers it]
+// [LINE 536 MISSING — no Read snapshot covers it]
+// [LINE 537 MISSING — no Read snapshot covers it]
+<button id="ingame-menu-btn" onclick="toggleIngameMenu()" style="
+  display:none;position:fixed;top:14px;right:14px;z-index:500;
+<!-- ═══════════════════════════════════════════════════════
+     IN-GAME SLIDE-OUT MENU
+     ═══════════════════════════════════════════════════════ -->
+
+<!-- Menu Toggle Button — shown only during game -->
+<button id="ingame-menu-btn" onclick="toggleIngameMenu()" style="
+  display:none;position:fixed;top:14px;right:14px;z-index:500;
+  background:rgba(8,15,30,.9);border:1px solid #1a2d50;border-radius:8px;
+  padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700;letter-spacing:1px;
+  font-family:'Rajdhani',sans-serif;color:#f0f6ff;backdrop-filter:blur(6px);
+  align-items:center;gap:7px;text-transform:uppercase;
+  box-shadow:0 4px 16px rgba(0,0,0,.5)">☰ MENU</button>
+
+<!-- Overlay -->
+<div id="igm-overlay" onclick="closeIngameMenu()" style="
+  display:none;position:fixed;inset:0;z-index:600;background:rgba(2,6,9,.6);backdrop-filter:blur(2px)"></div>
+
+<!-- Slide-out Panel -->
+<div id="igm-panel" style="
+  position:fixed;top:0;right:0;bottom:0;width:min(300px,92vw);z-index:700;
+  background:#080f1e;border-left:1px solid #1a2d50;
+  transform:translateX(100%);transition:transform .3s ease;
+  display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:-20px 0 60px rgba(0,0,0,.7)">
+
+  <!-- Panel Header -->
+  <div style="padding:18px 20px;border-bottom:1px solid #1a2d50;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#040d1c,#0a1e3c)">
+    <div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;background:linear-gradient(135deg,#fff,#4aabff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">In-Game Menu</div>
+      <div style="font-size:10px;letter-spacing:2px;color:#334d70;margin-top:1px" id="igm-table-label">♠ SipSam</div>
+    </div>
+    <button onclick="closeIngameMenu()" style="background:rgba(26,140,255,.1);border:1px solid #1a2d50;border-radius:6px;padding:6px 11px;cursor:pointer;color:#7a9ac0;font-size:16px">✕</button>
+  </div>
+
+  <!-- Player Info Bar -->
+  <div style="padding:14px 20px;border-bottom:1px solid #1a2d50;background:rgba(11,21,40,.7);display:flex;align-items:center;gap:12px">
+    <div style="width:38px;height:38px;border-radius:50%;background:#0f1e38;border:2px solid #0d4a8a;display:flex;align-items:center;justify-content:center;font-size:18px" id="igm-avatar">👤</div>
+    <div style="flex:1">
+      <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px" id="igm-username">—</div>
+      <div style="font-size:11px;color:#c9a84c;font-weight:600" id="igm-wallet">Wallet: $—</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:10px;color:#334d70;letter-spacing:1px">BANK</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;color:#e8c96a" id="igm-bank">$—</div>
+    </div>
+  </div>
+
+  <!-- Menu Items -->
+  <nav style="flex:1;overflow-y:auto;padding:8px 0">
+
+
+
+    <!-- Invite Friends -->
+    <div class="igm-item" onclick="igmInviteFriend()">
+      <div class="igm-ico">👥</div>
+      <div class="igm-body">
+        <div class="igm-title">Invite Friends</div>
+        <div class="igm-desc">Invite a friend to join this table</div>
+      </div>
+      <span class="igm-arrow">›</span>
+    </div>
+
+    <!-- Invite Friends -->
+    <div class="igm-item" onclick="igmInviteFriend()">
+      <div class="igm-ico">👥</div>
+      <div class="igm-body">
+        <div class="igm-title">Invite Friends</div>
+        <div class="igm-desc">Invite a friend to join this table</div>
+      </div>
+      <span class="igm-arrow">›</span>
+    </div>
+
+    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
+
+    <!-- Replenish Wallet -->
+    <div class="igm-item" onclick="igmReplenish()">
+      <div class="igm-ico">💰</div>
+      <div class="igm-body">
+        <div class="igm-title">Replenish Wallet</div>
+        <div class="igm-desc" id="igm-rep-desc">Draw chips from your bank into your wallet</div>
+      </div>
+      <span class="igm-arrow">›</span>
+    </div>
+
+    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
+
+    <!-- Request Chips -->
+    <div class="igm-item" onclick="igmRequestChips()">
+      <div class="igm-ico">🙏</div>
+      <div class="igm-body">
+        <div class="igm-title">Request Chips</div>
+        <div class="igm-desc">Send a chip request to a player or the Banker</div>
+      </div>
+      <span class="igm-arrow">›</span>
+    </div>
+
+    <!-- Send Chips -->
+    <div class="igm-item" onclick="igmSendChips()">
+      <div class="igm-ico">📤</div>
+      <div class="igm-body">
+        <div class="igm-title">Send Chips</div>
+        <div class="igm-desc" id="igm-send-desc">Send up to the table max bet</div>
+      </div>
+      <span class="igm-arrow">›</span>
+    </div>
+
+    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
+
+    <!-- Payouts & Specials — quick payout reference -->
+    <div class="igm-item" onclick="igmShowPayouts()">
+      <div class="igm-ico">💎</div>
+      <div class="igm-body">
+        <div class="igm-title">Payouts &amp; Specials</div>
+        <div class="igm-desc" id="igm-payouts-desc">Verify every multiplier &amp; bonus for this table</div>
+      </div>
+      <span class="igm-arrow">›</span>
+    </div>
+
+    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
+
+    <!-- Rules -->
+    <div class="igm-item" onclick="igmShowRules()">
+      <div class="igm-ico">📖</div>
+      <div class="igm-body">
+        <div class="igm-title">Game Rules</div>
+        <div class="igm-desc">Quick reference — hands, specials, payouts</div>
+      </div>
+      <span class="igm-arrow">›</span>
+    </div>
+
+    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
+
+    <!-- Exit Game -->
+    <div class="igm-item igm-danger" onclick="igmExit()">
+      <div class="igm-ico">🚪</div>
+      <div class="igm-body">
+        <div class="igm-title">Exit Game</div>
+        <div class="igm-desc">Your remaining wallet is returned to your bank</div>
+      </div>
+      <span class="igm-arrow">›</span>
+    </div>
+
+  </nav>
+
+  <!-- Sub-panels (shown inside the slide-out) -->
+
+  <!-- Invite Friends sub-panel -->
+  <div id="igm-sub-invite" class="igm-sub">
+    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Invite Friends</span></div>
+    <div style="padding:20px">
+      <div style="position:relative">
+        <div style="display:flex;gap:8px">
+          <input id="igm-invite-username" type="text" placeholder="Type name or pick from friends..."
+            style="flex:1;background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:8px 12px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:13px;outline:none"
+            oninput="onIgmInviteInput(this.value)"
+            onfocus="onIgmInviteFocus()"
+            autocorrect="off" autocapitalize="none" spellcheck="false" autocomplete="off"
+            onkeydown="if(event.key==='Enter')sendIgmInvite()"/>
+          <button onclick="sendIgmInvite()" style="background:#1a5caa;border:none;border-radius:7px;padding:8px 16px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Invite</button>
+        </div>
+        <div id="igm-invite-dropdown" style="display:none;position:absolute;top:100%;left:0;right:40px;background:#06111f;border:1px solid #1a2d50;border-radius:8px;z-index:200;max-height:180px;overflow-y:auto;margin-top:3px;box-shadow:0 8px 20px rgba(0,0,0,.6)"></div>
+      </div>
+      <div id="igm-invite-status" style="font-size:11px;margin-top:6px;min-height:16px"></div>
+    </div>
+  </div>
+
+  <div id="igm-sub-replenish" class="igm-sub">
+    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Replenish Wallet</span></div>
+    <div style="padding:20px">
+      <div style="background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;padding:14px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px">
+          <span style="color:#7a9ac0">Current Wallet</span><span id="rep-cur-wallet" style="font-weight:700;color:#e8c96a">$—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px">
+          <span style="color:#7a9ac0">Bank Balance</span><span id="rep-cur-bank" style="font-weight:700">$—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <span style="color:#7a9ac0">Table Wallet Limit</span><span id="rep-limit" style="font-weight:700;color:#4aabff">$—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:8px;padding-top:8px;border-top:1px solid #1a2d50">
+          <span style="color:#7a9ac0">Max Drawable</span><span id="rep-max" style="font-weight:700;color:#22c55e">$—</span>
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:#7a9ac0;text-transform:uppercase;margin-bottom:6px">Amount to Draw</label>
+        <div style="display:flex;gap:8px">
+          <input id="rep-amount" type="number" placeholder="Enter amount..." style="flex:1;background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 13px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:14px;outline:none">
+          <button onclick="igmFillMax()" style="background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 12px;color:#4aabff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">MAX</button>
+        </div>
+        <div id="rep-err" style="font-size:11px;color:#fca5a5;margin-top:5px;display:none"></div>
+      </div>
+      <button class="igm-action-btn" onclick="doReplenish()">💰 Draw to Wallet</button>
+    </div>
+  </div>
+
+  <!-- REQUEST CHIPS -->
+  <div id="igm-sub-request" class="igm-sub">
+    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Request Chips</span></div>
+    <div style="padding:16px;flex:1;display:flex;flex-direction:column;gap:12px">
+      <p style="font-size:12px;color:#7a9ac0;line-height:1.5">Request <strong id="req-amount-label" style="color:#c9a84c">$—</strong> (table max bet) from another player. They will see a notification and can choose to send.</p>
+      <div style="font-size:12px;color:#7a9ac0;margin-bottom:4px">Select player to request from:</div>
+      <div id="req-players" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto"></div>
+      <div id="req-pending" style="font-size:12px;color:#c9a84c;min-height:16px"></div>
+      <button class="btn bp" onclick="doRequestChips()" style="width:100%;padding:10px;margin-top:4px">🙏 Send Request</button>
+    </div>
+  </div>
+
+    <div id="igm-sub-send" class="igm-sub">
+    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Send Chips</span></div>
+    <div style="padding:16px;flex:1;display:flex;flex-direction:column;gap:12px">
+      <p style="font-size:12px;color:#7a9ac0;line-height:1.5">Send <strong id="send-amount-label" style="color:#c9a84c">$—</strong> (table max bet) to a player. Chips come from your <strong style="color:#f0f6ff">wallet</strong>, not your bank.</p>
+      <div id="req-notice" style="font-size:12px;color:#c9a84c;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.2);border-radius:6px;padding:8px;display:none"></div>
+      <div style="font-size:12px;color:#7a9ac0;margin-bottom:4px">Select recipient:</div>
+      <div id="send-players" style="display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto"></div>
+      <div style="margin-top:10px">
+        <label style="display:block;font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:#7a9ac0;text-transform:uppercase;margin-bottom:6px">Amount (max: <span id="send-limit">$—</span>)</label>
+        <input id="send-amount-input" type="number" placeholder="Enter amount..." style="width:100%;background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:9px 13px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:13px;outline:none;box-sizing:border-box">
+      </div>
+      <div id="send-err" style="font-size:12px;color:#ff6b6b;display:none;margin-top:4px"></div>
+      <button class="btn bp" onclick="doSendChips()" style="width:100%;padding:10px;margin-top:8px">📤 Send Chips</button>
+    </div>
+  </div>
+
+  <!-- Payouts & Specials — focused payout reference (auto-renders for VIP / non-VIP) -->
+  <div id="igm-sub-payouts" class="igm-sub" style="overflow-y:auto">
+    <div class="igm-sub-head" style="position:sticky;top:0;z-index:1;background:#080f1e">
+      <button onclick="igmBack()" class="igm-back-btn">← Back</button>
+      <span>Payouts &amp; Specials</span>
+    </div>
+    <div style="padding:16px;font-size:12px;line-height:1.6;color:#7a9ac0">
+
+      <!-- Table tier badge -->
+      <div id="igm-payouts-tier" style="margin-bottom:12px;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:700;letter-spacing:1px;text-align:center;text-transform:uppercase">
+        <!-- Filled by JS -->
+      </div>
+
+      <!-- Round payouts -->
+      <div class="igm-rule-sec">
+        <div class="igm-rule-h">💰 Round Payouts (per bet placed)</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <tbody>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px">Win all 3 hands</td><td style="text-align:right;padding:5px 6px;color:#22c55e;font-weight:700">+2× bet</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px">Win 2 of 3 hands</td><td style="text-align:right;padding:5px 6px;color:#22c55e;font-weight:700">+1× bet</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px">Win 1 of 3 hands</td><td style="text-align:right;padding:5px 6px;color:#ef4444;font-weight:700">−1× bet</td></tr>
+            <tr><td style="padding:5px 6px">Lose all 3 hands</td><td style="text-align:right;padding:5px 6px;color:#ef4444;font-weight:700">−2× bet</td></tr>
+          </tbody>
+        </table>
+        <p style="margin:6px 0 0;font-size:10.5px">Tie hands count for the Banker (except suited flush ties).</p>
+      </div>
+
+      <!-- Specials — multiplier + bonus (tier-aware) -->
+      <div class="igm-rule-sec">
+        <div class="igm-rule-h">⭐ Specials — Multiplier + House Bonus</div>
+        <p style="margin:0 0 8px;font-size:11px">Declare BEFORE arranging. Winner receives <strong style="color:#22c55e">multiplier × bet</strong> from loser PLUS the house bonus shown below — bonus is paid by the house, not by other players.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead>
+            <tr style="color:#4aabff;border-bottom:1px solid #1a2d50">
+              <th style="text-align:left;padding:4px 6px;font-weight:700;letter-spacing:.5px">SPECIAL</th>
+              <th style="text-align:center;padding:4px 6px;font-weight:700;letter-spacing:.5px">MULT</th>
+              <th style="text-align:right;padding:4px 6px;font-weight:700;letter-spacing:.5px" id="igm-payouts-bonus-col">BONUS</th>
+            </tr>
+          </thead>
+          <tbody id="igm-payouts-tbody">
+            <!-- Filled by JS based on table tier -->
+          </tbody>
+        </table>
+        <p style="margin:8px 0 0;font-size:10.5px;color:#7a9ac0">Both players keep their own special's bonus from the house, regardless of who wins the round.</p>
+      </div>
+
+      <!-- DQ penalties — players need to know the cost of fouls -->
+      <div class="igm-rule-sec">
+        <div class="igm-rule-h">⚠️ Disqualification Costs</div>
+        <ul style="padding-left:16px;margin:0;font-size:11px">
+          <li>Miss countdown timer → lose round bet</li>
+          <li>Wrong special declared → lose round bet</li>
+          <li><strong style="color:#fca5a5">Player hides a real special</strong> → lose bet + pay Banker 2× bet</li>
+          <li><strong style="color:#fca5a5">Banker hides a real special</strong> → pay every player 2× their bet</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="igm-sub-rules" class="igm-sub" style="overflow-y:auto">
+    <div class="igm-sub-head" style="position:sticky;top:0;z-index:1;background:#080f1e"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Quick Rules</span></div>
+    <div style="padding:16px;font-size:12px;line-height:1.6;color:#7a9ac0">
+      <div class="igm-rule-sec"><div class="igm-rule-h">♠ Hand Ranking (Strongest → Weakest)</div>
+        <ol style="padding-left:16px;margin:0">
+          <li>Royal Flush</li><li>Straight Flush</li><li>Four of a Kind</li><li>Full House</li>
+          <li><strong style="color:#e8c96a">Flush</strong> (beats Straight in SipSam)</li><li>Straight</li>
+          <li>Three of a Kind</li><li>Two Pair</li><li>One Pair</li><li>High Card</li>
+        </ol>
+      </div>
+      <div class="igm-rule-sec"><div class="igm-rule-h">🃏 Hand Arrangement</div>
+        <ul style="padding-left:16px;margin:0"><li><strong style="color:#f0f6ff">1st</strong> — 3 cards — weakest — furthest from you</li>
+          <li><strong style="color:#f0f6ff">2nd</strong> — 5 cards — middle strength</li><li><strong style="color:#f0f6ff">3rd</strong> — 5 cards — strongest — closest to you</li></ul>
+      </div>
+      <div class="igm-rule-sec"><div class="igm-rule-h">💰 Payouts</div>
+        <ul style="padding-left:16px;margin:0">
+          <li>Win all 3 hands → <span style="color:#22c55e">+2× bet</span></li><li>Win 2 of 3 → <span style="color:#22c55e">+1× bet</span></li>
+          <li>Win 1 of 3 → <span style="color:#ef4444">−1× bet</span></li><li>Lose all 3 → <span style="color:#ef4444">−2× bet</span></li>
+        </ul>
+      </div>
+      <div class="igm-rule-sec"><div class="igm-rule-h">⭐ Specials (override all hands)</div>
+        <p style="margin:0 0 8px;font-size:11px">Must be declared before arranging. Winner gets multiplier × bet <strong style="color:#4aabff">plus a house bonus</strong>. Bonus is paid once by the house — not charged to any player.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead>
+            <tr style="color:#4aabff;border-bottom:1px solid #1a2d50">
+              <th style="text-align:left;padding:4px 6px;font-weight:700;letter-spacing:.5px">SPECIAL</th>
+              <th style="text-align:center;padding:4px 6px;font-weight:700;letter-spacing:.5px">MULT</th>
+              <th style="text-align:center;padding:4px 6px;font-weight:700;letter-spacing:.5px">BONUS</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
+              <td style="padding:5px 6px;color:#e8c96a">No Face</td>
+              <td style="text-align:center;padding:5px 6px;color:#22c55e">2×</td>
+              <td style="text-align:center;padding:5px 6px;color:#4aabff">+$1,000</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
+              <td style="padding:5px 6px;color:#e8c96a">Four of a Kind</td>
+              <td style="text-align:center;padding:5px 6px;color:#22c55e">3×</td>
+              <td style="text-align:center;padding:5px 6px;color:#4aabff">+$2,500</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
+              <td style="padding:5px 6px;color:#e8c96a">Straight Flush</td>
+              <td style="text-align:center;padding:5px 6px;color:#22c55e">3×</td>
+              <td style="text-align:center;padding:5px 6px;color:#4aabff">+$2,500</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
+              <td style="padding:5px 6px;color:#e8c96a">Straight-Straight-Straight</td>
+              <td style="text-align:center;padding:5px 6px;color:#22c55e">5×</td>
+              <td style="text-align:center;padding:5px 6px;color:#4aabff">+$7,000</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
+              <td style="padding:5px 6px;color:#e8c96a">Flush-Flush-Flush</td>
+              <td style="text-align:center;padding:5px 6px;color:#22c55e">5×</td>
+              <td style="text-align:center;padding:5px 6px;color:#4aabff">+$7,000</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
+              <td style="padding:5px 6px;color:#e8c96a">Royal Flush</td>
+              <td style="text-align:center;padding:5px 6px;color:#22c55e">7×</td>
+              <td style="text-align:center;padding:5px 6px;color:#4aabff">+$10,000</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
+              <td style="padding:5px 6px;color:#e8c96a">6½ Pairs</td>
+              <td style="text-align:center;padding:5px 6px;color:#22c55e">8×</td>
+              <td style="text-align:center;padding:5px 6px;color:#4aabff">+$15,000</td>
+            </tr>
+            <tr>
+              <td style="padding:5px 6px;color:#e8c96a">Full Suit</td>
+              <td style="text-align:center;padding:5px 6px;color:#22c55e">10×</td>
+              <td style="text-align:center;padding:5px 6px;color:#4aabff">+$50,000</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="margin:8px 0 0;font-size:11px;color:#7a9ac0">Straight Flush = 5+ consecutive cards of same suit across all 13 cards.</p>
+      </div>
+      <div class="igm-rule-sec"><div class="igm-rule-h">🚫 Tie Rules</div>
+        <ul style="padding-left:16px;margin:0"><li>Banker wins all ties except flush ties</li>
+          <li>Flush ties: Hearts &gt; Spades &gt; Diamonds &gt; Clubs</li></ul>
+      </div>
+      <div class="igm-rule-sec"><div class="igm-rule-h">⚠️ Disqualifications</div>
+        <ul style="padding-left:16px;margin:0"><li>Miss timer → lose round bet</li><li>Wrong Special → lose round bet</li>
+          <li>Banker hides Special → pays all 2× bet</li><li>Player hides Special → loses bet + pays Banker 2×</li></ul>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /igm-panel -->
+
+<style>
+.igm-item{display:flex;align-items:center;gap:12px;padding:13px 20px;cursor:pointer;transition:background .14s;border-left:3px solid transparent}
+.igm-item:hover{background:rgba(26,140,255,.07);border-left-color:#0d4a8a}
+.igm-item.igm-danger:hover{background:rgba(239,68,68,.07);border-left-color:#ef4444}
+.igm-ico{font-size:20px;width:28px;text-align:center;flex-shrink:0}
+.igm-body{flex:1;min-width:0}
+.igm-title{font-weight:700;font-size:13px;margin-bottom:1px;color:#f0f6ff}
+.igm-desc{font-size:11px;color:#7a9ac0;line-height:1.4}
+.igm-item.igm-danger .igm-title{color:#fca5a5}
+.igm-arrow{color:#334d70;font-size:18px;flex-shrink:0}
+
+/* ── SPEECH BUBBLES ── */
+#chat-bar-input:focus{border-color:#1a8cff!important;box-shadow:0 0 0 2px rgba(26,140,255,.15)}
+#chat-fab:hover{transform:scale(1.1)}
+#chat-fab:active{transform:scale(0.95)}
+#chat-popup{animation:chatPopIn .15s ease}
+@keyframes betPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.8;transform:scale(1.03)}}
+@keyframes betSuitSpin{0%{letter-spacing:4px;opacity:.12}50%{letter-spacing:18px;opacity:.22}100%{letter-spacing:4px;opacity:.12}}
+@keyframes betOverlayIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+@keyframes scanLine{0%{top:-2px;opacity:0}20%{opacity:1}80%{opacity:1}100%{top:100%;opacity:0}}
+@keyframes revealIconPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.15);opacity:.8}}
+@keyframes dotBounce{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-10px);opacity:1}}
+@keyframes chatPopIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.speech-bubble{position:absolute;background:rgba(8,20,45,.95);border:1px solid #1a8cff;border-radius:10px;padding:7px 11px;font-size:12px;color:#e0eeff;max-width:160px;word-wrap:break-word;z-index:200;pointer-events:none;line-height:1.4;box-shadow:0 4px 16px rgba(0,0,0,.6);animation:sbIn .2s ease}
+.speech-bubble::after{content:'';position:absolute;border:6px solid transparent}
+/* speech bubble arrows now handled inline in showSpeechBubble */
+.sb-banker::after,.sb-p1::after,.sb-p2::after,.sb-p3::after{display:none}
+@keyframes sbIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+.sb-sender{font-size:10px;font-weight:700;color:#4aabff;margin-bottom:3px;letter-spacing:.5px}
+.igm-sub{position:absolute;inset:0;background:#080f1e;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column}
+.igm-sub.open{transform:translateX(0)}
+.igm-sub-head{padding:14px 18px;border-bottom:1px solid #1a2d50;display:flex;align-items:center;gap:14px;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:#f0f6ff;flex-shrink:0}
+.igm-back-btn{background:rgba(26,140,255,.1);border:1px solid #1a2d50;border-radius:6px;padding:5px 11px;cursor:pointer;color:#4aabff;font-size:12px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px}
+.igm-back-btn:hover{background:rgba(26,140,255,.2)}
+.igm-action-btn{width:100%;background:linear-gradient(135deg,#1a5aaa,#1a8cff);border:none;border-radius:8px;padding:11px;color:#fff;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:1.5px;cursor:pointer;text-transform:uppercase;transition:all .18s}
+.igm-action-btn:hover{background:linear-gradient(135deg,#1e6cc7,#2a9dff);transform:translateY(-1px)}
+.igm-rule-sec{margin-bottom:16px}
+.igm-rule-h{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:#4aabff;text-transform:uppercase;margin-bottom:7px}
+.player-select-btn{background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 13px;cursor:pointer;
+  display:flex;align-items:center;gap:10px;transition:border-color .15s;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:13px}
+.player-select-btn:hover{border-color:#1a8cff}
+.player-select-btn.sel{border-color:#1a8cff;background:rgba(26,140,255,.1)}
+</style>
+
+<script>
+// ═══════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════
+// SOUND SYSTEM — Web Audio API (no files needed)
+// ══════════════════════════════════════════════════════
+let _audioCtx = null;
+let soundEnabled = JSON.parse(localStorage.getItem('vl_sound') ?? 'true');
+function getAudioCtx() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (_audioCtx.state === 'suspended') _audioCtx.resume();
+  return _audioCtx;
+}
+function playTone(freq, type, duration, vol, delay) {
+  type=type||'sine'; duration=duration||0.15; vol=vol||0.18; delay=delay||0;
+  if (!soundEnabled) return;
+  try {
+    var ctx=getAudioCtx(), osc=ctx.createOscillator(), gain=ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type=type; osc.frequency.value=freq;
+    var t=ctx.currentTime+delay;
+    gain.gain.setValueAtTime(0,t);
+    gain.gain.linearRampToValueAtTime(vol,t+0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001,t+duration);
+    osc.start(t); osc.stop(t+duration+0.05);
+  } catch(e){}
+}
+var SFX = {
+  click:   function(){ playTone(880,'sine',0.08,0.1); },
+  deal:    function(){ playTone(1200,'sine',0.06,0.12); setTimeout(function(){playTone(1000,'sine',0.06,0.1);},60); },
+  chip:    function(){ playTone(700,'triangle',0.1,0.15); },
+  win:     function(){ [523,659,784,1047].forEach(function(f,i){playTone(f,'sine',0.3,0.22,i*0.12);}); },
+    'pointer-events:none'
+  ].join(';');
+
+  var rect = nameEl.getBoundingClientRect();
+  var arrow = document.createElement('div');
+  arrow.style.cssText = 'position:absolute;width:0;height:0;border:7px solid transparent';
+
+  if (position === 'p2') {
+    // Top centre — bubble appears above the name tag, arrow points down
+    bubble.style.left      = Math.round(rect.left + rect.width/2) + 'px';
+    bubble.style.bottom    = (window.innerHeight - rect.top + 10) + 'px';
+    bubble.style.transform = 'translateX(-50%)';
+    arrow.style.cssText   += ';border-top-color:#1a8cff;top:100%;left:50%;transform:translateX(-50%)';
+  } else if (position === 'banker') {
+    // Bottom centre (my zone) — bubble appears above the name tag
+    bubble.style.left      = Math.round(rect.left + rect.width/2) + 'px';
+    bubble.style.bottom    = (window.innerHeight - rect.top + 10) + 'px';
+    bubble.style.transform = 'translateX(-50%)';
+    arrow.style.cssText   += ';border-top-color:#1a8cff;top:100%;left:50%;transform:translateX(-50%)';
+  } else if (position === 'p1') {
+    // Right side-extras — bubble appears to the left of the name
+    bubble.style.right     = (window.innerWidth - rect.left + 10) + 'px';
+    bubble.style.top       = Math.round(rect.top + rect.height/2) + 'px';
+    bubble.style.transform = 'translateY(-50%)';
+    arrow.style.cssText   += ';border-left-color:#1a8cff;top:50%;left:100%;transform:translateY(-50%)';
+  } else {
+    // p3 left side-extras — bubble appears to the right of the name
+    bubble.style.left      = (rect.right + 10) + 'px';
+    bubble.style.top       = Math.round(rect.top + rect.height/2) + 'px';
+    bubble.style.transform = 'translateY(-50%)';
+    arrow.style.cssText   += ';border-right-color:#1a8cff;top:50%;right:100%;transform:translateY(-50%)';
+  }
+
+  bubble.appendChild(arrow);
+  document.body.appendChild(bubble);
+
+  bubbleTimers[sessionId] = setTimeout(function(){
+    var el = document.getElementById(bubbleId);
+    if (el){ el.style.opacity='0'; el.style.transition='opacity .4s'; setTimeout(function(){el.remove();},400); }
+  }, 5000);
+
+  bubbleTimers[sessionId] = setTimeout(function(){
+    var el = document.getElementById(bubbleId);
+    if (el){ el.style.opacity='0'; el.style.transition='opacity .4s'; setTimeout(function(){el.remove();},400); }
+  }, 5000);
+  SFX.chat();
+}
+function escHtmlIgm(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+  var popup = document.getElementById('chat-popup');
+  var fab   = document.getElementById('chat-fab');
+  if (!popup) return;
+  var open = popup.style.display === 'flex';
+  popup.style.display = open ? 'none' : 'flex';
+  fab.style.background = open ? '#1a5caa' : '#0d4a8a';
+  if (!open) {
+    setTimeout(function(){ var i = document.getElementById('chat-bar-input'); if(i) i.focus(); }, 50);
+  }
+}
+
+// Close chat popup when clicking outside
+document.addEventListener('click', function(e) {
+  var popup = document.getElementById('chat-popup');
+  var fab   = document.getElementById('chat-fab');
+  if (popup && popup.style.display === 'flex' && !popup.contains(e.target) && e.target !== fab) {
+    popup.style.display = 'none';
+    if (fab) fab.style.background = '#1a5caa';
+  }
+});
+
+function chatBarSend() {
+  var input = document.getElementById('chat-bar-input');
+  if (!input) return;
+  var msg = input.value.trim();
+  if (!msg) return;
+  sendMsg('chatMessage', { message: msg });
+  input.value = '';
+  SFX.chat();
+}
+  if (!msg) return;
+  sendMsg('chatMessage', { message: msg });
+  input.value = '';
+  SFX.chat();
+}
+
+function igmSendChat() {
+  var input = document.getElementById('chat-input');
+  var msg = input && input.value && input.value.trim();
+  if (!msg) return;
+// [LINE 995 MISSING — no Read snapshot covers it]
+// [LINE 996 MISSING — no Read snapshot covers it]
+// [LINE 997 MISSING — no Read snapshot covers it]
+// [LINE 998 MISSING — no Read snapshot covers it]
+// [LINE 999 MISSING — no Read snapshot covers it]
+// [LINE 1000 MISSING — no Read snapshot covers it]
+// [LINE 1001 MISSING — no Read snapshot covers it]
+// [LINE 1002 MISSING — no Read snapshot covers it]
+// [LINE 1003 MISSING — no Read snapshot covers it]
+// [LINE 1004 MISSING — no Read snapshot covers it]
+// [LINE 1005 MISSING — no Read snapshot covers it]
+// [LINE 1006 MISSING — no Read snapshot covers it]
+// [LINE 1007 MISSING — no Read snapshot covers it]
+// [LINE 1008 MISSING — no Read snapshot covers it]
+// [LINE 1009 MISSING — no Read snapshot covers it]
+// [LINE 1010 MISSING — no Read snapshot covers it]
+// [LINE 1011 MISSING — no Read snapshot covers it]
+// [LINE 1012 MISSING — no Read snapshot covers it]
+// [LINE 1013 MISSING — no Read snapshot covers it]
+// [LINE 1014 MISSING — no Read snapshot covers it]
+// [LINE 1015 MISSING — no Read snapshot covers it]
+// [LINE 1016 MISSING — no Read snapshot covers it]
+let igmOpen = false;
+let igmActiveSub = null;
+let igmSelectedPlayer = null;
+let igmTableCfg = null;
+let igmWallet = 0;
+let igmBank = 0;
+let igmToken = null;  // captured BEFORE game.js clears sessionStorage
+var myChips = 0;      // module-level chip tracker — shared with game.js
+
+// ── READ sessionStorage IMMEDIATELY at script parse time ──────────
+// game.js DOMContentLoaded fires first and clears sessionStorage.
+// We must capture these values NOW before that happens.
+(function() {
+  try {
+    const tj = sessionStorage.getItem('sipsam_table');
+    const uj = sessionStorage.getItem('sipsam_user');
+    if (tj) igmTableCfg = JSON.parse(tj);
+    if (uj) {
+      const u = JSON.parse(uj);
+      igmToken = u.token || null;
+      // Seed wallet from table config immediately
+      const startWallet = igmTableCfg ? (igmTableCfg.walletSize || igmTableCfg.wallet || 0) : 0;
+      if (startWallet > 0) { igmWallet = startWallet; myChips = startWallet; }
+    }
+  } catch(e) {}
+})();
+
+// Init menu from sessionStorage after page loads
+function initIngameMenu() {
+  try {
+    // igmTableCfg and igmToken already captured at script parse time (before DOMContentLoaded)
+    // Just need to update the DOM elements here
+    if (igmToken) {
+      // Read username from sessionStorage if still available, else skip
+      try {
+        const uj = sessionStorage.getItem('sipsam_user');
+        if (uj) {
+          const u = JSON.parse(uj);
+          document.getElementById('igm-username').textContent = u.username || '—';
+          document.getElementById('igm-avatar').textContent   = (u.username||'?')[0].toUpperCase();
+        }
+      } catch(e) {}
+    }
+    if (igmTableCfg) {
+      document.getElementById('igm-table-label').textContent = `♠ $${igmTableCfg.minBet} Table`;
+      document.getElementById('igm-send-desc').textContent   = `Max $${igmTableCfg.maxBet} per transfer`;
+      document.getElementById('send-limit').textContent      = `$${igmTableCfg.maxBet}`;
+      const repDesc = document.getElementById('igm-rep-desc');
+      if (repDesc) repDesc.textContent = `Draw up to $${(igmTableCfg.walletSize||igmTableCfg.wallet||0).toLocaleString()} from bank`;
+    }
+    // Show menu button when game is active
+    const btn = document.getElementById('ingame-menu-btn');
+    if (btn) { btn.style.display = 'flex'; }
+
+    // Fetch live bank balance — igmBank starts at 0, needs seeding from server
+    if (igmToken) {
+      fetch('/api/game/balance', {
+        headers: { 'Authorization': 'Bearer ' + igmToken },
+        credentials: 'include'
+      })
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) {
+          igmBank = d.user.bankBalance ?? d.user.bank_balance ?? 0;
+          // Update display if menu is already open
+          const bankEl = document.getElementById('igm-bank');
+          if (bankEl) bankEl.textContent = '$' + igmBank.toLocaleString();
+        }
+      })
+      .catch(e => console.warn('[IGM] Balance fetch failed:', e.message));
+    }
+  } catch(e) { console.warn('[IGM] Init error:', e); }
+}
+
+function toggleIngameMenu() {
+  igmOpen ? closeIngameMenu() : openIngameMenu();
+}
+
+function openIngameMenu() {
+  igmOpen = true;
+  // Refresh bank balance from server each time menu opens
+  if (igmToken) {
+    fetch('/api/game/balance', {
+      headers: { 'Authorization': 'Bearer ' + igmToken },
+      credentials: 'include'
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        igmBank = d.user.bankBalance ?? d.user.bank_balance ?? 0;
+      }
+      syncWalletDisplay();
+    })
+    .catch(() => syncWalletDisplay());
+  } else {
+    syncWalletDisplay();
+  }
+  document.getElementById('igm-panel').style.transform   = 'translateX(0)';
+  document.getElementById('igm-overlay').style.display   = 'block';
+}
+
+function closeIngameMenu() {
+  igmOpen = false;
+  igmBack();
+  document.getElementById('igm-panel').style.transform   = 'translateX(100%)';
+  document.getElementById('igm-overlay').style.display   = 'none';
+}
+
+function syncWalletDisplay() {
+  // Try to read wallet/bank from game state if available
+  try {
+    if (typeof myChips !== 'undefined') igmWallet = myChips;
+    const walletEl = document.getElementById('igm-wallet');
+    const bankEl   = document.getElementById('igm-bank');
+    if (walletEl) walletEl.textContent = `Wallet: $${igmWallet.toLocaleString()}`;
+    if (bankEl)   bankEl.textContent   = '$' + igmBank.toLocaleString();
+    document.getElementById('rep-cur-wallet').textContent = '$' + igmWallet.toLocaleString();
+    document.getElementById('rep-cur-bank').textContent   = '$' + igmBank.toLocaleString();
+    if (igmTableCfg) {
+      const limit   = igmTableCfg.walletSize || igmTableCfg.wallet || 0;
+      const maxDraw = Math.min(igmBank, Math.max(0, limit - igmWallet));
+      document.getElementById('rep-limit').textContent = '$' + limit.toLocaleString();
+      const maxEl = document.getElementById('rep-max');
+      if (maxEl) maxEl.textContent = '$' + maxDraw.toLocaleString();
+    }
+  } catch(e) {}
+}
+
+// ── SUB-PANELS ──────────────────────────────────────────
+function igmShowSub(id) {
+  if (igmActiveSub) document.getElementById('igm-sub-'+igmActiveSub)?.classList.remove('open');
+  igmActiveSub = id;
+  document.getElementById('igm-sub-'+id)?.classList.add('open');
+}
+
+function igmBack() {
+  if (igmActiveSub) {
+    document.getElementById('igm-sub-'+igmActiveSub)?.classList.remove('open');
+    igmActiveSub = null;
+    igmSelectedPlayer = null;
+  }
+}
+
+// ── MENU ACTIONS ────────────────────────────────────────
+function igmReplenish() {
+  syncWalletDisplay();
+  igmShowSub('replenish');
+}
+
+function igmRequestChips() {
+  igmSelectedPlayer = null;
+  populatePlayerList('req-players');
+  const stateMaxBet = window._lastState?.tableMaxBet || 0;
+    if (igmTableCfg) {
+      const limit   = igmTableCfg.walletSize || igmTableCfg.wallet || 0;
+      const maxDraw = Math.min(igmBank, Math.max(0, limit - igmWallet));
+      document.getElementById('rep-limit').textContent = '$' + limit.toLocaleString();
+      const maxEl = document.getElementById('rep-max');
+      if (maxEl) maxEl.textContent = '$' + maxDraw.toLocaleString();
+    }
+  } catch(e) {}
+}
+
+// ── SUB-PANELS ──────────────────────────────────────────
+function igmShowSub(id) {
+  if (igmActiveSub) document.getElementById('igm-sub-'+igmActiveSub)?.classList.remove('open');
+  igmActiveSub = id;
+  document.getElementById('igm-sub-'+id)?.classList.add('open');
+}
+
+function igmBack() {
+  if (igmActiveSub) {
+    document.getElementById('igm-sub-'+igmActiveSub)?.classList.remove('open');
+    igmActiveSub = null;
+    igmSelectedPlayer = null;
+  }
+}
+
+// ── MENU ACTIONS ────────────────────────────────────────
+function igmReplenish() {
+  syncWalletDisplay();
+  igmShowSub('replenish');
+}
+
+function igmRequestChips() {
+  igmSelectedPlayer = null;
+  populatePlayerList('req-players');
+  const stateMaxBet = window._lastState?.tableMaxBet || 0;
+  const maxBet = igmTableCfg?.maxBet || stateMaxBet || 0;
+  const lbl = document.getElementById('req-amount-label');
+  if (lbl) lbl.textContent = '$' + maxBet.toLocaleString();
+  const pending = document.getElementById('req-pending');
+  if (pending) pending.textContent = '';
+  igmShowSub('request');
+}
+
+function igmSendChips() {
+  igmSelectedPlayer = null;
+  populatePlayerList('send-players');
+  const maxBet = igmTableCfg?.maxBet || 0;
+  const lbl = document.getElementById('send-amount-label');
+  if (lbl) lbl.textContent = '$' + maxBet.toLocaleString();
+  const limitEl = document.getElementById('send-limit');
+  if (limitEl) limitEl.textContent = '$' + maxBet.toLocaleString();
+  const amtInput = document.getElementById('send-amount-input');
+  if (amtInput) amtInput.value = maxBet;
+  // Auto-fill if there's a pending chip request
+  const notice = document.getElementById('req-notice');
+  if (window._pendingChipRequest && notice) {
+    const pr = window._pendingChipRequest;
+    notice.style.display = 'block';
+    notice.textContent = `💬 ${pr.from} requested $${pr.amount.toLocaleString()} — select them below to fulfill.`;
+    // Pre-select that player
+    setTimeout(() => {
+      const btns = document.querySelectorAll('#send-players .player-select-btn');
+      btns.forEach(btn => { if (btn.dataset.username === pr.from) btn.click(); });
+    }, 100);
+  } else if (notice) {
+    notice.style.display = 'none';
+  }
+  igmShowSub('send');
+}
+
+function igmShowRules() { igmShowSub('rules'); }
+
+// ── PAYOUTS & SPECIALS — focused payout reference ─────────────
+// Mirrors poker-server/logic.js: SPECIAL_BONUS (non-VIP) and SPECIAL_BONUS_VIP.
+// VIP tier = tableMinBet >= 10000 (matches PokerRoom.js: this.gameState.isVip = cfg.minBet >= 10000)
+const SIPSAM_SPECIALS = [
+  { name:'No Face',                     mult:2,  bonus:1000,    bonusVip:100000 },
+  { name:'Four of a Kind',              mult:3,  bonus:2500,    bonusVip:250000 },
+  { name:'Straight Flush',              mult:3,  bonus:2500,    bonusVip:250000 },
+  { name:'Straight-Straight-Straight',  mult:5,  bonus:7000,    bonusVip:500000 },
+  { name:'Flush-Flush-Flush',           mult:5,  bonus:7000,    bonusVip:500000 },
+  { name:'Royal Flush',                 mult:7,  bonus:10000,   bonusVip:750000 },
+  { name:'6½ Pairs',                    mult:8,  bonus:15000,   bonusVip:1000000 },
+  { name:'Full Suit',                   mult:10, bonus:50000,   bonusVip:3000000 },
+];
+
+function igmShowPayouts() {
+  const minBet = (igmTableCfg?.minBet) || (window._lastState?.tableMinBet) || 0;
+  const isVip  = minBet >= 10000;
+
+  // Tier badge
+  const tier = document.getElementById('igm-payouts-tier');
+  if (tier) {
+    if (isVip) {
+      tier.style.background = 'linear-gradient(135deg, rgba(201,168,76,.15), rgba(232,201,106,.05))';
+      tier.style.border = '1px solid #c9a84c';
+      tier.style.color = '#e8c96a';
+      tier.textContent = '💎 VIP TABLE — High-tier bonuses active (min bet $' + minBet.toLocaleString() + ')';
+    } else {
+      tier.style.background = 'rgba(26,140,255,.08)';
+      tier.style.border = '1px solid #1a2d50';
+      tier.style.color = '#7a9ac0';
+      tier.textContent = 'Standard table (min bet $' + minBet.toLocaleString() + ')';
+    }
+  }
+
+  // Bonus column header reflects tier
+  const bonusCol = document.getElementById('igm-payouts-bonus-col');
+  if (bonusCol) bonusCol.textContent = isVip ? 'BONUS (VIP)' : 'BONUS';
+
+  // Render table body
+  const tbody = document.getElementById('igm-payouts-tbody');
+  if (tbody) {
+    const rows = SIPSAM_SPECIALS.map((s, i) => {
+      const bonus = isVip ? s.bonusVip : s.bonus;
+      const last  = i === SIPSAM_SPECIALS.length - 1;
+      const border = last ? '' : 'border-bottom:1px solid rgba(255,255,255,.05);';
+      return `<tr style="${border}">
+        <td style="padding:5px 6px;color:#e8c96a">${s.name}</td>
+        <td style="text-align:center;padding:5px 6px;color:#22c55e;font-weight:700">${s.mult}×</td>
+        <td style="text-align:right;padding:5px 6px;color:#4aabff;font-weight:700">+$${bonus.toLocaleString()}</td>
+      </tr>`;
+    }).join('');
+    tbody.innerHTML = rows;
+  }
+
+  igmShowSub('payouts');
+}
+
+// ── IN-GAME INVITE FRIENDS ─────────────────────────────
+let _igmFriendsList = [];
+function igmInviteFriend() {
+
+function igmShowRules() { igmShowSub('rules'); }
+
+// ── IN-GAME INVITE FRIENDS ─────────────────────────────
+let _igmFriendsList = [];
+function igmInviteFriend() {
+  const statusEl = document.getElementById('igm-invite-status');
+  if (statusEl) statusEl.textContent = '';
+  const input = document.getElementById('igm-invite-username');
+  if (input) input.value = '';
+  // Pre-fetch friends list
+  _fetchIgmFriends();
+  igmShowSub('invite');
+}
+async function _fetchIgmFriends() {
+  try {
+    const token = igmToken || (() => { try { return JSON.parse(sessionStorage.getItem('sipsam_user')||'{}').token||null; } catch(e){ return null; }})();
+    if (!token) return;
+    const res = await fetch('/api/game/friends', { headers:{ 'Authorization':'Bearer '+token }, credentials:'include' });
+    if (res.ok) { const d = await res.json(); _igmFriendsList = d.friends || []; }
+  } catch(e) { console.warn('Failed to fetch friends for igm:', e); }
+}
+function onIgmInviteInput(val) {
+  const dd = document.getElementById('igm-invite-dropdown');
+  if (!dd) return;
+  if (!val.trim()) { _showIgmFriendsList(dd); return; }
+  const q = val.toLowerCase();
+  const matches = _igmFriendsList.filter(f => f.username.toLowerCase().includes(q));
+  dd.innerHTML = matches.map(f => `<div style="padding:8px 12px;cursor:pointer;color:#f0f6ff;font-size:13px;border-bottom:1px solid #1a2d50" onclick="selectIgmInvitee('${f.username}')">${f.username}</div>`).join('');
+  dd.style.display = matches.length ? 'block' : 'none';
+}
+function onIgmInviteFocus() {
+  const dd = document.getElementById('igm-invite-dropdown');
+  if (dd) _showIgmFriendsList(dd);
+}
+function _showIgmFriendsList(dd) {
+  dd.innerHTML = _igmFriendsList.map(f => `<div style="padding:8px 12px;cursor:pointer;color:#f0f6ff;font-size:13px;border-bottom:1px solid #1a2d50" onclick="selectIgmInvitee('${f.username}')">${f.username}</div>`).join('');
+  dd.style.display = _igmFriendsList.length ? 'block' : 'none';
+}
+function selectIgmInvitee(name) {
+  const input = document.getElementById('igm-invite-username');
+  if (input) input.value = name;
+  const dd = document.getElementById('igm-invite-dropdown');
+  if (dd) dd.style.display = 'none';
+}
+async function sendIgmInvite() {
+  const input    = document.getElementById('igm-invite-username');
+  const statusEl = document.getElementById('igm-invite-status');
+  if (!input || !statusEl) return;
+  const username = input.value.trim();
+  if (!username) { statusEl.textContent = '⚠️ Enter a username.'; statusEl.style.color = '#fca5a5'; return; }
+  statusEl.textContent = 'Sending invite...'; statusEl.style.color = '#7a9ac0';
+  try {
+    const token = igmToken || (() => { try { return JSON.parse(sessionStorage.getItem('sipsam_user')||'{}').token||null; } catch(e){ return null; }})();
+    if (!token) { statusEl.textContent = '⚠️ Not authenticated.'; statusEl.style.color = '#fca5a5'; return; }
+    const tableConfig = igmTableCfg || {};
+    const res = await fetch('/api/friends/invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      credentials: 'include',
+      body: JSON.stringify({
+        toUsername: username, game: 'sipsam', roomId: myRoomId,
+        tableMinBet: tableConfig.minBet || selectedMinBet,
+        tableConfig: {
+          minBet: tableConfig.minBet || selectedMinBet, maxBet: tableConfig.maxBet,
+          walletSize: tableConfig.walletSize || tableConfig.wallet,
+          wallet: tableConfig.walletSize || tableConfig.wallet,
+          inc: tableConfig.increment || tableConfig.inc,
+          minBank: tableConfig.minBank || tableConfig.bankRequired,
+          rounds: window._gameOverState?.maxRounds || selectedRounds || 10,
+          blitz: false, roomId: myRoomId
+        }
+      })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      statusEl.textContent = `✅ Invite sent to ${username}!`; statusEl.style.color = '#22c55e';
+      input.value = '';
+      setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 4000);
+    } else {
+      statusEl.textContent = '❌ ' + (data.error || 'Failed to send.'); statusEl.style.color = '#fca5a5';
+    }
+  } catch(e) {
+    statusEl.textContent = '⚠️ Server error.'; statusEl.style.color = '#fca5a5';
+  }
+}
+
+function igmExit() {
+  if (!confirm('Exit game? Your remaining wallet will be returned to your bank.')) return;
+  closeIngameMenu();
+  exitToLobby();
+}
+
+// ── PLAYER LIST ─────────────────────────────────────────
+function populatePlayerList(containerId) {
+        name:     p.username,
+        sid:      sid,
+        isbot:    p.isBot,
+        isbanker: p.isBanker,
+        chips:    p.chips,
+        canTransfer: true // all players at the table can send/receive chips
+      });
+    });
+    return list;
+  } catch(e) { return []; }
+}
+  const btn   = document.querySelector('#igm-sub-replenish .igm-action-btn');
+  if (btn) { btn.disabled = false; btn.textContent = '💰 Draw to Wallet'; }
+  if (!msg.ok) {
+    if (errEl) { errEl.textContent = msg.error || 'Replenish failed.'; errEl.style.display = 'block'; }
+    return;
+  }
+  // Update wallet and bank from server response
+  igmWallet = msg.newWallet;
+  myChips   = msg.newWallet;
+  igmBank   = msg.newBankBalance ?? igmBank;
+  syncWalletDisplay();
+  showIngameToast('💰 Wallet Replenished', `Wallet updated to $${igmWallet.toLocaleString()}`);
+  igmBack();
+}
+
+function igmFillMax() {
+  const limit   = igmTableCfg?.walletSize || igmTableCfg?.wallet || 0;
+  const maxDraw = Math.min(igmBank, Math.max(0, limit - igmWallet));
+  const input   = document.getElementById('rep-amount');
+  if (input) input.value = maxDraw;
+}
+
+async function doReplenish() {
+  const amtEl  = document.getElementById('rep-amount');
+  const errEl  = document.getElementById('rep-err');
+  errEl.style.display = 'none';
+  const amt   = Number(amtEl.value);
+  const limit = igmTableCfg?.walletSize || igmTableCfg?.wallet || 0;
+  const space = limit - igmWallet; // how much room is left in wallet
+
+  if (!amt || amt <= 0)    { errEl.textContent='Enter a valid amount.';                              errEl.style.display='block'; return; }
+  if (amt > igmBank)       { errEl.textContent=`Insufficient bank balance ($${igmBank.toLocaleString()}).`; errEl.style.display='block'; return; }
+  if (space <= 0)          { errEl.textContent=`Wallet is already at the limit ($${limit.toLocaleString()}).`; errEl.style.display='block'; return; }
+  if (amt > space)         { errEl.textContent=`Max you can draw is $${space.toLocaleString()} (wallet limit $${limit.toLocaleString()}).`; errEl.style.display='block'; return; }
+
+  try {
+    // Send via WebSocket so server updates player.chips in game state
+    sendMsg('replenishWallet', { amount: amt });
+    // Show pending state — actual update comes back via replenishResult message
+    const btn = document.querySelector('#igm-sub-replenish .igm-action-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Processing...'; }
+  } catch(e) {
+    errEl.textContent = 'Server error — try again.'; errEl.style.display='block';
+  }
+}
+
+function doRequestChips() {
+  if (!igmSelectedPlayer) { showIngameToast('⚠️ Select a player','Tap a player from the list above.'); return; }
+// [LINE 1315 MISSING — no Read snapshot covers it]
+// [LINE 1316 MISSING — no Read snapshot covers it]
+// [LINE 1317 MISSING — no Read snapshot covers it]
+// [LINE 1318 MISSING — no Read snapshot covers it]
+// [LINE 1319 MISSING — no Read snapshot covers it]
+// [LINE 1320 MISSING — no Read snapshot covers it]
+// [LINE 1321 MISSING — no Read snapshot covers it]
+// [LINE 1322 MISSING — no Read snapshot covers it]
+// [LINE 1323 MISSING — no Read snapshot covers it]
+// [LINE 1324 MISSING — no Read snapshot covers it]
+// [LINE 1325 MISSING — no Read snapshot covers it]
+// [LINE 1326 MISSING — no Read snapshot covers it]
+// [LINE 1327 MISSING — no Read snapshot covers it]
+// [LINE 1328 MISSING — no Read snapshot covers it]
+// [LINE 1329 MISSING — no Read snapshot covers it]
+// [LINE 1330 MISSING — no Read snapshot covers it]
+// [LINE 1331 MISSING — no Read snapshot covers it]
+// [LINE 1332 MISSING — no Read snapshot covers it]
+// [LINE 1333 MISSING — no Read snapshot covers it]
+// [LINE 1334 MISSING — no Read snapshot covers it]
+// [LINE 1335 MISSING — no Read snapshot covers it]
+// [LINE 1336 MISSING — no Read snapshot covers it]
+// [LINE 1337 MISSING — no Read snapshot covers it]
+// [LINE 1338 MISSING — no Read snapshot covers it]
+// [LINE 1339 MISSING — no Read snapshot covers it]
+// [LINE 1340 MISSING — no Read snapshot covers it]
+// [LINE 1341 MISSING — no Read snapshot covers it]
+// [LINE 1342 MISSING — no Read snapshot covers it]
+// [LINE 1343 MISSING — no Read snapshot covers it]
+// [LINE 1344 MISSING — no Read snapshot covers it]
+// [LINE 1345 MISSING — no Read snapshot covers it]
+// [LINE 1346 MISSING — no Read snapshot covers it]
+// [LINE 1347 MISSING — no Read snapshot covers it]
+// [LINE 1348 MISSING — no Read snapshot covers it]
+// [LINE 1349 MISSING — no Read snapshot covers it]
+// [LINE 1350 MISSING — no Read snapshot covers it]
+// [LINE 1351 MISSING — no Read snapshot covers it]
+// [LINE 1352 MISSING — no Read snapshot covers it]
+// [LINE 1353 MISSING — no Read snapshot covers it]
+// [LINE 1354 MISSING — no Read snapshot covers it]
+    syncWalletDisplay();
+    window._pendingChipRequest = null;
+    showIngameToast('📤 Chips Sent', `$${amount.toLocaleString()} sent to ${igmSelectedPlayer.name}.`);
+    if (typeof SFX !== 'undefined') SFX.confirm();
+    igmBack();

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SipSam — Blue Glass mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Instrument+Serif&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* Current SipSam palette — preserved */
+    --felt-hi:#1a6fd4;
+    --felt-md:#0e4d8a;
+    --felt-lo:#073166;
+    --felt-edge:#04244c;
+    --bg-0:#050a14;
+    --bg-1:#0a1426;
+
+    /* Brand gold — preserved */
+    --gold:#c9a84c;
+    --gold-lt:#f0d080;
+    --gold-dk:#8B6914;
+
+    /* Glass premium accent (cool blue tint) */
+    --accent:#7ec8ff;
+    --accent-2:#aeddff;
+
+    --ink:#f3f6fb;
+    --ink-dim:#7d8a9e;
+    --line:rgba(255,255,255,.08);
+    --line-strong:rgba(255,255,255,.16);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg-0);color:var(--ink);font-family:'Manrope',sans-serif;-webkit-font-smoothing:antialiased}
+  body{
+    background:
+      radial-gradient(1100px 700px at 20% -10%, #102540 0%, transparent 60%),
+      radial-gradient(900px 600px at 90% 110%, #0c1f3c 0%, transparent 60%),
+      var(--bg-0);
+    min-height:100vh;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative}
+
+  /* ── Top bar ── */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 18px 12px;
+    background:rgba(8,18,36,.6);
+    backdrop-filter:blur(24px) saturate(1.4); -webkit-backdrop-filter:blur(24px) saturate(1.4);
+    border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:10;
+  }
+  .brand{display:flex;flex-direction:column;gap:0}
+  .brand-name{font-family:'Instrument Serif',serif;font-size:24px;font-weight:400;color:var(--ink);letter-spacing:-.02em;line-height:1}
+  .brand-tag{font-family:'Manrope',sans-serif;font-size:9px;font-weight:600;letter-spacing:.32em;color:var(--accent-2);text-transform:uppercase;margin-top:2px}
+  .wallet{
+    display:flex;align-items:center;gap:10px;
+    background:rgba(255,255,255,.04);
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    padding:7px 14px 7px 16px;border-radius:100px;border:1px solid var(--line-strong);
+  }
+  .wallet-amt{font-family:'Manrope',sans-serif;font-size:16px;font-weight:700;color:var(--ink);letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  .wallet-amt::before{content:'$';font-size:12px;font-weight:600;color:var(--ink-dim);margin-right:1px}
+  .wallet-pulse{width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px var(--gold),0 0 0 4px rgba(201,168,76,.18)}
+
+  /* ── Sub-bar ── */
+  .subbar{display:flex;align-items:center;justify-content:space-between;padding:10px 18px 12px;font-size:11px;color:var(--ink-dim);font-weight:500;letter-spacing:.04em}
+  .subbar .tier{display:flex;align-items:center;gap:6px;color:var(--gold);font-weight:600}
+  .subbar .tier::before{content:'◆';font-size:10px}
+  .subbar .hand-no{font-variant-numeric:tabular-nums;letter-spacing:.16em;text-transform:uppercase;font-weight:600}
+
+  /* ── Table ── */
+  .table-wrap{flex:1;display:grid;place-items:center;padding:6px 12px 12px;position:relative}
+  .table{
+    width:100%;aspect-ratio:5/7;max-height:62vh;
+    border-radius:46% / 32%;
+    /* PRESERVED current SipSam blue felt — slightly enriched with glass overlay */
+    background:
+      radial-gradient(ellipse at 30% 18%, rgba(174,221,255,.16), transparent 55%),
+      radial-gradient(ellipse at 72% 88%, rgba(126,200,255,.10), transparent 55%),
+      radial-gradient(ellipse 100% 100% at 50% 50%, var(--felt-hi) 0%, var(--felt-md) 45%, var(--felt-lo) 100%);
+    border:1px solid rgba(201,168,76,.45);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.12),
+      inset 0 0 80px rgba(0,12,32,.55),
+      0 0 0 1px rgba(0,0,0,.4),
+      0 30px 70px -10px rgba(0,8,24,.8),
+      0 0 40px rgba(201,168,76,.10);
+    position:relative;
+    isolation:isolate;
+    overflow:hidden;
+  }
+  /* gloss shine across top */
+  .table::before{
+    content:'';position:absolute;inset:0;
+    background:linear-gradient(180deg, rgba(255,255,255,.10) 0%, transparent 26%, transparent 100%);
+    z-index:0;pointer-events:none;
+  }
+  /* gold inner perimeter — subtler than current */
+  .table::after{
+    content:'';position:absolute;inset:5px;border-radius:46% / 32%;
+    border:1px solid rgba(201,168,76,.22);
+    box-shadow:inset 0 0 28px rgba(201,168,76,.06);
+    z-index:0;pointer-events:none;
+  }
+
+  /* PRESERVED VurgLife logo image — softer placement */
+  .table-logo{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:62%;max-width:calc(100% - 60px);
+    opacity:.18;
+    pointer-events:none;user-select:none;
+    z-index:1;
+    filter: drop-shadow(0 0 6px rgba(255,255,255,.08));
+  }
+
+  /* ── Pot ── */
+  .pot{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);z-index:3;text-align:center}
+  .pot-label{font-size:9px;letter-spacing:.32em;color:rgba(245,247,251,.5);text-transform:uppercase;margin-bottom:4px;font-weight:600}
+  .pot-amt{font-family:'Instrument Serif',serif;font-size:36px;font-weight:400;color:var(--ink);letter-spacing:-.02em;text-shadow:0 4px 24px rgba(0,16,40,.7),0 0 30px rgba(201,168,76,.18)}
+  .pot-amt::before{content:'$';font-size:20px;color:var(--gold);vertical-align:4px;margin-right:2px}
+
+  /* ── Seats ── */
+  .seat{position:absolute;z-index:4;display:flex;flex-direction:column;align-items:center;gap:5px}
+  .seat-banker{top:5%;left:50%;transform:translateX(-50%)}
+  .seat-1{bottom:32%;left:6%}
+  .seat-2{bottom:6%;left:24%}
+  .seat-3{bottom:6%;right:24%}
+  .seat-4{bottom:32%;right:6%}
+
+  .av{
+    width:50px;height:50px;border-radius:50%;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,.14), rgba(255,255,255,.02)),
+      rgba(8,30,60,.55);
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    border:1.5px solid var(--line-strong);
+    display:grid;place-items:center;
+    font-family:'Instrument Serif',serif;font-size:20px;font-weight:400;color:var(--ink);
+    box-shadow:0 4px 16px rgba(0,8,24,.5), inset 0 1px 0 rgba(255,255,255,.12);
+    position:relative;
+  }
+  .av.banker{
+    background:linear-gradient(135deg, rgba(240,208,128,.45), rgba(201,168,76,.12)), rgba(50,32,8,.45);
+    border-color:var(--gold);
+    color:var(--gold-lt);
+    box-shadow:0 0 22px rgba(201,168,76,.32), inset 0 1px 0 rgba(255,255,255,.22);
+  }
+  .av.banker::after{
+    content:'BANKER';position:absolute;top:-12px;left:50%;transform:translateX(-50%);
+    font-size:8px;letter-spacing:.28em;color:#1a1208;font-weight:700;
+    background:linear-gradient(180deg,var(--gold-lt),var(--gold));padding:2px 7px;border-radius:8px;
+    box-shadow:0 2px 10px rgba(201,168,76,.45);
+  }
+  .av.you{
+    border-color:var(--accent);
+    color:var(--accent-2);
+    box-shadow:0 0 0 2px rgba(126,200,255,.45), 0 0 28px rgba(126,200,255,.45), inset 0 1px 0 rgba(255,255,255,.18);
+  }
+  .seat-name{font-size:10px;color:var(--ink);letter-spacing:.02em;font-weight:600;text-align:center;line-height:1.2}
+  .seat-chips{font-family:'Manrope',sans-serif;font-size:13px;color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+  .seat-bet{
+    margin-top:2px;font-size:9px;color:var(--gold-lt);letter-spacing:.1em;font-weight:600;
+    background:rgba(201,168,76,.12);padding:2px 9px;border-radius:10px;border:1px solid rgba(201,168,76,.28);
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  }
+
+  /* ── Cards ── */
+  .cards{display:flex;gap:3px;margin-top:5px}
+  .card{
+    width:24px;height:32px;border-radius:5px;
+    background:
+      linear-gradient(135deg, rgba(174,221,255,.4), rgba(126,200,255,.1) 50%, rgba(20,40,75,.7)),
+      #0e2a52;
+    border:1px solid rgba(174,221,255,.3);
+    box-shadow:0 3px 10px rgba(0,4,18,.6), inset 0 1px 0 rgba(255,255,255,.1);
+    position:relative;
+  }
+  .card.face{
+    background:linear-gradient(180deg, #f7f5ee 0%, #e9e5d6 100%);
+    border:1px solid #d6cfb8;color:#1a2230;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-family:'Instrument Serif',serif;font-weight:400;line-height:1;
+    box-shadow:0 4px 12px rgba(0,4,18,.55), inset 0 1px 0 rgba(255,255,255,.45);
+  }
+  .card.red{color:#b1364a}
+  .card.face .rk{font-size:13px}
+  .card.face .st{font-size:9px;margin-top:1px}
+
+  /* ── Action bar ── */
+  .action-bar{
+    padding:14px 16px calc(18px + env(safe-area-inset-bottom));
+    background:rgba(8,18,36,.7);
+    backdrop-filter:blur(24px) saturate(1.4); -webkit-backdrop-filter:blur(24px) saturate(1.4);
+    border-top:1px solid var(--line);
+    display:flex;gap:10px;
+  }
+  .btn{
+    flex:1;height:52px;border-radius:16px;border:1px solid var(--line-strong);
+    background:rgba(255,255,255,.04);
+    color:var(--ink);font-family:'Manrope',sans-serif;font-size:13px;font-weight:600;letter-spacing:.01em;
+    cursor:pointer;transition:all .15s ease;
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  }
+  .btn:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.24)}
+  .btn.primary{
+    /* Gold primary — preserves SipSam brand */
+    background:linear-gradient(180deg,var(--gold-lt),var(--gold) 60%, var(--gold-dk));
+    color:#1a1208;border-color:var(--gold-lt);font-weight:700;
+    box-shadow:0 6px 20px rgba(201,168,76,.4), inset 0 1px 0 rgba(255,255,255,.4);
+  }
+  .btn.primary:hover{filter:brightness(1.08)}
+
+  .menu-fab{
+    position:fixed;bottom:88px;right:18px;
+    width:48px;height:48px;border-radius:50%;
+    background:rgba(8,18,36,.7);
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    border:1px solid var(--line-strong);
+    display:grid;place-items:center;color:var(--ink);font-size:20px;
+    box-shadow:0 8px 24px rgba(0,4,18,.6);
+    z-index:50;cursor:pointer;
+  }
+
+  .caption{position:fixed;top:6px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.4em;color:var(--ink-dim);text-transform:uppercase;background:#050a14;padding:4px 10px;border:1px solid var(--line);border-radius:0 0 6px 6px;z-index:99}
+</style>
+</head>
+<body>
+<div class="caption">Mockup 4 · Blue Glass</div>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <span class="brand-name">VurgLife</span>
+      <span class="brand-tag">SipSam</span>
+    </div>
+    <div class="wallet">
+      <span class="wallet-pulse"></span>
+      <span class="wallet-amt">12,400</span>
+    </div>
+  </div>
+  <div class="subbar">
+    <span class="tier">VIP · $10,000 min</span>
+    <span class="hand-no">Hand 14</span>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table">
+      <img class="table-logo" src="../VurgLife_logo_table.png" alt="" onerror="this.style.display='none'">
+
+      <div class="pot">
+        <div class="pot-label">Pot</div>
+        <div class="pot-amt">42,500</div>
+      </div>
+
+      <div class="seat seat-banker">
+        <div class="av banker">JD</div>
+        <div class="seat-name">JordanD</div>
+        <div class="cards"><div class="card"></div><div class="card"></div><div class="card"></div></div>
+      </div>
+
+      <div class="seat seat-1">
+        <div class="av">M</div>
+        <div class="seat-name">Marcus</div>
+        <div class="seat-chips">8,200</div>
+        <div class="seat-bet">$2,000</div>
+      </div>
+
+      <div class="seat seat-2">
+        <div class="av">L</div>
+        <div class="seat-name">Lisa</div>
+        <div class="seat-chips">14,750</div>
+        <div class="seat-bet">$2,000</div>
+      </div>
+
+      <div class="seat seat-3">
+        <div class="av you">YOU</div>
+        <div class="seat-name">You</div>
+        <div class="seat-chips">12,400</div>
+        <div class="cards">
+          <div class="card face red"><span class="rk">A</span><span class="st">♥</span></div>
+          <div class="card face"><span class="rk">K</span><span class="st">♠</span></div>
+          <div class="card face red"><span class="rk">Q</span><span class="st">♦</span></div>
+        </div>
+      </div>
+
+      <div class="seat seat-4">
+        <div class="av">R</div>
+        <div class="seat-name">Renee</div>
+        <div class="seat-chips">9,800</div>
+        <div class="seat-bet">$2,000</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="menu-fab">⋯</div>
+
+  <div class="action-bar">
+    <button class="btn">Freeze Bet</button>
+    <button class="btn primary">Arrange Hands</button>
+    <button class="btn">Special</button>
+  </div>
+</div>
+</body>
+</html>

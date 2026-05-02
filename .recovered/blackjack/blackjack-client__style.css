@@ -1,0 +1,606 @@
+// [LINE 1 MISSING — no Read snapshot covers it]
+// [LINE 2 MISSING — no Read snapshot covers it]
+// [LINE 3 MISSING — no Read snapshot covers it]
+// [LINE 4 MISSING — no Read snapshot covers it]
+// [LINE 5 MISSING — no Read snapshot covers it]
+// [LINE 6 MISSING — no Read snapshot covers it]
+// [LINE 7 MISSING — no Read snapshot covers it]
+// [LINE 8 MISSING — no Read snapshot covers it]
+// [LINE 9 MISSING — no Read snapshot covers it]
+// [LINE 10 MISSING — no Read snapshot covers it]
+// [LINE 11 MISSING — no Read snapshot covers it]
+// [LINE 12 MISSING — no Read snapshot covers it]
+// [LINE 13 MISSING — no Read snapshot covers it]
+// [LINE 14 MISSING — no Read snapshot covers it]
+// [LINE 15 MISSING — no Read snapshot covers it]
+// [LINE 16 MISSING — no Read snapshot covers it]
+// [LINE 17 MISSING — no Read snapshot covers it]
+// [LINE 18 MISSING — no Read snapshot covers it]
+// [LINE 19 MISSING — no Read snapshot covers it]
+// [LINE 20 MISSING — no Read snapshot covers it]
+// [LINE 21 MISSING — no Read snapshot covers it]
+// [LINE 22 MISSING — no Read snapshot covers it]
+// [LINE 23 MISSING — no Read snapshot covers it]
+// [LINE 24 MISSING — no Read snapshot covers it]
+// [LINE 25 MISSING — no Read snapshot covers it]
+// [LINE 26 MISSING — no Read snapshot covers it]
+// [LINE 27 MISSING — no Read snapshot covers it]
+// [LINE 28 MISSING — no Read snapshot covers it]
+// [LINE 29 MISSING — no Read snapshot covers it]
+// [LINE 30 MISSING — no Read snapshot covers it]
+// [LINE 31 MISSING — no Read snapshot covers it]
+// [LINE 32 MISSING — no Read snapshot covers it]
+// [LINE 33 MISSING — no Read snapshot covers it]
+// [LINE 34 MISSING — no Read snapshot covers it]
+// [LINE 35 MISSING — no Read snapshot covers it]
+// [LINE 36 MISSING — no Read snapshot covers it]
+// [LINE 37 MISSING — no Read snapshot covers it]
+// [LINE 38 MISSING — no Read snapshot covers it]
+// [LINE 39 MISSING — no Read snapshot covers it]
+// [LINE 40 MISSING — no Read snapshot covers it]
+// [LINE 41 MISSING — no Read snapshot covers it]
+// [LINE 42 MISSING — no Read snapshot covers it]
+// [LINE 43 MISSING — no Read snapshot covers it]
+// [LINE 44 MISSING — no Read snapshot covers it]
+// [LINE 45 MISSING — no Read snapshot covers it]
+// [LINE 46 MISSING — no Read snapshot covers it]
+// [LINE 47 MISSING — no Read snapshot covers it]
+// [LINE 48 MISSING — no Read snapshot covers it]
+// [LINE 49 MISSING — no Read snapshot covers it]
+// [LINE 50 MISSING — no Read snapshot covers it]
+// [LINE 51 MISSING — no Read snapshot covers it]
+// [LINE 52 MISSING — no Read snapshot covers it]
+// [LINE 53 MISSING — no Read snapshot covers it]
+// [LINE 54 MISSING — no Read snapshot covers it]
+// [LINE 55 MISSING — no Read snapshot covers it]
+// [LINE 56 MISSING — no Read snapshot covers it]
+// [LINE 57 MISSING — no Read snapshot covers it]
+// [LINE 58 MISSING — no Read snapshot covers it]
+// [LINE 59 MISSING — no Read snapshot covers it]
+// [LINE 60 MISSING — no Read snapshot covers it]
+// [LINE 61 MISSING — no Read snapshot covers it]
+// [LINE 62 MISSING — no Read snapshot covers it]
+// [LINE 63 MISSING — no Read snapshot covers it]
+// [LINE 64 MISSING — no Read snapshot covers it]
+// [LINE 65 MISSING — no Read snapshot covers it]
+// [LINE 66 MISSING — no Read snapshot covers it]
+// [LINE 67 MISSING — no Read snapshot covers it]
+// [LINE 68 MISSING — no Read snapshot covers it]
+// [LINE 69 MISSING — no Read snapshot covers it]
+// [LINE 70 MISSING — no Read snapshot covers it]
+// [LINE 71 MISSING — no Read snapshot covers it]
+// [LINE 72 MISSING — no Read snapshot covers it]
+// [LINE 73 MISSING — no Read snapshot covers it]
+// [LINE 74 MISSING — no Read snapshot covers it]
+// [LINE 75 MISSING — no Read snapshot covers it]
+// [LINE 76 MISSING — no Read snapshot covers it]
+// [LINE 77 MISSING — no Read snapshot covers it]
+// [LINE 78 MISSING — no Read snapshot covers it]
+// [LINE 79 MISSING — no Read snapshot covers it]
+// [LINE 80 MISSING — no Read snapshot covers it]
+// [LINE 81 MISSING — no Read snapshot covers it]
+// [LINE 82 MISSING — no Read snapshot covers it]
+// [LINE 83 MISSING — no Read snapshot covers it]
+// [LINE 84 MISSING — no Read snapshot covers it]
+// [LINE 85 MISSING — no Read snapshot covers it]
+// [LINE 86 MISSING — no Read snapshot covers it]
+// [LINE 87 MISSING — no Read snapshot covers it]
+// [LINE 88 MISSING — no Read snapshot covers it]
+// [LINE 89 MISSING — no Read snapshot covers it]
+// [LINE 90 MISSING — no Read snapshot covers it]
+// [LINE 91 MISSING — no Read snapshot covers it]
+// [LINE 92 MISSING — no Read snapshot covers it]
+// [LINE 93 MISSING — no Read snapshot covers it]
+// [LINE 94 MISSING — no Read snapshot covers it]
+  padding:10px 4px 4px; min-height:0; overflow:visible; }
+
+/* ── OVAL TABLE — SipSam-identical but GREEN felt ── */
+/* ── D-SHAPE TABLE — Modern Dark Luxury Design ── */
+.oval-table {
+  position: relative;
+  width:  min(94vw, 1020px);
+  height: min(76vh, 620px);
+  /* D-shape: flat top, semicircle bottom */
+  border-radius: 0 0 700px 700px / 0 0 320px 320px;
+  border: 0;
+  outline: 7px solid var(--gold);
+  outline-offset: -1px;
+  /* Modern deep navy-to-midnight felt */
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 30%,
+      rgba(26,80,140,0.35) 0%, transparent 70%),
+    radial-gradient(ellipse 120% 100% at 50% 10%,
+      #0d1f3a 0%, #080f1e 40%, #050a14 100%);
+  box-shadow:
+    0 0 0 3px var(--gold-dk),
+    0 0 0 6px rgba(201,168,76,.15),
+    0 0 60px rgba(201,168,76,.25),
+    0 0 120px rgba(10,20,50,.8),
+    inset 0 0 100px rgba(0,10,30,.6);
+  flex-shrink: 0;
+  overflow: visible;
+  /* Local stacking context so .table-logo's z-index:-1 stays inside the table */
+  isolation: isolate;
+}
+
+/* Flat top rail — dealer's edge, gold trim */
+.oval-table::before {
+  content: '';
+  position: absolute;
+  top: -7px; left: -7px; right: -7px; height: 28px;
+  background: linear-gradient(180deg,
+    #c9a84c 0%, #8b6914 40%, rgba(139,105,20,0.3) 100%);
+  border-radius: 4px 4px 0 0;
+  z-index: 2;
+  box-shadow: 0 2px 12px rgba(201,168,76,0.4);
+}
+
+/* Subtle felt texture */
+.felt-grid {
+  position: absolute; inset: 0;
+  border-radius: 0 0 700px 700px / 0 0 320px 320px;
+  pointer-events: none;
+  z-index: 1;
+  background-image:
+    radial-gradient(ellipse 60% 40% at 50% 80%,
+      rgba(26,100,200,.08) 0%, transparent 70%),
+    repeating-linear-gradient(0deg,   transparent, transparent 32px, rgba(255,255,255,.008) 32px, rgba(255,255,255,.008) 33px),
+    repeating-linear-gradient(90deg,  transparent, transparent 32px, rgba(255,255,255,.008) 32px, rgba(255,255,255,.008) 33px);
+}
+
+/* VurgLife logo watermark — horizontal across the felt, BEHIND all gameplay */
+/* PNG is white-on-black. mix-blend-mode:screen makes black invisible,
+   white shows through as a clean watermark on any dark background */
+.table-logo {
+  position: absolute;
+  top: 46%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: clamp(360px, 62%, 580px);
+  opacity: 0.22;
+  pointer-events: none;
+  /* z-index:-1 inside .oval-table's isolated stacking context puts the
+     watermark behind cards, placeholders, win/lose labels, etc. */
+  z-index: -1;
+  user-select: none;
+  mix-blend-mode: screen;   /* black = transparent, white = visible */
+  filter: brightness(0.85);
+}
+
+/* Glowing arc along the curved edge */
+.oval-table::after {
+  content: '';
+  position: absolute;
+  bottom: -4px; left: 10%; right: 10%;
+  height: 4px;
+  background: linear-gradient(90deg,
+    transparent 0%, var(--gold) 30%, var(--gold-lt) 50%, var(--gold) 70%, transparent 100%);
+  border-radius: 50%;
+  filter: blur(3px);
+  opacity: 0.6;
+  z-index: 3;
+}
+/* ── COUNTDOWN — SipSam-identical ── */
+/* Countdown — inline in top-bar, never overlaps any seat on the table */
+/* Your-turn countdown overlay — centred on table */
+#your-turn-overlay {
+  display: none;
+}
+#your-turn-overlay.active {
+  display: flex !important;
+}
+#cd-number.urgent {
+  color: #ff4444 !important;
+  text-shadow: 0 0 20px rgba(255,68,68,.8);
+  animation: cdPulse .5s infinite alternate;
+}
+
+/* ── ZONES — SipSam layout adapted for Blackjack ── */
+.zone { position:absolute; z-index:4; }
+
+// [LINE 200 MISSING — no Read snapshot covers it]
+// [LINE 201 MISSING — no Read snapshot covers it]
+// [LINE 202 MISSING — no Read snapshot covers it]
+// [LINE 203 MISSING — no Read snapshot covers it]
+// [LINE 204 MISSING — no Read snapshot covers it]
+// [LINE 205 MISSING — no Read snapshot covers it]
+// [LINE 206 MISSING — no Read snapshot covers it]
+// [LINE 207 MISSING — no Read snapshot covers it]
+// [LINE 208 MISSING — no Read snapshot covers it]
+// [LINE 209 MISSING — no Read snapshot covers it]
+.dealer-tag { background:linear-gradient(135deg,#0d4a8a,#1a8cff) !important;
+  color:#fff !important; letter-spacing:2px !important; }
+
+/* ── 6 PLAYER SEATS — casino semicircle arc ── */
+/* Top arc (far from player) */
+.bj-seat {
+  position:absolute; z-index:4;
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  transform:translateX(-50%);  /* centre on the arc point */
+}
+.bj-seat-0 { left:96.0%; top:8.0%; }  /* far-right */
+.bj-seat-1 { left:87.2%; top:56.2%; }  /* mid-right */
+.bj-seat-2 { left:64.2%; top:86.0%; }  /* near-right */
+.bj-seat-3 { left:35.8%; top:86.0%; }  /* near-left */
+.bj-seat-4 { left:12.8%; top:56.2%; }  /* mid-left */
+.bj-seat-5 { left:4.0%; top:8.0%; }  /* far-left */
+
+
+/* ── SEAT ELEMENTS ── */
+.seat-nametag { font-family:'Cinzel Decorative',serif; font-size:clamp(7px,1.1vw,10px);
+  letter-spacing:1px; text-transform:uppercase; color:#1a1000;
+  background:linear-gradient(135deg,var(--gold-dk),var(--gold));
+  padding:3px 12px; border-radius:20px; white-space:nowrap; font-weight:700;
+  box-shadow:0 2px 6px rgba(201,168,76,.4); max-width:120px;
+  overflow:hidden; text-overflow:ellipsis; }
+.seat-nametag:empty { display:none; }
+.seat-nametag.is-you    { background:linear-gradient(135deg,#7a5a00,var(--gold-lt)); box-shadow:0 0 10px rgba(201,168,76,.5); }
+.seat-nametag.is-active { background:linear-gradient(135deg,#0d4a8a,#1a8cff) !important; color:#fff !important; box-shadow:0 0 12px rgba(26,140,255,.6) !important; }
+.seat-nametag.is-bot    { opacity:.85; }
+.seat-chips { font-size:clamp(9px,1.3vw,11px); font-weight:700; color:var(--gold-lt);
+  background:rgba(4,8,20,.85); border:1px solid var(--gold-dk); border-radius:6px;
+  padding:1px 7px; white-space:nowrap; box-shadow:0 1px 4px rgba(0,0,0,.5); }
+.seat-chips:empty { display:none; }
+.seat-bet { font-size:clamp(8px,1.1vw,10px); font-weight:700; color:#1a1000;
+  background:linear-gradient(135deg,var(--gold-dk),var(--gold)); border-radius:6px;
+  padding:1px 7px; white-space:nowrap; }
+.seat-bet:empty { display:none; }
+
+/* ── ZONE HEADER (dealer) ── */
+.zone-header { display:flex; flex-direction:column; align-items:center; gap:2px; margin-bottom:4px; }
+.zone-nametag { font-family:'Cinzel Decorative',serif; font-size:clamp(8px,1.2vw,11px);
+  letter-spacing:1px; text-transform:uppercase; color:#1a1000;
+  background:linear-gradient(135deg,var(--gold-dk),var(--gold));
+  padding:3px 14px; border-radius:20px; white-space:nowrap; font-weight:700;
+  box-shadow:0 2px 6px rgba(201,168,76,.4); }
+.zone-balance { background:rgba(0,0,0,.8); border:1px solid var(--gold-dk); border-radius:8px;
+  padding:2px 8px; font-size:clamp(9px,1.3vw,11px); font-weight:700; color:var(--gold-lt); white-space:nowrap; }
+.zone-balance.bust { color:#ff5555; }
+.zone-balance.bj   { color:#ffd700; }
+
+/* ── BOT BUTTON per seat ── */
+.seat-bot-btn {
+  font-family:'Rajdhani',sans-serif; font-size:11px; font-weight:700;
+  letter-spacing:1px; padding:4px 12px; border-radius:10px; cursor:pointer;
+  border:1px solid rgba(74,171,255,.35); color:rgba(74,171,255,.8);
+  background:rgba(74,171,255,.07); transition:all .15s; width:100%;
+}
+.seat-bot-btn:hover { border-color:#4aabff; color:#4aabff; background:rgba(74,171,255,.15); }
+
+/* ── HANDS ── */
+.dealer-hand { display:flex; gap:6px; min-height:72px; align-items:flex-end;
+  filter:drop-shadow(0 4px 12px rgba(0,0,0,.7)); flex-wrap:wrap; justify-content:center; }
+.seat-hand { display:flex; flex-direction:row; gap:4px; min-height:54px; align-items:flex-end;
+  background:rgba(4,30,8,.5); border:1.5px solid rgba(201,168,76,.3); border-radius:8px;
+  padding:4px 6px; min-width:50px; flex-wrap:nowrap; }
+.seat-hand:not(:has(.vl-card)) { opacity:0.3; }
+
+/* ── RESULT BADGES ── */
+.result-badge-inline { font-family:'Rajdhani',sans-serif; font-size:clamp(9px,1.2vw,12px);
+  font-weight:700; letter-spacing:1px; padding:3px 10px; border-radius:5px;
+  display:none; text-transform:uppercase; text-align:center;
+  animation:badgePop .3s cubic-bezier(.34,1.56,.64,1) both; }
+@keyframes badgePop { from{transform:scale(0.5);opacity:0} to{transform:scale(1);opacity:1} }
+.result-badge-inline.win       { background:rgba(20,60,20,.95); color:#44ff88; border:1.5px solid #44ff88; display:block; }
+.result-badge-inline.lose      { background:rgba(60,10,10,.95); color:#ff5555; border:1.5px solid #ff5555; display:block; }
+.result-badge-inline.push      { background:rgba(10,30,60,.95); color:#4ab8ff; border:1.5px solid #4ab8ff; display:block; }
+.result-badge-inline.bust      { background:rgba(60,10,10,.95); color:#ff5555; border:1.5px solid #ff5555; display:block; }
+.result-badge-inline.blackjack { background:rgba(70,50,0,.95); color:#ffd700; border:1.5px solid #ffd700; display:block;
+  box-shadow:0 0 12px rgba(255,215,0,.5); animation:badgePop .3s ease both,bjGlow 1.5s ease .3s infinite alternate; }
+.result-badge-inline.tie       { background:rgba(70,50,0,.95); color:#ffd700; border:1.5px solid #ffd700; display:block;
+  box-shadow:0 0 12px rgba(255,215,0,.5); animation:badgePop .3s ease both,bjGlow 1.5s ease .3s infinite alternate; }
+@keyframes bjGlow { to{box-shadow:0 0 24px rgba(255,215,0,.9);} }
+
+/* ── CARDS — powered by vl-card.css ── */
+.vl-card { width:clamp(40px,5.8vw,56px); height:clamp(57px,9vh,80px); }
+.dealer-hand .vl-card { width:clamp(46px,6.8vw,62px); height:clamp(65px,10.5vh,90px); }
+.seat-hand.vert .vl-card { width:clamp(34px,5vw,46px); height:clamp(48px,7.5vh,66px); }
+.hand-total { font-family:'Rajdhani',sans-serif; font-size:clamp(10px,1.4vw,13px); font-weight:700;
+  color:#fff; background:rgba(0,0,0,.7); border-radius:10px; padding:2px 7px; letter-spacing:1px; }
+.hand-total.bust { color:#ff5555; }
+.hand-total.bj   { color:#ffd700; }
+
+/* ── DECK PILE ── */
+.deck-pile { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  width:clamp(32px,4.8vw,46px); height:clamp(46px,7.2vh,64px); z-index:3;
+  pointer-events:none; display:none; }
+.deck-pile.visible { display:block; }
+.deck-pile-card { position:absolute; inset:0; border-radius:6px;
+  background:#083a7a url('backVurgLife.png') center/80% no-repeat;
+  border:1.5px solid var(--gold-dk); box-shadow:0 1px 4px rgba(0,0,0,.5); }
+
+/* ── INVITE BUTTON ── */
+// [LINE 310 MISSING — no Read snapshot covers it]
+// [LINE 311 MISSING — no Read snapshot covers it]
+// [LINE 312 MISSING — no Read snapshot covers it]
+// [LINE 313 MISSING — no Read snapshot covers it]
+// [LINE 314 MISSING — no Read snapshot covers it]
+// [LINE 315 MISSING — no Read snapshot covers it]
+// [LINE 316 MISSING — no Read snapshot covers it]
+// [LINE 317 MISSING — no Read snapshot covers it]
+// [LINE 318 MISSING — no Read snapshot covers it]
+// [LINE 319 MISSING — no Read snapshot covers it]
+// [LINE 320 MISSING — no Read snapshot covers it]
+// [LINE 321 MISSING — no Read snapshot covers it]
+// [LINE 322 MISSING — no Read snapshot covers it]
+// [LINE 323 MISSING — no Read snapshot covers it]
+// [LINE 324 MISSING — no Read snapshot covers it]
+// [LINE 325 MISSING — no Read snapshot covers it]
+// [LINE 326 MISSING — no Read snapshot covers it]
+// [LINE 327 MISSING — no Read snapshot covers it]
+// [LINE 328 MISSING — no Read snapshot covers it]
+// [LINE 329 MISSING — no Read snapshot covers it]
+// [LINE 330 MISSING — no Read snapshot covers it]
+// [LINE 331 MISSING — no Read snapshot covers it]
+// [LINE 332 MISSING — no Read snapshot covers it]
+// [LINE 333 MISSING — no Read snapshot covers it]
+// [LINE 334 MISSING — no Read snapshot covers it]
+// [LINE 335 MISSING — no Read snapshot covers it]
+// [LINE 336 MISSING — no Read snapshot covers it]
+// [LINE 337 MISSING — no Read snapshot covers it]
+// [LINE 338 MISSING — no Read snapshot covers it]
+// [LINE 339 MISSING — no Read snapshot covers it]
+// [LINE 340 MISSING — no Read snapshot covers it]
+// [LINE 341 MISSING — no Read snapshot covers it]
+// [LINE 342 MISSING — no Read snapshot covers it]
+// [LINE 343 MISSING — no Read snapshot covers it]
+// [LINE 344 MISSING — no Read snapshot covers it]
+// [LINE 345 MISSING — no Read snapshot covers it]
+// [LINE 346 MISSING — no Read snapshot covers it]
+// [LINE 347 MISSING — no Read snapshot covers it]
+// [LINE 348 MISSING — no Read snapshot covers it]
+// [LINE 349 MISSING — no Read snapshot covers it]
+// [LINE 350 MISSING — no Read snapshot covers it]
+// [LINE 351 MISSING — no Read snapshot covers it]
+// [LINE 352 MISSING — no Read snapshot covers it]
+// [LINE 353 MISSING — no Read snapshot covers it]
+// [LINE 354 MISSING — no Read snapshot covers it]
+// [LINE 355 MISSING — no Read snapshot covers it]
+// [LINE 356 MISSING — no Read snapshot covers it]
+// [LINE 357 MISSING — no Read snapshot covers it]
+// [LINE 358 MISSING — no Read snapshot covers it]
+// [LINE 359 MISSING — no Read snapshot covers it]
+// [LINE 360 MISSING — no Read snapshot covers it]
+// [LINE 361 MISSING — no Read snapshot covers it]
+// [LINE 362 MISSING — no Read snapshot covers it]
+// [LINE 363 MISSING — no Read snapshot covers it]
+// [LINE 364 MISSING — no Read snapshot covers it]
+// [LINE 365 MISSING — no Read snapshot covers it]
+// [LINE 366 MISSING — no Read snapshot covers it]
+// [LINE 367 MISSING — no Read snapshot covers it]
+// [LINE 368 MISSING — no Read snapshot covers it]
+// [LINE 369 MISSING — no Read snapshot covers it]
+// [LINE 370 MISSING — no Read snapshot covers it]
+// [LINE 371 MISSING — no Read snapshot covers it]
+// [LINE 372 MISSING — no Read snapshot covers it]
+// [LINE 373 MISSING — no Read snapshot covers it]
+// [LINE 374 MISSING — no Read snapshot covers it]
+// [LINE 375 MISSING — no Read snapshot covers it]
+// [LINE 376 MISSING — no Read snapshot covers it]
+// [LINE 377 MISSING — no Read snapshot covers it]
+// [LINE 378 MISSING — no Read snapshot covers it]
+// [LINE 379 MISSING — no Read snapshot covers it]
+// [LINE 380 MISSING — no Read snapshot covers it]
+// [LINE 381 MISSING — no Read snapshot covers it]
+// [LINE 382 MISSING — no Read snapshot covers it]
+// [LINE 383 MISSING — no Read snapshot covers it]
+// [LINE 384 MISSING — no Read snapshot covers it]
+// [LINE 385 MISSING — no Read snapshot covers it]
+// [LINE 386 MISSING — no Read snapshot covers it]
+// [LINE 387 MISSING — no Read snapshot covers it]
+// [LINE 388 MISSING — no Read snapshot covers it]
+// [LINE 389 MISSING — no Read snapshot covers it]
+// [LINE 390 MISSING — no Read snapshot covers it]
+// [LINE 391 MISSING — no Read snapshot covers it]
+// [LINE 392 MISSING — no Read snapshot covers it]
+// [LINE 393 MISSING — no Read snapshot covers it]
+// [LINE 394 MISSING — no Read snapshot covers it]
+// [LINE 395 MISSING — no Read snapshot covers it]
+// [LINE 396 MISSING — no Read snapshot covers it]
+// [LINE 397 MISSING — no Read snapshot covers it]
+// [LINE 398 MISSING — no Read snapshot covers it]
+// [LINE 399 MISSING — no Read snapshot covers it]
+// [LINE 400 MISSING — no Read snapshot covers it]
+// [LINE 401 MISSING — no Read snapshot covers it]
+// [LINE 402 MISSING — no Read snapshot covers it]
+// [LINE 403 MISSING — no Read snapshot covers it]
+// [LINE 404 MISSING — no Read snapshot covers it]
+// [LINE 405 MISSING — no Read snapshot covers it]
+// [LINE 406 MISSING — no Read snapshot covers it]
+// [LINE 407 MISSING — no Read snapshot covers it]
+// [LINE 408 MISSING — no Read snapshot covers it]
+// [LINE 409 MISSING — no Read snapshot covers it]
+// [LINE 410 MISSING — no Read snapshot covers it]
+// [LINE 411 MISSING — no Read snapshot covers it]
+// [LINE 412 MISSING — no Read snapshot covers it]
+// [LINE 413 MISSING — no Read snapshot covers it]
+// [LINE 414 MISSING — no Read snapshot covers it]
+// [LINE 415 MISSING — no Read snapshot covers it]
+// [LINE 416 MISSING — no Read snapshot covers it]
+// [LINE 417 MISSING — no Read snapshot covers it]
+// [LINE 418 MISSING — no Read snapshot covers it]
+// [LINE 419 MISSING — no Read snapshot covers it]
+// [LINE 420 MISSING — no Read snapshot covers it]
+// [LINE 421 MISSING — no Read snapshot covers it]
+// [LINE 422 MISSING — no Read snapshot covers it]
+// [LINE 423 MISSING — no Read snapshot covers it]
+// [LINE 424 MISSING — no Read snapshot covers it]
+// [LINE 425 MISSING — no Read snapshot covers it]
+// [LINE 426 MISSING — no Read snapshot covers it]
+// [LINE 427 MISSING — no Read snapshot covers it]
+// [LINE 428 MISSING — no Read snapshot covers it]
+// [LINE 429 MISSING — no Read snapshot covers it]
+// [LINE 430 MISSING — no Read snapshot covers it]
+// [LINE 431 MISSING — no Read snapshot covers it]
+// [LINE 432 MISSING — no Read snapshot covers it]
+// [LINE 433 MISSING — no Read snapshot covers it]
+// [LINE 434 MISSING — no Read snapshot covers it]
+// [LINE 435 MISSING — no Read snapshot covers it]
+// [LINE 436 MISSING — no Read snapshot covers it]
+// [LINE 437 MISSING — no Read snapshot covers it]
+// [LINE 438 MISSING — no Read snapshot covers it]
+// [LINE 439 MISSING — no Read snapshot covers it]
+// [LINE 440 MISSING — no Read snapshot covers it]
+// [LINE 441 MISSING — no Read snapshot covers it]
+// [LINE 442 MISSING — no Read snapshot covers it]
+// [LINE 443 MISSING — no Read snapshot covers it]
+// [LINE 444 MISSING — no Read snapshot covers it]
+// [LINE 445 MISSING — no Read snapshot covers it]
+// [LINE 446 MISSING — no Read snapshot covers it]
+// [LINE 447 MISSING — no Read snapshot covers it]
+// [LINE 448 MISSING — no Read snapshot covers it]
+// [LINE 449 MISSING — no Read snapshot covers it]
+// [LINE 450 MISSING — no Read snapshot covers it]
+// [LINE 451 MISSING — no Read snapshot covers it]
+// [LINE 452 MISSING — no Read snapshot covers it]
+// [LINE 453 MISSING — no Read snapshot covers it]
+// [LINE 454 MISSING — no Read snapshot covers it]
+// [LINE 455 MISSING — no Read snapshot covers it]
+// [LINE 456 MISSING — no Read snapshot covers it]
+// [LINE 457 MISSING — no Read snapshot covers it]
+// [LINE 458 MISSING — no Read snapshot covers it]
+// [LINE 459 MISSING — no Read snapshot covers it]
+// [LINE 460 MISSING — no Read snapshot covers it]
+// [LINE 461 MISSING — no Read snapshot covers it]
+// [LINE 462 MISSING — no Read snapshot covers it]
+// [LINE 463 MISSING — no Read snapshot covers it]
+// [LINE 464 MISSING — no Read snapshot covers it]
+// [LINE 465 MISSING — no Read snapshot covers it]
+// [LINE 466 MISSING — no Read snapshot covers it]
+// [LINE 467 MISSING — no Read snapshot covers it]
+// [LINE 468 MISSING — no Read snapshot covers it]
+// [LINE 469 MISSING — no Read snapshot covers it]
+// [LINE 470 MISSING — no Read snapshot covers it]
+// [LINE 471 MISSING — no Read snapshot covers it]
+// [LINE 472 MISSING — no Read snapshot covers it]
+// [LINE 473 MISSING — no Read snapshot covers it]
+// [LINE 474 MISSING — no Read snapshot covers it]
+// [LINE 475 MISSING — no Read snapshot covers it]
+// [LINE 476 MISSING — no Read snapshot covers it]
+// [LINE 477 MISSING — no Read snapshot covers it]
+// [LINE 478 MISSING — no Read snapshot covers it]
+// [LINE 479 MISSING — no Read snapshot covers it]
+// [LINE 480 MISSING — no Read snapshot covers it]
+// [LINE 481 MISSING — no Read snapshot covers it]
+// [LINE 482 MISSING — no Read snapshot covers it]
+// [LINE 483 MISSING — no Read snapshot covers it]
+// [LINE 484 MISSING — no Read snapshot covers it]
+// [LINE 485 MISSING — no Read snapshot covers it]
+// [LINE 486 MISSING — no Read snapshot covers it]
+// [LINE 487 MISSING — no Read snapshot covers it]
+// [LINE 488 MISSING — no Read snapshot covers it]
+// [LINE 489 MISSING — no Read snapshot covers it]
+// [LINE 490 MISSING — no Read snapshot covers it]
+// [LINE 491 MISSING — no Read snapshot covers it]
+// [LINE 492 MISSING — no Read snapshot covers it]
+// [LINE 493 MISSING — no Read snapshot covers it]
+// [LINE 494 MISSING — no Read snapshot covers it]
+// [LINE 495 MISSING — no Read snapshot covers it]
+// [LINE 496 MISSING — no Read snapshot covers it]
+// [LINE 497 MISSING — no Read snapshot covers it]
+// [LINE 498 MISSING — no Read snapshot covers it]
+// [LINE 499 MISSING — no Read snapshot covers it]
+// [LINE 500 MISSING — no Read snapshot covers it]
+// [LINE 501 MISSING — no Read snapshot covers it]
+// [LINE 502 MISSING — no Read snapshot covers it]
+// [LINE 503 MISSING — no Read snapshot covers it]
+// [LINE 504 MISSING — no Read snapshot covers it]
+// [LINE 505 MISSING — no Read snapshot covers it]
+// [LINE 506 MISSING — no Read snapshot covers it]
+// [LINE 507 MISSING — no Read snapshot covers it]
+// [LINE 508 MISSING — no Read snapshot covers it]
+// [LINE 509 MISSING — no Read snapshot covers it]
+// [LINE 510 MISSING — no Read snapshot covers it]
+// [LINE 511 MISSING — no Read snapshot covers it]
+// [LINE 512 MISSING — no Read snapshot covers it]
+// [LINE 513 MISSING — no Read snapshot covers it]
+// [LINE 514 MISSING — no Read snapshot covers it]
+// [LINE 515 MISSING — no Read snapshot covers it]
+// [LINE 516 MISSING — no Read snapshot covers it]
+// [LINE 517 MISSING — no Read snapshot covers it]
+// [LINE 518 MISSING — no Read snapshot covers it]
+// [LINE 519 MISSING — no Read snapshot covers it]
+// [LINE 520 MISSING — no Read snapshot covers it]
+// [LINE 521 MISSING — no Read snapshot covers it]
+// [LINE 522 MISSING — no Read snapshot covers it]
+// [LINE 523 MISSING — no Read snapshot covers it]
+// [LINE 524 MISSING — no Read snapshot covers it]
+// [LINE 525 MISSING — no Read snapshot covers it]
+// [LINE 526 MISSING — no Read snapshot covers it]
+// [LINE 527 MISSING — no Read snapshot covers it]
+// [LINE 528 MISSING — no Read snapshot covers it]
+// [LINE 529 MISSING — no Read snapshot covers it]
+// [LINE 530 MISSING — no Read snapshot covers it]
+// [LINE 531 MISSING — no Read snapshot covers it]
+// [LINE 532 MISSING — no Read snapshot covers it]
+// [LINE 533 MISSING — no Read snapshot covers it]
+// [LINE 534 MISSING — no Read snapshot covers it]
+// [LINE 535 MISSING — no Read snapshot covers it]
+// [LINE 536 MISSING — no Read snapshot covers it]
+// [LINE 537 MISSING — no Read snapshot covers it]
+// [LINE 538 MISSING — no Read snapshot covers it]
+// [LINE 539 MISSING — no Read snapshot covers it]
+// [LINE 540 MISSING — no Read snapshot covers it]
+// [LINE 541 MISSING — no Read snapshot covers it]
+// [LINE 542 MISSING — no Read snapshot covers it]
+// [LINE 543 MISSING — no Read snapshot covers it]
+// [LINE 544 MISSING — no Read snapshot covers it]
+// [LINE 545 MISSING — no Read snapshot covers it]
+// [LINE 546 MISSING — no Read snapshot covers it]
+// [LINE 547 MISSING — no Read snapshot covers it]
+// [LINE 548 MISSING — no Read snapshot covers it]
+// [LINE 549 MISSING — no Read snapshot covers it]
+// [LINE 550 MISSING — no Read snapshot covers it]
+// [LINE 551 MISSING — no Read snapshot covers it]
+// [LINE 552 MISSING — no Read snapshot covers it]
+// [LINE 553 MISSING — no Read snapshot covers it]
+// [LINE 554 MISSING — no Read snapshot covers it]
+// [LINE 555 MISSING — no Read snapshot covers it]
+// [LINE 556 MISSING — no Read snapshot covers it]
+// [LINE 557 MISSING — no Read snapshot covers it]
+// [LINE 558 MISSING — no Read snapshot covers it]
+// [LINE 559 MISSING — no Read snapshot covers it]
+// [LINE 560 MISSING — no Read snapshot covers it]
+// [LINE 561 MISSING — no Read snapshot covers it]
+// [LINE 562 MISSING — no Read snapshot covers it]
+// [LINE 563 MISSING — no Read snapshot covers it]
+// [LINE 564 MISSING — no Read snapshot covers it]
+// [LINE 565 MISSING — no Read snapshot covers it]
+// [LINE 566 MISSING — no Read snapshot covers it]
+// [LINE 567 MISSING — no Read snapshot covers it]
+// [LINE 568 MISSING — no Read snapshot covers it]
+// [LINE 569 MISSING — no Read snapshot covers it]
+// [LINE 570 MISSING — no Read snapshot covers it]
+// [LINE 571 MISSING — no Read snapshot covers it]
+// [LINE 572 MISSING — no Read snapshot covers it]
+// [LINE 573 MISSING — no Read snapshot covers it]
+// [LINE 574 MISSING — no Read snapshot covers it]
+// [LINE 575 MISSING — no Read snapshot covers it]
+// [LINE 576 MISSING — no Read snapshot covers it]
+// [LINE 577 MISSING — no Read snapshot covers it]
+// [LINE 578 MISSING — no Read snapshot covers it]
+// [LINE 579 MISSING — no Read snapshot covers it]
+// [LINE 580 MISSING — no Read snapshot covers it]
+// [LINE 581 MISSING — no Read snapshot covers it]
+// [LINE 582 MISSING — no Read snapshot covers it]
+// [LINE 583 MISSING — no Read snapshot covers it]
+// [LINE 584 MISSING — no Read snapshot covers it]
+    padding: 4px 2px 2px;
+    align-items: flex-start;
+  }
+
+  /* ── Table ── */
+  .oval-table {
+    width: 99vw;
+    height: min(58vw, 380px);
+    border-radius: 0 0 400px 400px / 0 0 180px 180px;
+  }
+
+  /* ── Table logo watermark — smaller on mobile ── */
+  .table-logo {
+    width: 70%;
+  }
+
+  /* ── Seat nametags — larger touch area ── */
+  .seat-nametag {
+    font-size: clamp(8px, 2.2vw, 11px);
+    padding: 2px 6px;

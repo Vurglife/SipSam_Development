@@ -1,0 +1,608 @@
+1	<!DOCTYPE html>
+2	<html lang="en">
+3	<head>
+4	<meta charset="UTF-8"/>
+5	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+6	  <meta name="mobile-web-app-capable" content="yes"/>
+7	  <meta name="apple-mobile-web-app-capable" content="yes"/>
+8	  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+9	  <meta name="theme-color" content="#04080f"/>
+10	<title>Blackjack — VurgLife</title>
+11	<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Rajdhani:wght@400;600;700&family=Bebas+Neue&family=Exo+2:wght@400;600;700&display=swap" rel="stylesheet"/>
+12	<link rel="stylesheet" href="style.css"/>
+13	<link rel="stylesheet" href="vl-card.css"/>
+14	</head>
+15	<body>
+16	
+17	<!-- ═══════════ LOBBY ═══════════ -->
+18	<div id="screen-lobby" class="screen active">
+19	  <div class="lobby-bg">
+20	
+21	    <!-- ── STEP 1: Mode Selection (always shown first, never auto-skipped) ── -->
+22	    <div id="lobby-step-choose" class="lobby-card">
+23	      <div class="lobby-logo">Vurg<span>Life</span></div>
+24	      <div class="lobby-title">♠ BLACKJACK ♠</div>
+25	      <div class="lobby-sub">Min $100 · Max $500 per hand · $2,500 starting wallet</div>
+26	      <div class="lobby-modes">
+27	        <div class="mode-card" onclick="chooseLobby('multi')">
+28	          <div class="mode-icon">👥</div>
+29	          <div class="mode-name">Multiplayer</div>
+30	          <div class="mode-desc">Create a table, invite friends and wait for them to join. Up to 6 players. 5-minute invite window.</div>
+31	          <button class="mode-btn">PLAY MULTIPLAYER →</button>
+32	        </div>
+33	        <div class="mode-card" onclick="chooseLobby('single')">
+34	          <div class="mode-icon">🃏</div>
+35	          <div class="mode-name">Single Player</div>
+36	          <div class="mode-desc">Your private table. Starts immediately. Add bots from empty seats.</div>
+37	          <button class="mode-btn secondary">PLAY SINGLE →</button>
+38	        </div>
+39	      </div>
+40	    </div>
+41	
+42	    <!-- ── STEP 2A: Single Player — ad countdown ── -->
+43	    <div id="lobby-step-single" class="lobby-card" style="display:none">
+44	      <div class="lobby-logo">Vurg<span>Life</span></div>
+45	      <div class="lobby-title">🃏 Single Table</div>
+46	      <div style="font-size:12px;color:#888;margin-bottom:16px">Your private table is being prepared…</div>
+47	      <div class="ad-sim"><div class="al">ADVERTISEMENT</div><div class="ai">📺</div><div style="font-size:11px;color:#666">Ad plays here</div></div>
+48	      <div class="ad-bar"><div class="ad-fill" id="lobby-ad-fill" style="width:0%"></div></div>
+49	      <div class="ad-cnt" id="lobby-ad-cnt">10</div>
+50	      <button id="lobby-enter-btn" class="mode-btn" disabled onclick="enterTableNow()" style="width:100%;margin-top:12px">ENTER TABLE →</button>
+51	      <button class="btn-secondary" onclick="backToChoose()" style="width:100%;margin-top:8px;font-size:12px">← Back</button>
+52	    </div>
+53	
+54	    <!-- ── STEP 2B: Multiplayer — waiting room with invite ── -->
+55	    <div id="lobby-step-multi" class="lobby-card" style="display:none;max-width:560px">
+56	      <div class="lobby-logo">Vurg<span>Life</span></div>
+57	      <div class="lobby-title">👥 Multiplayer Table</div>
+58	
+59	      <!-- 5-min countdown -->
+60	      <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin:10px 0 14px">
+61	        <div style="font-size:11px;color:#7a9ac0;letter-spacing:2px;text-transform:uppercase">Game starts in</div>
+62	        <div id="lobby-wait-timer" style="font-family:'Rajdhani',sans-serif;font-size:28px;font-weight:900;color:#c9a84c;letter-spacing:2px">5:00</div>
+63	        <div style="font-size:11px;color:#7a9ac0;letter-spacing:2px;text-transform:uppercase">or when full</div>
+64	      </div>
+65	
+66	      <!-- Seats list -->
+67	      <div id="lobby-seats-list" style="background:rgba(0,0,0,.3);border:1px solid rgba(201,168,76,.15);border-radius:10px;padding:10px 14px;margin-bottom:14px;min-height:80px">
+68	        <div style="font-size:10px;color:#555;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Players at table</div>
+69	        <div id="lobby-player-rows"></div>
+70	      </div>
+71	
+72	      <!-- Invite panel -->
+73	      <div style="margin-bottom:12px">
+74	        <div class="lobby-section-label" style="margin-bottom:8px">📨 INVITE A PLAYER</div>
+75	        <div style="position:relative">
+76	          <div style="display:flex;gap:8px;align-items:stretch">
+77	            <input id="lobby-invite-input" type="text" placeholder="Click to see friends or type a username…" autocomplete="off"
+78	              style="flex:1;padding:10px 12px;background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;color:#f0f6ff;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none"
+79	              oninput="onMultiInviteInput(this.value)" onfocus="onMultiInviteFocus()"/>
+80	            <button class="mode-btn" style="width:auto;padding:10px 18px;font-size:13px" onclick="sendMultiInvite()">Send Invite</button>
+81	          </div>
+82	          <div id="lobby-multi-invite-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#06111f;border:1px solid #1a5caa;border-radius:8px;margin-top:4px;max-height:220px;overflow-y:auto;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.7)"></div>
+83	        </div>
+84	        <div id="lobby-invite-status" style="font-size:12px;color:#7a9ac0;min-height:16px;margin-top:6px;text-align:center"></div>
+85	      </div>
+86	
+87	      <div style="display:flex;gap:8px">
+88	        <button class="mode-btn" onclick="startNow()" style="flex:1">START NOW →</button>
+89	        <button class="btn-secondary" onclick="backToChoose()" style="font-size:12px;padding:10px 14px">← Back</button>
+90	      </div>
+91	    </div>
+92	
+93	  </div>
+94	</div>
+95	
+96	<!-- ═══════════ GAME ═══════════ -->
+97	<div id="screen-game" class="screen">
+98	  <div class="top-bar">
+99	    <span id="game-round">Round —</span>
+100	    <span id="game-status">—</span>
+101	
+102	  </div>
+103	  <div class="status-bar" id="table-message"></div>
+104	
+105	  <div class="game-body-bj">
+106	
+107	    <!-- TABLE — full width semicircle -->
+108	    <div class="oval-table" id="oval-table">
+109	      <div class="felt-grid"></div>
+110	      <!-- Decorative betting arc line -->
+111	      <div style="position:absolute;bottom:18%;left:50%;transform:translateX(-50%);width:70%;height:2px;background:linear-gradient(90deg,transparent,rgba(201,168,76,.15) 20%,rgba(201,168,76,.35) 50%,rgba(201,168,76,.15) 80%,transparent);border-radius:50%;pointer-events:none;z-index:2"></div>
+112	      <!-- Inner glow ring -->
+113	      <div style="position:absolute;inset:0;border-radius:0 0 700px 700px / 0 0 320px 320px;background:radial-gradient(ellipse 50% 30% at 50% 95%,rgba(201,168,76,.06) 0%,transparent 70%);pointer-events:none;z-index:2"></div>
+114	      <img src="VurgLife_logo_table.png" class="table-logo" alt="VurgLife" draggable="false" onerror="this.style.display='none'"/>
+115	
+116	      <!-- Countdown moved to top-bar -->
+117	
+118	      <!-- Phase banner -->
+119	      <div class="phase-banner" id="phase-banner"></div>
+120	
+121	      <!-- DEALER — top centre -->
+122	      <div class="bj-dealer-zone">
+123	        <div class="zone-nametag dealer-tag">◆ DEALER ◆</div>
+124	        <div class="zone-stats" style="margin-top:4px">
+125	          <span class="zone-balance" id="dealer-total-display"></span>
+126	        </div>
+127	        <div class="dealer-hand" id="dealer-cards"></div>
+128	      </div>
+129	
+130	      <!-- 6 PLAYER SEATS in semicircle arc -->
+131	      <!-- Top arc: seats 0, 1, 2 -->
+132	      <div class="bj-seat bj-seat-0" id="bj-seat-0">
+133	        <div class="seat-nametag" id="seat0-name"></div>
+134	        <div class="seat-chips"   id="seat0-chips"></div>
+135	        <div class="seat-bet"     id="seat0-bet"></div>
+136	        <div class="seat-hand"    id="seat0-cards"></div>
+137	        <div class="result-badge-inline" id="seat0-result"></div>
+138	        <div class="empty-seat-zone" id="seat0-empty" style="display:none">
+139	          <div class="empty-seat-label">Empty</div>
+140	          <button class="invite-btn" id="seat0-invite" onclick="inviteToSeat()">＋ Invite</button>
+141	          <button class="seat-bot-btn" id="seat0-bot-btn" onclick="addBotToSeat(0)">🤖 Bot</button>
+142	        </div>
+143	      </div>
+144	
+145	      <div class="bj-seat bj-seat-1" id="bj-seat-1">
+146	        <div class="seat-nametag" id="seat1-name"></div>
+147	        <div class="seat-chips"   id="seat1-chips"></div>
+148	        <div class="seat-bet"     id="seat1-bet"></div>
+149	        <div class="seat-hand"    id="seat1-cards"></div>
+150	        <div class="result-badge-inline" id="seat1-result"></div>
+151	        <div class="empty-seat-zone" id="seat1-empty" style="display:none">
+152	          <div class="empty-seat-label">Empty</div>
+153	          <button class="invite-btn" id="seat1-invite" onclick="inviteToSeat()">＋ Invite</button>
+154	          <button class="seat-bot-btn" id="seat1-bot-btn" onclick="addBotToSeat(1)">🤖 Bot</button>
+155	        </div>
+156	      </div>
+157	
+158	      <div class="bj-seat bj-seat-2" id="bj-seat-2">
+159	        <div class="seat-nametag" id="seat2-name"></div>
+160	        <div class="seat-chips"   id="seat2-chips"></div>
+161	        <div class="seat-bet"     id="seat2-bet"></div>
+162	        <div class="seat-hand"    id="seat2-cards"></div>
+163	        <div class="result-badge-inline" id="seat2-result"></div>
+164	        <div class="empty-seat-zone" id="seat2-empty" style="display:none">
+165	          <div class="empty-seat-label">Empty</div>
+166	          <button class="invite-btn" id="seat2-invite" onclick="inviteToSeat()">＋ Invite</button>
+167	          <button class="seat-bot-btn" id="seat2-bot-btn" onclick="addBotToSeat(2)">🤖 Bot</button>
+168	        </div>
+169	      </div>
+170	
+171	      <!-- Bottom arc: seats 3, 4 (centre/primary), 5 -->
+172	      <div class="bj-seat bj-seat-3" id="bj-seat-3">
+173	        <div class="seat-nametag" id="seat3-name"></div>
+174	        <div class="seat-chips"   id="seat3-chips"></div>
+175	        <div class="seat-bet"     id="seat3-bet"></div>
+176	        <div class="seat-hand"    id="seat3-cards"></div>
+177	        <div class="result-badge-inline" id="seat3-result"></div>
+178	        <div class="empty-seat-zone" id="seat3-empty" style="display:none">
+179	          <div class="empty-seat-label">Empty</div>
+180	          <button class="invite-btn" id="seat3-invite" onclick="inviteToSeat()">＋ Invite</button>
+181	          <button class="seat-bot-btn" id="seat3-bot-btn" onclick="addBotToSeat(3)">🤖 Bot</button>
+182	        </div>
+183	      </div>
+184	
+185	      <div class="bj-seat bj-seat-4" id="bj-seat-4">
+186	        <div class="seat-nametag" id="seat4-name"></div>
+187	        <div class="seat-chips"   id="seat4-chips"></div>
+188	        <div class="seat-bet"     id="seat4-bet"></div>
+189	        <div class="seat-hand"    id="seat4-cards"></div>
+190	        <div class="result-badge-inline" id="seat4-result"></div>
+191	        <div class="empty-seat-zone" id="seat4-empty" style="display:none">
+192	          <div class="empty-seat-label">Empty</div>
+193	          <button class="invite-btn" id="seat4-invite" onclick="inviteToSeat()">＋ Invite</button>
+194	          <button class="seat-bot-btn" id="seat4-bot-btn" onclick="addBotToSeat(4)">🤖 Bot</button>
+195	        </div>
+196	      </div>
+197	
+198	      <div class="bj-seat bj-seat-5" id="bj-seat-5">
+199	        <div class="seat-nametag" id="seat5-name"></div>
+200	        <div class="seat-chips"   id="seat5-chips"></div>
+201	        <div class="seat-bet"     id="seat5-bet"></div>
+202	        <div class="seat-hand"    id="seat5-cards"></div>
+203	        <div class="result-badge-inline" id="seat5-result"></div>
+204	        <div class="empty-seat-zone" id="seat5-empty" style="display:none">
+205	          <div class="empty-seat-label">Empty</div>
+206	          <button class="invite-btn" id="seat5-invite" onclick="inviteToSeat()">＋ Invite</button>
+207	          <button class="seat-bot-btn" id="seat5-bot-btn" onclick="addBotToSeat(5)">🤖 Bot</button>
+208	        </div>
+209	      </div>
+210	
+211	      <!-- Deck pile -->
+212	      <div class="deck-pile" id="deck-pile">
+213	        <div class="deck-pile-card" style="top:-3px;left:1px"></div>
+214	        <div class="deck-pile-card" style="top:-1.5px;left:.5px"></div>
+215	        <div class="deck-pile-card"></div>
+216	      </div>
+217	
+218	      <!-- BET OVERLAY -->
+219	      <div id="bet-overlay" style="display:none;position:absolute;inset:0;z-index:50;background:rgba(2,8,16,.76);backdrop-filter:blur(2px);border-radius:inherit;flex-direction:column;align-items:center;justify-content:center;gap:0">
+220	        <div style="font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#7a9ac0;margin-bottom:2px">Round <span id="bet-round-label">—</span></div>
+221	        <!-- Wallet display — visible inside overlay so player always sees their balance -->
+222	        <div style="display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.4);border:1px solid rgba(201,168,76,.2);border-radius:20px;padding:4px 14px;margin-bottom:4px">
+223	          <span style="font-size:10px;color:#7a9ac0;letter-spacing:2px;text-transform:uppercase">Wallet</span>
+224	          <span id="bet-overlay-wallet" style="font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:900;color:var(--gold-lt);letter-spacing:1px">$—</span>
+225	        </div>
+226	        <div id="bet-alert-text" style="font-family:'Bebas Neue',sans-serif;font-size:clamp(22px,3.8vw,36px);letter-spacing:4px;color:#c9a84c;text-align:center;line-height:1;text-shadow:0 0 30px rgba(201,168,76,.6)">Tap a chip to bet</div>
+227	
+228	        <!-- Chip + countdown section — hidden after bet placed -->
+229	        <div id="bet-chips-section" style="display:flex;flex-direction:column;align-items:center;gap:6px;position:relative">
+230	          <div id="bet-confirm-section">
+231	            <div class="chip-row" style="margin:4px 0">
+232	              <button class="chip-btn chip-100" onclick="addChip(100)">$100</button>
+233	              <button class="chip-btn chip-200" onclick="addChip(200)">$200</button>
+234	              <button class="chip-btn chip-350" onclick="addChip(350)">$350</button>
+235	              <button class="chip-btn chip-500" onclick="addChip(500)">$500</button>
+236	            </div>
+237	            <div id="bet-display" style="font-family:'Rajdhani',sans-serif;font-size:clamp(16px,4.5vw,26px);font-weight:900;color:#c9a84c;letter-spacing:2px;min-height:24px;text-align:center;margin:2px 0 4px"></div>
+238	          </div>
+239	          <!-- Countdown timer — positioned to the right, out of the way of chips -->
+240	          <div style="position:absolute;right:-100px;top:50%;transform:translateY(-50%);width:76px;height:76px">
+241	            <svg viewBox="0 0 80 80" style="position:absolute;inset:0;transform:rotate(-90deg)">
+242	              <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="6"/>
+243	              <circle id="bet-ring" cx="40" cy="40" r="34" fill="none" stroke="#c9a84c" stroke-width="6"
+244	                stroke-dasharray="213.6" stroke-dashoffset="0" stroke-linecap="round"
+245	                style="transition:stroke-dashoffset .9s linear,stroke .3s"/>
+246	            </svg>
+247	            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column">
+248	              <span id="bet-countdown" style="font-family:'Rajdhani',sans-serif;font-size:28px;font-weight:900;color:#f0f6ff;line-height:1">10</span>
+249	              <span style="font-size:9px;color:#7a9ac0;letter-spacing:1px">SECS</span>
+250	            </div>
+251	          </div>
+252	        </div>
+253	
+254	        <!-- Tie bet section — ALWAYS visible during betting phase -->
+255	        <div id="bet-tiebet-section" style="display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:6px">
+256	          <div style="font-size:10px;color:#888;letter-spacing:2px;text-transform:uppercase">Optional Side Bet</div>
+257	          <button id="btn-tie-bet" onclick="placeTieBet()" class="tie-bet-btn">🎯 TIE BET — $100</button>
+258	          <div style="font-size:10px;color:#666;text-align:center;line-height:1.4">
+259	            <strong style="color:#ffd700">$2,000 Bonus</strong> · $500 main bet: <strong style="color:#ffd700">$3,000 Bonus</strong><br>
+260	            Wins if your total = dealer's total
+261	          </div>
+262	        </div>
+263	        <!-- Freeze section — shown after bet is placed, hidden while choosing -->
+264	        <div id="bet-freeze-section" style="display:none;flex-direction:column;align-items:center;gap:4px;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);width:100%">
+265	          <button id="btn-freeze-overlay" class="freeze-btn" onclick="toggleFreeze()">🔒 Freeze This Bet</button>
+266	          <div style="font-size:9px;color:#555;letter-spacing:1px">Auto-repeats every round · closes in 3s</div>
+267	        </div>
+268	      </div>
+269	
+270	      <!-- WIN/LOSE FLASH -->
+271	      <!-- ── YOUR TURN COUNTDOWN — centred on felt, only visible on your turn ── -->
+272	      <div id="your-turn-overlay" style="display:none;position:absolute;inset:0;z-index:55;pointer-events:none;align-items:center;justify-content:center;flex-direction:column;gap:8px">
+273	        <div style="background:rgba(0,0,0,.75);border:2px solid var(--gold);border-radius:16px;padding:12px 32px;text-align:center;backdrop-filter:blur(4px)">
+274	          <div style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px;color:#7a9ac0;text-transform:uppercase;margin-bottom:2px">Your Turn</div>
+275	          <div id="cd-number" style="font-family:'Rajdhani',sans-serif;font-size:clamp(48px,9vw,72px);font-weight:900;color:var(--gold-lt);line-height:1;letter-spacing:2px;font-variant-numeric:tabular-nums">10</div>
+276	          <div style="font-size:10px;color:#555;letter-spacing:2px;margin-top:2px">SECONDS</div>
+277	        </div>
+278	      </div>
+279	
+280	      <div id="result-flash" style="display:none;position:absolute;inset:0;z-index:60;border-radius:inherit;pointer-events:none;align-items:center;justify-content:center">
+281	        <div id="result-flash-text" style="font-family:'Bebas Neue',sans-serif;font-size:clamp(48px,8vw,80px);letter-spacing:8px;text-align:center;text-shadow:0 0 40px currentColor;animation:resultFlash .6s ease-out both"></div>
+282	      </div>
+283	
+284	    </div><!-- /oval-table -->
+285	
+286	  </div><!-- /game-body-bj -->
+287	
+288	  <!-- MY AREA -->
+289	  <div class="my-area">
+290	    <div class="my-info-bar">
+291	      <span id="my-name">—</span>
+292	      <span id="my-chips">$1,000</span>
+293	      <span id="my-payout"></span>
+294	      <!-- Freeze: always visible, shows current state clearly -->
+295	
+296	    </div>
+297	    <!-- Insurance -->
+298	    <div id="insurance-panel" style="display:none">
+299	      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:4px 0">
+300	        <div style="flex:1">
+301	          <div style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#fbbf24;margin-bottom:3px">⚠️ DEALER SHOWS ACE</div>
+302	          <div id="insurance-msg" style="font-size:12px;color:#7a9ac0">Take insurance for half your bet?</div>
+303	        </div>
+304	        <button class="action-btn primary" onclick="takeInsurance(true)">YES — INSURE</button>
+305	        <button class="action-btn" onclick="takeInsurance(false)">NO THANKS</button>
+306	      </div>
+307	    </div>
+308	    <!-- Player actions -->
+309	    <div id="player-actions" style="display:none">
+310	      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center">
+311	        <button class="action-btn primary large" id="btn-hit"    onclick="sendAction('hit')">HIT</button>
+312	        <button class="action-btn large"         id="btn-stand"  onclick="sendAction('stand')">STAND</button>
+313	        <button class="action-btn"               id="btn-double" onclick="sendAction('double')">DOUBLE</button>
+314	        <button class="action-btn"               id="btn-split"  onclick="sendAction('split')">SPLIT</button>
+315	      </div>
+316	      <div id="split-status" style="font-size:11px;color:#7a9ac0;text-align:center;margin-top:4px;min-height:14px"></div>
+317	    </div>
+318	    <!-- Waiting -->
+319	    <div id="waiting-msg" style="display:none;text-align:center;padding:6px 0">
+320	      <div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;letter-spacing:2px;color:#4aabff;animation:betPulse 1.5s ease-in-out infinite">Waiting for players…</div>
+321	    </div>
+322	    <!-- Freeze button — always visible, centred below all action panels -->
+323	    <div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:6px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.04)">
+324	      <button id="btn-freeze-bar" class="freeze-btn-bar" onclick="toggleFreeze()">🔒 Freeze Bet</button>
+325	      <span id="seat-freeze-indicator" class="freeze-indicator" style="display:none"></span>
+326	    </div>
+327	  </div>
+328	
+329	  <!-- Chat FAB -->
+330	  <button id="chat-fab" onclick="toggleChatPopup()" style="position:fixed;bottom:18px;right:18px;width:44px;height:44px;border-radius:50%;background:#1a5caa;border:2px solid #2a7fff;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.5);z-index:300;transition:transform .15s">💬</button>
+331	  <div id="chat-popup" style="position:fixed;bottom:72px;right:18px;width:260px;background:#06111f;border:1px solid #1a3a5c;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.7);z-index:299;display:none;flex-direction:column;overflow:hidden">
+332	    <div style="padding:8px 12px;border-bottom:1px solid #1a3a5c;font-size:11px;color:#7a9ac0;letter-spacing:1px;text-transform:uppercase">Table Chat</div>
+333	    <div style="padding:10px;display:flex;gap:6px;align-items:center">
+334	      <input id="chat-bar-input" type="text" maxlength="120" placeholder="Type a message..." style="flex:1;background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;color:#e0eeff;font-size:13px;padding:6px 10px;outline:none;font-family:inherit" onkeydown="if(event.key==='Enter'){chatBarSend();toggleChatPopup();}"/>
+335	      <button onclick="chatBarSend();toggleChatPopup();" style="background:#1a5caa;border:none;border-radius:8px;color:#fff;font-size:12px;padding:6px 12px;cursor:pointer">Send</button>
+336	    </div>
+337	  </div>
+338	</div><!-- /screen-game -->
+339	
+340	<!-- ═══════════ GAME OVER ═══════════ -->
+341	<div id="screen-gameover" class="screen">
+342	  <div class="gameover-card">
+343	    <h2>Round Complete</h2>
+344	    <div id="gameover-result" style="font-size:15px;font-weight:700;margin-bottom:12px;letter-spacing:1px"></div>
+345	    <div id="final-scores" style="margin-bottom:24px"></div>
+346	    <button class="btn-secondary" onclick="exitToLobby()" style="padding:12px 28px">🏠 Return to Dashboard</button>
+347	  </div>
+348	</div>
+349	
+350	<script src="vl-card.js"></script>
+351	<script src="game.js?v=2"></script>
+352	
+353	<!-- ═══════════ IGM BUTTON ═══════════ -->
+354	<button id="ingame-menu-btn" onclick="toggleIngameMenu()" style="display:none;position:fixed;top:8px;right:10px;z-index:500;background:rgba(8,15,30,.9);border:1px solid #1a2d50;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700;letter-spacing:1px;font-family:'Rajdhani',sans-serif;color:#f0f6ff;backdrop-filter:blur(6px);align-items:center;gap:7px;text-transform:uppercase;box-shadow:0 4px 16px rgba(0,0,0,.5)">☰ MENU</button>
+355	<div id="igm-overlay" onclick="closeIngameMenu()" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(2,6,9,.6);backdrop-filter:blur(2px)"></div>
+356	
+357	<!-- ═══════════ IGM PANEL ═══════════ -->
+358	<div id="igm-panel" style="position:fixed;top:0;right:0;bottom:0;width:300px;z-index:700;background:#080f1e;border-left:1px solid #1a2d50;transform:translateX(100%);transition:transform .3s ease;display:flex;flex-direction:column;overflow:hidden;box-shadow:-20px 0 60px rgba(0,0,0,.7)">
+359	  <div style="padding:18px 20px;border-bottom:1px solid #1a2d50;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#040d1c,#0a1e3c)">
+360	    <div>
+361	      <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;background:linear-gradient(135deg,#fff,#4aabff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">In-Game Menu</div>
+362	      <div style="font-size:10px;letter-spacing:2px;color:#334d70;margin-top:1px">♠ Blackjack — $100 Table</div>
+363	    </div>
+364	    <button onclick="closeIngameMenu()" style="background:rgba(26,140,255,.1);border:1px solid #1a2d50;border-radius:6px;padding:6px 11px;cursor:pointer;color:#7a9ac0;font-size:16px">✕</button>
+365	  </div>
+366	  <div style="padding:14px 20px;border-bottom:1px solid #1a2d50;background:rgba(11,21,40,.7);display:flex;align-items:center;gap:12px">
+367	    <div style="width:38px;height:38px;border-radius:50%;background:#0f1e38;border:2px solid #0d4a8a;display:flex;align-items:center;justify-content:center;font-size:18px" id="igm-avatar">👤</div>
+368	    <div style="flex:1"><div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px" id="igm-username">—</div><div style="font-size:11px;color:#c9a84c;font-weight:600" id="igm-wallet-display">Wallet: $—</div></div>
+369	    <div style="text-align:right"><div style="font-size:10px;color:#334d70;letter-spacing:1px">BANK</div><div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;color:#e8c96a" id="igm-bank-display">$—</div></div>
+370	  </div>
+371	  <nav style="flex:1;overflow-y:auto;padding:8px 0">
+372	    <div class="igm-item" onclick="igmReplenish()"><div class="igm-ico">💰</div><div class="igm-body"><div class="igm-title">Replenish Wallet</div><div class="igm-desc">Draw chips from your bank</div></div><span class="igm-arrow">›</span></div>
+373	    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
+374	    <div class="igm-item" onclick="igmAddBot()"><div class="igm-ico">🤖</div><div class="igm-body"><div class="igm-title">Add Bot</div><div class="igm-desc">Bot financed from your wallet — you keep winnings</div></div><span class="igm-arrow">›</span></div>
+375	    <div class="igm-item" onclick="igmInvite()"><div class="igm-ico">📨</div><div class="igm-body"><div class="igm-title">Invite Friends</div><div class="igm-desc">Send a table link</div></div><span class="igm-arrow">›</span></div>
+376	    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
+377	    <div class="igm-item" onclick="igmShowRules()"><div class="igm-ico">📖</div><div class="igm-body"><div class="igm-title">Game Rules</div><div class="igm-desc">Blackjack rules &amp; payouts</div></div><span class="igm-arrow">›</span></div>
+378	    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
+379	    <div class="igm-item igm-danger" onclick="igmExit()"><div class="igm-ico">🚪</div><div class="igm-body"><div class="igm-title">Exit Game</div><div class="igm-desc">Chips returned to your bank</div></div><span class="igm-arrow">›</span></div>
+380	  </nav>
+381	
+382	  <!-- Replenish sub -->
+383	  <div id="igm-sub-replenish" class="igm-sub">
+384	    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Replenish Wallet</span></div>
+385	    <div style="padding:20px">
+386	      <div style="background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;padding:14px;margin-bottom:16px">
+387	        <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px"><span style="color:#7a9ac0">Wallet</span><span id="rep-cur-wallet" style="font-weight:700;color:#e8c96a">$—</span></div>
+388	        <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#7a9ac0">Bank</span><span id="rep-cur-bank" style="font-weight:700">$—</span></div>
+389	      </div>
+390	      <div style="display:flex;gap:8px;margin-bottom:10px">
+391	        <input id="rep-amount" type="number" placeholder="Amount..." style="flex:1;background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 13px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:14px;outline:none">
+392	        <button onclick="igmFillMax()" style="background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 12px;color:#4aabff;font-size:11px;font-weight:700;cursor:pointer">MAX</button>
+393	      </div>
+394	      <div id="rep-err" style="font-size:11px;color:#fca5a5;margin-bottom:8px;display:none"></div>
+395	      <button class="igm-action-btn" onclick="doReplenish()">💰 Draw to Wallet</button>
+396	    </div>
+397	  </div>
+398	
+399	  <!-- Invite sub -->
+400	  <div id="igm-sub-invite" class="igm-sub">
+401	    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Invite Friends</span></div>
+402	    <div style="padding:16px;flex:1;display:flex;flex-direction:column;gap:10px">
+403	      <div style="position:relative">
+404	        <input id="invite-username" type="text" placeholder="Search username…" style="width:100%;padding:9px 12px;background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;color:#f0f6ff;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;box-sizing:border-box" oninput="onLobbyInviteInput(this.value)" onfocus="onLobbyInviteFocus()" autocomplete="off"/>
+405	        <div id="lobby-invite-dropdown" style="display:none;position:absolute;bottom:100%;left:0;right:0;background:#06111f;border:1px solid #1a2d50;border-radius:8px;z-index:600;max-height:200px;overflow-y:auto;margin-bottom:4px;box-shadow:0 -8px 24px rgba(0,0,0,.5)"></div>
+406	      </div>
+407	      <button class="igm-action-btn" onclick="sendLobbyInvite()">📨 SEND INVITE</button>
+408	      <div id="invite-status" style="font-size:12px;color:#7a9ac0;min-height:16px;text-align:center"></div>
+409	    </div>
+410	  </div>
+411	
+412	  <!-- Rules sub -->
+413	  <div id="igm-sub-rules" class="igm-sub" style="overflow-y:auto">
+414	    <div class="igm-sub-head" style="position:sticky;top:0;z-index:1;background:#080f1e"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Blackjack Rules</span></div>
+415	    <div style="padding:16px;font-size:12px;line-height:1.6;color:#7a9ac0">
+416	      <div class="igm-rule-sec"><div class="igm-rule-h">📋 Basic Rules</div><ul style="padding-left:16px;margin:0">
+417	        <li>Beat dealer — get closer to 21 without going over</li>
+418	        <li>Blackjack (A + 10-value) pays <strong style="color:#ffd700">3:2</strong></li>
+419	        <li>Dealer stands on soft 17</li>
+420	        <li>Double down on any first 2 cards</li>
+421	        <li>Split matching pairs — play as 2 separate hands</li>
+422	        <li>Split Aces: one card each, auto-stand</li>
+423	        <li>Insurance: fixed $50 bet, pays 2:1 if dealer has Blackjack</li>
+424	      </ul></div>
+425	      <div class="igm-rule-sec"><div class="igm-rule-h">🎯 Tie Bet</div><ul style="padding-left:16px;margin:0"><li>Place $100 during betting phase</li><li>Win <strong style="color:#ffd700">$2,000 Bonus</strong> if your total equals dealer's total</li><li>Works even if both player and dealer bust with same total</li><li>$500 main bet earns <strong style="color:#ffd700">$3,000 Bonus</strong> on a tie</li><li>Independent of round result — you can lose the round and still win the bonus</li></ul></div>
+426	      <div class="igm-rule-sec"><div class="igm-rule-h">💰 Payouts</div><ul style="padding-left:16px;margin:0">
+427	        <li>Blackjack: <strong style="color:#ffd700">3:2</strong></li>
+428	        <li>Win: 1:1</li>
+429	        <li>Push: bet returned</li>
+430	        <li>Insurance: 2:1</li>
+431	      </ul></div>
+432	      <div class="igm-rule-sec"><div class="igm-rule-h">🏝 Caribbean Side Bets</div><ul style="padding-left:16px;margin:0">
+433	        <li><strong style="color:#e8c96a">Island BJ</strong> — Suited A+K — 3:1 +$500</li>
+434	        <li><strong style="color:#e8c96a">Triple 7s</strong> — Three 7s — 5:1 +$2,500</li>
+435	        <li><strong style="color:#e8c96a">Rum Runner</strong> — 3-card 21 — 4:1 +$1,000</li>
+436	        <li><strong style="color:#e8c96a">Dealer Bust Bonus</strong> — Dealer busts 22 — 1.5:1</li>
+437	        <li><strong style="color:#e8c96a">Full Sweep</strong> — Win 5 in a row — 2× bonus</li>
+438	      </ul></div>
+439	    </div>
+440	  </div>
+441	</div><!-- /igm-panel -->
+442	
+443	<style>
+444	@keyframes betPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.8;transform:scale(1.03)}}
+445	@keyframes resultFlash{0%{transform:scale(0.5);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+446	.igm-item{display:flex;align-items:center;gap:12px;padding:13px 20px;cursor:pointer;transition:background .14s;border-left:3px solid transparent}
+447	.igm-item:hover{background:rgba(26,140,255,.07);border-left-color:#0d4a8a}
+448	.igm-item.igm-danger:hover{background:rgba(239,68,68,.07);border-left-color:#ef4444}
+449	.igm-ico{font-size:20px;width:28px;text-align:center;flex-shrink:0}
+450	.igm-body{flex:1;min-width:0}
+451	.igm-title{font-weight:700;font-size:13px;margin-bottom:1px;color:#f0f6ff}
+452	.igm-desc{font-size:11px;color:#7a9ac0;line-height:1.4}
+453	.igm-item.igm-danger .igm-title{color:#fca5a5}
+454	.igm-arrow{color:#334d70;font-size:18px;flex-shrink:0}
+455	.igm-sub{position:absolute;inset:0;background:#080f1e;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column}
+456	.igm-sub.open{transform:translateX(0)}
+457	.igm-sub-head{padding:14px 18px;border-bottom:1px solid #1a2d50;display:flex;align-items:center;gap:14px;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:#f0f6ff;flex-shrink:0}
+458	.igm-back-btn{background:rgba(26,140,255,.1);border:1px solid #1a2d50;border-radius:6px;padding:5px 11px;cursor:pointer;color:#4aabff;font-size:12px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px}
+459	.igm-action-btn{width:100%;background:linear-gradient(135deg,#1a5aaa,#1a8cff);border:none;border-radius:8px;padding:11px;color:#fff;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:1.5px;cursor:pointer;text-transform:uppercase;transition:all .18s}
+460	.igm-action-btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
+461	.igm-rule-sec{margin-bottom:16px}
+462	.igm-rule-h{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:#4aabff;text-transform:uppercase;margin-bottom:7px}
+463	#chat-fab:hover{transform:scale(1.1)}
+464	#chat-popup{animation:chatPopIn .15s ease}
+465	@keyframes chatPopIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+466	.speech-bubble{position:fixed;background:rgba(6,18,42,.97);border:1.5px solid #1a8cff;border-radius:12px;padding:8px 13px;font-size:12px;color:#e0eeff;max-width:175px;word-wrap:break-word;z-index:500;pointer-events:none;line-height:1.5;box-shadow:0 4px 20px rgba(0,0,0,.7);animation:sbIn .2s ease}
+467	.sb-sender{font-size:10px;font-weight:700;color:#4aabff;margin-bottom:3px;letter-spacing:.5px}
+468	@keyframes sbIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+469	</style>
+470	
+471	<script>
+472	// ═══ IGM — read sessionStorage BEFORE game.js clears it ═══
+473	let igmTableCfg=null,igmWallet=0,igmBank=0,igmToken=null;
+474	var myChips=0,myRoomId=null;
+475	(function(){try{var tj=sessionStorage.getItem('bj_table'),uj=sessionStorage.getItem('bj_user');if(tj)igmTableCfg=JSON.parse(tj);if(uj){var u=JSON.parse(uj);igmToken=u.token||null;igmWallet=igmTableCfg?(igmTableCfg.walletSize||1000):1000;myChips=igmWallet;}}catch(e){}})();
+476	
+477	// ═══ SOUND SYSTEM ═══
+478	let _audioCtx=null,soundEnabled=JSON.parse(localStorage.getItem('vl_sound')??'true');
+479	function getAudioCtx(){if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(_audioCtx.state==='suspended')_audioCtx.resume();return _audioCtx;}
+480	function playTone(freq,type,dur,vol,delay){type=type||'sine';dur=dur||0.15;vol=vol||0.18;delay=delay||0;if(!soundEnabled)return;try{var ctx=getAudioCtx(),osc=ctx.createOscillator(),g=ctx.createGain();osc.connect(g);g.connect(ctx.destination);osc.type=type;osc.frequency.value=freq;var t=ctx.currentTime+delay;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+0.01);g.gain.exponentialRampToValueAtTime(0.001,t+dur);osc.start(t);osc.stop(t+dur+0.05);}catch(e){}}
+481	var SFX={
+482	  click:function(){playTone(880,'sine',0.08,0.1);},
+483	  deal: function(){playTone(1200,'sine',0.06,0.12);setTimeout(()=>playTone(1000,'sine',0.06,0.1),60);},
+484	  chip: function(){playTone(700,'triangle',0.1,0.15);},
+485	  win:  function(){[523,659,784,1047].forEach((f,i)=>playTone(f,'sine',0.3,0.22,i*0.12));},
+486	  lose: function(){[300,250,200].forEach((f,i)=>playTone(f,'sawtooth',0.18,0.14,i*0.1));},
+487	  bj:   function(){[523,659,784,880,1047,1200].forEach((f,i)=>playTone(f,'sine',0.35,0.28,i*0.08));},
+488	  timer:function(){playTone(880,'square',0.05,0.08);},
+489	  chat: function(){playTone(880,'sine',0.08,0.1);setTimeout(()=>playTone(1100,'sine',0.08,0.1),100);},
+490	  card: function(){playTone(620,'triangle',0.04,0.08);},
+491	  bust: function(){[300,250,180].forEach((f,i)=>playTone(f,'sawtooth',0.2,0.18,i*0.08));},
+492	};
+493	
+494	// ═══ SPEECH BUBBLES ═══
+495	var bubbleTimers={};
+496	function showSpeechBubble(sessionId,username,message,seatIdx){
+497	  var id='sb-'+sessionId,ex=document.getElementById(id);if(ex)ex.remove();clearTimeout(bubbleTimers[sessionId]);
+498	  var nameMap={0:'s2-name-tag',1:'s1-name',2:'s2-name-tag',3:'s3-name',4:'s4-name-tag',5:'s5-name-tag'};
+499	  var nameEl=document.getElementById(nameMap[seatIdx]||'s2-name-tag');if(!nameEl)return;
+500	  var b=document.createElement('div');b.id=id;
+501	  b.innerHTML='<div class="sb-sender">'+escH(username)+'</div>'+escH(message);
+502	  b.style.cssText='position:fixed;z-index:500;background:rgba(6,18,42,.97);border:1.5px solid #1a8cff;border-radius:12px;padding:8px 13px;font-size:12px;color:#e0eeff;max-width:175px;word-wrap:break-word;line-height:1.5;box-shadow:0 4px 20px rgba(0,0,0,.7);animation:sbIn .2s ease;pointer-events:none';
+503	  var r=nameEl.getBoundingClientRect();
+504	  b.style.left=Math.round(r.left+r.width/2)+'px';
+505	  b.style.bottom=(window.innerHeight-r.top+10)+'px';
+506	  b.style.transform='translateX(-50%)';
+507	  document.body.appendChild(b);
+508	  bubbleTimers[sessionId]=setTimeout(()=>{var el=document.getElementById(id);if(el){el.style.opacity='0';el.style.transition='opacity .4s';setTimeout(()=>el.remove(),400);}},5000);
+509	  SFX.chat();
+510	}
+511	function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+512	
+513	// ═══ CHAT ═══
+514	function toggleChatPopup(){var p=document.getElementById('chat-popup'),f=document.getElementById('chat-fab');if(!p)return;var o=p.style.display==='flex';p.style.display=o?'none':'flex';f.style.background=o?'#1a5caa':'#0d4a8a';if(!o)setTimeout(()=>document.getElementById('chat-bar-input')?.focus(),50);}
+515	document.addEventListener('click',e=>{var p=document.getElementById('chat-popup'),f=document.getElementById('chat-fab');if(p&&p.style.display==='flex'&&!p.contains(e.target)&&e.target!==f){p.style.display='none';if(f)f.style.background='#1a5caa';}});
+516	function chatBarSend(){var i=document.getElementById('chat-bar-input');if(!i)return;var m=i.value.trim();if(!m)return;if(typeof sendMsg==='function')sendMsg('chatMessage',{message:m});i.value='';SFX.chat();}
+517	
+518	// ═══ IGM ═══
+519	function toggleIngameMenu(){var p=document.getElementById('igm-panel'),c=p.style.transform;if(c==='translateX(0px)'||c==='translateX(0)')closeIngameMenu();else{syncIGM();p.style.transform='translateX(0)';document.getElementById('igm-overlay').style.display='block';}}
+520	function closeIngameMenu(){document.getElementById('igm-panel').style.transform='translateX(100%)';document.getElementById('igm-overlay').style.display='none';document.querySelectorAll('.igm-sub.open').forEach(s=>s.classList.remove('open'));}
+521	function igmBack(){document.querySelectorAll('.igm-sub.open').forEach(s=>s.classList.remove('open'));}
+522	function igmReplenish(){syncIGM();document.getElementById('igm-sub-replenish').classList.add('open');}
+523	function igmInvite(){document.getElementById('igm-sub-invite').classList.add('open');}
+524	function igmShowRules(){document.getElementById('igm-sub-rules').classList.add('open');}
+525	function igmExit(){if(confirm('Leave table? Your chips return to your bank.'))exitToLobby();}
+526	function syncIGM(){if(typeof myChips!=='undefined')igmWallet=myChips;document.getElementById('igm-wallet-display').textContent='Wallet: $'+igmWallet.toLocaleString();document.getElementById('igm-bank-display').textContent='$'+igmBank.toLocaleString();document.getElementById('rep-cur-wallet').textContent='$'+igmWallet.toLocaleString();document.getElementById('rep-cur-bank').textContent='$'+igmBank.toLocaleString();}
+527	function igmFillMax(){var max=Math.min(igmBank,Math.max(0,2000-igmWallet));var inp=document.getElementById('rep-amount');if(inp)inp.value=max;}
+528	async function doReplenish(){var amt=parseInt(document.getElementById('rep-amount').value,10);var err=document.getElementById('rep-err');if(!amt||amt<=0){if(err){err.textContent='Enter a valid amount.';err.style.display='block';}return;}if(amt>igmBank){if(err){err.textContent='Insufficient bank.';err.style.display='block';}return;}if(err)err.style.display='none';try{var res=await fetch('/api/game/replenish',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+igmToken},credentials:'include',body:JSON.stringify({amount:amt,tableMinBet:100,currentWallet:myChips||0})});var d=await res.json();if(d.ok){igmBank-=amt;igmWallet+=amt;myChips+=amt;if(typeof ws!=='undefined'&&ws?.readyState===1)ws.send(JSON.stringify({type:'set_wallet',wallet:myChips}));syncIGM();document.getElementById('my-chips').textContent='$'+myChips.toLocaleString();showIngameToast('Wallet Topped Up','+$'+amt.toLocaleString()+' added');igmBack();}else{if(err){err.textContent=d.error||'Failed';err.style.display='block';}}}catch(e){if(err){err.textContent='Server error';err.style.display='block';}}}
+529	
+530	function igmAddBot(){
+531	  var state=window._lastBJState;
+532	  var seats=state?state.seats:{};
+533	  var mySeat=typeof mySeatIndex!=='undefined'&&mySeatIndex!==null?seats[mySeatIndex]:null;
+534	  var minBet=(state&&state.config)?state.config.minBet:25;
+535	  var wallet=mySeat?(mySeat.wallet||0):(myChips||0);
+536	  if(Object.keys(seats).length>=6){showIngameToast('Table Full','No empty seats for a bot.');return;}
+537	  if(wallet<minBet){showIngameToast('Insufficient Funds','Need at least $'+minBet+' to finance a bot.');return;}
+538	  if(!confirm('Add a Bot?\n\n• Bets $'+minBet+'/round from YOUR wallet\n• Winnings go back to YOU\n• Your wallet: $'+wallet.toLocaleString()+'\n\nConfirm?'))return;
+539	  if(typeof sendMsg==='function'){sendMsg('add_bot');showIngameToast('Bot Added','Bot joined — bets $'+minBet+'/round from your wallet.');closeIngameMenu();}
+540	}
+541	
+542	// ═══ INVITE ═══
+543	var _lobbyFriends=null;
+544	async function getLobbyFriends(){if(_lobbyFriends)return _lobbyFriends;try{var r=await fetch('/api/game/friends',{headers:{'Authorization':'Bearer '+igmToken}}).then(r=>r.json());_lobbyFriends=r.friends||[];return _lobbyFriends;}catch(e){return[];}}
+545	var _invTimer=null;
+546	function onLobbyInviteInput(val){var dd=document.getElementById('lobby-invite-dropdown');if(!dd)return;clearTimeout(_invTimer);var q=val.toLowerCase().trim();if(!q){getLobbyFriends().then(f=>renderLobbyDD(dd,f,[],''));return;}getLobbyFriends().then(f=>renderLobbyDD(dd,f.filter(x=>x.username.toLowerCase().includes(q)),[],q));_invTimer=setTimeout(async()=>{var friends=await getLobbyFriends();var fN=new Set(friends.map(f=>f.username.toLowerCase()));var others=[];try{var r=await fetch('/api/game/friends/search?q='+encodeURIComponent(val),{headers:{'Authorization':'Bearer '+igmToken}}).then(r=>r.json());others=(r.results||[]).filter(u=>!fN.has(u.username.toLowerCase()));}catch(e){}renderLobbyDD(dd,friends.filter(f=>f.username.toLowerCase().includes(q)),others,q);},350);}
+547	function onLobbyInviteFocus(){getLobbyFriends().then(f=>{var dd=document.getElementById('lobby-invite-dropdown');if(dd)renderLobbyDD(dd,f,[],'');});}
+548	function renderLobbyDD(dd,friends,others,q){if(!friends.length&&!others.length){dd.innerHTML=q?'<div style="padding:11px 14px;font-size:12px;color:#7a9ac0">No matches.</div>':'<div style="padding:11px 14px;font-size:12px;color:#7a9ac0">No friends yet.</div>';dd.style.display='block';return;}var row=(u,lbl,col)=>`<div onclick="selInvitee('${u}')" style="padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(26,45,80,.5)" onmouseenter="this.style.background='rgba(26,140,255,.08)'" onmouseleave="this.style.background=''"><span style="width:28px;height:28px;border-radius:50%;background:#1a2d50;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;color:#c9a84c">${u[0].toUpperCase()}</span><span style="flex:1;font-size:13px;color:#f0f6ff">${u}</span><span style="font-size:10px;color:${col}">${lbl}</span></div>`;var html='';if(friends.length)html+='<div style="padding:5px 14px 3px;font-size:9px;font-weight:700;letter-spacing:2px;color:#4aabff;text-transform:uppercase">Friends</div>'+friends.map(f=>row(f.username,'🤝','#4aabff')).join('');if(others.length)html+='<div style="padding:5px 14px 3px;font-size:9px;font-weight:700;letter-spacing:2px;color:#7a9ac0;text-transform:uppercase;border-top:1px solid #1a2d50;margin-top:2px">Others</div>'+others.map(u=>row(u.username,'👤','#7a9ac0')).join('');dd.innerHTML=html;dd.style.display='block';}
+549	function selInvitee(u){var inp=document.getElementById('invite-username');if(inp)inp.value=u;var dd=document.getElementById('lobby-invite-dropdown');if(dd)dd.style.display='none';}
+550	document.addEventListener('click',e=>{var dd=document.getElementById('lobby-invite-dropdown');if(dd&&!dd.contains(e.target)&&e.target.id!=='invite-username')dd.style.display='none';});
+551	async function sendLobbyInvite(){
+552	  var inp=document.getElementById('invite-username');
+553	  var st=document.getElementById('invite-status');
+554	  if(!inp||!st)return;
+555	  var u=inp.value.trim();
+556	  if(!u){st.textContent='⚠️ Enter a username.';st.style.color='#fca5a5';return;}
+557	
+558	  // Always read roomId fresh at send time — never from stale closure
+559	  var roomId = window._bjRoomId || null;
+560	  if(!roomId){st.textContent='⚠️ Not connected to a table yet.';st.style.color='#fca5a5';return;}
+561	  if(!igmToken){st.textContent='⚠️ Not logged in.';st.style.color='#fca5a5';return;}
+562	
+563	  st.textContent='Sending…';st.style.color='#7a9ac0';
+564	  try{
+565	    var res=await fetch('/api/friends/invite',{
+566	      method:'POST',
+567	      headers:{'Content-Type':'application/json','Authorization':'Bearer '+igmToken},
+568	      credentials:'include',
+569	      body:JSON.stringify({toUsername:u, roomId:roomId, tableMinBet:100, game:'blackjack'})
+570	    });
+571	    var d=await res.json();
+572	    if(d.ok){
+573	      st.textContent='✅ Invite sent to '+u+'!';
+574	      st.style.color='#22c55e';
+575	      inp.value='';
+576	      setTimeout(()=>{st.textContent='';},4000);
+577	    } else {
+578	      st.textContent='❌ '+(d.error||'Failed');
+579	      st.style.color='#fca5a5';
+580	    }
+581	  }catch(e){
+582	    st.textContent='⚠️ Server error — check connection.';
+583	    st.style.color='#fca5a5';
+584	  }
+585	}
+586	function inviteToSeat(){toggleIngameMenu();setTimeout(()=>igmInvite(),200);}
+587	
+588	// ═══ EXIT ═══
+589	async function exitToLobby(){
+590	  if (typeof _clearFreezeBet === 'function') _clearFreezeBet();
+591	  try{var token=igmToken;if(!window._serverSettled&&token){var wallet=(typeof myChips!=='undefined')?myChips:igmWallet;await fetch('/api/game/exit',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},credentials:'include',body:JSON.stringify({remainingWallet:wallet,tableMinBet:100})}).then(r=>r.json()).then(d=>{if(d.ok)window._serverSettled=true;}).catch(()=>{});}sessionStorage.removeItem('bj_table');sessionStorage.removeItem('bj_wallet');}catch(e){}
+592	  if(igmToken)sessionStorage.setItem('vl_return_token',igmToken);
+593	  myChips=0;igmWallet=0;window._intentionalExit=true;window.location.href='/';
+594	}
+595	
+596	// ═══ TOAST ═══
+597	function showIngameToast(title,msg){var t=document.getElementById('igm-toast');if(!t){t=document.createElement('div');t.id='igm-toast';t.style.cssText='position:fixed;top:100px;left:50%;transform:translateX(-50%);z-index:900;background:#0f1e38;border:1px solid #1a2d50;border-left:3px solid #1a8cff;border-radius:9px;padding:10px 18px;box-shadow:0 8px 28px rgba(0,0,0,.6);min-width:220px;max-width:300px;text-align:center;transition:opacity .3s';document.body.appendChild(t);}
+598	t.innerHTML='<div style="font-weight:700;font-size:13px;color:#f0f6ff;margin-bottom:3px">'+escH(title)+'</div><div style="font-size:12px;color:#7a9ac0">'+escH(msg)+'</div>';
+599	t.style.opacity='1';t.style.display='block';clearTimeout(t._timer);t._timer=setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.style.display='none',300);},3500);}
+600	
+601	// ═══ INIT ═══
+602	window.addEventListener('DOMContentLoaded',function(){
+603	  if(igmToken){fetch('/api/auth/me',{headers:{'Authorization':'Bearer '+igmToken},credentials:'include'}).then(r=>r.json()).then(d=>{if(d.ok&&d.user){igmBank=d.user.bankBalance??d.user.bank_balance??0;var ba=document.getElementById('igm-bank-display');if(ba)ba.textContent='$'+igmBank.toLocaleString();}}).catch(()=>{});
+604	  var uj=sessionStorage.getItem('bj_user');if(uj){try{var u=JSON.parse(uj);var ua=document.getElementById('igm-avatar'),un=document.getElementById('igm-username');if(ua)ua.textContent=u.username?u.username[0].toUpperCase():'?';if(un)un.textContent=u.username||'—';}catch(e){}}}
+605	});
+606	</script>
+607	</body>
+608	</html>
