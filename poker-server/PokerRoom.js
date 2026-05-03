@@ -248,11 +248,11 @@ class SipSamRoom {
         // Parse intended minBet from roomId (format: sipsam_1000_timestamp)
         // so Live Tables can filter by denomination before game starts
         if (!this.gameState.tableMinBet && client.roomId) {
-            const parts = client.roomId.split('_');
-            const parsed = parseInt(parts[1]);
-            if ([100, 250, 500, 1000].includes(parsed)) {
-                this.gameState.tableMinBet = parsed;
-            }
+            // Apply tier config (incl. tableWalletSize, isVip) immediately
+            // so the joining player gets the correct wallet, not the $3000
+            // default. Includes the VIP $10K tier.
+            this._roomId = client.roomId;
+            this._applyTableConfigFromRoomId();
         }
 
         // Mark room as private if flagged by the joining player
@@ -361,6 +361,39 @@ class SipSamRoom {
         // Other real players still in game
         // Current round: convert to ghost so this round resolves cleanly
         // Next round onwards: the ghost becomes a real bot with fresh chips
+        //
+        // WALLET-ON-DISCONNECT: refund the wallet to the bank BEFORE we
+        // null out the token. Without this, players who lose connection
+        // (internet drop, browser crash, force-close) lose their wallet.
+        // For a human BANKER, settle outstanding bet exchanges first —
+        // pulling chips from the bank if necessary so all owed payments
+        // process before the wallet is returned.
+        const _disconnectedToken = player.token;
+        const _disconnectedTier  = this.gameState.tableMinBet;
+        const _disconnectedChips = Math.max(0, player.chips || 0);
+        // Snapshot for use after we mutate the player object
+        const _disconnectedIsBanker = !!player.isBanker;
+        if (_disconnectedToken && !player.isBot) {
+            // For banker: if chips went negative due to forfeit/owed payouts,
+            // pull the shortfall from their bank first so the table is square.
+            const debt = (player.chips < 0) ? Math.abs(player.chips) : 0;
+            if (_disconnectedIsBanker && debt > 0) {
+                callPlatformAPI('/api/game/debt-payment', _disconnectedToken, {
+                    amount:      debt,
+                    tableMinBet: _disconnectedTier,
+                    reason:      'banker_disconnect_owed'
+                }).then(r => {
+                    console.log(`[DISCONNECT-REFUND] Banker debt $${debt} pulled from bank:`, r.ok ? 'OK' : r.error);
+                }).catch(e => console.warn('[DISCONNECT-REFUND] debt call failed:', e.message));
+            }
+            // Refund whatever is in the wallet (could be 0 if banker was wiped).
+            callPlatformAPI('/api/game/exit', _disconnectedToken, {
+                remainingWallet: _disconnectedChips,
+                tableMinBet:     _disconnectedTier
+            }).then(r => {
+                console.log(`[DISCONNECT-REFUND] ${player.username} wallet $${_disconnectedChips} → bank:`, r.ok ? 'OK' : r.error);
+            }).catch(e => console.warn('[DISCONNECT-REFUND] exit call failed:', e.message));
+        }
         player.token      = null;  // already settled — _settleToBank will skip
         player.isBot      = true;
         player.isGhostBot = true;  // ghost THIS round only

@@ -185,6 +185,16 @@ router.post('/invite/accept', requireAuth, async (req, res) => {
         gameInvites.delete(inviteId);
         return res.status(410).json({ error: 'Invite expired' });
     }
+    // HARD min-bank check at accept time. The current bank may be lower than
+    // when the invite was sent. Refusing here prevents a later /enter from
+    // failing in a confusing way (or — worse — letting them in with $0).
+    const me      = await UserDB.findById(req.userId);
+    const minBank = minBankFor(inv.game, inv.tableMinBet);
+    if ((me?.bank_balance || 0) < minBank) {
+        return res.status(403).json({
+            error: `Need at least $${minBank.toLocaleString()} in your bank to join this table. Your bank: $${(me?.bank_balance || 0).toLocaleString()}.`
+        });
+    }
     gameInvites.delete(inviteId);
     res.json({ ok: true, game: inv.game, tableMinBet: inv.tableMinBet, roomId: inv.roomId, tableConfig: inv.tableConfig || null });
 });

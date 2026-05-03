@@ -1574,20 +1574,48 @@ function applyLobbyPreselect(table, rounds) {
         // First label is the "Select Table" caption — hide it. Keep "Select rounds" label.
         if (labels[0]) labels[0].style.display = 'none';
     }
-    // Auto-select the rounds button matching the chosen rounds (visual + state)
-    setTimeout(() => {
-        const targetRounds = (table.blitz === true) ? 5 : (rounds || 10);
-        document.querySelectorAll('.btn-rounds').forEach(b => {
-            const m = b.textContent.match(/(\d+)/);
-            const n = m ? parseInt(m[1]) : 0;
-            if (n === targetRounds) {
-                b.classList.add('selected');
-                if (typeof selectRounds === 'function') selectRounds(n, b);
-            } else {
-                b.classList.remove('selected');
-            }
-        });
-    }, 0);
+    // Invited joiner: lock down all host-only controls. Only the table info
+    // and an Exit button remain visible.
+    const isInvited = table.isInvitedJoiner === true;
+    if (isInvited) {
+        // Hide rounds buttons + label
+        if (manualEl) manualEl.style.display = 'none';
+        // Hide invite-friend section
+        const inviteSec = document.getElementById('invite-section');
+        if (inviteSec) inviteSec.style.display = 'none';
+        // Hide Start Game button (host-only)
+        const startBtn = document.getElementById('btn-start-game');
+        if (startBtn) startBtn.style.display = 'none';
+        // Re-label Cancel as "Exit Lobby"
+        const cancelBtn = document.getElementById('btn-cancel-lobby');
+        if (cancelBtn) {
+            cancelBtn.textContent = 'Exit Lobby';
+            cancelBtn.style.flex = '1';
+        }
+        // Status message: waiting for host
+        const status = document.getElementById('lobby-selection-info');
+        if (status) {
+            status.textContent = '⏳ Waiting for the host to start the game…';
+            status.style.color = '#7ec8ff';
+            status.style.fontSize = '14px';
+            status.style.fontWeight = '700';
+        }
+    } else {
+        // Auto-select the rounds button matching the chosen rounds (visual + state)
+        setTimeout(() => {
+            const targetRounds = (table.blitz === true) ? 5 : (rounds || 10);
+            document.querySelectorAll('.btn-rounds').forEach(b => {
+                const m = b.textContent.match(/(\d+)/);
+                const n = m ? parseInt(m[1]) : 0;
+                if (n === targetRounds) {
+                    b.classList.add('selected');
+                    if (typeof selectRounds === 'function') selectRounds(n, b);
+                } else {
+                    b.classList.remove('selected');
+                }
+            });
+        }, 0);
+    }
 
     // Populate banner values
     const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
@@ -2336,7 +2364,11 @@ window.addEventListener('DOMContentLoaded', function() {
         window._myAvatar     = (rawAvatar === 'default' || rawAvatar === 'null') ? '' : rawAvatar;
         myAvatar             = window._myAvatar;
         window._isPrivateRoom = table.isPrivate || false;
-        connect(user.username, user.token, table.roomId || 'sipsam_main').then(() => {
+        // Default room is per-tier so different bet tiers don't collide in
+        // a single 'sipsam_main' pool (which was bucketing all players into
+        // the $100 default config). Invites still use their explicit roomId.
+        const defaultRoomForTier = table.minBet ? `sipsam_${table.minBet}` : 'sipsam_main';
+        connect(user.username, user.token, table.roomId || defaultRoomForTier).then(() => {
             // connect() calls showScreen('screen-lobby') on success
             removeOverlay();
 

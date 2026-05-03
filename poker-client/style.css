@@ -1114,6 +1114,123 @@ html, body{
   z-index: 1500 !important;
 }
 
+/* ── MODERN BLUE-GLASS LOBBY ─────────────────────────────────
+   Glassmorphic lobby card — frosted blur, soft cyan rim, gold accents
+   reserved for primary CTAs. Replaces the flat dark gradient look. */
+#screen-lobby.active {
+  background:
+    radial-gradient(900px 600px at 18% -8%, #102845 0%, transparent 60%),
+    radial-gradient(900px 600px at 88% 105%, #0c1f3c 0%, transparent 60%),
+    #050a14 !important;
+}
+.lobby-card {
+  background: linear-gradient(160deg, rgba(18,28,52,.78), rgba(8,14,28,.86)) !important;
+  border: 1px solid var(--mg-line-str, rgba(255,255,255,.16)) !important;
+  border-radius: 22px !important;
+  backdrop-filter: blur(28px) saturate(1.4);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  box-shadow:
+    0 30px 80px -10px rgba(0,8,24,.7),
+    0 0 0 1px rgba(0,0,0,.3),
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 0 60px rgba(126,200,255,.06) !important;
+  padding: 30px 26px !important;
+  position: relative;
+  overflow: hidden;
+}
+.lobby-card::before{
+  content:'';
+  position:absolute; inset:0;
+  background: linear-gradient(180deg, rgba(255,255,255,.07) 0%, transparent 26%, transparent 100%);
+  pointer-events:none;
+  border-radius: inherit;
+}
+.lobby-card h2{
+  font-family: 'Manrope','Rajdhani',sans-serif !important;
+  letter-spacing:.16em !important;
+  color:#f3f6fb !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 24px rgba(126,200,255,.18);
+}
+#lobby-status{
+  font-family:'Manrope',sans-serif !important;
+  color: rgba(174,221,255,.7) !important;
+  letter-spacing:.18em !important;
+}
+.lobby-section-label{
+  font-family:'Manrope',sans-serif !important;
+  color: rgba(174,221,255,.55) !important;
+  font-weight: 600 !important;
+  letter-spacing:.22em !important;
+  font-size: 11px !important;
+}
+.btn-table, .btn-rounds{
+  background: rgba(255,255,255,.04) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  border-radius: 14px !important;
+  color: #e6ecf5 !important;
+  font-family:'Manrope',sans-serif !important;
+  font-weight: 600 !important;
+  letter-spacing:.04em !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all .18s ease !important;
+}
+.btn-table:hover, .btn-rounds:hover{
+  background: rgba(126,200,255,.10) !important;
+  border-color: rgba(126,200,255,.35) !important;
+  color:#fff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0,8,24,.4);
+}
+.btn-table.selected, .btn-rounds.selected{
+  background: linear-gradient(180deg, rgba(201,168,76,.18), rgba(201,168,76,.08)) !important;
+  border-color: var(--gold) !important;
+  color: var(--gold-lt) !important;
+  box-shadow: 0 0 0 1px rgba(201,168,76,.35), 0 6px 22px rgba(201,168,76,.18);
+}
+#player-list{
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin: 8px 0 14px !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.player-list-item{
+  font-family:'Manrope',sans-serif !important;
+  letter-spacing:.02em !important;
+  color: #e6ecf5 !important;
+}
+#invite-section{
+  background: rgba(126,200,255,.04);
+  border: 1px solid rgba(126,200,255,.12) !important;
+  border-radius: 14px;
+  padding: 14px !important;
+  margin-top: 18px !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+#invite-username{
+  background: rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(255,255,255,.16) !important;
+  border-radius: 10px !important;
+  font-family:'Manrope',sans-serif !important;
+}
+#lobby-selection-info{
+  font-family:'Manrope',sans-serif !important;
+  letter-spacing:.04em !important;
+}
+/* Lobby preselect banner: glass + cyan rim */
+#lobby-preselected{
+  background: linear-gradient(160deg, rgba(126,200,255,.08), rgba(8,18,36,.55)) !important;
+  border: 1px solid rgba(126,200,255,.22) !important;
+  border-radius: 14px !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
 
 
 .card.magnetic-dragging {
