@@ -211,11 +211,50 @@ function onDragStart(e) {
     draggedCard = e.target;
     e.target.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
+    // Track last cursor pos for the magnetic dragend fallback below.
+    window._lastDragX = e.clientX;
+    window._lastDragY = e.clientY;
+    document.addEventListener('dragover', _trackDragPos, true);
+}
+function _trackDragPos(e) {
+    if (e.clientX) window._lastDragX = e.clientX;
+    if (e.clientY) window._lastDragY = e.clientY;
 }
 
 function onDragEnd(e) {
-    e.target.classList.remove('dragging');
+    document.removeEventListener('dragover', _trackDragPos, true);
+    const card = e.target;
+    card.classList.remove('dragging');
     document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+
+    // MAGNETIC FALLBACK: if no drop zone caught the card (it would still
+    // be in its original parent now because the browser snapped it back),
+    // check whether the cursor was over — or near — a hand zone and
+    // force-place the card there. Avoids the "drop fizzles, card returns
+    // to main pile" frustration the user reported.
+    const stillInOriginal = card.parentElement; // browser already returned it
+    const x = window._lastDragX, y = window._lastDragY;
+    if (typeof x === 'number' && typeof y === 'number') {
+        const zones = [...document.querySelectorAll('#raw-card-row, .pile-drop')];
+        let bestZone = null, bestDist = Infinity;
+        const PAD = 50; // 50px slop around each zone
+        for (const z of zones) {
+            const r = z.getBoundingClientRect();
+            const inside = (x >= r.left - PAD && x <= r.right + PAD &&
+                            y >= r.top  - PAD && y <= r.bottom + PAD);
+            if (!inside) continue;
+            // Distance from cursor to zone center — pick closest if multiple match.
+            const cx = r.left + r.width/2, cy = r.top + r.height/2;
+            const d  = Math.hypot(x - cx, y - cy);
+            if (d < bestDist) { bestDist = d; bestZone = z; }
+        }
+        if (bestZone && bestZone !== stillInOriginal) {
+            const { before } = getDragInsertionPoint(bestZone, x);
+            if (before) bestZone.insertBefore(card, before);
+            else bestZone.appendChild(card);
+            syncPiles();
+        }
+    }
     draggedCard = null;
 }
 
@@ -460,7 +499,19 @@ function setupMagneticTouchDrag() {
         card.style.zIndex = '';
         card.style.pointerEvents = '';
 
-        if (bestZone && bestRatio >= 0.5) {
+        // Magnetic threshold: any meaningful overlap snaps to that zone.
+        // Was 0.5 (had to be 50%-over) which felt too strict on mobile —
+        // cards regularly bounced back to the main pile when dropped near,
+        // but not centered-on, a hand. 0.2 = 20% overlap is enough.
+        if (bestZone && bestRatio >= 0.2) {
+            const centerX = cardRect.left + cardRect.width / 2;
+            const { before } = getDragInsertionPoint(bestZone, centerX);
+            if (before) bestZone.insertBefore(card, before);
+            else bestZone.appendChild(card);
+            syncPiles();
+        } else if (bestZone && bestRatio > 0) {
+            // Even just touching a zone counts — snap to it as a fallback
+            // before resorting to "return to original parent".
             const centerX = cardRect.left + cardRect.width / 2;
             const { before } = getDragInsertionPoint(bestZone, centerX);
             if (before) bestZone.insertBefore(card, before);

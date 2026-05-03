@@ -443,15 +443,29 @@ html, body {
 }
 .pile-drop {
   position:relative;
-  min-height:58px;
-  border:2px dashed var(--gold-dk); border-radius:8px;
+  min-height:90px;                 /* was 58 — bigger drop target */
+  border:2px dashed var(--gold-dk); border-radius:10px;
   display:flex; gap:4px; flex-wrap:wrap;
   align-items:center; justify-content:flex-start;
-  padding:6px; background:rgba(6,30,70,.5);
-  transition:background .2s, border-color .2s;
+  padding:14px 12px;               /* was 6 — more slop around cards */
+  background:rgba(6,30,70,.5);
+  transition:background .15s, border-color .15s, box-shadow .15s, transform .12s;
   overflow:visible;
 }
-.pile-drop.drag-over { background:rgba(201,168,76,.15); border-color:var(--gold); }
+/* Invisible 24px halo around each pile so the user can drop slightly
+   outside the visible boundary and still hit the zone. */
+.pile-drop::after{
+  content:'';
+  position:absolute; inset:-24px;
+  pointer-events:none;
+  border-radius:18px;
+}
+.pile-drop.drag-over {
+  background:rgba(201,168,76,.18);
+  border-color:var(--gold);
+  box-shadow: 0 0 0 2px rgba(201,168,76,.35), 0 0 30px rgba(201,168,76,.25);
+  transform: translateY(-1px);
+}
 
 /* My cards */
 .card {

@@ -1182,6 +1182,10 @@ async function loadDashboard() {
   refreshRewards();
   checkAdStatus();
   showScreen('screen-dashboard');
+  // Always land on Home after login. Hash-based deep-links (e.g. /#sipsam
+  // from a game-exit redirect) take precedence and override this below in
+  // the auto-login handler.
+  showPanel('home');
 }
 
 function getBank() { return currentUser?.bankBalance ?? currentUser?.bank_balance ?? 0; }
