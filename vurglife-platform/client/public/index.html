@@ -1761,18 +1761,59 @@ function _showGameInviteModal(inv) {
   const body = document.getElementById('invite-modal-body');
   const acceptBtn = document.getElementById('invite-modal-accept');
   const declineBtn = document.getElementById('invite-modal-decline');
-  body.innerHTML = `<strong>${escHtml(inv.fromUsername)}</strong> invited you to <strong>${escHtml(_gameLabel(inv.game))}</strong><br>` +
-                   `<span style="color:var(--text-dim);font-size:12px">$${Number(inv.tableMinBet).toLocaleString()} minimum bet table</span>` +
-                   (inv.meetsMinBank === false ? `<div style="color:var(--red);font-size:12px;margin-top:8px">⚠️ You don't have the minimum bank for this table.</div>` : '');
+
+  // Resolve required bank for this table from the local game-table tables.
+  function _minBankFor(game, minBet, cfg) {
+    if (cfg && (cfg.minBank != null)) return Number(cfg.minBank);
+    const sources = { sipsam: TABLES, rhum32: RHUM32_TABLES, blackjack: BJ_TABLES, holdem: HOLDEM_TABLES, roulette: ROULETTE_TABLES };
+    const t = sources[game]?.[Number(minBet)];
+    return t ? Number(t.minBank || 0) : 0;
+  }
+  const requiredBank = _minBankFor(inv.game, inv.tableMinBet, inv.tableConfig);
+  const currentBank  = Number(currentUser?.bank_balance ?? currentUser?.bankBalance ?? 0);
+  const meetsBank    = currentBank >= requiredBank;
+  const shortfall    = Math.max(0, requiredBank - currentBank);
+
+  const baseInfo =
+    `<strong>${escHtml(inv.fromUsername)}</strong> invited you to <strong>${escHtml(_gameLabel(inv.game))}</strong><br>` +
+    `<span style="color:var(--text-dim);font-size:12px">$${Number(inv.tableMinBet).toLocaleString()} minimum bet table</span>` +
+    `<div style="margin-top:10px;font-size:12px;color:var(--text-dim)">` +
+      `Required bank: <strong style="color:${meetsBank ? 'var(--green)' : 'var(--red)'}">$${requiredBank.toLocaleString()}</strong>` +
+      ` &nbsp;·&nbsp; Your bank: <strong>$${currentBank.toLocaleString()}</strong>` +
+    `</div>`;
+  if (!meetsBank) {
+    body.innerHTML = baseInfo +
+      `<div style="margin-top:14px;padding:12px 14px;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.4);border-radius:10px;color:var(--red);font-size:13px;text-align:left;line-height:1.5">` +
+        `🚫 <strong>You can't join this table yet.</strong><br>` +
+        `Your bank is <strong>$${shortfall.toLocaleString()}</strong> short of the $${requiredBank.toLocaleString()} required for this table.` +
+        `<div style="margin-top:8px;font-size:12px;color:var(--text-dim)">Top up your bank from <strong>Get Chips</strong> or watch ads to earn free chips, then ask ${escHtml(inv.fromUsername)} to invite you again.</div>` +
+      `</div>`;
+    acceptBtn.style.display = 'none';
+    declineBtn.textContent = 'Close';
+  } else {
+    body.innerHTML = baseInfo;
+    acceptBtn.style.display = '';
+    declineBtn.textContent = 'Decline';
+    acceptBtn.disabled = declineBtn.disabled = false;
+    acceptBtn.textContent = 'Accept & Join →';
+  }
   modal.style.display = 'flex';
   acceptBtn.onclick = async () => {
+    if (!meetsBank) return; // belt-and-braces; button is hidden anyway
     acceptBtn.disabled = declineBtn.disabled = true;
     acceptBtn.textContent = 'Joining…';
     const r = await apiPost('/api/friends/invite/accept', { inviteId: inv.inviteId });
     if (!r || !r.ok) {
-      toast('⚠️ Failed', (r && r.error) || 'Could not accept invite.');
-      acceptBtn.disabled = declineBtn.disabled = false;
-      acceptBtn.textContent = 'Accept & Join →';
+      // Server-side hard check fired (eg. bank dropped between modal and click).
+      // Surface the same blocking UI rather than a small toast.
+      const reason = (r && r.error) || 'Could not accept invite.';
+      body.innerHTML = baseInfo +
+        `<div style="margin-top:14px;padding:12px 14px;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.4);border-radius:10px;color:var(--red);font-size:13px;text-align:left;line-height:1.5">` +
+          `🚫 <strong>Invite refused</strong><br>${escHtml(reason)}` +
+        `</div>`;
+      acceptBtn.style.display = 'none';
+      declineBtn.textContent = 'Close';
+      declineBtn.disabled = false;
       return;
     }
     // Set per-game session storage so the game client auto-logins to the right room.
