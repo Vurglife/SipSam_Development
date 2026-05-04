@@ -1029,12 +1029,19 @@ html, body{
 
 /* ── COUNTDOWN BOX — glass instead of CRT ── */
 .countdown-box{
-  background: rgba(8,18,36,.55);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--mg-line-str);
+  background: rgba(8,18,36,.85);
+  border: 1px solid rgba(201,168,76,.45);
   border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(0,4,18,.5), inset 0 1px 0 rgba(255,255,255,.10);
+  box-shadow: 0 8px 24px rgba(0,4,18,.5), inset 0 1px 0 rgba(255,255,255,.10),
+              0 0 24px rgba(201,168,76,.18);
+  z-index: 30;            /* above gloss + table-logo */
+  width: 96px;
+  height: 70px;
+  padding: 4px;
+}
+.cd-label-txt {
+  z-index: 31;
+  position: relative;
 }
 .cd-screen{ display:none; }
 .cd-label-txt{

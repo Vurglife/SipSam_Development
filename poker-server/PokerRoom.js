@@ -148,16 +148,12 @@ class SipSamRoom {
             return;
         }
 
-        // Use TABLE_CONFIG for authoritative min/max — never use tMin * 3 fallback
-        const TABLE_CONFIG = {
-            100:  { minBet:100,  maxBet:150  },
-            250:  { minBet:250,  maxBet:500  },
-            500:  { minBet:500,  maxBet:1000 },
-            1000: { minBet:1000, maxBet:2000 }
-        };
+        // Use the authoritative max set when the table config was applied
+        // (gameState.tableMaxBet). The old hardcoded local TABLE_CONFIG
+        // here was missing the 10000 VIP tier, so VIP bets capped at
+        // tMin*2 = $20,000 instead of the configured $50,000.
         const tMin  = this.gameState.tableMinBet;
-        const tCfg  = TABLE_CONFIG[tMin] || { minBet:tMin, maxBet:tMin * 2 };
-        const tMax  = tCfg.maxBet; // authoritative max, never tMin * 3
+        const tMax  = this.gameState.tableMaxBet || (tMin * 2);
         let amount  = parseInt(data.amount) || tMin;
         // Cap bet to table max AND what player can afford
         amount = Math.max(tMin, Math.min(amount, tMax, player.chips));

@@ -2365,6 +2365,13 @@ function selectRounds(rounds, btn) {
     document.querySelectorAll('.btn-rounds').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
     checkCanStart();
+    // Sync the preselect banner so 'Rounds: 10' updates to whatever was picked.
+    const lciRounds = document.getElementById('lci-rounds');
+    if (lciRounds) {
+        const isBlitz = (rounds === 5);
+        lciRounds.textContent = isBlitz ? '⚡ BLITZ (5)' : (rounds + ' rounds');
+        lciRounds.style.color = isBlitz ? '#ff9a3c' : '';
+    }
 }
 
 function checkCanStart() {
