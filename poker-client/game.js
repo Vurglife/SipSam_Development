@@ -68,10 +68,22 @@ async function joinRoom(username, _authToken, _roomId) {
             }, 5000);
             let res;
             try {
+                // quickJoin: true tells the server the requested roomId is
+                // a tier hint (sipsam_<minBet>) and to find a room with a
+                // bot to replace OR create a fresh one. False for invites
+                // (specific private roomId).
+                const isInvite = !!window._isPrivateRoom;
                 res = await fetch(url, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username, token: _authToken, roomId: _roomId, avatar: window._myAvatar || '', isPrivate: window._isPrivateRoom || false }),
+                    body: JSON.stringify({
+                        username,
+                        token:     _authToken,
+                        roomId:    _roomId,
+                        avatar:    window._myAvatar || '',
+                        isPrivate: window._isPrivateRoom || false,
+                        quickJoin: !isInvite
+                    }),
                     signal: controller.signal
                 });
             } finally {
@@ -1885,6 +1897,13 @@ function handleServerMessage(msg) {
     } else if (msg.type === 'gameAborted') {
         showIngameToast('🚪 Game Ended', msg.message || 'Not enough players to continue.');
         setTimeout(() => { window._serverSettled = true; window._intentionalExit = true; window.location.href = '/'; }, 4000);
+
+    } else if (msg.type === 'roomClosed') {
+        // Server is closing this room (game completed + auto-evict timer fired).
+        // The user may still be on the stats screen — push them back to the
+        // dashboard so the next game can start fresh in a different room.
+        showIngameToast('🏁 Room Closed', 'This game is over. Returning to dashboard.');
+        setTimeout(() => { window._serverSettled = true; window._intentionalExit = true; window.location.href = '/'; }, 1500);
 
     } else if (msg.type === 'bankerForfeited') {
         showIngameToast('🏦 Banker Forfeited!', msg.message || 'Banker left — you receive 2× your bet!');

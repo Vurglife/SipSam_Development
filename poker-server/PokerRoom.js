@@ -976,12 +976,25 @@ class SipSamRoom {
     }
 
     endGame() {
-        this.gameState.status  = "gameOver";
-        this.gameState.message = "Game Over! Final scores:";
-        console.log("=== GAME OVER ===");
+        this.gameState.status    = "gameOver";
+        this.gameState.completed = true;   // exclude from quick-join match candidates
+        this.gameState.message   = "Game Over! Final scores:";
+        console.log("=== GAME OVER ===  room flagged completed");
         this.broadcastState();
         // Settle: return each player's remaining chips to their bank
         this._settleToBank();
+        // Auto-evict any remaining clients after stats display window so
+        // the room can be cleaned up. 60s gives players time to read
+        // their stats; the client navigates away on its own when the
+        // user hits 'Return to Dashboard'.
+        if (this._evictTimer) clearTimeout(this._evictTimer);
+        this._evictTimer = setTimeout(() => {
+            console.log("[ROOM] Game-over auto-evict — closing remaining clients");
+            for (const c of [...this.clients]) {
+                try { c.send && c.send(JSON.stringify({ type:'roomClosed', reason:'game_complete' })); } catch(e){}
+            }
+            // Server-side: socket close handled by index.js on each socket close
+        }, 60000);
     }
 
     async _settleToBank() {

@@ -1,33 +1,176 @@
 // ============================================
-// SIPSAM SERVER v8.0
-// Port 3000: Express serves client AND matchmake API
-// Port 3001: Pure WebSocket game server (ws package)
+// SIPSAM SERVER
+// Port 2999: HTTP matchmake API
+// Port 3001: WebSocket game server
+// Supports multiple simultaneous rooms
 // ============================================
 
 const express   = require("express");
-const path      = require("path");
 const cors      = require("cors");
 const WebSocket = require("ws");
 const { SipSamRoom } = require("./PokerRoom");
 
-// ---- WEB + API SERVER (port 3000) ----
 const app = express();
 app.use(cors());
 app.use(express.json());
-// Static files served by VurgLife platform at /sipsam
 
 const pendingSessions = {};
 let   sessionCounter  = 0;
-const roomInstance    = new SipSamRoom();
 
-// Matchmake endpoint — port 2999 (proxied from VurgLife platform on 3000)
+// ── ROOM REGISTRY ─────────────────────────────────────────────
+// Multiple rooms keyed by roomId — one per active game session
+// roomId comes from the client (either 'sipsam_main' or a specific invite roomId)
+const rooms = {};
+
+function getOrCreateRoom(roomId) {
+    if (!rooms[roomId]) {
+        rooms[roomId] = new SipSamRoom();
+        console.log("[ROOMS] Created room:", roomId, "| Total rooms:", Object.keys(rooms).length);
+    }
+    return rooms[roomId];
+}
+
+function cleanupRoom(roomId) {
+    const room = rooms[roomId];
+    if (!room) return;
+    const hasClients = room.clients.length > 0;
+    if (!hasClients) {
+        delete rooms[roomId];
+        console.log("[ROOMS] Deleted empty room:", roomId, "| Remaining:", Object.keys(rooms).length);
+    }
+}
+
+// ── QUICK-JOIN MATCHMAKING ────────────────────────────────────
+// Given a tier (sipsam_<minBet>), find the best existing room to join,
+// or create a fresh tier room. Rules:
+//   1. Skip rooms marked completed (game over).
+//   2. Skip rooms that are full of humans (no bot to replace, no open seat).
+//   3. Prefer the room with the most humans + at least one replaceable bot.
+//   4. Else prefer a 'waiting' room with open seats.
+//   5. Else create new sipsam_<minBet>_<timestamp>.
+function quickJoinForTier(requestedRoomId) {
+    const m = String(requestedRoomId || '').match(/^sipsam_(\d+)(?:_|$)/);
+    if (!m) return requestedRoomId; // not a tier hint — pass through (invite flow)
+    const minBet = Number(m[1]);
+    const candidates = [];
+    for (const [rid, room] of Object.entries(rooms)) {
+        const gs = room.gameState;
+        if (!gs || gs.completed) continue;
+        if (Number(gs.tableMinBet) !== minBet) continue;
+        if (gs.isPrivate) continue; // invite-only rooms not for quick-join
+        const players = Object.values(gs.players || {});
+        const humans = players.filter(p => !p.isBot && !p.isGhostBot).length;
+        const bots   = players.filter(p => p.isBot && !p.isGhostBot).length;
+        const total  = players.length;
+        const openSeats = Math.max(0, 4 - total);
+        const hasReplaceableBot = bots > 0 && (gs.status === 'playing' || gs.status === 'arranging' || gs.status === 'betting' || gs.status === 'revealing' || gs.status === 'roundEnd');
+        const isWaitingOpen     = gs.status === 'waiting' && openSeats > 0;
+        if (!hasReplaceableBot && !isWaitingOpen) continue;
+        candidates.push({ rid, humans, bots, openSeats, hasReplaceableBot, isWaitingOpen });
+    }
+    if (candidates.length) {
+        // Prefer in-progress rooms with bots (replaces a bot, joins live)
+        candidates.sort((a,b) => (b.hasReplaceableBot - a.hasReplaceableBot)
+                              || (b.humans - a.humans)
+                              || (a.openSeats - b.openSeats));
+        const pick = candidates[0];
+        console.log(`[QUICK-JOIN] tier ${minBet}: matched ${pick.rid} (humans=${pick.humans} bots=${pick.bots} status=${rooms[pick.rid].gameState.status})`);
+        return pick.rid;
+    }
+    // No suitable existing room — create a new one with timestamp
+    const newId = `sipsam_${minBet}_${Date.now()}`;
+    console.log(`[QUICK-JOIN] tier ${minBet}: no match — creating new room ${newId}`);
+    return newId;
+}
+
+// ── MATCHMAKE ─────────────────────────────────────────────────
+// Accepts optional roomId — if provided, joins that specific room (invite flow)
+// If not provided, uses 'sipsam_main' (default public room)
 app.post("/matchmake/joinOrCreate/sipsam_room", (req, res) => {
     const sessionId = "sess_" + (++sessionCounter) + "_" + Date.now();
-    const roomId    = "sipsam_main";
-    const username  = req.body?.username || "Player";
-    pendingSessions[sessionId] = { username, roomId };
-    console.log("Matchmake:", username, "→", sessionId);
+    const username  = req.body?.username  || "Player";
+    const token     = req.body?.token     || null;
+    let   roomId    = req.body?.roomId    || "sipsam_main";
+    const avatar    = req.body?.avatar    || '';
+    const isPrivate = req.body?.isPrivate || false;
+    const quickJoin = req.body?.quickJoin === true;
+
+    // Quick-join: caller passed a tier hint (sipsam_<minBet>) and wants the
+    // server to find an existing room with a bot to replace, or create a new
+    // tier room. Invite flow (specific roomId, isPrivate=true) bypasses this.
+    if (quickJoin && !isPrivate) {
+        roomId = quickJoinForTier(roomId);
+    }
+
+    pendingSessions[sessionId] = { username, token, roomId, avatar, isPrivate };
+    console.log("Matchmake:", username, "→", sessionId, "room:", roomId, quickJoin ? '(quick-join)' : '');
     res.json({ name:"sipsam_room", sessionId, roomId, processId:"local" });
+});
+
+// ── ROOM STATUS ───────────────────────────────────────────────
+app.get("/room/:roomId/status", (req, res) => {
+    const room = rooms[req.params.roomId];
+    if (!room) return res.json({ exists: false });
+    res.json({
+        exists:    true,
+        status:    room.gameState.status,
+        players:   Object.keys(room.gameState.players).length,
+        maxRounds: room.gameState.maxRounds
+    });
+});
+
+// ── ACTIVE ROOMS LIST ─────────────────────────────────────────
+// Returns all rooms currently in 'waiting' status with seats available
+app.get("/rooms/active", (req, res) => {
+    // Extract requesting username from auth token if provided
+    let requestingUsername = null;
+    try {
+        const authHeader = req.headers['authorization'];
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const jwt     = require('jsonwebtoken');
+            const secret  = process.env.JWT_SECRET || 'vurglife_jwt_secret_change_in_prod';
+            const decoded = jwt.verify(authHeader.slice(7), secret);
+            requestingUsername = decoded.username || null;
+        }
+    } catch(e) {}
+
+    const active = [];
+    for (const [roomId, room] of Object.entries(rooms)) {
+        if (room.gameState.status !== 'waiting') continue;
+        // Private rooms: only show if requester is already in the room
+        if (room.gameState.isPrivate) {
+            const inRoom = requestingUsername && Object.values(room.gameState.players)
+                .some(p => p.username === requestingUsername);
+            if (!inRoom) continue;
+        }
+        const players    = Object.values(room.gameState.players);
+        const realCount  = players.filter(p => !p.isBot && !p.isGhostBot).length;
+        const botCount   = players.filter(p => p.isBot).length;
+        const totalSeats = 4;
+        const openSeats  = totalSeats - realCount;
+        if (openSeats <= 0) continue; // full
+        active.push({
+            roomId,
+            tableMinBet:   room.gameState.tableMinBet  || 0,
+            tableMaxBet:   room.gameState.tableMaxBet  || 0,
+            maxRounds:     room.gameState.maxRounds    || 10,
+            blitz:         room.gameState.blitz        || false,
+            realPlayers:   realCount,
+            openSeats,
+            lobbyCountdown: room.gameState.lobbyCountdown || 0,
+            playerNames:   players.filter(p => !p.isBot).map(p => p.username)
+        });
+    }
+    res.json({ ok: true, rooms: active });
+});
+
+// POST /room/:roomId/make-private — called when host sends first invite
+app.post("/room/:roomId/make-private", (req, res) => {
+    const room = rooms[req.params.roomId];
+    if (!room) return res.json({ ok: false, error: 'Room not found' });
+    room.gameState.isPrivate = true;
+    console.log(`[ROOM] ${req.params.roomId} → private`);
+    res.json({ ok: true });
 });
 
 app.get("/health", (req, res) => res.send("OK"));
@@ -36,7 +179,7 @@ app.listen(2999, () => {
     console.log("  Game API:  http://localhost:2999");
 });
 
-// ---- WEBSOCKET GAME SERVER (port 3001) ----
+// ── WEBSOCKET SERVER ──────────────────────────────────────────
 const wss = new WebSocket.Server({ port: 3001 });
 
 wss.on("connection", (socket, req) => {
@@ -51,17 +194,22 @@ wss.on("connection", (socket, req) => {
     }
 
     delete pendingSessions[sessionId];
-    console.log(session.username, "WS connected, session:", sessionId);
+    const { username, token, roomId, avatar, isPrivate } = session;
+    console.log(username, "WS connected, session:", sessionId, "room:", roomId);
 
+    const room   = getOrCreateRoom(roomId);
     const client = {
         sessionId,
+        roomId,
         send: (data) => {
             if (socket.readyState === WebSocket.OPEN) socket.send(data);
         }
     };
 
-    roomInstance.clients.push(client);
-    roomInstance.onJoin(client, { username: session.username });
+    room._roomId = roomId; // store for invite expiry notifications
+    client.roomId = roomId;
+    room.clients.push(client);
+    room.onJoin(client, { username, token, avatar, isPrivate });
 
     socket.on("message", (rawData) => {
         try {
@@ -69,17 +217,19 @@ wss.on("connection", (socket, req) => {
             const type = msg.type;
             const data = Object.assign({}, msg);
             delete data.type;
-            console.log("MSG [" + session.username + "]:", type, JSON.stringify(data));
-            roomInstance._dispatchMessage(type, client, data);
+            console.log("MSG [" + username + "] room:" + roomId + ":", type);
+            room._dispatchMessage(type, client, data);
         } catch(e) {
             console.error("Message error:", e.message);
         }
     });
 
     socket.on("close", (code) => {
-        console.log(session.username, "disconnected:", code);
-        roomInstance.clients = roomInstance.clients.filter(c => c.sessionId !== sessionId);
-        roomInstance.onLeave(client, false);
+        console.log(username, "disconnected from room:", roomId, "code:", code);
+        room.clients = room.clients.filter(c => c.sessionId !== sessionId);
+        room.onLeave(client, false);
+        // Clean up empty rooms after a short delay
+        setTimeout(() => cleanupRoom(roomId), 5000);
     });
 
     socket.on("error", (err) => console.error("Socket error:", err.message));
@@ -87,9 +237,5 @@ wss.on("connection", (socket, req) => {
 
 wss.on("listening", () => {
     console.log("  Game WS:   ws://localhost:3001");
-    console.log("==============================");
-    console.log("  SIPSAM SERVER READY");
-    console.log("  Platform:  http://localhost:3000");
-    console.log("  Game API:  http://localhost:2999");
-    console.log("==============================");
+    console.log("  Multi-room: ENABLED");
 });
