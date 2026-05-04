@@ -535,7 +535,7 @@
   </div>
 </div>
 
-<script src="game.js?v=19"></script>
+<script src="game.js?v=20"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      IN-GAME SLIDE-OUT MENU
@@ -675,6 +675,25 @@
   <!-- Sub-panels (shown inside the slide-out) -->
 
 
+
+  <!-- INVITE FRIEND -->
+  <div id="igm-sub-invite" class="igm-sub">
+    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Invite Friend</span></div>
+    <div style="padding:16px;flex:1;display:flex;flex-direction:column;gap:10px;overflow:hidden">
+      <div id="igm-invite-status-line" style="font-size:11px;color:#7a9ac0;line-height:1.4">
+        Friends can join by replacing a bot seat. They must have the bank required for this table.
+      </div>
+      <div style="position:relative">
+        <input id="igm-invite-input" type="text" placeholder="Type a friend's name…"
+          oninput="igmInviteOnInput(this.value)"
+          onfocus="igmInviteOnFocus()"
+          autocorrect="off" autocapitalize="none" spellcheck="false" autocomplete="off"
+          style="width:100%;background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;padding:10px 13px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:14px;outline:none">
+      </div>
+      <div id="igm-invite-list" style="flex:1;min-height:0;overflow-y:auto;border:1px solid #1a2d50;border-radius:8px;background:#06111f;padding:6px"></div>
+      <div id="igm-invite-msg" style="font-size:11px;min-height:14px;text-align:center"></div>
+    </div>
+  </div>
 
   <div id="igm-sub-replenish" class="igm-sub">
     <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Replenish Wallet</span></div>
@@ -1190,20 +1209,91 @@ function igmBack() {
 }
 
 // ── MENU ACTIONS ────────────────────────────────────────
+// ── IN-GAME INVITE (sub-panel) ──────────────────────────
+let _igmFriends = [];           // cached friends list
+let _igmInvitedUsernames = new Set(); // session-level: who I've already invited
 async function igmOpenInviteFriend() {
-  // Only meaningful when there's a bot seat to replace (humans can't be kicked).
   const state = window._lastState || {};
   const players = Object.values(state.players || {});
   const hasBot = players.some(p => p && p.isBot && !p.isGhostBot);
   if (!hasBot) {
-    alert('No bot seats to replace right now. Friends can only join when a bot can be swapped out.');
+    igmShowSub('invite');
+    document.getElementById('igm-invite-list').innerHTML =
+      '<div style="padding:18px;font-size:13px;color:#fca5a5;text-align:center">No bot seats to replace right now. Friends can only join when a bot can be swapped out.</div>';
+    document.getElementById('igm-invite-input').disabled = true;
     return;
   }
-  const username = prompt('Invite a friend by username:');
-  if (!username || !username.trim()) return;
+  document.getElementById('igm-invite-input').disabled = false;
+  document.getElementById('igm-invite-input').value = '';
+  document.getElementById('igm-invite-msg').textContent = '';
+  igmShowSub('invite');
+  await _igmLoadFriends();
+  igmInviteRender('');
+  setTimeout(() => document.getElementById('igm-invite-input')?.focus(), 100);
+}
 
+async function _igmLoadFriends() {
   const token = igmToken || (() => { try { return JSON.parse(sessionStorage.getItem('sipsam_user')||'{}').token||null; } catch(e){return null;} })();
-  if (!token) { alert('Not authenticated.'); return; }
+  if (!token) { _igmFriends = []; return; }
+  try {
+    const r = await fetch('/api/friends', { headers:{'Authorization':'Bearer '+token}, credentials:'include' });
+    const d = await r.json();
+    _igmFriends = (d && d.friends) || [];
+  } catch(e) { _igmFriends = []; }
+}
+
+function _igmTableUsernames() {
+  // Lowercased usernames currently seated (humans + active bots)
+  const state = window._lastState || {};
+  const out = new Set();
+  Object.values(state.players || {}).forEach(p => {
+    if (p && p.username) out.add(String(p.username).toLowerCase());
+  });
+  return out;
+}
+
+function igmInviteOnFocus() { igmInviteRender(document.getElementById('igm-invite-input').value || ''); }
+function igmInviteOnInput(v) { igmInviteRender(v || ''); }
+
+function igmInviteRender(query) {
+  const list = document.getElementById('igm-invite-list');
+  if (!list) return;
+  const seated = _igmTableUsernames();
+  const q = (query || '').trim().toLowerCase();
+  const candidates = _igmFriends.filter(f => {
+    const name = String(f.username || '').toLowerCase();
+    if (!name) return false;
+    if (seated.has(name)) return false;                 // already at the table
+    if (_igmInvitedUsernames.has(name)) return false;   // already invited this session
+    if (q && !name.includes(q)) return false;
+    return true;
+  });
+  if (candidates.length === 0) {
+    list.innerHTML = `<div style="padding:14px;font-size:13px;color:#7a9ac0;text-align:center">${
+      q
+        ? 'No matching friends available. (Already at table or already invited friends are hidden.)'
+        : (_igmFriends.length === 0 ? 'You have no friends yet. Add some from the dashboard.' : 'No friends available to invite right now.')
+    }</div>`;
+    return;
+  }
+  list.innerHTML = candidates.map(f => {
+    const name = String(f.username || '');
+    const safe = name.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const initial = name[0]?.toUpperCase() || '?';
+    return `<div onclick="igmDoInvite('${safe.replace(/'/g,"\\'")}')" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:7px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(74,171,255,.1)'" onmouseout="this.style.background=''">
+      <div style="width:30px;height:30px;border-radius:50%;background:#0f1e38;border:1px solid #1a2d50;display:flex;align-items:center;justify-content:center;color:#4aabff;font-weight:700;font-size:13px">${initial}</div>
+      <div style="flex:1;font-size:13px;color:#f0f6ff;font-weight:600">${safe}</div>
+      <span style="font-size:11px;color:#4aabff">Invite ›</span>
+    </div>`;
+  }).join('');
+}
+
+async function igmDoInvite(username) {
+  if (!username) return;
+  const msg = document.getElementById('igm-invite-msg');
+  if (msg) { msg.textContent = `Sending invite to ${username}…`; msg.style.color = '#7a9ac0'; }
+  const token = igmToken || (() => { try { return JSON.parse(sessionStorage.getItem('sipsam_user')||'{}').token||null; } catch(e){return null;} })();
+  if (!token) { if (msg) { msg.textContent = '⚠️ Not authenticated.'; msg.style.color = '#fca5a5'; } return; }
 
   const cfg = igmTableCfg || {};
   try {
@@ -1212,7 +1302,7 @@ async function igmOpenInviteFriend() {
       headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+token },
       credentials: 'include',
       body: JSON.stringify({
-        toUsername:  username.trim(),
+        toUsername:  username,
         game:        'sipsam',
         roomId:      myRoomId,
         tableMinBet: cfg.minBet || (window._lastState?.tableMinBet) || 0,
@@ -1231,13 +1321,14 @@ async function igmOpenInviteFriend() {
     });
     const data = await res.json();
     if (data.ok) {
-      alert(`✅ Invite sent to ${username}.`);
-      closeIngameMenu();
+      _igmInvitedUsernames.add(username.toLowerCase());
+      if (msg) { msg.textContent = `✅ Invite sent to ${username}.`; msg.style.color = '#22c55e'; }
+      igmInviteRender(document.getElementById('igm-invite-input').value || '');
     } else {
-      alert('❌ ' + (data.error || 'Failed to send invite.'));
+      if (msg) { msg.textContent = '❌ ' + (data.error || 'Failed to send invite.'); msg.style.color = '#fca5a5'; }
     }
   } catch(e) {
-    alert('⚠️ Network error.');
+    if (msg) { msg.textContent = '⚠️ Network error.'; msg.style.color = '#fca5a5'; }
   }
 }
 

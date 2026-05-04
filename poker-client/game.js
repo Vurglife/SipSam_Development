@@ -863,6 +863,10 @@ function toggleFreezeBet() {
 }
 
 // Apply frozen bet at the start of a new betting phase.
+// IMPORTANT: do NOT auto-hide the overlay anymore — the user must keep
+// access to the +/- and the Unfreeze button so they can change their
+// mind during the countdown. The overlay closes naturally when the
+// betting phase ends.
 function _maybeApplyFrozenBet(state, me) {
     if (!_betFrozen || !state || state.status !== 'betting') return;
     if (!me || me.isBanker) return;
@@ -873,11 +877,6 @@ function _maybeApplyFrozenBet(state, me) {
     currentBet = amount;
     updateBetDisplay();
     sendMsg('placeBet', { amount });
-    // Auto-hide overlay so frozen rounds don't block UI
-    const overlay = document.getElementById('bet-overlay');
-    if (overlay) {
-        setTimeout(() => { if (_betFrozen) overlay.style.display = 'none'; }, 600);
-    }
 }
 
 function initBetControls(minBet, startingChips) {
@@ -912,6 +911,22 @@ function adjustBet(delta) {
     currentBet = Math.max(tableMinBet, Math.min(newBet, effectiveMax));
     updateBetDisplay();
     sendMsg("placeBet", { amount: currentBet });
+    // Manually adjusting the bet implicitly releases the freeze — the user
+    // is making a fresh decision for this round. They can re-freeze if
+    // they want this new amount to stick.
+    if (_betFrozen) {
+        _betFrozen = false;
+        _betFrozenAmount = 0;
+        const btn = document.getElementById('btn-freeze-bet');
+        const ind = document.getElementById('freeze-bet-indicator');
+        if (btn) {
+            btn.textContent = '🔒 Freeze Bet';
+            btn.style.background = 'transparent';
+            btn.style.color = '#7a9ac0';
+            btn.style.borderColor = '#334155';
+        }
+        if (ind) ind.style.display = 'none';
+    }
 }
 
 // ============================================
