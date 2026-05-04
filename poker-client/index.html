@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="VurgLife">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/images/icon-192.png">
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
   <style>
     /* Lobby config banner (pre-selected from dashboard) */
     .lobby-title { font-family:'Bebas Neue',serif; font-size:2rem; letter-spacing:4px; margin:0 0 4px; }
@@ -1124,6 +1124,7 @@ function toggleIngameMenu() {
 
 function openIngameMenu() {
   igmOpen = true;
+  document.body.classList.add('igm-open');
   // Refresh bank balance from server each time menu opens
   if (igmToken) {
     fetch('/api/game/balance', {
@@ -1147,6 +1148,7 @@ function openIngameMenu() {
 
 function closeIngameMenu() {
   igmOpen = false;
+  document.body.classList.remove('igm-open');
   igmBack();
   document.getElementById('igm-panel').style.transform   = 'translateX(100%)';
   document.getElementById('igm-overlay').style.display   = 'none';

@@ -1134,6 +1134,15 @@ html, body{
   display: flex !important;
   z-index: 1500 !important;
 }
+/* When the menu panel is open, the toggle button must NOT sit on top of
+   the panel. Was z-index:1500 → covered the upper-right of the panel,
+   stealing clicks meant for menu items + close button. The overlay and
+   panel both lift above it while open. */
+body.igm-open #ingame-menu-btn { z-index: 400 !important; }
+body.igm-open #igm-overlay { z-index: 1600 !important; }
+body.igm-open #igm-panel   { z-index: 1700 !important; }
+/* Make sure menu items themselves accept clicks cleanly. */
+#igm-panel .igm-item, #igm-panel button { position: relative; z-index: 1; }
 
 /* ============================================================
    LED STRIP — animated underglow under the oval table edge
