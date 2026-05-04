@@ -1128,6 +1128,132 @@ html, body{
   z-index: 1500 !important;
 }
 
+/* ============================================================
+   LED STRIP — animated underglow under the oval table edge
+   ============================================================ */
+.oval-table {
+  position: relative;
+}
+.oval-table::before,
+.oval-table::after {
+  pointer-events: none;
+}
+/* Outer glow halo — drifts hue over time so it looks alive */
+.oval-table {
+  --led-hue1: 200;
+  --led-hue2: 280;
+  filter: drop-shadow(0 8px 18px rgba(0,0,0,.6));
+}
+/* Use a wrapping pseudo on the body of the table via box-shadow chain.
+   Multiple inset stops + color-changing keyframes = smooth LED feel. */
+.oval-table {
+  animation: ledStripCycle 8s ease-in-out infinite;
+}
+@keyframes ledStripCycle {
+  0%   { box-shadow:
+           inset 0 1px 0 rgba(255,255,255,.12),
+           inset 0 0 90px rgba(0,12,32,.55),
+           0 0 0 1px rgba(0,0,0,.4),
+           0 0 0 4px rgba(126,200,255,.10),
+           0 30px 70px -10px rgba(0,8,24,.8),
+           0 0 60px rgba(126,200,255,.30),
+           0 0 100px rgba(126,200,255,.18); }
+  33%  { box-shadow:
+           inset 0 1px 0 rgba(255,255,255,.12),
+           inset 0 0 90px rgba(0,12,32,.55),
+           0 0 0 1px rgba(0,0,0,.4),
+           0 0 0 4px rgba(201,168,76,.18),
+           0 30px 70px -10px rgba(0,8,24,.8),
+           0 0 60px rgba(201,168,76,.30),
+           0 0 100px rgba(201,168,76,.18); }
+  66%  { box-shadow:
+           inset 0 1px 0 rgba(255,255,255,.12),
+           inset 0 0 90px rgba(0,12,32,.55),
+           0 0 0 1px rgba(0,0,0,.4),
+           0 0 0 4px rgba(174,221,255,.16),
+           0 30px 70px -10px rgba(0,8,24,.8),
+           0 0 60px rgba(174,221,255,.30),
+           0 0 100px rgba(174,221,255,.18); }
+  100% { box-shadow:
+           inset 0 1px 0 rgba(255,255,255,.12),
+           inset 0 0 90px rgba(0,12,32,.55),
+           0 0 0 1px rgba(0,0,0,.4),
+           0 0 0 4px rgba(126,200,255,.10),
+           0 30px 70px -10px rgba(0,8,24,.8),
+           0 0 60px rgba(126,200,255,.30),
+           0 0 100px rgba(126,200,255,.18); }
+}
+
+/* ============================================================
+   MODERNIZED GAME-OVER / STATS SCREEN
+   ============================================================ */
+#screen-gameover.active {
+  background:
+    radial-gradient(1100px 700px at 20% -10%, #102540 0%, transparent 60%),
+    radial-gradient(900px 600px at 90% 110%, #0c1f3c 0%, transparent 60%),
+    #050a14;
+}
+.gameover-card {
+  background: linear-gradient(180deg, rgba(20,28,40,.8), rgba(8,12,18,.92));
+  backdrop-filter: blur(28px) saturate(1.4);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 24px;
+  padding: 40px 32px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 30px 80px -10px rgba(0,8,24,.8),
+    0 0 60px rgba(201,168,76,.12);
+  position: relative;
+  overflow: hidden;
+}
+.gameover-card::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:4px;
+  background: linear-gradient(90deg, transparent, var(--gold-lt), var(--gold), var(--gold-lt), transparent);
+  animation: statsHeader 3s ease-in-out infinite;
+}
+@keyframes statsHeader {
+  0%, 100% { opacity:.4 }
+  50%      { opacity:1   }
+}
+.gameover-card h2 {
+  font-family: 'Manrope', sans-serif;
+  font-weight: 800;
+  letter-spacing: .04em;
+  font-size: clamp(22px, 4vw, 32px);
+  color: var(--gold-lt);
+  text-shadow: 0 0 24px rgba(201,168,76,.4);
+  margin-bottom: 18px;
+}
+#gameover-result {
+  font-family: 'Instrument Serif', serif !important;
+  font-weight: 400 !important;
+  font-size: clamp(20px, 3vw, 28px) !important;
+  letter-spacing: 0 !important;
+  color: var(--mg-accent-2) !important;
+}
+.score-row {
+  background: rgba(255,255,255,.03);
+  border-radius: 10px;
+  margin: 6px 0;
+  border-bottom: none;
+  padding: 12px 14px;
+  font-family: 'Manrope', sans-serif;
+  transition: background .2s, transform .15s;
+}
+.score-row:hover { background: rgba(255,255,255,.06); transform: translateX(2px); }
+.score-me {
+  background: linear-gradient(90deg, rgba(126,200,255,.18), rgba(126,200,255,.06)) !important;
+  border-left: 3px solid var(--mg-accent) !important;
+  box-shadow: 0 0 20px rgba(126,200,255,.15);
+}
+.score-winner {
+  background: linear-gradient(90deg, rgba(201,168,76,.20), rgba(201,168,76,.06)) !important;
+  border-left: 3px solid var(--gold) !important;
+  box-shadow: 0 0 24px rgba(201,168,76,.18);
+}
+
 /* ── MODERN BLUE-GLASS LOBBY ─────────────────────────────────
    Glassmorphic lobby card — frosted blur, soft cyan rim, gold accents
    reserved for primary CTAs. Replaces the flat dark gradient look. */

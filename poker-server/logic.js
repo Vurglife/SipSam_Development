@@ -409,13 +409,24 @@ function detectSpecial(hand1, hand2, hand3) {
     if (fs && all.every(c => c[1] === fs))
         return {name:'Full Suit', multiplier:10, rank:8};
 
-    // 6½ (8:1) — exactly 6 pairs OR 5 pairs + 1 trips (no quads)
+    // 6½ (8:1) — 13 cards form 6 effective pairs + 1 lone card.
+    //   Quads (4-of-a-kind) count as 2 pairs (no lone).
+    //   Trips (3-of-a-kind) count as 1 pair + 1 lone.
+    //   Pairs count as 1 pair (no lone).
+    //   Singles count as 1 lone (no pair).
+    // Equation: 2*quads + trips + pairs == 6  AND  trips + singles == 1
+    // Valid configs: 6 pairs+1 single; 5 pairs+1 trip; 4 pairs+1 quad+1 single;
+    //   3 pairs+1 quad+1 trip; 2 pairs+2 quads+1 single; 1 pair+2 quads+1 trip;
+    //   3 quads+1 single.
     const vc = {};
     all.forEach(c => { const v = cardValue(c); vc[v] = (vc[v]||0)+1; });
     const ep = Object.values(vc).filter(c => c===2).length;
     const et = Object.values(vc).filter(c => c===3).length;
     const eq = Object.values(vc).filter(c => c===4).length;
-    if (eq === 0 && (ep===6 || (ep===5 && et===1)))
+    const es = Object.values(vc).filter(c => c===1).length;
+    const totalPairs = 2*eq + et + ep;
+    const totalLone  = et + es;
+    if (totalPairs === 6 && totalLone === 1)
         return {name:'6½', multiplier:8, rank:7};
 
     // Royal Flush (7:1) — in 2nd or 3rd hand
@@ -531,6 +542,202 @@ function detectSpecial(hand1, hand2, hand3) {
 // Flat chip bonus awarded ON TOP of the multiplier payout.
 // Two tables: standard tables and the $10K VIP tier.
 // Use getSpecialBonus(name, isVip) to read the right table.
+
+const SPECIAL_DEFS = [
+    { name:'Full Suit',                  multiplier:10, rank:8 },
+    { name:'6Â½',                         multiplier:8,  rank:7 },
+    { name:'Royal Flush',                multiplier:7,  rank:6 },
+    { name:'Flush-Flush-Flush',          multiplier:5,  rank:5 },
+    { name:'Straight-Straight-Straight', multiplier:5,  rank:4 },
+    { name:'Four of a Kind',             multiplier:3,  rank:2 },
+    { name:'Straight Flush',             multiplier:3,  rank:3 },
+    { name:'No Face',                    multiplier:2,  rank:1 },
+];
+
+function specialDef(name) {
+    const found = SPECIAL_DEFS.find(s => s.name === name);
+    return found ? { ...found } : null;
+}
+
+function valueCounts(cards) {
+    const vc = {};
+    cards.forEach(c => { const v = cardValue(c); vc[v] = (vc[v] || 0) + 1; });
+    return vc;
+}
+
+function combinations(arr, size, start = 0, prefix = [], out = []) {
+    if (prefix.length === size) {
+        out.push([...prefix]);
+        return out;
+    }
+    for (let i = start; i <= arr.length - (size - prefix.length); i++) {
+        prefix.push(arr[i]);
+        combinations(arr, size, i + 1, prefix, out);
+        prefix.pop();
+    }
+    return out;
+}
+
+function remainingCards(cards, used) {
+    const usedSet = new Set(used);
+    return cards.filter(c => !usedSet.has(c));
+}
+
+function cleanArrangement(arrangement) {
+    if (!arrangement) return null;
+    return {
+        hand1: [...arrangement.hand1],
+        hand2: [...arrangement.hand2],
+        hand3: [...arrangement.hand3],
+    };
+}
+
+function findArrangementByPredicate(rawCards, predicate) {
+    const cards = [...rawCards];
+    let fallback = null;
+    for (const hand1 of combinations(cards, 3)) {
+        const rem10 = remainingCards(cards, hand1);
+        for (const hand2 of combinations(rem10, 5)) {
+            const hand3 = remainingCards(rem10, hand2);
+            if (hand3.length !== 5) continue;
+            if (!predicate(hand1, hand2, hand3)) continue;
+            const candidate = { hand1, hand2, hand3 };
+            if (!fallback) fallback = cleanArrangement(candidate);
+            if (validateHandOrder(hand1, hand2, hand3) === null) {
+                return cleanArrangement(candidate);
+            }
+        }
+    }
+    return fallback;
+}
+
+function findArrangementWithFixedHand3(rawCards, fixedHand3) {
+    const cards = [...rawCards];
+    const rem8 = remainingCards(cards, fixedHand3);
+    if (rem8.length !== 8) return null;
+    let fallback = null;
+    for (const hand1 of combinations(rem8, 3)) {
+        const hand2 = remainingCards(rem8, hand1);
+        if (hand2.length !== 5) continue;
+        const candidate = { hand1, hand2, hand3: fixedHand3 };
+        if (!fallback) fallback = cleanArrangement(candidate);
+        if (validateHandOrder(hand1, hand2, fixedHand3) === null) {
+            return cleanArrangement(candidate);
+        }
+    }
+    return fallback;
+}
+
+function straightFlushHands(rawCards) {
+    const hands = [];
+    const bySuit = {};
+    rawCards.forEach(c => {
+        const suit = cardSuit(c);
+        if (!bySuit[suit]) bySuit[suit] = [];
+        bySuit[suit].push(c);
+    });
+    for (const suitCards of Object.values(bySuit)) {
+        if (suitCards.length < 5) continue;
+        for (const hand of combinations(suitCards, 5)) {
+            const e = evaluate5CardHand(hand);
+            if (e.rank === 7 || e.rank === 8) hands.push(sortDesc(hand));
+        }
+    }
+    const seen = new Set();
+    return hands
+        .filter(hand => {
+            const key = [...hand].sort().join('|');
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        })
+        .sort((a, b) => {
+            const ea = evaluate5CardHand(a), eb = evaluate5CardHand(b);
+            if (eb.rank !== ea.rank) return eb.rank - ea.rank;
+            return straightEffectiveHigh(eb) - straightEffectiveHigh(ea);
+        });
+}
+
+function findRoyalFlushArrangement(rawCards) {
+    for (const hand of straightFlushHands(rawCards)) {
+        if (evaluate5CardHand(hand).rank !== 8) continue;
+        const arranged = findArrangementWithFixedHand3(rawCards, hand);
+        if (arranged) return arranged;
+    }
+    return null;
+}
+
+function findStraightFlushArrangement(rawCards) {
+    for (const hand of straightFlushHands(rawCards)) {
+        if (evaluate5CardHand(hand).rank !== 7) continue;
+        const arranged = findArrangementWithFixedHand3(rawCards, hand);
+        if (arranged) return arranged;
+    }
+    return null;
+}
+
+function findFFFArrangement(rawCards) {
+    return findArrangementByPredicate(rawCards, (h1, h2, h3) =>
+        evaluate3CardHand(h1).isFlush &&
+        evaluate5CardHand(h2).isFlush &&
+        evaluate5CardHand(h3).isFlush
+    );
+}
+
+function findSSSArrangement(rawCards) {
+    return findArrangementByPredicate(rawCards, (h1, h2, h3) =>
+        evaluate3CardHand(h1).isStraight &&
+        evaluate5CardHand(h2).isStraight &&
+        evaluate5CardHand(h3).isStraight
+    );
+}
+
+function arrangementForWholeHandSpecial(rawCards) {
+    return findBestBotArrangement(rawCards);
+}
+
+function detectSpecialFromRaw(rawCards) {
+    if (!rawCards || rawCards.length !== 13) return null;
+    const raw = [...rawCards];
+
+    const firstSuit = cardSuit(raw[0]);
+    if (firstSuit && raw.every(c => cardSuit(c) === firstSuit)) {
+        return { special: specialDef('Full Suit'), arrangement: arrangementForWholeHandSpecial(raw) };
+    }
+
+    const vc = valueCounts(raw);
+    const counts = Object.values(vc);
+    const pairs = counts.filter(c => c === 2).length;
+    const trips = counts.filter(c => c === 3).length;
+    const quads = counts.filter(c => c === 4).length;
+    if (quads === 0 && (pairs === 6 || (pairs === 5 && trips === 1))) {
+        return { special: specialDef('6Â½'), arrangement: arrangementForWholeHandSpecial(raw) };
+    }
+
+    const royal = findRoyalFlushArrangement(raw);
+    if (royal) return { special: specialDef('Royal Flush'), arrangement: royal };
+
+    const fff = findFFFArrangement(raw);
+    if (fff) return { special: specialDef('Flush-Flush-Flush'), arrangement: fff };
+
+    const sss = findSSSArrangement(raw);
+    if (sss) return { special: specialDef('Straight-Straight-Straight'), arrangement: sss };
+
+    if (quads > 0) {
+        return { special: specialDef('Four of a Kind'), arrangement: arrangementForWholeHandSpecial(raw) };
+    }
+
+    const sf = findStraightFlushArrangement(raw);
+    if (sf) return { special: specialDef('Straight Flush'), arrangement: sf };
+
+    if (!hasFaceCard(raw)) {
+        return { special: specialDef('No Face'), arrangement: arrangementForWholeHandSpecial(raw) };
+    }
+
+    return null;
+}
+
+
 const SPECIAL_BONUS_VIP = {
     'No Face':                    100000,
     'Four of a Kind':             250000,
@@ -994,3 +1201,10 @@ function findBestBotArrangement(rawCards) {
 }
 
 module.exports.findBestBotArrangement = findBestBotArrangement;
+
+module.exports.SPECIAL_DEFS = SPECIAL_DEFS;
+module.exports.detectSpecialFromRaw = detectSpecialFromRaw;
+module.exports.findSSSArrangement = findSSSArrangement;
+module.exports.findFFFArrangement = findFFFArrangement;
+module.exports.findRoyalFlushArrangement = findRoyalFlushArrangement;
+module.exports.findStraightFlushArrangement = findStraightFlushArrangement;

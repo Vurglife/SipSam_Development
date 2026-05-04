@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="VurgLife">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/images/icon-192.png">
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
   <style>
     /* Lobby config banner (pre-selected from dashboard) */
     .lobby-title { font-family:'Bebas Neue',serif; font-size:2rem; letter-spacing:4px; margin:0 0 4px; }
@@ -354,6 +354,17 @@
         </div>
         <button id="btn-bet-up" class="btn-secondary" style="font-size:16px;padding:10px 22px;border-radius:10px">+</button>
       </div>
+
+      <!-- Freeze bet — locks the current amount for subsequent rounds -->
+      <button id="btn-freeze-bet" onclick="toggleFreezeBet()" style="
+        margin-top:14px;background:transparent;border:1px solid #334155;color:#7a9ac0;
+        padding:8px 18px;border-radius:10px;font-family:'Rajdhani',sans-serif;
+        font-weight:700;font-size:13px;letter-spacing:1px;cursor:pointer;
+        transition:all .2s ease;">
+        🔒 Freeze Bet
+      </button>
+      <div id="freeze-bet-indicator" style="display:none;margin-top:6px;font-size:11px;
+        color:#38bdf8;font-weight:700;letter-spacing:1px;text-align:center"></div>
       <p id="bet-msg" class="status-msg" style="margin-top:10px;text-align:center"></p>
     </div>
 
@@ -527,7 +538,7 @@
   </div>
 </div>
 
-<script src="game.js?v=17"></script>
+<script src="game.js?v=18"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      IN-GAME SLIDE-OUT MENU

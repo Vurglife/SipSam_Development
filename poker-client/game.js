@@ -556,14 +556,16 @@ function detectSpecialClient(h1, h2, h3) {
     // Full Suit
     const fs = all[0]?.[1];
     if (fs && all.every(c=>c[1]===fs)) return {name:'Full Suit',multiplier:10};
-    // 6½ — count exact pairs/trips
+    // 6½ — quads count as 2 pairs, trips as 1 pair + 1 lone, pairs as 1 pair.
+    // Need 6 effective pairs + exactly 1 lone card across the 13 cards.
     const valMap = {'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'T':10,'J':11,'Q':12,'K':13,'A':14};
     const vc = {};
     all.forEach(c=>{ const v=valMap[c[0]]||0; vc[v]=(vc[v]||0)+1; });
     const ep = Object.values(vc).filter(c=>c===2).length;
     const et = Object.values(vc).filter(c=>c===3).length;
     const eq = Object.values(vc).filter(c=>c===4).length;
-    if (ep===6||(ep===5&&et===1)) return {name:'6½',multiplier:8};
+    const es = Object.values(vc).filter(c=>c===1).length;
+    if (2*eq + et + ep === 6 && et + es === 1) return {name:'6½',multiplier:8};
     // Royal Flush in h2 or h3
     const checkRoyal = h => {
         const vals = h.map(c=>({'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'T':10,'J':11,'Q':12,'K':13,'A':14}[c[0]]||0));
@@ -822,8 +824,62 @@ function renderMyRevealHands(me) {
 }
 
 // ============================================
-// BET CONTROLS
+// BET CONTROLS — with FREEZE support
 // ============================================
+// When frozen, the bet amount is auto-placed at the start of each
+// betting phase and the user can keep playing without re-clicking +/−.
+let _betFrozen        = false;
+let _betFrozenAmount  = 0;
+
+function toggleFreezeBet() {
+    const btn   = document.getElementById('btn-freeze-bet');
+    const ind   = document.getElementById('freeze-bet-indicator');
+    if (_betFrozen) {
+        _betFrozen = false;
+        _betFrozenAmount = 0;
+        if (btn) {
+            btn.textContent = '🔒 Freeze Bet';
+            btn.style.background = 'transparent';
+            btn.style.color = '#7a9ac0';
+            btn.style.borderColor = '#334155';
+        }
+        if (ind) ind.style.display = 'none';
+    } else {
+        _betFrozen = true;
+        _betFrozenAmount = currentBet;
+        if (btn) {
+            btn.textContent = '🔓 Unfreeze Bet';
+            btn.style.background = 'rgba(56,189,248,.15)';
+            btn.style.color = '#38bdf8';
+            btn.style.borderColor = '#38bdf8';
+        }
+        if (ind) {
+            ind.style.display = 'block';
+            ind.textContent = `Frozen at $${currentBet.toLocaleString()} for all future rounds`;
+        }
+        // Submit current bet immediately on freeze
+        sendMsg('placeBet', { amount: currentBet });
+    }
+}
+
+// Apply frozen bet at the start of a new betting phase.
+function _maybeApplyFrozenBet(state, me) {
+    if (!_betFrozen || !state || state.status !== 'betting') return;
+    if (!me || me.isBanker) return;
+    const cfg = TABLE_CONFIGS[state.tableMinBet || tableMinBet] || TABLE_CONFIGS[100];
+    const myChips = me.chips || 0;
+    const effMax = myChips > 0 ? Math.min(cfg.maxBet, myChips) : cfg.maxBet;
+    const amount = Math.max(cfg.minBet, Math.min(_betFrozenAmount, effMax));
+    currentBet = amount;
+    updateBetDisplay();
+    sendMsg('placeBet', { amount });
+    // Auto-hide overlay so frozen rounds don't block UI
+    const overlay = document.getElementById('bet-overlay');
+    if (overlay) {
+        setTimeout(() => { if (_betFrozen) overlay.style.display = 'none'; }, 600);
+    }
+}
+
 function initBetControls(minBet, startingChips) {
     // Always derive config from TABLE_CONFIGS to prevent bad defaults
     const cfg    = TABLE_CONFIGS[minBet] || TABLE_CONFIGS[100];
@@ -1016,6 +1072,8 @@ function updateGameUI(state) {
             if (roundLbl) roundLbl.textContent = `${state.round} of ${state.maxRounds}`;
             overlay.style.display = 'flex';
             overlay.style.animation = 'betOverlayIn .3s ease';
+            // If user has a frozen bet, place it now and auto-dismiss
+            _maybeApplyFrozenBet(state, me);
         }
         // Build/rebuild seatMap excluding the current banker
         // Rebuilds on round 1, when empty, OR when banker changed
@@ -2200,7 +2258,7 @@ document.getElementById('btn-declare-special').addEventListener('click', () => {
 // All specials with descriptions (same order as server detectSpecial priority)
 const ALL_SPECIALS = [
     { name: 'Full Suit',               multiplier: 10, desc: 'All 13 cards in one suit' },
-    { name: '6½',                      multiplier:  8, desc: '6 pairs, or 5 pairs + 1 trips' },
+    { name: '6½',                      multiplier:  8, desc: '6 effective pairs + 1 lone (quads = 2 pairs, trips = pair + lone)' },
     { name: 'Royal Flush',             multiplier:  7, desc: 'Royal Flush in 2nd or 3rd hand' },
     { name: 'Flush-Flush-Flush',       multiplier:  5, desc: 'All three hands are flushes' },
     { name: 'Straight-Straight-Straight', multiplier: 5, desc: 'All three hands are straights' },
