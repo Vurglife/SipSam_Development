@@ -1202,12 +1202,9 @@ function updateGameUI(state) {
     updateOpponentSeats(state, revealed);
     if (revealed) {
         renderMyRevealHands(me);
-        buildDisqualifyPanel(state);
     }
-    else {
-        const dqPanel = document.getElementById('disqualify-panel');
-        if (dqPanel) dqPanel.style.display = 'none';
-    }
+    const dqPanel = document.getElementById('disqualify-panel');
+    if (dqPanel) dqPanel.style.display = 'none';
 
     if (state.status === 'gameOver') {
         showGameOver(state);

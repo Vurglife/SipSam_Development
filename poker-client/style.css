@@ -554,8 +554,8 @@ html, body {
 #arrange-controls { display:flex; flex-direction:column; gap:6px; }
 #arrange-controls > div { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 
-/* Disqualify panel */
-#disqualify-panel { margin-top:4px; }
+/* Disqualify panel — auto-DQ is server-side; UI option permanently hidden */
+#disqualify-panel { display: none !important; margin-top:4px; }
 .dq-title { color:#ff9944; font-size:clamp(13px,1.8vw,15px); font-weight:700; margin-bottom:6px; letter-spacing:1px; }
 #dq-buttons { display:flex; gap:8px; flex-wrap:wrap; }
 .btn-dq {
@@ -1029,15 +1029,28 @@ html, body{
 
 /* ── COUNTDOWN BOX — glass instead of CRT ── */
 .countdown-box{
-  background: rgba(8,18,36,.85);
-  border: 1px solid rgba(201,168,76,.45);
+  background: rgba(8,18,36,.95);
+  border: 2px solid rgba(201,168,76,.85);
   border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(0,4,18,.5), inset 0 1px 0 rgba(255,255,255,.10),
-              0 0 24px rgba(201,168,76,.18);
-  z-index: 30;            /* above gloss + table-logo */
-  width: 96px;
-  height: 70px;
+  box-shadow: 0 8px 24px rgba(0,4,18,.6), inset 0 1px 0 rgba(255,255,255,.14),
+              0 0 32px rgba(201,168,76,.55);
+  z-index: 500;           /* above LED ring, gloss, table-logo, cards */
+  width: 110px;
+  height: 80px;
   padding: 4px;
+  animation: countdownPulse 2s ease-in-out infinite;
+}
+@keyframes countdownPulse {
+  0%, 100% { box-shadow: 0 8px 24px rgba(0,4,18,.6), inset 0 1px 0 rgba(255,255,255,.14), 0 0 32px rgba(201,168,76,.55); }
+  50%      { box-shadow: 0 8px 24px rgba(0,4,18,.6), inset 0 1px 0 rgba(255,255,255,.14), 0 0 48px rgba(201,168,76,.85); }
+}
+.countdown-box .cd-number {
+  font-size: clamp(28px, 5vw, 38px) !important;
+  text-shadow: 0 0 16px rgba(201,168,76,1), 0 0 4px rgba(255,255,255,.4) !important;
+}
+.countdown-box .cd-label-txt {
+  font-size: 10px !important;
+  color: #f5e7b8 !important;
 }
 .cd-label-txt {
   z-index: 31;
@@ -1145,59 +1158,74 @@ body.igm-open #igm-panel   { z-index: 1700 !important; }
 #igm-panel .igm-item, #igm-panel button { position: relative; z-index: 1; }
 
 /* ============================================================
-   LED STRIP — animated underglow under the oval table edge
+   LED STRIP — animated underglow + visible chasing edge
    ============================================================ */
 .oval-table {
   position: relative;
+  filter: drop-shadow(0 8px 18px rgba(0,0,0,.6));
+  animation: ledStripCycle 8s ease-in-out infinite;
 }
 .oval-table::before,
-.oval-table::after {
-  pointer-events: none;
+.oval-table::after { pointer-events: none; }
+/* Visible LED ring — sits ON the edge of the oval, chasing around it.
+   Conic gradient with hard color stops + slow rotation = clear LED dots. */
+.oval-table::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+  padding: 6px;
+  background: conic-gradient(from 0deg,
+      #7ec8ff 0deg, transparent 18deg,
+      #c9a84c 90deg, transparent 108deg,
+      #aeddff 180deg, transparent 198deg,
+      #c9a84c 270deg, transparent 288deg,
+      #7ec8ff 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite: exclude;
+  filter: blur(2.5px) brightness(1.4);
+  opacity: .9;
+  animation: ledRingChase 6s linear infinite;
+  z-index: 2;
 }
-/* Outer glow halo — drifts hue over time so it looks alive */
-.oval-table {
-  --led-hue1: 200;
-  --led-hue2: 280;
-  filter: drop-shadow(0 8px 18px rgba(0,0,0,.6));
-}
-/* Use a wrapping pseudo on the body of the table via box-shadow chain.
-   Multiple inset stops + color-changing keyframes = smooth LED feel. */
-.oval-table {
-  animation: ledStripCycle 8s ease-in-out infinite;
+@keyframes ledRingChase {
+  to { transform: rotate(360deg); }
 }
 @keyframes ledStripCycle {
   0%   { box-shadow:
            inset 0 1px 0 rgba(255,255,255,.12),
            inset 0 0 90px rgba(0,12,32,.55),
            0 0 0 1px rgba(0,0,0,.4),
-           0 0 0 4px rgba(126,200,255,.10),
+           0 0 0 4px rgba(126,200,255,.18),
            0 30px 70px -10px rgba(0,8,24,.8),
-           0 0 60px rgba(126,200,255,.30),
-           0 0 100px rgba(126,200,255,.18); }
+           0 0 60px rgba(126,200,255,.45),
+           0 0 100px rgba(126,200,255,.28); }
   33%  { box-shadow:
            inset 0 1px 0 rgba(255,255,255,.12),
            inset 0 0 90px rgba(0,12,32,.55),
            0 0 0 1px rgba(0,0,0,.4),
-           0 0 0 4px rgba(201,168,76,.18),
+           0 0 0 4px rgba(201,168,76,.28),
            0 30px 70px -10px rgba(0,8,24,.8),
-           0 0 60px rgba(201,168,76,.30),
-           0 0 100px rgba(201,168,76,.18); }
+           0 0 60px rgba(201,168,76,.45),
+           0 0 100px rgba(201,168,76,.28); }
   66%  { box-shadow:
            inset 0 1px 0 rgba(255,255,255,.12),
            inset 0 0 90px rgba(0,12,32,.55),
            0 0 0 1px rgba(0,0,0,.4),
-           0 0 0 4px rgba(174,221,255,.16),
+           0 0 0 4px rgba(174,221,255,.26),
            0 30px 70px -10px rgba(0,8,24,.8),
-           0 0 60px rgba(174,221,255,.30),
-           0 0 100px rgba(174,221,255,.18); }
+           0 0 60px rgba(174,221,255,.45),
+           0 0 100px rgba(174,221,255,.28); }
   100% { box-shadow:
            inset 0 1px 0 rgba(255,255,255,.12),
            inset 0 0 90px rgba(0,12,32,.55),
            0 0 0 1px rgba(0,0,0,.4),
-           0 0 0 4px rgba(126,200,255,.10),
+           0 0 0 4px rgba(126,200,255,.18),
            0 30px 70px -10px rgba(0,8,24,.8),
-           0 0 60px rgba(126,200,255,.30),
-           0 0 100px rgba(126,200,255,.18); }
+           0 0 60px rgba(126,200,255,.45),
+           0 0 100px rgba(126,200,255,.28); }
 }
 
 /* ============================================================
