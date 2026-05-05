@@ -370,25 +370,30 @@ class SipSamRoom {
         // Snapshot for use after we mutate the player object
         const _disconnectedIsBanker = !!player.isBanker;
         if (_disconnectedToken && !player.isBot) {
-            // For banker: if chips went negative due to forfeit/owed payouts,
-            // pull the shortfall from their bank first so the table is square.
-            const debt = (player.chips < 0) ? Math.abs(player.chips) : 0;
-            if (_disconnectedIsBanker && debt > 0) {
-                callPlatformAPI('/api/game/debt-payment', _disconnectedToken, {
-                    amount:      debt,
-                    tableMinBet: _disconnectedTier,
-                    reason:      'banker_disconnect_owed'
-                }).then(r => {
-                    console.log(`[DISCONNECT-REFUND] Banker debt $${debt} pulled from bank:`, r.ok ? 'OK' : r.error);
-                }).catch(e => console.warn('[DISCONNECT-REFUND] debt call failed:', e.message));
-            }
-            // Refund whatever is in the wallet (could be 0 if banker was wiped).
-            callPlatformAPI('/api/game/exit', _disconnectedToken, {
-                remainingWallet: _disconnectedChips,
-                tableMinBet:     _disconnectedTier
-            }).then(r => {
-                console.log(`[DISCONNECT-REFUND] ${player.username} wallet $${_disconnectedChips} → bank:`, r.ok ? 'OK' : r.error);
-            }).catch(e => console.warn('[DISCONNECT-REFUND] exit call failed:', e.message));
+            // Settle banker debt FIRST, then refund wallet — ordered so a
+            // debt-call failure surfaces in logs before the wallet refund.
+            // Bank may go negative; player must replenish via ads/purchase.
+            const debt        = (player.chips < 0) ? Math.abs(player.chips) : 0;
+            const _username   = player.username;
+            (async () => {
+                if (_disconnectedIsBanker && debt > 0) {
+                    try {
+                        const r = await callPlatformAPI('/api/game/debt-payment', _disconnectedToken, {
+                            amount:      debt,
+                            tableMinBet: _disconnectedTier,
+                            reason:      'banker_disconnect_owed'
+                        });
+                        console.log(`[DISCONNECT-REFUND] Banker debt $${debt} pulled from bank:`, r.ok ? `OK (new bank $${r.newBankBalance})` : r.error);
+                    } catch(e) { console.warn('[DISCONNECT-REFUND] debt call failed:', e.message); }
+                }
+                try {
+                    const r = await callPlatformAPI('/api/game/exit', _disconnectedToken, {
+                        remainingWallet: _disconnectedChips,
+                        tableMinBet:     _disconnectedTier
+                    });
+                    console.log(`[DISCONNECT-REFUND] ${_username} wallet $${_disconnectedChips} → bank:`, r.ok ? `OK (new bank $${r.newBankBalance})` : r.error);
+                } catch(e) { console.warn('[DISCONNECT-REFUND] exit call failed:', e.message); }
+            })();
         }
         player.token      = null;  // already settled — _settleToBank will skip
         player.isBot      = true;
