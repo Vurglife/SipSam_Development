@@ -41,41 +41,55 @@ function cleanupRoom(roomId) {
 }
 
 // ── QUICK-JOIN MATCHMAKING ────────────────────────────────────
-// Given a tier (sipsam_<minBet>), find a 'waiting' room with open seats so
-// the joiner lands in a proper lobby (round selection, invite friends).
+// Match on tier (minBet) AND round-count chosen on the dashboard.
 // Rules:
-//   1. Skip rooms marked completed (game over).
-//   2. Skip private (invite-only) rooms.
-//   3. Skip in-progress rooms — joiner deserves their own lobby; do not
-//      drop strangers into a live game (was causing UX bugs where the
-//      stranger's chips drained on auto-bets without replacing any bot).
-//   4. Else prefer a 'waiting' room with open seats (most humans first).
-//   5. Else create a new sipsam_<minBet>_<timestamp> room.
-function quickJoinForTier(requestedRoomId) {
+//   1. Skip completed rooms.
+//   2. Waiting rooms: must be public, have open seats, AND match rounds (or
+//      have no rounds set yet — fresh shell room).
+//   3. In-progress rooms: must match rounds, have at least one replaceable
+//      non-banker bot, AND not be on the final round. isPrivate is ignored
+//      once a game has started — strangers fill bot seats Zynga-style.
+//   4. Prefer waiting matches first (humans want a lobby with friends), then
+//      in-progress with replaceable bots.
+//   5. Else create new sipsam_<minBet>_<timestamp>.
+function quickJoinForTier(requestedRoomId, wantedRounds) {
     const m = String(requestedRoomId || '').match(/^sipsam_(\d+)(?:_|$)/);
     if (!m) return requestedRoomId; // not a tier hint — pass through (invite flow)
-    const minBet = Number(m[1]);
+    const minBet  = Number(m[1]);
+    const rounds  = Number(wantedRounds) || 0;
     const candidates = [];
     for (const [rid, room] of Object.entries(rooms)) {
         const gs = room.gameState;
         if (!gs || gs.completed) continue;
         if (Number(gs.tableMinBet) !== minBet) continue;
-        if (gs.isPrivate) continue;
-        if (gs.status !== 'waiting') continue; // never drop into in-progress
-        const players  = Object.values(gs.players || {});
-        const humans   = players.filter(p => !p.isBot && !p.isGhostBot).length;
-        const openSeats = Math.max(0, 4 - players.length);
-        if (openSeats <= 0) continue;
-        candidates.push({ rid, humans, openSeats });
+        const players       = Object.values(gs.players || {});
+        const humans        = players.filter(p => !p.isBot && !p.isGhostBot).length;
+        const openSeats     = Math.max(0, 4 - players.length);
+        const replaceableBot = players.some(p => p.isBot && !p.isGhostBot && !p.isBanker);
+        const roomRounds    = Number(gs.maxRounds) || 0;
+        const roundsMatch   = (!rounds || !roomRounds || roomRounds === rounds);
+        if (gs.status === 'waiting') {
+            if (gs.isPrivate) continue;          // invite-only lobby
+            if (openSeats <= 0) continue;
+            if (!roundsMatch) continue;
+            candidates.push({ rid, score: 100 + humans, kind: 'waiting' });
+        } else if (gs.status !== 'gameOver') {
+            // In-progress: betting / dealing / arranging / revealing / roundEnd / playing
+            if (!roundsMatch) continue;
+            if (!replaceableBot) continue;
+            // Don't allow joining on the FINAL round — game is essentially over.
+            if (gs.round && roomRounds && gs.round >= roomRounds) continue;
+            candidates.push({ rid, score: 50 + humans, kind: 'in-progress' });
+        }
     }
     if (candidates.length) {
-        candidates.sort((a,b) => (b.humans - a.humans) || (a.openSeats - b.openSeats));
+        candidates.sort((a,b) => b.score - a.score);
         const pick = candidates[0];
-        console.log(`[QUICK-JOIN] tier ${minBet}: matched waiting room ${pick.rid} (humans=${pick.humans} open=${pick.openSeats})`);
+        console.log(`[QUICK-JOIN] tier ${minBet} rounds ${rounds}: matched ${pick.kind} room ${pick.rid}`);
         return pick.rid;
     }
     const newId = `sipsam_${minBet}_${Date.now()}`;
-    console.log(`[QUICK-JOIN] tier ${minBet}: no waiting room — creating ${newId}`);
+    console.log(`[QUICK-JOIN] tier ${minBet} rounds ${rounds}: no match — creating ${newId}`);
     return newId;
 }
 
@@ -90,16 +104,18 @@ app.post("/matchmake/joinOrCreate/sipsam_room", (req, res) => {
     const avatar    = req.body?.avatar    || '';
     const isPrivate = req.body?.isPrivate || false;
     const quickJoin = req.body?.quickJoin === true;
+    const maxRounds = Number(req.body?.maxRounds) || 0;
+    const blitz     = req.body?.blitz === true;
 
-    // Quick-join: caller passed a tier hint (sipsam_<minBet>) and wants the
-    // server to find an existing room with a bot to replace, or create a new
-    // tier room. Invite flow (specific roomId, isPrivate=true) bypasses this.
+    // Quick-join: tier+rounds hint. Invite flow (specific roomId, isPrivate)
+    // bypasses this and goes straight to the named room.
     if (quickJoin && !isPrivate) {
-        roomId = quickJoinForTier(roomId);
+        roomId = quickJoinForTier(roomId, maxRounds);
     }
 
-    pendingSessions[sessionId] = { username, token, roomId, avatar, isPrivate };
-    console.log("Matchmake:", username, "→", sessionId, "room:", roomId, quickJoin ? '(quick-join)' : '');
+    pendingSessions[sessionId] = { username, token, roomId, avatar, isPrivate, maxRounds, blitz };
+    console.log("Matchmake:", username, "→", sessionId, "room:", roomId,
+        quickJoin ? `(quick-join rounds=${maxRounds})` : '');
     res.json({ name:"sipsam_room", sessionId, roomId, processId:"local" });
 });
 
@@ -190,7 +206,7 @@ wss.on("connection", (socket, req) => {
     }
 
     delete pendingSessions[sessionId];
-    const { username, token, roomId, avatar, isPrivate } = session;
+    const { username, token, roomId, avatar, isPrivate, maxRounds, blitz } = session;
     console.log(username, "WS connected, session:", sessionId, "room:", roomId);
 
     const room   = getOrCreateRoom(roomId);
@@ -205,7 +221,7 @@ wss.on("connection", (socket, req) => {
     room._roomId = roomId; // store for invite expiry notifications
     client.roomId = roomId;
     room.clients.push(client);
-    room.onJoin(client, { username, token, avatar, isPrivate });
+    room.onJoin(client, { username, token, avatar, isPrivate, maxRounds, blitz });
 
     socket.on("message", (rawData) => {
         try {

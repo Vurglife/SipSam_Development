@@ -244,38 +244,69 @@ class SipSamRoom {
         // Parse intended minBet from roomId (format: sipsam_1000_timestamp)
         // so Live Tables can filter by denomination before game starts
         if (!this.gameState.tableMinBet && client.roomId) {
-            // Apply tier config (incl. tableWalletSize, isVip) immediately
-            // so the joining player gets the correct wallet, not the $3000
-            // default. Includes the VIP $10K tier.
             this._roomId = client.roomId;
             this._applyTableConfigFromRoomId();
         }
 
-        // Mark room as private if flagged by the joining player
-        if (options.isPrivate) {
+        // Apply rounds preference from dashboard if room hasn't been configured yet.
+        // Once a game is in progress, room rounds are sticky — we never overwrite.
+        if (!this.gameState.maxRounds || this.gameState.status === 'waiting') {
+            if (Number(options.maxRounds) > 0) {
+                this.gameState.maxRounds = Number(options.maxRounds);
+                this.gameState.blitz     = options.blitz === true;
+            }
+        }
+
+        // Mark room as private if flagged by the joining player (waiting phase only)
+        if (options.isPrivate && this.gameState.status === 'waiting') {
             this.gameState.isPrivate = true;
         }
 
-        this.gameState.players[client.sessionId] = {
-            username, token, avatar, chips: this.gameState.tableWalletSize || 3000, bet:0,
-            isBanker:false, isBot:false,
-            hand1:[], hand2:[], hand3:[], rawCards:[],
-            hasArranged:false, disqualified:false,
-            lastPayout:0, lastSpecial:null, wins:0
-        };
-        // Guard: max 4 players per room
-        const currentCount = Object.keys(this.gameState.players).length;
-        if (currentCount >= 4) {
+        const isInProgress = (this.gameState.status !== 'waiting' && this.gameState.status !== 'gameOver');
+
+        // Bot replacement for strangers landing in an in-progress room.
+        // Find a non-banker bot to kick — the human takes their seat.
+        if (isInProgress) {
+            const botEntry = Object.entries(this.gameState.players)
+                .find(([, p]) => p.isBot && !p.isGhostBot && !p.isBanker);
+            if (!botEntry) {
+                console.log(username, "REJECTED — in-progress room has no replaceable bot");
+                this.sendToClient(client, { type:'error', message:'Table is full. Please try another room.' });
+                return;
+            }
+            const [botSid, bot] = botEntry;
+            console.log(`[BOT-SWAP] ${username} replaces ${bot.username} in ${client.roomId} (status=${this.gameState.status})`);
+            delete this.gameState.players[botSid];
+            this.broadcast({ type:'botReplaced', username });
+        }
+
+        // Capacity guard: never exceed 4 seats.
+        if (Object.keys(this.gameState.players).length >= 4) {
             console.log(username, "REJECTED — room full (4 players max)");
             this.sendToClient(client, { type:'error', message:'Room is full. Please join another table.' });
             return;
         }
 
-        console.log(username, "joined. Total:", Object.keys(this.gameState.players).length);
-        // Do NOT fill bots during waiting — real players may still be joining
-        // Bots fill only at timer expiry or when host starts game manually
+        const walletSize = this.gameState.tableWalletSize || 3000;
+        this.gameState.players[client.sessionId] = {
+            username, token, avatar, chips: walletSize, bet:0,
+            isBanker:false, isBot:false,
+            hand1:[], hand2:[], hand3:[], rawCards:[],
+            hasArranged:false, disqualified:false,
+            lastPayout:0, lastSpecial:null, wins:0
+        };
 
-        // Start 3-minute lobby countdown on first real player joining
+        // For in-progress joins: skip the rest of the current round so the
+        // joiner doesn't owe a bet they never placed.
+        if (isInProgress) {
+            this.gameState.players[client.sessionId].hasArranged = true;
+            this.gameState.players[client.sessionId].disqualified = true;       // sit out current round
+            this.gameState.players[client.sessionId].disqualifyReason = 'joined_mid_round';
+        }
+
+        console.log(username, "joined. Total:", Object.keys(this.gameState.players).length);
+
+        // Start 3-minute lobby countdown on first real player joining (waiting only)
         if (this.gameState.status === 'waiting' && !this._lobbyTimer) {
             this._startLobbyCountdown();
         }
@@ -529,6 +560,10 @@ class SipSamRoom {
     beginGame() {
         this._settled = false; // reset for this game
         this.gameState.round = 0;
+        // Once the game starts, the room becomes joinable by strangers
+        // replacing bot seats (Zynga-style). Clear isPrivate so quick-join
+        // matchmaking can place them here when tier+rounds match.
+        this.gameState.isPrivate = false;
         // Mark all pending invites for this room as expired
         // so players don't see stale invites after game starts
         this._expireRoomInvites();

@@ -73,6 +73,14 @@ async function joinRoom(username, _authToken, _roomId) {
                 // bot to replace OR create a fresh one. False for invites
                 // (specific private roomId).
                 const isInvite = !!window._isPrivateRoom;
+                // Read rounds preference from sessionStorage (set by dashboard).
+                // Quick-join needs this server-side to match on tier + rounds.
+                let preRounds = 0, preBlitz = false;
+                try {
+                    const t = JSON.parse(sessionStorage.getItem('sipsam_table') || '{}');
+                    preRounds = Number(t.rounds) || 0;
+                    preBlitz  = t.blitz === true;
+                } catch(e) {}
                 res = await fetch(url, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -82,7 +90,9 @@ async function joinRoom(username, _authToken, _roomId) {
                         roomId:    _roomId,
                         avatar:    window._myAvatar || '',
                         isPrivate: window._isPrivateRoom || false,
-                        quickJoin: !isInvite
+                        quickJoin: !isInvite,
+                        maxRounds: preRounds,
+                        blitz:     preBlitz
                     }),
                     signal: controller.signal
                 });

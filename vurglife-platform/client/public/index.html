@@ -618,7 +618,18 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
         <div class="ptitle">Play SipSam</div>
         <div class="psub">Select a table — your bank must meet the minimum requirement</div>
         <div class="tgrid" id="tgrid-play"></div>
-        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;font-size:13px;color:var(--text-mid);margin-top:4px">
+        <div class="sh" style="margin-top:18px">Choose Rounds</div>
+        <div id="ss-rounds-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+          <button type="button" class="btn bgh ss-rbtn" data-rounds="5"  onclick="selectSipSamRounds(5,this)">⚡ Blitz (5)</button>
+          <button type="button" class="btn bgh ss-rbtn selected" data-rounds="10" onclick="selectSipSamRounds(10,this)">10 Rounds</button>
+          <button type="button" class="btn bgh ss-rbtn" data-rounds="20" onclick="selectSipSamRounds(20,this)">20 Rounds</button>
+          <button type="button" class="btn bgh ss-rbtn" data-rounds="30" onclick="selectSipSamRounds(30,this)">30 Rounds</button>
+        </div>
+        <style>
+          #ss-rounds-row .ss-rbtn { padding:9px 14px; font-size:13px; }
+          #ss-rounds-row .ss-rbtn.selected { background:rgba(201,168,76,.18); border-color:rgba(201,168,76,.6); color:#f5e7b8; }
+        </style>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;font-size:13px;color:var(--text-mid);margin-top:14px">
           💡 <strong style="color:var(--text-hi)">How it works:</strong> When you enter a table, your wallet is funded from your bank. It is returned when you exit. If your wallet runs low, use <em>Replenish Wallet</em> from the in-game menu.
         </div>
         <div class="sh" style="margin-top:20px">Other VurgLife Games</div>
@@ -1270,10 +1281,20 @@ function buildRhum32Grid(gridId) {
 // ── TABLE ENTRY ───────────────────────────────────────
 let pendingGameType = 'sipsam'; // track which game we're entering
 
+// SipSam rounds — picked on the dashboard so quick-join can match tier+rounds.
+let pendingRounds = 10;
+function selectSipSamRounds(n, btn) {
+  pendingRounds = Number(n) || 10;
+  document.querySelectorAll('#ss-rounds-row .ss-rbtn').forEach(b => b.classList.remove('selected'));
+  if (btn) btn.classList.add('selected');
+}
+
 function enterTable(minBet) {
-  pendingTable=TABLES[Number(minBet)];
+  const t = TABLES[Number(minBet)];
+  if (!t) return;
+  // Carry the rounds choice + blitz flag through to /sipsam via sessionStorage.
+  pendingTable = { ...t, rounds: pendingRounds, blitz: pendingRounds === 5 };
   pendingGameType='sipsam';
-  if (!pendingTable) return;
   runAd('pregame',10,'⚡ Quick Ad Break','Watch a short ad to enter the table. Your seat is reserved.');
 }
 
