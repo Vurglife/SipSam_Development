@@ -438,6 +438,23 @@ router.post('/exit-beacon', async (req, res) => {
     }
 });
 
+// POST /api/game/debt-payment — pull a banker debt from bank when wallet is exhausted.
+// Called by poker-server PokerRoom.onLeave when a banker disconnects with negative
+// chips (forfeited round, owed payouts). The bank may go negative — players must
+// purchase chips or watch ads to recover.
+router.post('/debt-payment', requireAuth, async (req, res) => {
+    const { amount, tableMinBet, reason } = req.body;
+    if (typeof amount !== 'number' || amount <= 0)
+        return res.status(400).json({ error: 'Invalid debt amount' });
+
+    await UserDB.adjustBank(req.userId, -amount);
+    await TxnDB.record(req.userId, 'banker_debt_settle', -amount, null,
+        `Banker debt settled at $${tableMinBet} table (${reason || 'forfeit'})`);
+
+    const user = await UserDB.findById(req.userId);
+    res.json({ ok:true, debtPaid: amount, newBankBalance: user.bank_balance });
+});
+
 // POST /api/game/replenish — top up wallet during game (SipSam, Rhum32, or Blackjack)
 router.post('/replenish', requireAuth, async (req, res) => {
     const { tableMinBet, currentWallet, game } = req.body;
