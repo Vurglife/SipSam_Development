@@ -41,13 +41,16 @@ function cleanupRoom(roomId) {
 }
 
 // ── QUICK-JOIN MATCHMAKING ────────────────────────────────────
-// Given a tier (sipsam_<minBet>), find the best existing room to join,
-// or create a fresh tier room. Rules:
+// Given a tier (sipsam_<minBet>), find a 'waiting' room with open seats so
+// the joiner lands in a proper lobby (round selection, invite friends).
+// Rules:
 //   1. Skip rooms marked completed (game over).
-//   2. Skip rooms that are full of humans (no bot to replace, no open seat).
-//   3. Prefer the room with the most humans + at least one replaceable bot.
-//   4. Else prefer a 'waiting' room with open seats.
-//   5. Else create new sipsam_<minBet>_<timestamp>.
+//   2. Skip private (invite-only) rooms.
+//   3. Skip in-progress rooms — joiner deserves their own lobby; do not
+//      drop strangers into a live game (was causing UX bugs where the
+//      stranger's chips drained on auto-bets without replacing any bot).
+//   4. Else prefer a 'waiting' room with open seats (most humans first).
+//   5. Else create a new sipsam_<minBet>_<timestamp> room.
 function quickJoinForTier(requestedRoomId) {
     const m = String(requestedRoomId || '').match(/^sipsam_(\d+)(?:_|$)/);
     if (!m) return requestedRoomId; // not a tier hint — pass through (invite flow)
@@ -57,29 +60,22 @@ function quickJoinForTier(requestedRoomId) {
         const gs = room.gameState;
         if (!gs || gs.completed) continue;
         if (Number(gs.tableMinBet) !== minBet) continue;
-        if (gs.isPrivate) continue; // invite-only rooms not for quick-join
-        const players = Object.values(gs.players || {});
-        const humans = players.filter(p => !p.isBot && !p.isGhostBot).length;
-        const bots   = players.filter(p => p.isBot && !p.isGhostBot).length;
-        const total  = players.length;
-        const openSeats = Math.max(0, 4 - total);
-        const hasReplaceableBot = bots > 0 && (gs.status === 'playing' || gs.status === 'arranging' || gs.status === 'betting' || gs.status === 'revealing' || gs.status === 'roundEnd');
-        const isWaitingOpen     = gs.status === 'waiting' && openSeats > 0;
-        if (!hasReplaceableBot && !isWaitingOpen) continue;
-        candidates.push({ rid, humans, bots, openSeats, hasReplaceableBot, isWaitingOpen });
+        if (gs.isPrivate) continue;
+        if (gs.status !== 'waiting') continue; // never drop into in-progress
+        const players  = Object.values(gs.players || {});
+        const humans   = players.filter(p => !p.isBot && !p.isGhostBot).length;
+        const openSeats = Math.max(0, 4 - players.length);
+        if (openSeats <= 0) continue;
+        candidates.push({ rid, humans, openSeats });
     }
     if (candidates.length) {
-        // Prefer in-progress rooms with bots (replaces a bot, joins live)
-        candidates.sort((a,b) => (b.hasReplaceableBot - a.hasReplaceableBot)
-                              || (b.humans - a.humans)
-                              || (a.openSeats - b.openSeats));
+        candidates.sort((a,b) => (b.humans - a.humans) || (a.openSeats - b.openSeats));
         const pick = candidates[0];
-        console.log(`[QUICK-JOIN] tier ${minBet}: matched ${pick.rid} (humans=${pick.humans} bots=${pick.bots} status=${rooms[pick.rid].gameState.status})`);
+        console.log(`[QUICK-JOIN] tier ${minBet}: matched waiting room ${pick.rid} (humans=${pick.humans} open=${pick.openSeats})`);
         return pick.rid;
     }
-    // No suitable existing room — create a new one with timestamp
     const newId = `sipsam_${minBet}_${Date.now()}`;
-    console.log(`[QUICK-JOIN] tier ${minBet}: no match — creating new room ${newId}`);
+    console.log(`[QUICK-JOIN] tier ${minBet}: no waiting room — creating ${newId}`);
     return newId;
 }
 
