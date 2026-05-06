@@ -536,7 +536,7 @@
   </div>
 </div>
 
-<script src="game.js?v=25"></script>
+<script src="game.js?v=26"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      IN-GAME SLIDE-OUT MENU
@@ -551,8 +551,9 @@
   align-items:center;gap:7px;text-transform:uppercase;
   box-shadow:0 4px 16px rgba(0,0,0,.5)">☰ MENU</button>
 
-<!-- Overlay -->
-<div id="igm-overlay" onclick="closeIngameMenu()" style="
+<!-- Overlay — click outside menu: if a sub-panel is open, reset to main
+     menu list (single click); if already at main menu, close entirely. -->
+<div id="igm-overlay" onclick="igmOverlayClick()" style="
   display:none;position:fixed;inset:0;z-index:600;background:rgba(2,6,9,.6);backdrop-filter:blur(2px)"></div>
 
 <!-- Slide-out Panel -->
@@ -865,10 +866,10 @@
 .sb-banker::after,.sb-p1::after,.sb-p2::after,.sb-p3::after{display:none}
 @keyframes sbIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
 .sb-sender{font-size:10px;font-weight:700;color:#4aabff;margin-bottom:3px;letter-spacing:.5px}
-.igm-sub{position:absolute;inset:0;background:#080f1e;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column;z-index:50;overflow-y:auto}
+.igm-sub{position:absolute;inset:0;background:#080f1e;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column;z-index:200;overflow-y:auto}
 .igm-sub.open{transform:translateX(0)}
-.igm-sub-head{padding:14px 18px;border-bottom:1px solid #1a2d50;display:flex;align-items:center;gap:14px;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:#f0f6ff;flex-shrink:0;position:sticky;top:0;z-index:60;background:#080f1e}
-.igm-back-btn{position:relative;z-index:61;cursor:pointer}
+.igm-sub-head{padding:14px 18px;border-bottom:1px solid #1a2d50;display:flex;align-items:center;gap:14px;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:#f0f6ff;flex-shrink:0;position:sticky;top:0;z-index:210;background:#080f1e}
+.igm-back-btn{position:relative;z-index:211;cursor:pointer}
 .igm-back-btn{background:rgba(26,140,255,.1);border:1px solid #1a2d50;border-radius:6px;padding:5px 11px;cursor:pointer;color:#4aabff;font-size:12px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px}
 .igm-back-btn:hover{background:rgba(26,140,255,.2)}
 .igm-action-btn{width:100%;background:linear-gradient(135deg,#1a5aaa,#1a8cff);border:none;border-radius:8px;padding:11px;color:#fff;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:1.5px;cursor:pointer;text-transform:uppercase;transition:all .18s}
@@ -1195,6 +1196,13 @@ function igmShowSub(id) {
   if (igmActiveSub) document.getElementById('igm-sub-'+igmActiveSub)?.classList.remove('open');
   igmActiveSub = id;
   document.getElementById('igm-sub-'+id)?.classList.add('open');
+}
+
+// Click-outside handler: a sub-panel resets to main menu first; the second
+// outside-click (with no sub-panel open) closes the menu entirely.
+function igmOverlayClick() {
+  if (igmActiveSub) { igmBack(); return; }
+  closeIngameMenu();
 }
 
 function igmBack() {
