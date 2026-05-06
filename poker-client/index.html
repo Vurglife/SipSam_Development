@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="VurgLife">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/images/icon-192.png">
-<link rel="stylesheet" href="style.css?v=10">
+<link rel="stylesheet" href="style.css?v=11">
   <style>
     /* Lobby config banner (pre-selected from dashboard) */
     .lobby-title { font-family:'Bebas Neue',serif; font-size:2rem; letter-spacing:4px; margin:0 0 4px; }
@@ -535,7 +535,7 @@
   </div>
 </div>
 
-<script src="game.js?v=23"></script>
+<script src="game.js?v=24"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      IN-GAME SLIDE-OUT MENU
@@ -591,14 +591,27 @@
 
     <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
 
-    <!-- Invite Friend (in-game) — only meaningful when a bot seat exists -->
-    <div class="igm-item" id="igm-invite-friend" onclick="igmOpenInviteFriend()">
+    <!-- Invite Friend (in-game) — inline expand, typeahead like the lobby -->
+    <div class="igm-item" id="igm-invite-friend" onclick="igmInviteToggle()">
       <div class="igm-ico">👥</div>
       <div class="igm-body">
         <div class="igm-title">Invite Friend</div>
         <div class="igm-desc" id="igm-invite-desc">Replace a bot seat with a friend</div>
       </div>
-      <span class="igm-arrow">›</span>
+      <span class="igm-arrow" id="igm-invite-arrow">›</span>
+    </div>
+    <div id="igm-invite-inline" style="display:none;padding:10px 16px 14px;border-bottom:1px solid #1a2d50;background:rgba(8,18,36,.6)">
+      <div id="igm-invite-status-line" style="font-size:11px;color:#7a9ac0;line-height:1.4;margin-bottom:8px">Type a friend's name. Already-seated and already-invited friends are hidden.</div>
+      <div style="position:relative">
+        <input id="igm-invite-input" type="text" placeholder="Type a friend's name…"
+          oninput="igmInviteOnInput(this.value)"
+          onfocus="igmInviteOnFocus()"
+          onkeydown="if(event.key==='Enter')igmInviteEnter()"
+          autocorrect="off" autocapitalize="none" spellcheck="false" autocomplete="off"
+          style="width:100%;background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;padding:9px 12px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:13px;outline:none;box-sizing:border-box">
+        <div id="igm-invite-list" style="margin-top:6px;max-height:180px;overflow-y:auto;border:1px solid #1a2d50;border-radius:8px;background:#06111f;padding:4px"></div>
+        <div id="igm-invite-msg" style="font-size:11px;min-height:14px;text-align:center;margin-top:6px"></div>
+      </div>
     </div>
 
     <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
@@ -676,24 +689,6 @@
 
 
 
-  <!-- INVITE FRIEND -->
-  <div id="igm-sub-invite" class="igm-sub">
-    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Invite Friend</span></div>
-    <div style="padding:16px;flex:1;display:flex;flex-direction:column;gap:10px;overflow:hidden">
-      <div id="igm-invite-status-line" style="font-size:11px;color:#7a9ac0;line-height:1.4">
-        Friends can join by replacing a bot seat. They must have the bank required for this table.
-      </div>
-      <div style="position:relative">
-        <input id="igm-invite-input" type="text" placeholder="Type a friend's name…"
-          oninput="igmInviteOnInput(this.value)"
-          onfocus="igmInviteOnFocus()"
-          autocorrect="off" autocapitalize="none" spellcheck="false" autocomplete="off"
-          style="width:100%;background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;padding:10px 13px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:14px;outline:none">
-      </div>
-      <div id="igm-invite-list" style="flex:1;min-height:0;overflow-y:auto;border:1px solid #1a2d50;border-radius:8px;background:#06111f;padding:6px"></div>
-      <div id="igm-invite-msg" style="font-size:11px;min-height:14px;text-align:center"></div>
-    </div>
-  </div>
 
   <div id="igm-sub-replenish" class="igm-sub">
     <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Replenish Wallet</span></div>
@@ -1209,27 +1204,57 @@ function igmBack() {
 }
 
 // ── MENU ACTIONS ────────────────────────────────────────
-// ── IN-GAME INVITE (sub-panel) ──────────────────────────
+// ── IN-GAME INVITE (inline expandable) ──────────────────
 let _igmFriends = [];           // cached friends list
 let _igmInvitedUsernames = new Set(); // session-level: who I've already invited
-async function igmOpenInviteFriend() {
-  const state = window._lastState || {};
-  const players = Object.values(state.players || {});
-  const hasBot = players.some(p => p && p.isBot && !p.isGhostBot);
-  if (!hasBot) {
-    igmShowSub('invite');
-    document.getElementById('igm-invite-list').innerHTML =
-      '<div style="padding:18px;font-size:13px;color:#fca5a5;text-align:center">No bot seats to replace right now. Friends can only join when a bot can be swapped out.</div>';
-    document.getElementById('igm-invite-input').disabled = true;
-    return;
+
+// Toggle the inline invite section open/closed. Loads friends on first open.
+async function igmInviteToggle() {
+  try {
+    const sec   = document.getElementById('igm-invite-inline');
+    const arrow = document.getElementById('igm-invite-arrow');
+    const input = document.getElementById('igm-invite-input');
+    const list  = document.getElementById('igm-invite-list');
+    const msg   = document.getElementById('igm-invite-msg');
+    if (!sec || !input || !list) return;
+
+    const opening = sec.style.display === 'none' || !sec.style.display;
+    if (!opening) {
+      sec.style.display = 'none';
+      if (arrow) arrow.textContent = '›';
+      return;
+    }
+    sec.style.display = 'block';
+    if (arrow) arrow.textContent = '⌄';
+
+    // Bot-seat check — friends can only replace a bot.
+    const state = window._lastState || {};
+    const players = Object.values(state.players || {});
+    const hasBot = players.some(p => p && p.isBot && !p.isGhostBot);
+    if (!hasBot) {
+      list.innerHTML = '<div style="padding:14px;font-size:12px;color:#fca5a5;text-align:center">No bot seats to replace right now.</div>';
+      input.disabled = true;
+      if (msg) msg.textContent = '';
+      return;
+    }
+    input.disabled = false;
+    input.value = '';
+    if (msg) msg.textContent = '';
+
+    await _igmLoadFriends();
+    igmInviteRender('');
+    setTimeout(() => input.focus(), 80);
+  } catch(e) {
+    console.error('[igmInviteToggle] error:', e);
   }
-  document.getElementById('igm-invite-input').disabled = false;
-  document.getElementById('igm-invite-input').value = '';
-  document.getElementById('igm-invite-msg').textContent = '';
-  igmShowSub('invite');
-  await _igmLoadFriends();
-  igmInviteRender('');
-  setTimeout(() => document.getElementById('igm-invite-input')?.focus(), 100);
+}
+
+// Pressing Enter in the input invites the top match (first non-filtered friend).
+function igmInviteEnter() {
+  const list = document.getElementById('igm-invite-list');
+  if (!list) return;
+  const firstRow = list.querySelector('[data-friend]');
+  if (firstRow) firstRow.click();
 }
 
 async function _igmLoadFriends() {
@@ -1280,8 +1305,8 @@ function igmInviteRender(query) {
     const name = String(f.username || '');
     const safe = name.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const initial = name[0]?.toUpperCase() || '?';
-    return `<div onclick="igmDoInvite('${safe.replace(/'/g,"\\'")}')" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:7px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(74,171,255,.1)'" onmouseout="this.style.background=''">
-      <div style="width:30px;height:30px;border-radius:50%;background:#0f1e38;border:1px solid #1a2d50;display:flex;align-items:center;justify-content:center;color:#4aabff;font-weight:700;font-size:13px">${initial}</div>
+    return `<div data-friend="${safe}" onclick="igmDoInvite('${safe.replace(/'/g,"\\'")}')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(74,171,255,.1)'" onmouseout="this.style.background=''">
+      <div style="width:28px;height:28px;border-radius:50%;background:#0f1e38;border:1px solid #1a2d50;display:flex;align-items:center;justify-content:center;color:#4aabff;font-weight:700;font-size:12px">${initial}</div>
       <div style="flex:1;font-size:13px;color:#f0f6ff;font-weight:600">${safe}</div>
       <span style="font-size:11px;color:#4aabff">Invite ›</span>
     </div>`;
