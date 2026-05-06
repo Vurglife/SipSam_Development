@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="VurgLife">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/images/icon-192.png">
-<link rel="stylesheet" href="style.css?v=17">
+<link rel="stylesheet" href="style.css?v=18">
   <style>
     /* Lobby config banner (pre-selected from dashboard) */
     .lobby-title { font-family:'Bebas Neue',serif; font-size:2rem; letter-spacing:4px; margin:0 0 4px; }
@@ -155,19 +155,20 @@
       <div class="special-box" id="p3-special"></div>
     </div>
 
+    <!-- Countdown — OUTSIDE .oval-table because the table's `filter`
+         creates a containing block that traps position:fixed descendants. -->
+    <div class="countdown-box">
+      <div class="cd-screen" id="cd-screen"></div>
+      <div class="cd-label-txt">Countdown</div>
+      <div class="cd-number" id="cd-number">—</div>
+    </div>
+
     <!-- TABLE: rounded rectangle -->
     <div class="oval-table">
       <div class="felt-grid"></div>
 
       <!-- VurgLife logo watermark — centred on table -->
       <img src="VurgLife_logo_table.png" class="table-logo" alt="VurgLife" draggable="false">
-
-      <!-- Countdown top-left -->
-      <div class="countdown-box">
-        <div class="cd-screen" id="cd-screen"></div>
-        <div class="cd-label-txt">Countdown</div>
-        <div class="cd-number" id="cd-number">—</div>
-      </div>
 
       <!-- BANKER (top) — 1st hand furthest from centre (topmost), 3rd closest -->
       <div class="zone zone-banker">
