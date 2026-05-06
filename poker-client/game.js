@@ -1703,20 +1703,13 @@ function updateLobbyUI(state) {
 function applyLobbyPreselect(table, rounds) {
     const cfg = TABLE_CONFIGS[table.minBet] || table;
 
-    // Show the config banner. Hide ONLY the table-tier picker; keep the
-    // rounds picker visible — players still pick rounds in the lobby
-    // (round count is independent of table tier).
+    // Show the config banner. Hide the entire manual selector — both table
+    // and rounds are now chosen on the dashboard (one source of truth so
+    // quick-join can match tier+rounds correctly). The lobby just confirms.
     const preEl    = document.getElementById('lobby-preselected');
     const manualEl = document.getElementById('lobby-manual-select');
     if (preEl) preEl.style.display = 'block';
-    if (manualEl) {
-        manualEl.style.display = 'block';
-        const labels = manualEl.querySelectorAll('.lobby-section-label');
-        const tableButtons = manualEl.querySelector('.table-buttons');
-        if (tableButtons) tableButtons.style.display = 'none';
-        // First label is the "Select Table" caption — hide it. Keep "Select rounds" label.
-        if (labels[0]) labels[0].style.display = 'none';
-    }
+    if (manualEl) manualEl.style.display = 'none';
     // Invited joiner: lock down all host-only controls. Only the table info
     // and an Exit button remain visible.
     const isInvited = table.isInvitedJoiner === true;
