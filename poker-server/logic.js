@@ -696,6 +696,48 @@ function arrangementForWholeHandSpecial(rawCards) {
     return findBestBotArrangement(rawCards);
 }
 
+// Check whether the player's raw 13 cards CAN form the named special.
+// Returns the arrangement if yes, null if no.
+// This is used by _onDeclareSpecial so that declaring a valid (achievable)
+// special is accepted with the declared multiplier — even if the player
+// also has a HIGHER unstated special. detectSpecialFromRaw, by contrast,
+// returns only the highest available.
+function canFormSpecial(rawCards, specialName) {
+    if (!rawCards || rawCards.length !== 13) return null;
+    const raw = [...rawCards];
+    switch (specialName) {
+        case 'Full Suit': {
+            const firstSuit = cardSuit(raw[0]);
+            if (firstSuit && raw.every(c => cardSuit(c) === firstSuit)) {
+                return arrangementForWholeHandSpecial(raw);
+            }
+            return null;
+        }
+        case '6½': case '6Â½': {
+            const vc = valueCounts(raw);
+            const counts = Object.values(vc);
+            const pairs = counts.filter(c => c === 2).length;
+            const trips = counts.filter(c => c === 3).length;
+            const quads = counts.filter(c => c === 4).length;
+            if (quads === 0 && (pairs === 6 || (pairs === 5 && trips === 1))) {
+                return arrangementForWholeHandSpecial(raw);
+            }
+            return null;
+        }
+        case 'Royal Flush':                return findRoyalFlushArrangement(raw);
+        case 'Flush-Flush-Flush':          return findFFFArrangement(raw);
+        case 'Straight-Straight-Straight': return findSSSArrangement(raw);
+        case 'Four of a Kind': {
+            const vc = valueCounts(raw);
+            const quads = Object.values(vc).filter(c => c === 4).length;
+            return quads > 0 ? arrangementForWholeHandSpecial(raw) : null;
+        }
+        case 'Straight Flush':             return findStraightFlushArrangement(raw);
+        case 'No Face':                    return !hasFaceCard(raw) ? arrangementForWholeHandSpecial(raw) : null;
+        default: return null;
+    }
+}
+
 function detectSpecialFromRaw(rawCards) {
     if (!rawCards || rawCards.length !== 13) return null;
     const raw = [...rawCards];
@@ -1204,6 +1246,7 @@ module.exports.findBestBotArrangement = findBestBotArrangement;
 
 module.exports.SPECIAL_DEFS = SPECIAL_DEFS;
 module.exports.detectSpecialFromRaw = detectSpecialFromRaw;
+module.exports.canFormSpecial       = canFormSpecial;
 module.exports.findSSSArrangement = findSSSArrangement;
 module.exports.findFFFArrangement = findFFFArrangement;
 module.exports.findRoyalFlushArrangement = findRoyalFlushArrangement;

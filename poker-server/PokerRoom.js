@@ -896,19 +896,26 @@ class SipSamRoom {
             );
 
             // payout is pure bet exchange only — bonuses are awarded INDEPENDENTLY:
-            //   â€¢ player's own playerBonus (if they declared a special) is credited now,
-            //     regardless of who won the round.
-            //   â€¢ banker's bankerBonus is accumulated and paid ONCE after the loop.
+            //   • player's own bonus (if they declared a special) is credited now,
+            //     regardless of who won the round. Even if the banker has a bigger
+            //     special and wins the bet exchange, the player still gets their
+            //     declared-special bonus from the house.
+            //   • banker's bankerBonus is accumulated and paid ONCE after the loop.
             player.chips      += result.payout;
             player.lastPayout  = result.payout;
-            const playerActualSpecial = this._actualSpecialFor(player);
-            const playerActualBonus   = playerActualSpecial ? Logic.getSpecialBonus(playerActualSpecial.name, this.gameState.isVip || false) : 0;
-            player.lastBonus   = playerActualBonus;
+            // Player bonus — prefer DECLARED special (what the player committed to).
+            // Falls back to actual highest only if no declaration was made.
+            const playerBonusSpecial =
+                player.declaredSpecial || this._actualSpecialFor(player) || null;
+            const playerBonusOwn = playerBonusSpecial
+                ? Logic.getSpecialBonus(playerBonusSpecial.name, this.gameState.isVip || false)
+                : 0;
+            player.lastBonus   = playerBonusOwn;
             player.handResults = result.handResults || null;
             banker.chips      -= result.payout; // banker receives/pays pure bet exchange
 
-            // Per-player bonus: house pays the player their own special bonus immediately.
-            const playerBonusOwn = playerActualBonus;
+            // Per-player bonus: house pays the player their own special bonus
+            // even when the banker wins with a bigger special.
             if (playerBonusOwn > 0) {
                 player.chips     += playerBonusOwn;
                 player.lastPayout = (player.lastPayout || 0) + playerBonusOwn;
@@ -1161,26 +1168,31 @@ class SipSamRoom {
             return;
         }
 
-        const detected = Logic.detectSpecialFromRaw ? Logic.detectSpecialFromRaw(raw) : null;
-        const actual = detected ? detected.special : null;
-        const arrangement = detected && detected.arrangement
-            ? detected.arrangement
-            : { hand1: raw.slice(0,3), hand2: raw.slice(3,8), hand3: raw.slice(8,13) };
+        // Accept any declared special the player CAN form, regardless of
+        // whether they happen to also have a higher one. Player gets the
+        // declared special's multiplier (their choice — they can declare
+        // the highest if they want maximum payout).
+        const declaredArrangement = Logic.canFormSpecial
+            ? Logic.canFormSpecial(raw, specialName)
+            : null;
 
-        if (!actual || actual.name !== specialName) {
+        if (!declaredArrangement) {
+            const detected = Logic.detectSpecialFromRaw ? Logic.detectSpecialFromRaw(raw) : null;
+            const actual = detected ? detected.special : null;
+            const fallback = (detected && detected.arrangement)
+                ? detected.arrangement
+                : { hand1: raw.slice(0,3), hand2: raw.slice(3,8), hand3: raw.slice(8,13) };
             player.disqualified     = true;
-            player.disqualifyReason = actual
-                ? `Declared ${specialName} but highest available special is ${actual.name} (${actual.multiplier}x).`
-                : `Declared ${specialName} but no special found.`;
+            player.disqualifyReason = `Declared ${specialName} but you cannot form it from your cards.`;
             player.lastSpecial      = 'Wrong special - DQ';
             player.chips           -= player.bet;
             player.lastPayout       = -player.bet;
-            player.hand1 = arrangement.hand1;
-            player.hand2 = arrangement.hand2;
-            player.hand3 = arrangement.hand3;
+            player.hand1 = fallback.hand1;
+            player.hand2 = fallback.hand2;
+            player.hand3 = fallback.hand3;
             const banker = this.gameState.players[this.gameState.bankerSessionId];
             if (banker) banker.chips += player.bet;
-            console.log(`${player.username} DQ - declared ${specialName}, actual ${actual?.name || 'none'}`);
+            console.log(`${player.username} DQ - declared ${specialName}, cannot be formed (highest available: ${actual?.name || 'none'})`);
             this.sendToClient(client, {
                 type:'specialDenied',
                 declared:specialName,
@@ -1190,14 +1202,14 @@ class SipSamRoom {
             });
             this.broadcast({ type:'playerDisqualified', username:player.username, reason:player.disqualifyReason });
         } else {
-            player.declaredSpecial = { ...actual };
-            player.hand1 = arrangement.hand1;
-            player.hand2 = arrangement.hand2;
-            player.hand3 = arrangement.hand3;
+            player.declaredSpecial = { ...chosen };
+            player.hand1 = declaredArrangement.hand1;
+            player.hand2 = declaredArrangement.hand2;
+            player.hand3 = declaredArrangement.hand3;
             player.hasArranged = true;
-            console.log(`${player.username} correctly declares special: ${specialName}`);
-            this.sendToClient(client, { type:'specialConfirmed', specialName, multiplier: actual.multiplier });
-            this.broadcast({ type:'specialAlert', username: player.username, specialName, multiplier: actual.multiplier });
+            console.log(`${player.username} declares special: ${specialName} (${chosen.multiplier}x) — accepted`);
+            this.sendToClient(client, { type:'specialConfirmed', specialName, multiplier: chosen.multiplier });
+            this.broadcast({ type:'specialAlert', username: player.username, specialName, multiplier: chosen.multiplier });
         }
         this.broadcastState();
     }
