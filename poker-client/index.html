@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="VurgLife">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/images/icon-192.png">
-<link rel="stylesheet" href="style.css?v=11">
+<link rel="stylesheet" href="style.css?v=12">
   <style>
     /* Lobby config banner (pre-selected from dashboard) */
     .lobby-title { font-family:'Bebas Neue',serif; font-size:2rem; letter-spacing:4px; margin:0 0 4px; }
@@ -108,7 +108,7 @@
     <div id="player-list"></div>
 
     <!-- Invite Friends -->
-    <div id="invite-section" style="margin-top:16px;border-top:1px solid #1a2d50;padding-top:16px">
+    <div id="invite-section" style="margin-top:16px;border-top:1px solid #1a2d50;padding-top:16px;position:relative;z-index:50">
       <div style="font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:#7a9ac0;text-transform:uppercase;margin-bottom:10px">👥 Invite a Player</div>
       <div style="position:relative">
         <div style="display:flex;gap:8px">
@@ -120,7 +120,7 @@
             onkeydown="if(event.key==='Enter')sendLobbyInvite()"/>
           <button onclick="sendLobbyInvite()" style="background:#1a5caa;border:none;border-radius:7px;padding:8px 16px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Send Invite</button>
         </div>
-        <div id="lobby-invite-dropdown" style="display:none;position:absolute;top:100%;left:0;right:40px;background:#06111f;border:1px solid #1a2d50;border-radius:8px;z-index:200;max-height:180px;overflow-y:auto;margin-top:3px;box-shadow:0 8px 20px rgba(0,0,0,.6)"></div>
+        <div id="lobby-invite-dropdown" style="display:none;position:absolute;top:100%;left:0;right:40px;background:#06111f;border:1px solid #1a2d50;border-radius:10px;z-index:1000;max-height:200px;overflow-y:auto;margin-top:4px;box-shadow:0 12px 32px rgba(0,0,0,.85),0 0 0 1px rgba(74,171,255,.18)"></div>
       </div>
       <div id="invite-status" style="font-size:11px;margin-top:6px;min-height:16px"></div>
     </div>
