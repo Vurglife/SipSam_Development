@@ -1158,7 +1158,7 @@ body.igm-open #igm-panel   { z-index: 1700 !important; }
 #igm-panel .igm-item, #igm-panel button { position: relative; z-index: 1; }
 
 /* ============================================================
-   LED STRIP — animated underglow + visible chasing edge
+   LED STRIP — static color-shifting halo (no rotation)
    ============================================================ */
 .oval-table {
   position: relative;
@@ -1167,32 +1167,6 @@ body.igm-open #igm-panel   { z-index: 1700 !important; }
 }
 .oval-table::before,
 .oval-table::after { pointer-events: none; }
-/* Visible LED ring — sits ON the edge of the oval, chasing around it.
-   Conic gradient with hard color stops + slow rotation = clear LED dots. */
-.oval-table::before {
-  content: '';
-  position: absolute;
-  inset: -6px;
-  border-radius: inherit;
-  padding: 6px;
-  background: conic-gradient(from 0deg,
-      #7ec8ff 0deg, transparent 18deg,
-      #c9a84c 90deg, transparent 108deg,
-      #aeddff 180deg, transparent 198deg,
-      #c9a84c 270deg, transparent 288deg,
-      #7ec8ff 360deg);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          mask-composite: exclude;
-  filter: blur(2.5px) brightness(1.4);
-  opacity: .9;
-  animation: ledRingChase 6s linear infinite;
-  z-index: 2;
-}
-@keyframes ledRingChase {
-  to { transform: rotate(360deg); }
-}
 @keyframes ledStripCycle {
   0%   { box-shadow:
            inset 0 1px 0 rgba(255,255,255,.12),
