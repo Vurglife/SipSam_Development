@@ -241,6 +241,15 @@ class SipSamRoom {
         const token    = options.token || null;
         const avatar   = options.avatar || '';
 
+        // Defensive: reject ANY join into a completed / gameOver room. Once
+        // the final round ends, the room is dead — even direct invite links
+        // or stale matchmake reservations must NOT land a player here.
+        if (this.gameState.completed || this.gameState.status === 'gameOver') {
+            console.log(username, "REJECTED — room is completed (game already ended)");
+            this.sendToClient(client, { type:'roomClosed', reason:'game_complete' });
+            return;
+        }
+
         // Parse intended minBet from roomId (format: sipsam_1000_timestamp)
         // so Live Tables can filter by denomination before game starts
         if (!this.gameState.tableMinBet && client.roomId) {
@@ -1024,17 +1033,18 @@ class SipSamRoom {
         // Settle: return each player's remaining chips to their bank
         this._settleToBank();
         // Auto-evict any remaining clients after stats display window so
-        // the room can be cleaned up. 60s gives players time to read
-        // their stats; the client navigates away on its own when the
-        // user hits 'Return to Dashboard'.
+        // the room can be cleaned up. 30s is enough to read stats; the
+        // client navigates away on its own when the user hits 'Return to
+        // Dashboard'. Anyone lingering longer must NOT keep the room alive
+        // — the completed flag + onJoin guard ensure no new player can be
+        // matched into this room from the moment endGame fires.
         if (this._evictTimer) clearTimeout(this._evictTimer);
         this._evictTimer = setTimeout(() => {
             console.log("[ROOM] Game-over auto-evict — closing remaining clients");
             for (const c of [...this.clients]) {
                 try { c.send && c.send(JSON.stringify({ type:'roomClosed', reason:'game_complete' })); } catch(e){}
             }
-            // Server-side: socket close handled by index.js on each socket close
-        }, 60000);
+        }, 30000);
     }
 
     async _settleToBank() {
