@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="VurgLife">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/images/icon-192.png">
-<link rel="stylesheet" href="style.css?v=19">
+<link rel="stylesheet" href="style.css?v=20">
   <style>
     /* Lobby config banner (pre-selected from dashboard) */
     .lobby-title { font-family:'Bebas Neue',serif; font-size:2rem; letter-spacing:4px; margin:0 0 4px; }
@@ -536,7 +536,7 @@
   </div>
 </div>
 
-<script src="game.js?v=26"></script>
+<script src="game.js?v=27"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      IN-GAME SLIDE-OUT MENU
@@ -556,297 +556,274 @@
 <div id="igm-overlay" onclick="igmOverlayClick()" style="
   display:none;position:fixed;inset:0;z-index:600;background:rgba(2,6,9,.6);backdrop-filter:blur(2px)"></div>
 
-<!-- Slide-out Panel -->
+<!-- ═══ IN-GAME MENU — accordion (rebuilt 2026-05-06) ═══════════════════
+     Single scrolling list with collapsible sections. No sliding sub-panels.
+     One section can be expanded at a time. Mobile-first: 100vw on phones. -->
 <div id="igm-panel" style="
-  position:fixed;top:0;right:0;bottom:0;width:min(300px,92vw);z-index:700;
+  position:fixed;top:0;right:0;bottom:0;width:min(360px,100vw);z-index:700;
   background:#080f1e;border-left:1px solid #1a2d50;
   transform:translateX(100%);transition:transform .3s ease;
   display:flex;flex-direction:column;overflow:hidden;
   box-shadow:-20px 0 60px rgba(0,0,0,.7)">
 
-  <!-- Panel Header -->
-  <div style="padding:18px 20px;border-bottom:1px solid #1a2d50;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#040d1c,#0a1e3c)">
+  <!-- Header -->
+  <div class="igm-head">
     <div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;background:linear-gradient(135deg,#fff,#4aabff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">In-Game Menu</div>
-      <div style="font-size:10px;letter-spacing:2px;color:#334d70;margin-top:1px" id="igm-table-label">♠ SipSam</div>
+      <div class="igm-title-bar">In-Game Menu</div>
+      <div class="igm-table-tag" id="igm-table-label">♠ SipSam</div>
     </div>
-    <button onclick="closeIngameMenu()" style="background:rgba(26,140,255,.1);border:1px solid #1a2d50;border-radius:6px;padding:6px 11px;cursor:pointer;color:#7a9ac0;font-size:16px">✕</button>
+    <button onclick="closeIngameMenu()" class="igm-close-btn" aria-label="Close menu">✕</button>
   </div>
 
   <!-- Player Info Bar -->
-  <div style="padding:14px 20px;border-bottom:1px solid #1a2d50;background:rgba(11,21,40,.7);display:flex;align-items:center;gap:12px">
-    <div style="width:38px;height:38px;border-radius:50%;background:#0f1e38;border:2px solid #0d4a8a;display:flex;align-items:center;justify-content:center;font-size:18px" id="igm-avatar">👤</div>
-    <div style="flex:1">
-      <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px" id="igm-username">—</div>
-      <div style="font-size:11px;color:#c9a84c;font-weight:600" id="igm-wallet">Wallet: $—</div>
+  <div class="igm-playerbar">
+    <div class="igm-avatar" id="igm-avatar">👤</div>
+    <div style="flex:1;min-width:0">
+      <div class="igm-username" id="igm-username">—</div>
+      <div class="igm-walletline" id="igm-wallet">Wallet: $—</div>
     </div>
     <div style="text-align:right">
-      <div style="font-size:10px;color:#334d70;letter-spacing:1px">BANK</div>
-      <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;color:#e8c96a" id="igm-bank">$—</div>
+      <div class="igm-bank-lbl">BANK</div>
+      <div class="igm-bank-val" id="igm-bank">$—</div>
     </div>
   </div>
 
-  <!-- Menu Items -->
-  <nav style="flex:1;overflow-y:auto;padding:8px 0">
+  <!-- Accordion list -->
+  <div class="igm-list">
 
-
-
-    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
-
-    <!-- Invite Friend (in-game) — inline expand, typeahead like the lobby -->
-    <div class="igm-item" id="igm-invite-friend" onclick="igmInviteToggle()">
-      <div class="igm-ico">👥</div>
-      <div class="igm-body">
-        <div class="igm-title">Invite Friend</div>
-        <div class="igm-desc" id="igm-invite-desc">Replace a bot seat with a friend</div>
+    <!-- INVITE FRIEND -->
+    <div class="igm-sec" data-key="invite">
+      <div class="igm-row" onclick="igmExpand('invite')">
+        <div class="igm-ico">👥</div>
+        <div class="igm-body">
+          <div class="igm-title">Invite Friend</div>
+          <div class="igm-desc" id="igm-invite-desc">Replace a bot seat with a friend</div>
+        </div>
+        <span class="igm-chev">›</span>
       </div>
-      <span class="igm-arrow" id="igm-invite-arrow">›</span>
-    </div>
-    <div id="igm-invite-inline" style="display:none;padding:10px 16px 14px;border-bottom:1px solid #1a2d50;background:rgba(8,18,36,.6)">
-      <div id="igm-invite-status-line" style="font-size:11px;color:#7a9ac0;line-height:1.4;margin-bottom:8px">Type a friend's name. Already-seated and already-invited friends are hidden.</div>
-      <div style="position:relative">
+      <div class="igm-pane">
+        <div id="igm-invite-status-line" style="font-size:12px;color:#7a9ac0;line-height:1.4;margin-bottom:8px">Type a friend's name. Already-seated and already-invited friends are hidden.</div>
         <input id="igm-invite-input" type="text" placeholder="Type a friend's name…"
-          oninput="igmInviteOnInput(this.value)"
-          onfocus="igmInviteOnFocus()"
+          oninput="igmInviteOnInput(this.value)" onfocus="igmInviteOnFocus()"
           onkeydown="if(event.key==='Enter')igmInviteEnter()"
           autocorrect="off" autocapitalize="none" spellcheck="false" autocomplete="off"
-          style="width:100%;background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;padding:9px 12px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:13px;outline:none;box-sizing:border-box">
-        <div id="igm-invite-list" style="margin-top:6px;max-height:180px;overflow-y:auto;border:1px solid #1a2d50;border-radius:8px;background:#06111f;padding:4px"></div>
-        <div id="igm-invite-msg" style="font-size:11px;min-height:14px;text-align:center;margin-top:6px"></div>
+          class="igm-input">
+        <div id="igm-invite-list" class="igm-friends-list"></div>
+        <div id="igm-invite-msg" style="font-size:12px;min-height:16px;text-align:center;margin-top:6px"></div>
       </div>
     </div>
 
-    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
-
-    <!-- Replenish Wallet -->
-    <div class="igm-item" onclick="igmReplenish()">
-      <div class="igm-ico">💰</div>
-      <div class="igm-body">
-        <div class="igm-title">Replenish Wallet</div>
-        <div class="igm-desc" id="igm-rep-desc">Draw chips from your bank into your wallet</div>
-      </div>
-      <span class="igm-arrow">›</span>
-    </div>
-
-    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
-
-    <!-- Request Chips -->
-    <div class="igm-item" onclick="igmRequestChips()">
-      <div class="igm-ico">🙏</div>
-      <div class="igm-body">
-        <div class="igm-title">Request Chips</div>
-        <div class="igm-desc">Send a chip request to a player or the Banker</div>
-      </div>
-      <span class="igm-arrow">›</span>
-    </div>
-
-    <!-- Send Chips -->
-    <div class="igm-item" onclick="igmSendChips()">
-      <div class="igm-ico">📤</div>
-      <div class="igm-body">
-        <div class="igm-title">Send Chips</div>
-        <div class="igm-desc" id="igm-send-desc">Send up to the table max bet</div>
-      </div>
-      <span class="igm-arrow">›</span>
-    </div>
-
-    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
-
-
-    <!-- Payouts & Specials -->
-    <div class="igm-item" onclick="igmShowPayouts()">
-      <div class="igm-ico">$</div>
-      <div class="igm-body">
-        <div class="igm-title">Payouts & Specials</div>
-        <div class="igm-desc">Special multipliers, bonuses, and DQ payouts</div>
-      </div>
-      <span class="igm-arrow">â€º</span>
-    </div>
-
-    <!-- Rules -->
-    <div class="igm-item" onclick="igmShowRules()">
-      <div class="igm-ico">📖</div>
-      <div class="igm-body">
-        <div class="igm-title">Game Rules</div>
-        <div class="igm-desc">Quick reference — hands, specials, payouts</div>
-      </div>
-      <span class="igm-arrow">›</span>
-    </div>
-
-    <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
-
-    <!-- Exit Game -->
-    <div class="igm-item igm-danger" onclick="igmExit()">
-      <div class="igm-ico">🚪</div>
-      <div class="igm-body">
-        <div class="igm-title">Exit Game</div>
-        <div class="igm-desc">Your remaining wallet is returned to your bank</div>
-      </div>
-      <span class="igm-arrow">›</span>
-    </div>
-
-  </nav>
-
-  <!-- Sub-panels (shown inside the slide-out) -->
-
-
-
-
-  <div id="igm-sub-replenish" class="igm-sub">
-    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Replenish Wallet</span></div>
-    <div style="padding:20px">
-      <div style="background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;padding:14px;margin-bottom:16px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px">
-          <span style="color:#7a9ac0">Current Wallet</span><span id="rep-cur-wallet" style="font-weight:700;color:#e8c96a">$—</span>
+    <!-- REPLENISH WALLET -->
+    <div class="igm-sec" data-key="replenish">
+      <div class="igm-row" onclick="igmExpand('replenish')">
+        <div class="igm-ico">💰</div>
+        <div class="igm-body">
+          <div class="igm-title">Replenish Wallet</div>
+          <div class="igm-desc" id="igm-rep-desc">Draw chips from your bank into your wallet</div>
         </div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px">
-          <span style="color:#7a9ac0">Bank Balance</span><span id="rep-cur-bank" style="font-weight:700">$—</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:13px">
-          <span style="color:#7a9ac0">Table Wallet Limit</span><span id="rep-limit" style="font-weight:700;color:#4aabff">$—</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:8px;padding-top:8px;border-top:1px solid #1a2d50">
-          <span style="color:#7a9ac0">Max Drawable</span><span id="rep-max" style="font-weight:700;color:#22c55e">$—</span>
-        </div>
+        <span class="igm-chev">›</span>
       </div>
-      <div style="margin-bottom:14px">
-        <label style="display:block;font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:#7a9ac0;text-transform:uppercase;margin-bottom:6px">Amount to Draw</label>
+      <div class="igm-pane">
+        <div class="igm-info-card">
+          <div class="igm-info-row"><span>Current Wallet</span><span id="rep-cur-wallet" style="color:#e8c96a">$—</span></div>
+          <div class="igm-info-row"><span>Bank Balance</span><span id="rep-cur-bank">$—</span></div>
+          <div class="igm-info-row"><span>Table Wallet Limit</span><span id="rep-limit" style="color:#4aabff">$—</span></div>
+          <div class="igm-info-row" style="border-top:1px solid #1a2d50;padding-top:8px;margin-top:6px"><span>Max Drawable</span><span id="rep-max" style="color:#22c55e">$—</span></div>
+        </div>
+        <label class="igm-label">Amount to Draw</label>
         <div style="display:flex;gap:8px">
-          <input id="rep-amount" type="number" placeholder="Enter amount..." style="flex:1;background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 13px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:14px;outline:none">
-          <button onclick="igmFillMax()" style="background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 12px;color:#4aabff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">MAX</button>
+          <input id="rep-amount" type="number" placeholder="Enter amount..." class="igm-input" style="flex:1">
+          <button onclick="igmFillMax()" class="igm-mini-btn">MAX</button>
         </div>
-        <div id="rep-err" style="font-size:11px;color:#fca5a5;margin-top:5px;display:none"></div>
+        <div id="rep-err" style="font-size:12px;color:#fca5a5;margin-top:6px;display:none"></div>
+        <button class="igm-action-btn" onclick="doReplenish()" style="margin-top:12px">💰 Draw to Wallet</button>
       </div>
-      <button class="igm-action-btn" onclick="doReplenish()">💰 Draw to Wallet</button>
     </div>
-  </div>
 
-  <!-- REQUEST CHIPS -->
-  <div id="igm-sub-request" class="igm-sub">
-    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Request Chips</span></div>
-    <div style="padding:16px;flex:1;display:flex;flex-direction:column;gap:12px">
-      <p style="font-size:12px;color:#7a9ac0;line-height:1.5">Request <strong id="req-amount-label" style="color:#c9a84c">$—</strong> (table max bet) from another player. They will see a notification and can choose to send.</p>
-      <div style="font-size:12px;color:#7a9ac0;margin-bottom:4px">Select player to request from:</div>
-      <div id="req-players" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto"></div>
-      <div id="req-pending" style="font-size:12px;color:#c9a84c;min-height:16px"></div>
-      <button class="btn bp" onclick="doRequestChips()" style="width:100%;padding:10px;margin-top:4px">🙏 Send Request</button>
-    </div>
-  </div>
-
-    <div id="igm-sub-send" class="igm-sub">
-    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Send Chips</span></div>
-    <div style="padding:16px;flex:1;display:flex;flex-direction:column;gap:12px">
-      <p style="font-size:12px;color:#7a9ac0;line-height:1.5">Send <strong id="send-amount-label" style="color:#c9a84c">$—</strong> (table max bet) to a player. Chips come from your <strong style="color:#f0f6ff">wallet</strong>, not your bank.</p>
-      <div id="req-notice" style="font-size:12px;color:#c9a84c;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.2);border-radius:6px;padding:8px;display:none"></div>
-      <div style="font-size:12px;color:#7a9ac0;margin-bottom:4px">Select recipient:</div>
-      <div id="send-players" style="display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto"></div>
-      <div style="margin-top:10px">
-        <label style="display:block;font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:#7a9ac0;text-transform:uppercase;margin-bottom:6px">Amount (max: <span id="send-limit">$—</span>)</label>
-        <input id="send-amount-input" type="number" placeholder="Enter amount..." style="width:100%;background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:9px 13px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:13px;outline:none;box-sizing:border-box">
+    <!-- REQUEST CHIPS -->
+    <div class="igm-sec" data-key="request">
+      <div class="igm-row" onclick="igmExpand('request')">
+        <div class="igm-ico">🙏</div>
+        <div class="igm-body">
+          <div class="igm-title">Request Chips</div>
+          <div class="igm-desc">Send a chip request to a player or the Banker</div>
+        </div>
+        <span class="igm-chev">›</span>
       </div>
-      <div id="send-err" style="font-size:12px;color:#ff6b6b;display:none;margin-top:4px"></div>
-      <button class="btn bp" onclick="doSendChips()" style="width:100%;padding:10px;margin-top:8px">📤 Send Chips</button>
+      <div class="igm-pane">
+        <p style="font-size:13px;color:#7a9ac0;line-height:1.5;margin:0 0 10px">Request <strong id="req-amount-label" style="color:#c9a84c">$—</strong> (table max bet) from another player. They will see a notification and can choose to send.</p>
+        <div style="font-size:12px;color:#7a9ac0;margin-bottom:6px">Select player to request from:</div>
+        <div id="req-players" class="igm-player-list"></div>
+        <div id="req-pending" style="font-size:12px;color:#c9a84c;min-height:16px;margin-top:8px"></div>
+        <button class="igm-action-btn" onclick="doRequestChips()" style="margin-top:8px">🙏 Send Request</button>
+      </div>
     </div>
-  </div>
 
-  <div id="igm-sub-rules" class="igm-sub" style="overflow-y:auto">
-    <div class="igm-sub-head" style="position:sticky;top:0;z-index:1;background:#080f1e"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Quick Rules</span></div>
-    <div style="padding:16px;font-size:12px;line-height:1.6;color:#7a9ac0">
-      <div class="igm-rule-sec"><div class="igm-rule-h">♠ Hand Ranking (Strongest → Weakest)</div>
-        <ol style="padding-left:16px;margin:0">
+    <!-- SEND CHIPS -->
+    <div class="igm-sec" data-key="send">
+      <div class="igm-row" onclick="igmExpand('send')">
+        <div class="igm-ico">📤</div>
+        <div class="igm-body">
+          <div class="igm-title">Send Chips</div>
+          <div class="igm-desc" id="igm-send-desc">Send up to the table max bet</div>
+        </div>
+        <span class="igm-chev">›</span>
+      </div>
+      <div class="igm-pane">
+        <p style="font-size:13px;color:#7a9ac0;line-height:1.5;margin:0 0 10px">Send <strong id="send-amount-label" style="color:#c9a84c">$—</strong> (table max bet) to a player. Chips come from your <strong style="color:#f0f6ff">wallet</strong>, not your bank.</p>
+        <div id="req-notice" style="font-size:12px;color:#c9a84c;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.2);border-radius:6px;padding:8px;display:none;margin-bottom:8px"></div>
+        <div style="font-size:12px;color:#7a9ac0;margin-bottom:6px">Select recipient:</div>
+        <div id="send-players" class="igm-player-list"></div>
+        <label class="igm-label" style="margin-top:10px">Amount (max: <span id="send-limit">$—</span>)</label>
+        <input id="send-amount-input" type="number" placeholder="Enter amount..." class="igm-input">
+        <div id="send-err" style="font-size:12px;color:#ff6b6b;display:none;margin-top:6px"></div>
+        <button class="igm-action-btn" onclick="doSendChips()" style="margin-top:10px">📤 Send Chips</button>
+      </div>
+    </div>
+
+    <!-- PAYOUTS & SPECIALS -->
+    <div class="igm-sec" data-key="payouts">
+      <div class="igm-row" onclick="igmExpand('payouts')">
+        <div class="igm-ico">$</div>
+        <div class="igm-body">
+          <div class="igm-title">Payouts &amp; Specials</div>
+          <div class="igm-desc">Special multipliers, bonuses, and DQ payouts</div>
+        </div>
+        <span class="igm-chev">›</span>
+      </div>
+      <div class="igm-pane" id="igm-payouts-section">
+        <div class="igm-rule-h">💰 Payouts</div>
+        <ul style="padding-left:18px;margin:0 0 12px;font-size:13px;line-height:1.6;color:#c7d7ef">
+          <li>Win all 3 hands → <span style="color:#22c55e">+2× bet</span></li>
+          <li>Win 2 of 3 → <span style="color:#22c55e">+1× bet</span></li>
+          <li>Win 1 of 3 → <span style="color:#ef4444">−1× bet</span></li>
+          <li>Lose all 3 → <span style="color:#ef4444">−2× bet</span></li>
+        </ul>
+        <div class="igm-rule-h">⭐ Specials (override all hands)</div>
+        <p style="margin:0 0 8px;font-size:12px;color:#7a9ac0">Must be declared before arranging. Winner gets multiplier × bet <strong style="color:#4aabff">plus a house bonus</strong>.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;color:#c7d7ef">
+          <thead><tr style="color:#4aabff;border-bottom:1px solid #1a2d50">
+            <th style="text-align:left;padding:5px 6px;font-weight:700">SPECIAL</th>
+            <th style="text-align:center;padding:5px 6px;font-weight:700">MULT</th>
+            <th style="text-align:center;padding:5px 6px;font-weight:700">BONUS</th></tr></thead>
+          <tbody>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">No Face</td><td style="text-align:center;color:#22c55e">2×</td><td style="text-align:center;color:#4aabff">+$1,000</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Four of a Kind</td><td style="text-align:center;color:#22c55e">3×</td><td style="text-align:center;color:#4aabff">+$2,500</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Straight Flush</td><td style="text-align:center;color:#22c55e">3×</td><td style="text-align:center;color:#4aabff">+$2,500</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Straight-Straight-Straight</td><td style="text-align:center;color:#22c55e">5×</td><td style="text-align:center;color:#4aabff">+$7,000</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Flush-Flush-Flush</td><td style="text-align:center;color:#22c55e">5×</td><td style="text-align:center;color:#4aabff">+$7,000</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Royal Flush</td><td style="text-align:center;color:#22c55e">7×</td><td style="text-align:center;color:#4aabff">+$10,000</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">6½ Pairs</td><td style="text-align:center;color:#22c55e">8×</td><td style="text-align:center;color:#4aabff">+$15,000</td></tr>
+            <tr><td style="padding:5px 6px;color:#e8c96a">Full Suit</td><td style="text-align:center;color:#22c55e">10×</td><td style="text-align:center;color:#4aabff">+$50,000</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- GAME RULES -->
+    <div class="igm-sec" data-key="rules">
+      <div class="igm-row" onclick="igmExpand('rules')">
+        <div class="igm-ico">📖</div>
+        <div class="igm-body">
+          <div class="igm-title">Game Rules</div>
+          <div class="igm-desc">Quick reference — hands, arrangement, ties, DQ</div>
+        </div>
+        <span class="igm-chev">›</span>
+      </div>
+      <div class="igm-pane">
+        <div class="igm-rule-h">♠ Hand Ranking (Strongest → Weakest)</div>
+        <ol style="padding-left:18px;margin:0 0 12px;font-size:13px;line-height:1.6;color:#c7d7ef">
           <li>Royal Flush</li><li>Straight Flush</li><li>Four of a Kind</li><li>Full House</li>
           <li><strong style="color:#e8c96a">Flush</strong> (beats Straight in SipSam)</li><li>Straight</li>
           <li>Three of a Kind</li><li>Two Pair</li><li>One Pair</li><li>High Card</li>
         </ol>
-      </div>
-      <div class="igm-rule-sec"><div class="igm-rule-h">🃏 Hand Arrangement</div>
-        <ul style="padding-left:16px;margin:0"><li><strong style="color:#f0f6ff">1st</strong> — 3 cards — weakest — furthest from you</li>
-          <li><strong style="color:#f0f6ff">2nd</strong> — 5 cards — middle strength</li><li><strong style="color:#f0f6ff">3rd</strong> — 5 cards — strongest — closest to you</li></ul>
-      </div>
-      <div class="igm-rule-sec" id="igm-payouts-section"><div class="igm-rule-h">💰 Payouts</div>
-        <ul style="padding-left:16px;margin:0">
-          <li>Win all 3 hands → <span style="color:#22c55e">+2× bet</span></li><li>Win 2 of 3 → <span style="color:#22c55e">+1× bet</span></li>
-          <li>Win 1 of 3 → <span style="color:#ef4444">−1× bet</span></li><li>Lose all 3 → <span style="color:#ef4444">−2× bet</span></li>
+        <div class="igm-rule-h">🃏 Hand Arrangement</div>
+        <ul style="padding-left:18px;margin:0 0 12px;font-size:13px;line-height:1.6;color:#c7d7ef">
+          <li><strong style="color:#f0f6ff">1st</strong> — 3 cards — weakest — furthest from you</li>
+          <li><strong style="color:#f0f6ff">2nd</strong> — 5 cards — middle strength</li>
+          <li><strong style="color:#f0f6ff">3rd</strong> — 5 cards — strongest — closest to you</li>
+        </ul>
+        <div class="igm-rule-h">🚫 Tie Rules</div>
+        <ul style="padding-left:18px;margin:0 0 12px;font-size:13px;line-height:1.6;color:#c7d7ef">
+          <li>Banker wins all ties except flush ties</li>
+          <li>Flush ties: Hearts &gt; Spades &gt; Diamonds &gt; Clubs</li>
+        </ul>
+        <div class="igm-rule-h">⚠️ Disqualifications</div>
+        <ul style="padding-left:18px;margin:0;font-size:13px;line-height:1.6;color:#c7d7ef">
+          <li>Miss timer → lose round bet</li>
+          <li>Wrong Special → lose round bet</li>
+          <li>Banker hides Special → pays all 2× bet</li>
+          <li>Player hides Special → loses bet + pays Banker 2×</li>
         </ul>
       </div>
-      <div class="igm-rule-sec" id="igm-specials-section"><div class="igm-rule-h">⭐ Specials (override all hands)</div>
-        <p style="margin:0 0 8px;font-size:11px">Must be declared before arranging. Winner gets multiplier × bet <strong style="color:#4aabff">plus a house bonus</strong>. Bonus is paid once by the house — not charged to any player.</p>
-        <table style="width:100%;border-collapse:collapse;font-size:11px">
-          <thead>
-            <tr style="color:#4aabff;border-bottom:1px solid #1a2d50">
-              <th style="text-align:left;padding:4px 6px;font-weight:700;letter-spacing:.5px">SPECIAL</th>
-              <th style="text-align:center;padding:4px 6px;font-weight:700;letter-spacing:.5px">MULT</th>
-              <th style="text-align:center;padding:4px 6px;font-weight:700;letter-spacing:.5px">BONUS</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
-              <td style="padding:5px 6px;color:#e8c96a">No Face</td>
-              <td style="text-align:center;padding:5px 6px;color:#22c55e">2×</td>
-              <td style="text-align:center;padding:5px 6px;color:#4aabff">+$1,000</td>
-            </tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
-              <td style="padding:5px 6px;color:#e8c96a">Four of a Kind</td>
-              <td style="text-align:center;padding:5px 6px;color:#22c55e">3×</td>
-              <td style="text-align:center;padding:5px 6px;color:#4aabff">+$2,500</td>
-            </tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
-              <td style="padding:5px 6px;color:#e8c96a">Straight Flush</td>
-              <td style="text-align:center;padding:5px 6px;color:#22c55e">3×</td>
-              <td style="text-align:center;padding:5px 6px;color:#4aabff">+$2,500</td>
-            </tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
-              <td style="padding:5px 6px;color:#e8c96a">Straight-Straight-Straight</td>
-              <td style="text-align:center;padding:5px 6px;color:#22c55e">5×</td>
-              <td style="text-align:center;padding:5px 6px;color:#4aabff">+$7,000</td>
-            </tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
-              <td style="padding:5px 6px;color:#e8c96a">Flush-Flush-Flush</td>
-              <td style="text-align:center;padding:5px 6px;color:#22c55e">5×</td>
-              <td style="text-align:center;padding:5px 6px;color:#4aabff">+$7,000</td>
-            </tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
-              <td style="padding:5px 6px;color:#e8c96a">Royal Flush</td>
-              <td style="text-align:center;padding:5px 6px;color:#22c55e">7×</td>
-              <td style="text-align:center;padding:5px 6px;color:#4aabff">+$10,000</td>
-            </tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
-              <td style="padding:5px 6px;color:#e8c96a">6½ Pairs</td>
-              <td style="text-align:center;padding:5px 6px;color:#22c55e">8×</td>
-              <td style="text-align:center;padding:5px 6px;color:#4aabff">+$15,000</td>
-            </tr>
-            <tr>
-              <td style="padding:5px 6px;color:#e8c96a">Full Suit</td>
-              <td style="text-align:center;padding:5px 6px;color:#22c55e">10×</td>
-              <td style="text-align:center;padding:5px 6px;color:#4aabff">+$50,000</td>
-            </tr>
-          </tbody>
-        </table>
-        <p style="margin:8px 0 0;font-size:11px;color:#7a9ac0">Straight Flush = 5+ consecutive cards of same suit across all 13 cards.</p>
-      </div>
-      <div class="igm-rule-sec"><div class="igm-rule-h">🚫 Tie Rules</div>
-        <ul style="padding-left:16px;margin:0"><li>Banker wins all ties except flush ties</li>
-          <li>Flush ties: Hearts &gt; Spades &gt; Diamonds &gt; Clubs</li></ul>
-      </div>
-      <div class="igm-rule-sec"><div class="igm-rule-h">⚠️ Disqualifications</div>
-        <ul style="padding-left:16px;margin:0"><li>Miss timer → lose round bet</li><li>Wrong Special → lose round bet</li>
-          <li>Banker hides Special → pays all 2× bet</li><li>Player hides Special → loses bet + pays Banker 2×</li></ul>
+    </div>
+
+    <!-- EXIT GAME -->
+    <div class="igm-sec igm-danger" data-key="exit">
+      <div class="igm-row" onclick="igmExit()">
+        <div class="igm-ico">🚪</div>
+        <div class="igm-body">
+          <div class="igm-title">Exit Game</div>
+          <div class="igm-desc">Your remaining wallet is returned to your bank</div>
+        </div>
+        <span class="igm-chev">›</span>
       </div>
     </div>
-  </div>
+
+  </div><!-- /igm-list -->
 
 </div><!-- /igm-panel -->
 
 <style>
-.igm-item{display:flex;align-items:center;gap:12px;padding:13px 20px;cursor:pointer;transition:background .14s;border-left:3px solid transparent}
-.igm-item:hover{background:rgba(26,140,255,.07);border-left-color:#0d4a8a}
-.igm-item.igm-danger:hover{background:rgba(239,68,68,.07);border-left-color:#ef4444}
-.igm-ico{font-size:20px;width:28px;text-align:center;flex-shrink:0}
+/* ── IN-GAME MENU (accordion) ── */
+.igm-head{padding:18px 20px;border-bottom:1px solid #1a2d50;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#040d1c,#0a1e3c);flex-shrink:0}
+.igm-title-bar{font-family:'Manrope',sans-serif;font-size:18px;font-weight:800;letter-spacing:.16em;color:#f3f6fb;text-transform:uppercase}
+.igm-table-tag{font-size:10px;letter-spacing:2px;color:#334d70;margin-top:2px}
+.igm-close-btn{background:rgba(26,140,255,.1);border:1px solid #1a2d50;border-radius:8px;padding:8px 13px;cursor:pointer;color:#7a9ac0;font-size:18px;line-height:1}
+.igm-close-btn:hover{background:rgba(26,140,255,.2);color:#f0f6ff}
+.igm-playerbar{padding:14px 20px;border-bottom:1px solid #1a2d50;background:rgba(11,21,40,.7);display:flex;align-items:center;gap:12px;flex-shrink:0}
+.igm-avatar{width:40px;height:40px;border-radius:50%;background:#0f1e38;border:2px solid #0d4a8a;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.igm-username{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;color:#f0f6ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.igm-walletline{font-size:12px;color:#c9a84c;font-weight:600}
+.igm-bank-lbl{font-size:10px;color:#334d70;letter-spacing:1px}
+.igm-bank-val{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;color:#e8c96a}
+.igm-list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.igm-sec{border-bottom:1px solid #1a2d50}
+.igm-row{display:flex;align-items:center;gap:14px;padding:16px 20px;cursor:pointer;transition:background .14s;border-left:3px solid transparent;-webkit-tap-highlight-color:rgba(74,171,255,.15);user-select:none}
+.igm-row:hover{background:rgba(26,140,255,.07);border-left-color:#0d4a8a}
+.igm-row:active{background:rgba(26,140,255,.14)}
+.igm-sec.igm-danger .igm-row:hover{background:rgba(239,68,68,.07);border-left-color:#ef4444}
+.igm-ico{font-size:22px;width:32px;text-align:center;flex-shrink:0}
 .igm-body{flex:1;min-width:0}
-.igm-title{font-weight:700;font-size:13px;margin-bottom:1px;color:#f0f6ff}
-.igm-desc{font-size:11px;color:#7a9ac0;line-height:1.4}
-.igm-item.igm-danger .igm-title{color:#fca5a5}
-.igm-arrow{color:#334d70;font-size:18px;flex-shrink:0}
+.igm-title{font-weight:700;font-size:14px;margin-bottom:2px;color:#f0f6ff}
+.igm-desc{font-size:12px;color:#7a9ac0;line-height:1.4}
+.igm-sec.igm-danger .igm-title{color:#fca5a5}
+.igm-chev{color:#334d70;font-size:22px;flex-shrink:0;transition:transform .25s ease;display:inline-block;line-height:1}
+.igm-sec.expanded .igm-chev{transform:rotate(90deg);color:#4aabff}
+.igm-sec.expanded .igm-row{background:rgba(26,140,255,.10);border-left-color:#4aabff}
+.igm-pane{display:none;padding:14px 20px 18px;background:rgba(8,18,36,.5)}
+.igm-sec.expanded .igm-pane{display:block}
+.igm-input{width:100%;background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;padding:11px 13px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:14px;outline:none;box-sizing:border-box}
+.igm-input:focus{border-color:#4aabff}
+.igm-mini-btn{background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;padding:11px 14px;color:#4aabff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.igm-mini-btn:hover{background:#142a52;color:#7ec8ff}
+.igm-label{display:block;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:#7a9ac0;text-transform:uppercase;margin-bottom:6px;margin-top:10px}
+.igm-info-card{background:#0f1e38;border:1px solid #1a2d50;border-radius:10px;padding:14px;margin-bottom:14px}
+.igm-info-row{display:flex;justify-content:space-between;font-size:13px;color:#7a9ac0;padding:3px 0}
+.igm-info-row span:last-child{font-weight:700}
+.igm-friends-list{margin-top:8px;max-height:220px;overflow-y:auto;border:1px solid #1a2d50;border-radius:8px;background:#06111f;padding:4px}
+.igm-player-list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto}
+.igm-rule-h{font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;color:#4aabff;text-transform:uppercase;margin:6px 0 8px}
+/* Mobile: full-width drawer + bigger touch targets */
+@media (max-width: 600px) {
+  .igm-row{padding:18px 18px}
+  .igm-title{font-size:15px}
+  .igm-desc{font-size:13px}
+  .igm-pane{padding:14px 18px 20px}
+  .igm-input{padding:13px 14px;font-size:15px}
+  .igm-mini-btn{padding:13px 16px;font-size:13px}
+  .igm-action-btn{padding:14px;font-size:15px}
+}
 
 /* ── SPEECH BUBBLES ── */
 #chat-bar-input:focus{border-color:#1a8cff!important;box-shadow:0 0 0 2px rgba(26,140,255,.15)}
@@ -866,10 +843,7 @@
 .sb-banker::after,.sb-p1::after,.sb-p2::after,.sb-p3::after{display:none}
 @keyframes sbIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
 .sb-sender{font-size:10px;font-weight:700;color:#4aabff;margin-bottom:3px;letter-spacing:.5px}
-.igm-sub{position:absolute;inset:0;background:#080f1e;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column;z-index:200;overflow-y:auto}
-.igm-sub.open{transform:translateX(0)}
-.igm-sub-head{padding:14px 18px;border-bottom:1px solid #1a2d50;display:flex;align-items:center;gap:14px;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:#f0f6ff;flex-shrink:0;position:sticky;top:0;z-index:210;background:#080f1e}
-.igm-back-btn{position:relative;z-index:211;cursor:pointer}
+/* (legacy .igm-sub removed — accordion replaces sliding sub-panels) */
 .igm-back-btn{background:rgba(26,140,255,.1);border:1px solid #1a2d50;border-radius:6px;padding:5px 11px;cursor:pointer;color:#4aabff;font-size:12px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px}
 .igm-back-btn:hover{background:rgba(26,140,255,.2)}
 .igm-action-btn{width:100%;background:linear-gradient(135deg,#1a5aaa,#1a8cff);border:none;border-radius:8px;padding:11px;color:#fff;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:1.5px;cursor:pointer;text-transform:uppercase;transition:all .18s}
@@ -1191,25 +1165,95 @@ function syncWalletDisplay() {
   } catch(e) {}
 }
 
-// ── SUB-PANELS ──────────────────────────────────────────
-function igmShowSub(id) {
-  if (igmActiveSub) document.getElementById('igm-sub-'+igmActiveSub)?.classList.remove('open');
-  igmActiveSub = id;
-  document.getElementById('igm-sub-'+id)?.classList.add('open');
+// ── ACCORDION ───────────────────────────────────────────
+// Single source of truth for which section is expanded. One at a time.
+function igmExpand(key) {
+  const sec = document.querySelector('.igm-sec[data-key="' + key + '"]');
+  if (!sec) return;
+  const wasOpen = sec.classList.contains('expanded');
+  document.querySelectorAll('.igm-sec.expanded').forEach(s => s.classList.remove('expanded'));
+  igmActiveSub = null;
+  igmSelectedPlayer = null;
+  if (wasOpen) return;             // toggle off — leave list collapsed
+  sec.classList.add('expanded');
+  igmActiveSub = key;
+  // Populate dynamic content for the section
+  if (key === 'invite')    _igmPopulateInvite();
+  if (key === 'replenish') syncWalletDisplay();
+  if (key === 'request')   _igmPopulateRequest();
+  if (key === 'send')      _igmPopulateSend();
+  // Scroll the row into view so the expanded body is visible
+  setTimeout(() => sec.scrollIntoView({ block:'start', behavior:'smooth' }), 50);
 }
 
-// Click-outside handler: a sub-panel resets to main menu first; the second
-// outside-click (with no sub-panel open) closes the menu entirely.
-function igmOverlayClick() {
-  if (igmActiveSub) { igmBack(); return; }
-  closeIngameMenu();
-}
+// Click outside menu = close it. (Accordion has no "back" — just collapse
+// or close; the user collapses by tapping the same row again.)
+function igmOverlayClick() { closeIngameMenu(); }
 
-function igmBack() {
-  if (igmActiveSub) {
-    document.getElementById('igm-sub-'+igmActiveSub)?.classList.remove('open');
-    igmActiveSub = null;
-    igmSelectedPlayer = null;
+// Back-compat shims for any legacy callers (closeIngameMenu still calls
+// igmBack to ensure the next open starts collapsed; some message handlers
+// also call into these).
+function igmBack()                 { document.querySelectorAll('.igm-sec.expanded').forEach(s => s.classList.remove('expanded')); igmActiveSub = null; igmSelectedPlayer = null; }
+function igmShowSub(id)            { igmExpand(id); }
+function igmShowRules()            { igmExpand('rules'); }
+function igmShowPayouts()          { igmExpand('payouts'); }
+function igmInviteToggle()         { igmExpand('invite'); }
+function igmReplenish()            { igmExpand('replenish'); }
+function igmRequestChips()         { igmExpand('request'); }
+function igmSendChips()            { igmExpand('send'); }
+
+// Populate helpers (extracted from the old sub-panel openers).
+function _igmPopulateInvite() {
+  const state = window._lastState || {};
+  const players = Object.values(state.players || {});
+  const hasBot = players.some(p => p && p.isBot && !p.isGhostBot);
+  const list = document.getElementById('igm-invite-list');
+  const input = document.getElementById('igm-invite-input');
+  const msg = document.getElementById('igm-invite-msg');
+  if (!list || !input) return;
+  if (!hasBot) {
+    list.innerHTML = '<div style="padding:14px;font-size:13px;color:#fca5a5;text-align:center">No bot seats to replace right now. Friends can only join when a bot can be swapped out.</div>';
+    input.disabled = true;
+    if (msg) msg.textContent = '';
+    return;
+  }
+  input.disabled = false;
+  input.value = '';
+  if (msg) msg.textContent = '';
+  _igmLoadFriends().then(() => igmInviteRender(''));
+  setTimeout(() => input.focus(), 80);
+}
+function _igmPopulateRequest() {
+  igmSelectedPlayer = null;
+  populatePlayerList('req-players');
+  const stateMaxBet = window._lastState?.tableMaxBet || 0;
+  const maxBet = igmTableCfg?.maxBet || stateMaxBet || 0;
+  const lbl = document.getElementById('req-amount-label');
+  if (lbl) lbl.textContent = '$' + maxBet.toLocaleString();
+  const pending = document.getElementById('req-pending');
+  if (pending) pending.textContent = '';
+}
+function _igmPopulateSend() {
+  igmSelectedPlayer = null;
+  populatePlayerList('send-players');
+  const maxBet = igmTableCfg?.maxBet || 0;
+  const lbl = document.getElementById('send-amount-label');
+  if (lbl) lbl.textContent = '$' + maxBet.toLocaleString();
+  const limitEl = document.getElementById('send-limit');
+  if (limitEl) limitEl.textContent = '$' + maxBet.toLocaleString();
+  const amtInput = document.getElementById('send-amount-input');
+  if (amtInput) amtInput.value = maxBet;
+  const notice = document.getElementById('req-notice');
+  if (window._pendingChipRequest && notice) {
+    const pr = window._pendingChipRequest;
+    notice.style.display = 'block';
+    notice.textContent = `💬 ${pr.from} requested $${pr.amount.toLocaleString()} — select them below to fulfill.`;
+    setTimeout(() => {
+      const btns = document.querySelectorAll('#send-players .player-select-btn');
+      btns.forEach(btn => { if (btn.dataset.username === pr.from) btn.click(); });
+    }, 100);
+  } else if (notice) {
+    notice.style.display = 'none';
   }
 }
 
@@ -1217,47 +1261,6 @@ function igmBack() {
 // ── IN-GAME INVITE (inline expandable) ──────────────────
 let _igmFriends = [];           // cached friends list
 let _igmInvitedUsernames = new Set(); // session-level: who I've already invited
-
-// Toggle the inline invite section open/closed. Loads friends on first open.
-async function igmInviteToggle() {
-  try {
-    const sec   = document.getElementById('igm-invite-inline');
-    const arrow = document.getElementById('igm-invite-arrow');
-    const input = document.getElementById('igm-invite-input');
-    const list  = document.getElementById('igm-invite-list');
-    const msg   = document.getElementById('igm-invite-msg');
-    if (!sec || !input || !list) return;
-
-    const opening = sec.style.display === 'none' || !sec.style.display;
-    if (!opening) {
-      sec.style.display = 'none';
-      if (arrow) arrow.textContent = '›';
-      return;
-    }
-    sec.style.display = 'block';
-    if (arrow) arrow.textContent = '⌄';
-
-    // Bot-seat check — friends can only replace a bot.
-    const state = window._lastState || {};
-    const players = Object.values(state.players || {});
-    const hasBot = players.some(p => p && p.isBot && !p.isGhostBot);
-    if (!hasBot) {
-      list.innerHTML = '<div style="padding:14px;font-size:12px;color:#fca5a5;text-align:center">No bot seats to replace right now.</div>';
-      input.disabled = true;
-      if (msg) msg.textContent = '';
-      return;
-    }
-    input.disabled = false;
-    input.value = '';
-    if (msg) msg.textContent = '';
-
-    await _igmLoadFriends();
-    igmInviteRender('');
-    setTimeout(() => input.focus(), 80);
-  } catch(e) {
-    console.error('[igmInviteToggle] error:', e);
-  }
-}
 
 // Pressing Enter in the input invites the top match (first non-filtered friend).
 function igmInviteEnter() {
@@ -1367,58 +1370,10 @@ async function igmDoInvite(username) {
   }
 }
 
-function igmReplenish() {
-  syncWalletDisplay();
-  igmShowSub('replenish');
-}
-
-function igmRequestChips() {
-  igmSelectedPlayer = null;
-  populatePlayerList('req-players');
-  const stateMaxBet = window._lastState?.tableMaxBet || 0;
-  const maxBet = igmTableCfg?.maxBet || stateMaxBet || 0;
-  const lbl = document.getElementById('req-amount-label');
-  if (lbl) lbl.textContent = '$' + maxBet.toLocaleString();
-  const pending = document.getElementById('req-pending');
-  if (pending) pending.textContent = '';
-  igmShowSub('request');
-}
-
-function igmSendChips() {
-  igmSelectedPlayer = null;
-  populatePlayerList('send-players');
-  const maxBet = igmTableCfg?.maxBet || 0;
-  const lbl = document.getElementById('send-amount-label');
-  if (lbl) lbl.textContent = '$' + maxBet.toLocaleString();
-  const limitEl = document.getElementById('send-limit');
-  if (limitEl) limitEl.textContent = '$' + maxBet.toLocaleString();
-  const amtInput = document.getElementById('send-amount-input');
-  if (amtInput) amtInput.value = maxBet;
-  // Auto-fill if there's a pending chip request
-  const notice = document.getElementById('req-notice');
-  if (window._pendingChipRequest && notice) {
-    const pr = window._pendingChipRequest;
-    notice.style.display = 'block';
-    notice.textContent = `💬 ${pr.from} requested $${pr.amount.toLocaleString()} — select them below to fulfill.`;
-    // Pre-select that player
-    setTimeout(() => {
-      const btns = document.querySelectorAll('#send-players .player-select-btn');
-      btns.forEach(btn => { if (btn.dataset.username === pr.from) btn.click(); });
-    }, 100);
-  } else if (notice) {
-    notice.style.display = 'none';
-  }
-  igmShowSub('send');
-}
-
-function igmShowRules() { igmShowSub('rules'); }
-function igmShowPayouts() {
-  igmShowSub('rules');
-  setTimeout(() => {
-    const target = document.getElementById('igm-payouts-section');
-    if (target) target.scrollIntoView({ block:'start' });
-  }, 80);
-}
+// igmReplenish / igmRequestChips / igmSendChips / igmShowRules / igmShowPayouts
+// are defined above as thin shims that call igmExpand(key). The populate
+// helpers (_igmPopulateInvite/Request/Send + syncWalletDisplay) handle the
+// dynamic content when a section opens.
 
 function igmExit() {
   if (!confirm('Exit game? Your remaining wallet will be returned to your bank.')) return;
