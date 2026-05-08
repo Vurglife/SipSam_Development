@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="VurgLife">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/images/icon-192.png">
-<link rel="stylesheet" href="style.css?v=21">
+<link rel="stylesheet" href="style.css?v=22">
   <style>
     /* Lobby config banner (pre-selected from dashboard) */
     .lobby-title { font-family:'Bebas Neue',serif; font-size:2rem; letter-spacing:4px; margin:0 0 4px; }
@@ -279,6 +279,7 @@
   <div class="my-area">
     <div class="my-info-bar">
       <span id="my-name">—</span>
+      <span id="my-tier" class="my-tier"></span>
       <span id="my-chips">$1000</span>
       <span id="my-payout"></span>
     </div>
@@ -536,7 +537,7 @@
   </div>
 </div>
 
-<script src="game.js?v=27"></script>
+<script src="game.js?v=28"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      IN-GAME SLIDE-OUT MENU
@@ -1103,6 +1104,7 @@ function initIngameMenu() {
           // Update display if menu is already open
           const bankEl = document.getElementById('igm-bank');
           if (bankEl) bankEl.textContent = '$' + igmBank.toLocaleString();
+          updateMyTierBadge();
         }
       })
       .catch(e => console.warn('[IGM] Balance fetch failed:', e.message));
@@ -1129,8 +1131,9 @@ function openIngameMenu() {
         igmBank = d.user.bankBalance ?? d.user.bank_balance ?? 0;
       }
       syncWalletDisplay();
+      updateMyTierBadge();
     })
-    .catch(() => syncWalletDisplay());
+    .catch(() => { syncWalletDisplay(); updateMyTierBadge(); });
   } else {
     syncWalletDisplay();
   }
@@ -1164,6 +1167,30 @@ function syncWalletDisplay() {
       if (maxEl) maxEl.textContent = '$' + maxDraw.toLocaleString();
     }
   } catch(e) {}
+}
+
+// ── TIER BADGE (mirrors server lib/tiers.js) ────────────
+const SIPSAM_TIERS = [
+  { name:'Elite',    minBank:5000000, color:'#9b5cff', emoji:'💎' },
+  { name:'VIP',      minBank:2000000, color:'#ff5577', emoji:'👑' },
+  { name:'Platinum', minBank:60000,   color:'#cfd6e4', emoji:'🔷' },
+  { name:'Gold',     minBank:30000,   color:'#e8c96a', emoji:'🏆' },
+  { name:'Silver',   minBank:15000,   color:'#bcc2c8', emoji:'🥈' },
+  { name:'Bronze',   minBank:5000,    color:'#cd7f32', emoji:'🥉' },
+];
+function computeTierFromBank(bank) {
+  const b = Number(bank) || 0;
+  for (const t of SIPSAM_TIERS) if (b >= t.minBank) return t;
+  return null;
+}
+function updateMyTierBadge() {
+  const el = document.getElementById('my-tier');
+  if (!el) return;
+  const t = computeTierFromBank(typeof igmBank !== 'undefined' ? igmBank : 0);
+  if (!t) { el.classList.remove('show'); el.textContent = ''; return; }
+  el.classList.add('show');
+  el.style.color = t.color;
+  el.innerHTML = '<span style="font-size:13px">' + t.emoji + '</span><span>' + t.name + '</span>';
 }
 
 // ── ACCORDION ───────────────────────────────────────────

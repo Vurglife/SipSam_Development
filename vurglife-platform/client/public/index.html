@@ -161,10 +161,15 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
   padding:0 22px;display:flex;align-items:center;gap:14px;flex-shrink:0;backdrop-filter:blur(8px)}
 .topbar-title{font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:2px}
 .tb-bal{display:flex;align-items:center;gap:7px;background:var(--bg-panel);border:1px solid var(--border);
-  border-radius:8px;padding:5px 12px;cursor:pointer;margin-left:auto;transition:border-color .2s}
+  border-radius:8px;padding:5px 12px;cursor:pointer;transition:border-color .2s}
 .tb-bal:hover{border-color:var(--gold-dim)}
 .tb-amt{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;color:var(--gold-hi)}
 .tb-lbl{font-size:10px;letter-spacing:1px;color:var(--text-dim)}
+.tb-tier{display:none;align-items:center;gap:6px;background:var(--bg-panel);border:1px solid var(--border);
+  border-radius:8px;padding:5px 11px;font-family:'Rajdhani',sans-serif;font-weight:800;font-size:12px;
+  letter-spacing:1.5px;text-transform:uppercase;margin-left:auto}
+.tb-tier.show{display:inline-flex}
+.tb-tier .tb-tier-emoji{font-size:14px}
 .dash-content{flex:1;overflow-y:auto;padding:24px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
 .dash-content::-webkit-scrollbar{width:5px}
 .dash-content::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
@@ -497,6 +502,7 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
     <div class="topbar">
       <span class="mob-tog" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</span>
       <span class="topbar-title" id="topbar-title">Home</span>
+      <div id="tb-tier" class="tb-tier" title="Tier — based on your bank balance"></div>
       <div class="tb-bal" onclick="showPanel('bank')">
         <span style="color:var(--gold);font-size:14px">🪙</span>
         <div><div class="tb-amt" id="tb-amt">$0</div><div class="tb-lbl">BANK</div></div>
@@ -631,6 +637,9 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
           .tc.tc-vip { border-color: rgba(201,168,76,.55) !important; box-shadow: 0 0 0 1px rgba(201,168,76,.25), 0 0 28px rgba(201,168,76,.18); }
           .tc.tc-vip .tc-bet { color: #e8c96a; }
           .tc.tc-vip .tc-name { color: #c9a84c; letter-spacing: 2px; }
+          .tc.tc-elite { border-color: rgba(155,92,255,.6) !important; box-shadow: 0 0 0 1px rgba(155,92,255,.3), 0 0 32px rgba(155,92,255,.25); }
+          .tc.tc-elite .tc-bet { color: #c9a4ff; }
+          .tc.tc-elite .tc-name { color: #9b5cff; letter-spacing: 2px; }
         </style>
 
         <div class="sh" style="margin-top:18px">2 · Select Table <span style="font-size:11px;font-weight:400;color:var(--text-dim);letter-spacing:0;text-transform:none">— bank must meet the minimum</span></div>
@@ -1041,11 +1050,12 @@ let currentUser = null, authToken = localStorage.getItem('vurglife_token') || nu
 let pendingTable = null, adCtx = null, adTimer = null;
 
 const TABLES = {
-  100:  {minBet:100,  inc:50,  maxBet:150,  minBank:5000,  wallet:3000 },
-  250:  {minBet:250,  inc:50,  maxBet:500,  minBank:15000, wallet:10000},
-  500:  {minBet:500,  inc:100, maxBet:1000, minBank:30000, wallet:20000},
-  1000: {minBet:1000, inc:500, maxBet:2000, minBank:60000, wallet:40000},
-  10000:{minBet:10000,inc:10000,maxBet:50000,minBank:2000000,wallet:1000000}
+  100:   {minBet:100,   inc:50,     maxBet:150,    minBank:5000,    wallet:3000   },
+  250:   {minBet:250,   inc:50,     maxBet:500,    minBank:15000,   wallet:10000  },
+  500:   {minBet:500,   inc:100,    maxBet:1000,   minBank:30000,   wallet:20000  },
+  1000:  {minBet:1000,  inc:500,    maxBet:2000,   minBank:60000,   wallet:40000  },
+  10000: {minBet:10000, inc:10000,  maxBet:50000,  minBank:2000000, wallet:1000000},
+  100000:{minBet:100000,inc:100000, maxBet:500000, minBank:5000000, wallet:3000000}
 };
 
 const RHUM32_TABLES = {
@@ -1208,6 +1218,34 @@ async function loadDashboard() {
 
 function getBank() { return currentUser?.bankBalance ?? currentUser?.bank_balance ?? 0; }
 
+// ── Tier mirror of server lib/tiers.js — keep in sync.
+const PLATFORM_TIERS = [
+  { name:'Elite',    minBank:5000000, color:'#9b5cff', emoji:'💎' },
+  { name:'VIP',      minBank:2000000, color:'#ff5577', emoji:'👑' },
+  { name:'Platinum', minBank:60000,   color:'#cfd6e4', emoji:'🔷' },
+  { name:'Gold',     minBank:30000,   color:'#e8c96a', emoji:'🏆' },
+  { name:'Silver',   minBank:15000,   color:'#bcc2c8', emoji:'🥈' },
+  { name:'Bronze',   minBank:5000,    color:'#cd7f32', emoji:'🥉' },
+];
+function computeTierClient(bank) {
+  const b=Number(bank)||0;
+  for (const t of PLATFORM_TIERS) if (b>=t.minBank) return t;
+  return null;
+}
+function refreshTierBadge() {
+  const el=document.getElementById('tb-tier'); if (!el) return;
+  const t=computeTierClient(getBank());
+  if (!t) {
+    el.classList.remove('show');
+    el.innerHTML='';
+    return;
+  }
+  el.classList.add('show');
+  el.style.color=t.color;
+  el.style.borderColor=t.color+'66';
+  el.innerHTML=`<span class="tb-tier-emoji">${t.emoji}</span><span>${t.name}</span>`;
+}
+
 function refreshUI() {
   const u=currentUser; if (!u) return;
   const bank=getBank();
@@ -1219,6 +1257,7 @@ function refreshUI() {
   document.getElementById('sb-uname').textContent=u.username;
   document.getElementById('sb-bal').textContent='🪙 $'+bank.toLocaleString();
   document.getElementById('tb-amt').textContent='$'+bank.toLocaleString();
+  refreshTierBadge();
   document.getElementById('home-name').textContent=u.username;
   document.getElementById('home-bank').textContent='$'+bank.toLocaleString();
   document.getElementById('home-wins').textContent=wins;
@@ -1242,11 +1281,14 @@ function buildGrid(gridId) {
   const bank=getBank(); grid.innerHTML='';
   Object.values(TABLES).forEach(t => {
     const ok=bank>=t.minBank;
-    const isVip = t.minBet >= 10000;
+    const isElite = t.minBet >= 100000;
+    const isVip   = !isElite && t.minBet >= 10000;
+    const tierTag = isElite ? '💎 ELITE ' : isVip ? '⭐ VIP ' : '';
+    const tierName= isElite ? 'Elite Table' : isVip ? 'VIP Table' : 'Minimum Bet Table';
     const d=document.createElement('div');
-    d.className='tc'+(ok?'':' locked')+(isVip?' tc-vip':'');
-    d.innerHTML=`<div class="tc-bet">${isVip?'⭐ VIP ':''}$${t.minBet.toLocaleString()}</div>
-      <div class="tc-name">${isVip?'VIP Table':'Minimum Bet Table'}</div>
+    d.className='tc'+(ok?'':' locked')+((isVip||isElite)?' tc-vip':'')+(isElite?' tc-elite':'');
+    d.innerHTML=`<div class="tc-bet">${tierTag}$${t.minBet.toLocaleString()}</div>
+      <div class="tc-name">${tierName}</div>
       <div>
         <div class="tc-row"><span class="tc-l">Min Bank Required</span><span class="tc-r">$${t.minBank.toLocaleString()}</span></div>
         <div class="tc-row"><span class="tc-l">Wallet Size</span><span class="tc-r gold">$${t.wallet.toLocaleString()}</span></div>
@@ -1674,12 +1716,21 @@ function friendEmpty(text) {
   return '<div style="color:var(--text-dim);font-size:13px;padding:10px 0">'+text+'</div>';
 }
 
+function tierBadgeHtml(bank) {
+  const t = computeTierClient(bank);
+  if (!t) return '';
+  return '<span class="f-tier" style="color:'+t.color+';border-color:'+t.color+'66">'+
+    '<span style="font-size:11px">'+t.emoji+'</span> '+t.name+'</span>';
+}
+
 function friendCard(friend) {
   const name = friend.username || friend.friend_username || 'Unknown';
   const id = friend.id || friend.friend_id || friend.user_id;
+  const bank = friend.bank_balance ?? friend.bankBalance ?? 0;
   return '<div class="fcard">' +
     '<div class="f-av">'+friendAvatar(name)+'</div>' +
-    '<div><div class="f-name">'+escHtml(name)+'</div><div class="f-status">Friend</div></div>' +
+    '<div><div class="f-name">'+escHtml(name)+'</div>' +
+      '<div class="f-status">Friend '+tierBadgeHtml(bank)+'</div></div>' +
     '<div class="f-acts"><button class="btn bgh bsm" onclick="removeFriend('+id+')">Remove</button></div>' +
   '</div>';
 }

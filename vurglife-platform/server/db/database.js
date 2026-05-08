@@ -304,7 +304,7 @@ const FriendDB = {
     },
     async getFriends(userId) {
         await getDb();
-        return all(`SELECT u.id, u.username, u.avatar_url, u.last_login
+        return all(`SELECT u.id, u.username, u.avatar_url, u.last_login, u.bank_balance
             FROM friendships f JOIN users u ON u.id = f.friend_id
             WHERE f.user_id = ? AND f.status = 'accepted'`, [userId]);
     },

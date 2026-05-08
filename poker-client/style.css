@@ -411,6 +411,10 @@ html, body {
   overflow-y:auto; max-height:42vh;
 }
 .my-info-bar { display:flex; align-items:center; justify-content:space-between; font-size:14px; flex-wrap:wrap; gap:6px; }
+.my-tier { display:none; align-items:center; gap:5px; font-family:'Rajdhani',sans-serif; font-weight:800; font-size:11px;
+  letter-spacing:1.5px; text-transform:uppercase; padding:3px 9px; border-radius:8px;
+  background:rgba(8,18,36,.85); border:1px solid currentColor; }
+.my-tier.show { display:inline-flex; }
 #my-name    { font-weight:700; color:var(--gold-lt); font-size:clamp(14px,2vw,17px); }
 #my-chips   { color:var(--gold); font-size:clamp(13px,1.8vw,16px); font-weight:700; }
 .area-label { font-size:11px; color:#888; letter-spacing:1px; text-transform:uppercase; margin-bottom:3px; }

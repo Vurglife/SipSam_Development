@@ -1054,6 +1054,8 @@ function updateGameUI(state) {
         // Keep module-level myChips in sync with live game state
         if (typeof myChips !== 'undefined') myChips = me.chips;
         if (typeof igmWallet !== 'undefined') igmWallet = me.chips;
+        // Refresh tier badge based on the latest known bank balance
+        if (typeof updateMyTierBadge === 'function') updateMyTierBadge();
 
         // bet display now shown in side-extras via updateOpponentSeats
 
