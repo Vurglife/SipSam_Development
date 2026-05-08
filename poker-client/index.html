@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="VurgLife">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/images/icon-192.png">
-<link rel="stylesheet" href="style.css?v=22">
+<link rel="stylesheet" href="style.css?v=23">
   <style>
     /* Lobby config banner (pre-selected from dashboard) */
     .lobby-title { font-family:'Bebas Neue',serif; font-size:2rem; letter-spacing:4px; margin:0 0 4px; }
@@ -537,7 +537,7 @@
   </div>
 </div>
 
-<script src="game.js?v=29"></script>
+<script src="game.js?v=30"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      IN-GAME SLIDE-OUT MENU
@@ -896,7 +896,54 @@ var SFX = {
   chat:    function(){ playTone(880,'sine',0.08,0.1); setTimeout(function(){playTone(1100,'sine',0.08,0.1);},100); },
   confirm: function(){ playTone(600,'sine',0.1,0.12); setTimeout(function(){playTone(800,'sine',0.1,0.12);},100); },
   chipIn:  function(){ playTone(900,'triangle',0.08,0.15); setTimeout(function(){playTone(1100,'triangle',0.08,0.12);},80); },
+  // Sequence of percussive clicks to simulate chips clattering as they
+  // stack. Count grows with payout size for a richer cascade.
+  chipStack: function(count){
+    var n = Math.max(3, Math.min(10, count|0 || 6));
+    for (var i = 0; i < n; i++) {
+      var freq = 1100 + Math.random() * 400;
+      playTone(freq, 'square', 0.07 + Math.random()*0.04, 0.04 + Math.random()*0.02, 0.03 + i * 0.055);
+    }
+  },
 };
+
+// ── CHIP-FLOW ANIMATION ─────────────────────────────────
+// Spawn a flurry of chip discs that fly from `fromEl` to `toEl` to
+// visualise a payout exchange. Used at round-end: win → chips fly
+// banker→player, loss → chips fly player→banker. Plays the chipStack
+// SFX in time with the cascade.
+function animateChipFlow(fromEl, toEl, isWin, amount) {
+  try {
+    if (!fromEl || !toEl) return;
+    var f = fromEl.getBoundingClientRect();
+    var t = toEl.getBoundingClientRect();
+    var fx = f.left + f.width  / 2;
+    var fy = f.top  + f.height / 2;
+    var tx = t.left + t.width  / 2;
+    var ty = t.top  + t.height / 2;
+    var amt = Math.abs(Number(amount) || 0);
+    var count = Math.min(10, Math.max(4, Math.ceil(amt / 4000)));
+    for (var i = 0; i < count; i++) (function(idx){
+      var chip = document.createElement('div');
+      chip.className = 'chip-fly' + (isWin ? ' chip-fly-win' : ' chip-fly-lose');
+      chip.style.left = fx + 'px';
+      chip.style.top  = fy + 'px';
+      document.body.appendChild(chip);
+      setTimeout(function(){
+        var jitterX = (Math.random() - 0.5) * 38;
+        var jitterY = (Math.random() - 0.5) * 38;
+        var dx = (tx - fx) + jitterX;
+        var dy = (ty - fy) + jitterY;
+        var rot = (Math.random() - 0.5) * 540;
+        chip.style.transition = 'transform .65s cubic-bezier(.34,1.2,.64,1), opacity .65s ease-out';
+        chip.style.transform = 'translate(' + dx + 'px,' + dy + 'px) rotate(' + rot + 'deg) scale(.85)';
+        chip.style.opacity = '0.1';
+        setTimeout(function(){ if (chip.parentNode) chip.remove(); }, 700);
+      }, idx * 55);
+    })(i);
+    if (typeof SFX !== 'undefined' && SFX.chipStack) SFX.chipStack(count);
+  } catch(e) { console.warn('[CHIP-FLOW]', e.message); }
+}
 
 // ══════════════════════════════════════════════════════
 // SPEECH BUBBLES

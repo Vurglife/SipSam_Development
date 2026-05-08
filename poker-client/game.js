@@ -1061,10 +1061,28 @@ function updateGameUI(state) {
         const payoutEl = document.getElementById('my-payout');
         if (me.lastPayout > 0) {
             payoutEl.textContent=`+${me.lastPayout}`; payoutEl.className='payout-win';
-            if (window._lastPayout !== me.lastPayout && typeof SFX !== 'undefined') SFX.win();
+            if (window._lastPayout !== me.lastPayout) {
+                if (typeof SFX !== 'undefined') SFX.win();
+                if (typeof animateChipFlow === 'function') {
+                    animateChipFlow(
+                        document.getElementById('banker-chips'),
+                        document.getElementById('my-chips'),
+                        true, me.lastPayout
+                    );
+                }
+            }
         } else if (me.lastPayout < 0) {
             payoutEl.textContent=`${me.lastPayout}`; payoutEl.className='payout-loss';
-            if (window._lastPayout !== me.lastPayout && typeof SFX !== 'undefined') SFX.lose();
+            if (window._lastPayout !== me.lastPayout) {
+                if (typeof SFX !== 'undefined') SFX.lose();
+                if (typeof animateChipFlow === 'function') {
+                    animateChipFlow(
+                        document.getElementById('my-chips'),
+                        document.getElementById('banker-chips'),
+                        false, me.lastPayout
+                    );
+                }
+            }
         } else { payoutEl.textContent=''; }
         window._lastPayout = me.lastPayout;
     }

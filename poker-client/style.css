@@ -415,6 +415,25 @@ html, body {
   letter-spacing:1.5px; text-transform:uppercase; padding:3px 9px; border-radius:8px;
   background:rgba(8,18,36,.85); border:1px solid currentColor; }
 .my-tier.show { display:inline-flex; }
+
+/* ── CHIP-FLOW ANIMATION ─────────────────────────────── */
+.chip-fly {
+  position: fixed;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2200;
+  transform: translate(-50%, -50%);
+  will-change: transform, opacity;
+  background: radial-gradient(circle at 32% 30%, #ffe28a 0%, #e8c96a 38%, #c9a84c 60%, #6e5118 100%);
+  border: 2px dashed rgba(255,255,255,.55);
+  box-shadow: 0 0 14px rgba(232,201,106,.85), 0 4px 10px rgba(0,0,0,.55), inset 0 0 6px rgba(0,0,0,.35);
+}
+.chip-fly-lose {
+  background: radial-gradient(circle at 32% 30%, #ff9aa9 0%, #d97a8a 38%, #882a3d 60%, #3a0f1c 100%);
+  border-color: rgba(255,210,215,.5);
+  box-shadow: 0 0 14px rgba(220,90,110,.85), 0 4px 10px rgba(0,0,0,.55), inset 0 0 6px rgba(0,0,0,.35);
+}
 #my-name    { font-weight:700; color:var(--gold-lt); font-size:clamp(14px,2vw,17px); }
 #my-chips   { color:var(--gold); font-size:clamp(13px,1.8vw,16px); font-weight:700; }
 .area-label { font-size:11px; color:#888; letter-spacing:1px; text-transform:uppercase; margin-bottom:3px; }
