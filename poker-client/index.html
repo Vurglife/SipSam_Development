@@ -537,7 +537,7 @@
   </div>
 </div>
 
-<script src="game.js?v=31"></script>
+<script src="game.js?v=32"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      IN-GAME SLIDE-OUT MENU
@@ -1200,18 +1200,19 @@ function syncWalletDisplay() {
   // Try to read wallet/bank from game state if available
   try {
     if (typeof myChips !== 'undefined') igmWallet = myChips;
+    const f = (typeof fmtChips === 'function') ? fmtChips : (n => '$' + (n||0).toLocaleString());
     const walletEl = document.getElementById('igm-wallet');
     const bankEl   = document.getElementById('igm-bank');
-    if (walletEl) walletEl.textContent = `Wallet: $${igmWallet.toLocaleString()}`;
-    if (bankEl)   bankEl.textContent   = '$' + igmBank.toLocaleString();
-    document.getElementById('rep-cur-wallet').textContent = '$' + igmWallet.toLocaleString();
-    document.getElementById('rep-cur-bank').textContent   = '$' + igmBank.toLocaleString();
+    if (walletEl) walletEl.textContent = `Wallet: ${f(igmWallet)}`;
+    if (bankEl)   bankEl.textContent   = f(igmBank);
+    document.getElementById('rep-cur-wallet').textContent = f(igmWallet);
+    document.getElementById('rep-cur-bank').textContent   = f(igmBank);
     if (igmTableCfg) {
       const limit   = igmTableCfg.walletSize || igmTableCfg.wallet || 0;
       const maxDraw = Math.min(igmBank, Math.max(0, limit - igmWallet));
-      document.getElementById('rep-limit').textContent = '$' + limit.toLocaleString();
+      document.getElementById('rep-limit').textContent = f(limit);
       const maxEl = document.getElementById('rep-max');
-      if (maxEl) maxEl.textContent = '$' + maxDraw.toLocaleString();
+      if (maxEl) maxEl.textContent = f(maxDraw);
     }
   } catch(e) {}
 }
@@ -1301,28 +1302,30 @@ function _igmPopulateInvite() {
 function _igmPopulateRequest() {
   igmSelectedPlayer = null;
   populatePlayerList('req-players');
+  const f = (typeof fmtChips === 'function') ? fmtChips : (n => '$' + (n||0).toLocaleString());
   const stateMaxBet = window._lastState?.tableMaxBet || 0;
   const maxBet = igmTableCfg?.maxBet || stateMaxBet || 0;
   const lbl = document.getElementById('req-amount-label');
-  if (lbl) lbl.textContent = '$' + maxBet.toLocaleString();
+  if (lbl) lbl.textContent = f(maxBet);
   const pending = document.getElementById('req-pending');
   if (pending) pending.textContent = '';
 }
 function _igmPopulateSend() {
   igmSelectedPlayer = null;
   populatePlayerList('send-players');
+  const f = (typeof fmtChips === 'function') ? fmtChips : (n => '$' + (n||0).toLocaleString());
   const maxBet = igmTableCfg?.maxBet || 0;
   const lbl = document.getElementById('send-amount-label');
-  if (lbl) lbl.textContent = '$' + maxBet.toLocaleString();
+  if (lbl) lbl.textContent = f(maxBet);
   const limitEl = document.getElementById('send-limit');
-  if (limitEl) limitEl.textContent = '$' + maxBet.toLocaleString();
+  if (limitEl) limitEl.textContent = f(maxBet);
   const amtInput = document.getElementById('send-amount-input');
   if (amtInput) amtInput.value = maxBet;
   const notice = document.getElementById('req-notice');
   if (window._pendingChipRequest && notice) {
     const pr = window._pendingChipRequest;
     notice.style.display = 'block';
-    notice.textContent = `💬 ${pr.from} requested $${pr.amount.toLocaleString()} — select them below to fulfill.`;
+    notice.textContent = `💬 ${pr.from} requested ${f(pr.amount)} — select them below to fulfill.`;
     setTimeout(() => {
       const btns = document.querySelectorAll('#send-players .player-select-btn');
       btns.forEach(btn => { if (btn.dataset.username === pr.from) btn.click(); });

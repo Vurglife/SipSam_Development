@@ -21,6 +21,24 @@ let dropZonesReady = false;
 let lastStatus     = "";
 let lastRound      = 0;
 let currentBet     = 10;
+
+// Compact currency formatter — $K for thousands, $M for millions.
+// Drops trailing .0 (so $1K not $1.0K). Handles negatives.
+function fmtChips(n) {
+    const v = Number(n) || 0;
+    const abs = Math.abs(v);
+    const sign = v < 0 ? '-' : '';
+    if (abs >= 1000000) {
+        const m = abs / 1000000;
+        return sign + '$' + (m % 1 === 0 ? m.toFixed(0) : m.toFixed(1).replace(/\.0$/, '')) + 'M';
+    }
+    if (abs >= 1000) {
+        const k = abs / 1000;
+        return sign + '$' + (k % 1 === 0 ? k.toFixed(0) : k.toFixed(1).replace(/\.0$/, '')) + 'K';
+    }
+    return sign + '$' + abs;
+}
+window.fmtChips = fmtChips; // expose for index.html inline scripts
 let tableMinBet    = 100; // default to $100 table — overridden by TABLE_CONFIGS lookup
 
 // TABLE_CONFIGS — single source of truth for all table types
@@ -876,7 +894,7 @@ function toggleFreezeBet() {
         }
         if (ind) {
             ind.style.display = 'block';
-            ind.textContent = `Frozen at $${currentBet.toLocaleString()} for all future rounds`;
+            ind.textContent = `Frozen at ${fmtChips(currentBet)} for all future rounds`;
         }
         // Submit current bet immediately on freeze
         sendMsg('placeBet', { amount: currentBet });
@@ -914,7 +932,7 @@ function initBetControls(minBet, startingChips) {
 }
 
 function updateBetDisplay() {
-    document.getElementById('bet-display').textContent = `$${currentBet}`;
+    document.getElementById('bet-display').textContent = fmtChips(currentBet);
 }
 
 function adjustBet(delta) {
@@ -1049,7 +1067,7 @@ function updateGameUI(state) {
                 if (rAmt) rAmt.id = R + '-bet-amt';
             }
         }
-        document.getElementById('my-chips').textContent = `Chips: ${me.chips}`;
+        document.getElementById('my-chips').textContent = `Chips: ${fmtChips(me.chips).replace(/^\$/, '')}`;
         // Keep module-level myChips in sync with live game state
         if (typeof myChips !== 'undefined') myChips = me.chips;
         if (typeof igmWallet !== 'undefined') igmWallet = me.chips;
@@ -1063,7 +1081,7 @@ function updateGameUI(state) {
         // players have time to read their result before the cascade fires.
         const CHIP_FLOW_DELAY_MS = 5000;
         if (me.lastPayout > 0) {
-            payoutEl.textContent=`+${me.lastPayout}`; payoutEl.className='payout-win';
+            payoutEl.textContent='+' + fmtChips(me.lastPayout); payoutEl.className='payout-win';
             if (window._lastPayout !== me.lastPayout) {
                 const amt = me.lastPayout;
                 if (window._chipFlowTimer) clearTimeout(window._chipFlowTimer);
@@ -1079,7 +1097,7 @@ function updateGameUI(state) {
                 }, CHIP_FLOW_DELAY_MS);
             }
         } else if (me.lastPayout < 0) {
-            payoutEl.textContent=`${me.lastPayout}`; payoutEl.className='payout-loss';
+            payoutEl.textContent=fmtChips(me.lastPayout); payoutEl.className='payout-loss';
             if (window._lastPayout !== me.lastPayout) {
                 const amt = me.lastPayout;
                 if (window._chipFlowTimer) clearTimeout(window._chipFlowTimer);
@@ -1124,13 +1142,13 @@ function updateGameUI(state) {
         const inc = resolvedCfg.increment;
         const upBtn   = document.getElementById('btn-bet-up');
         const downBtn = document.getElementById('btn-bet-down');
-        if (upBtn)   upBtn.textContent   = '+$' + inc.toLocaleString();
-        if (downBtn) downBtn.textContent = '-$' + inc.toLocaleString();
+        if (upBtn)   upBtn.textContent   = '+' + fmtChips(inc);
+        if (downBtn) downBtn.textContent = '-' + fmtChips(inc);
         // Update max label to reflect player's actual chips vs table max
         const myChipsForMax = me?.chips || 0;
         const effMaxBet = myChipsForMax > 0 ? Math.min(resolvedCfg.maxBet, myChipsForMax) : resolvedCfg.maxBet;
         const maxLbl = document.getElementById('max-bet-label');
-        if (maxLbl) maxLbl.textContent = 'Max: $' + effMaxBet.toLocaleString();
+        if (maxLbl) maxLbl.textContent = 'Max: ' + fmtChips(effMaxBet);
         document.getElementById('bet-msg').textContent   = '';
         // Show full-screen bet overlay for non-bankers
         const overlay = document.getElementById('bet-overlay');
@@ -1318,9 +1336,9 @@ function updateOpponentSeats(state, revealed) {
             ? (player._promoteToRealBot ? '🤖 Bot joining next round...' : '🚪 (Left)')
             : pAv + player.username + (player.isBot?' 🤖':'') + (isMe?' (You)':'');
         if (nameEl)    nameEl.textContent    = label;
-        if (betEl)     betEl.textContent     = '$'+(player.bet||0);
+        if (betEl)     betEl.textContent     = fmtChips(player.bet||0);
         if (specEl)    specEl.textContent    = player.lastSpecial || '';
-        if (balanceEl) balanceEl.textContent = '$'+player.chips;
+        if (balanceEl) balanceEl.textContent = fmtChips(player.chips);
         renderOpponentHands(zId, player, revealed);
     });
 
@@ -1786,10 +1804,10 @@ function applyLobbyPreselect(table, rounds) {
     // Populate banner values
     const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     const isBlitz = table.blitz === true;
-    setEl('lci-table',  '$' + cfg.minBet + ' Table');
-    setEl('lci-minbet', '$' + cfg.minBet);
+    setEl('lci-table',  fmtChips(cfg.minBet) + ' Table');
+    setEl('lci-minbet', fmtChips(cfg.minBet));
     setEl('lci-rounds', isBlitz ? '⚡ BLITZ (5)' : rounds + ' rounds');
-    setEl('lci-wallet', '$' + Number(cfg.walletSize || cfg.wallet || 0).toLocaleString());
+    setEl('lci-wallet', fmtChips(Number(cfg.walletSize || cfg.wallet || 0)));
     // Style rounds value orange for blitz
     const roundsEl = document.getElementById('lci-rounds');
     if (roundsEl) roundsEl.style.color = isBlitz ? '#ff9a3c' : '';
