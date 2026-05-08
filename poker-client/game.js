@@ -44,11 +44,12 @@ let tableMinBet    = 100; // default to $100 table — overridden by TABLE_CONFI
 // TABLE_CONFIGS — single source of truth for all table types
 // Defined at top so all functions can access it regardless of call order
 const TABLE_CONFIGS = {
-    100:  { minBet:100,  increment:50,  maxBet:150,   walletSize:3000,  bankRequired:5000  },
-    250:  { minBet:250,  increment:50,  maxBet:500,   walletSize:10000, bankRequired:15000 },
-    500:  { minBet:500,  increment:100, maxBet:1000,  walletSize:20000, bankRequired:30000 },
-    1000: { minBet:1000, increment:500, maxBet:2000,  walletSize:40000, bankRequired:60000 },
-    10000:{ minBet:10000,increment:10000,maxBet:50000, walletSize:1000000, bankRequired:2000000 },
+    100:    { minBet:100,    increment:50,     maxBet:150,    walletSize:3000,    bankRequired:5000    },
+    250:    { minBet:250,    increment:50,     maxBet:500,    walletSize:10000,   bankRequired:15000   },
+    500:    { minBet:500,    increment:100,    maxBet:1000,   walletSize:20000,   bankRequired:30000   },
+    1000:   { minBet:1000,   increment:500,    maxBet:2000,   walletSize:40000,   bankRequired:60000   },
+    10000:  { minBet:10000,  increment:10000,  maxBet:50000,  walletSize:1000000, bankRequired:2000000 },
+    100000: { minBet:100000, increment:1000,   maxBet:500000, walletSize:3000000, bankRequired:5000000 },
 };
 let selectedRounds = 0;
 let selectedMinBet = 0;

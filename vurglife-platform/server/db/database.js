@@ -324,6 +324,20 @@ const TxnDB = {
     async history(userId, limit = 20) {
         await getDb();
         return all('SELECT * FROM transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT ?', [userId, limit]);
+    },
+    // Most recent txn for this user whose type is in `types`. Used by
+    // /api/game/exit to find an outstanding wallet_draw without a paired
+    // wallet_return, so we don't silently grant a refund the player
+    // never paid in for.
+    async lastByTypes(userId, types) {
+        await getDb();
+        if (!Array.isArray(types) || !types.length) return null;
+        const placeholders = types.map(() => '?').join(',');
+        return get(
+            `SELECT * FROM transactions WHERE user_id = ? AND type IN (${placeholders})
+             ORDER BY id DESC LIMIT 1`,
+            [userId, ...types]
+        );
     }
 };
 

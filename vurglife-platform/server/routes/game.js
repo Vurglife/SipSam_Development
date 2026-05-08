@@ -16,7 +16,7 @@ const TABLE_CONFIG = {
     500:    { minBet:500,    increment:100,    maxBet:1000,   minBank:30000,   walletSize:20000   },
     1000:   { minBet:1000,   increment:500,    maxBet:2000,   minBank:60000,   walletSize:40000   },
     10000:  { minBet:10000,  increment:10000,  maxBet:50000,  minBank:2000000, walletSize:1000000 },
-    100000: { minBet:100000, increment:100000, maxBet:500000, minBank:5000000, walletSize:3000000 }
+    100000: { minBet:100000, increment:1000,   maxBet:500000, minBank:5000000, walletSize:3000000 }
 };
 
 // ── BLACKJACK TABLE CONFIG ──────────────────────────────────────────────
@@ -404,12 +404,31 @@ function _ssRecentlyCredited(userId) {
 }
 function _ssMarkCredited(userId) { _ssRecentCredits.set(userId, Date.now()); }
 
+// Look up whether the player has an outstanding (unsettled) wallet_draw
+// in the transaction log. Used as a fallback when the in-memory session
+// map is empty (e.g. after a platform restart) so we don't silently drop
+// the wallet — but ALSO don't grant a free wallet when no draw happened.
+// Returns the most recent unmatched wallet_draw row, or null.
+async function _findUnsettledDraw(userId) {
+    try {
+        const last = await TxnDB.lastByTypes(userId,
+            ['wallet_draw','wallet_return']);
+        // Most recent should be a draw; if it's a return, there's nothing owed.
+        if (last && last.type === 'wallet_draw') return last;
+        return null;
+    } catch(e) { return null; }
+}
+
 // POST /api/game/exit — return remaining wallet chips to bank.
-// Always credits when invoked explicitly UNLESS we credited the same user
-// in the last 10 seconds (which means the beacon or an earlier call beat
-// us to it). This is safer than the previous "no-session" skip, which
-// silently dropped the wallet whenever the in-memory session map was
-// missing (e.g. after a platform restart mid-game).
+// Two layers of defence against the "free wallet on exit when /enter
+// silently failed" bug:
+//   1. _ssRecentlyCredited cooldown — same as before, kills duplicate
+//      credits within 10s (client + server-side onLeave + beacon).
+//   2. Active session OR unmatched wallet_draw must exist. If neither,
+//      we refuse to credit — the player never paid in, so there's
+//      nothing to refund.
+// Cap remainingWallet to the tier's walletSize so a tampered client
+// can't claim more than they were dealt.
 router.post('/exit', requireAuth, async (req, res) => {
     const { remainingWallet, tableMinBet } = req.body;
     if (typeof remainingWallet !== 'number' || remainingWallet < 0)
@@ -420,10 +439,30 @@ router.post('/exit', requireAuth, async (req, res) => {
         return res.json({ ok:true, skipped:'recent-credit', newBankBalance: user.bank_balance });
     }
 
+    // Verify there's actually a wallet draw outstanding for this user.
+    const session = _ssGetSession(req.userId);
+    let allowedCeiling = 0;
+    if (session) {
+        allowedCeiling = session.walletSize;
+    } else {
+        const unsettled = await _findUnsettledDraw(req.userId);
+        if (!unsettled) {
+            console.warn(`[EXIT] ${req.userId} called /exit with no session and no unsettled draw — refusing to credit`);
+            const user = await UserDB.findById(req.userId);
+            return res.json({ ok:true, skipped:'no-draw', newBankBalance: user.bank_balance });
+        }
+        allowedCeiling = Math.abs(unsettled.amount);
+    }
+
+    const credit = Math.min(remainingWallet, allowedCeiling);
+    if (credit !== remainingWallet) {
+        console.warn(`[EXIT] ${req.userId} claimed $${remainingWallet} but ceiling is $${allowedCeiling} — capping`);
+    }
+
     _ssClearSession(req.userId);
     _ssMarkCredited(req.userId);
-    await UserDB.adjustBank(req.userId, remainingWallet);
-    await TxnDB.record(req.userId, 'wallet_return', remainingWallet, null, `Exited $${tableMinBet} table`);
+    await UserDB.adjustBank(req.userId, credit);
+    await TxnDB.record(req.userId, 'wallet_return', credit, null, `Exited $${tableMinBet} table`);
 
     const user = await UserDB.findById(req.userId);
     res.json({ ok:true, newBankBalance: user.bank_balance });
