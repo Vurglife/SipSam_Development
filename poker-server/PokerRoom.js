@@ -114,7 +114,7 @@ class SipSamRoom {
             500:    { minBet:500,    increment:100,    maxBet:1000,   walletSize:20000,   minBank:30000   },
             1000:   { minBet:1000,   increment:500,    maxBet:2000,   walletSize:40000,   minBank:60000   },
             10000:  { minBet:10000,  increment:10000,  maxBet:50000,  walletSize:1000000, minBank:2000000 },
-            100000: { minBet:100000, increment:1000,   maxBet:500000, walletSize:3000000, minBank:5000000 }
+            100000: { minBet:100000, increment:100000, maxBet:500000, walletSize:3000000, minBank:5000000 }
         };
 
         const roundCount = [5,10,20,30].includes(data.rounds) ? data.rounds : 10;
@@ -1306,7 +1306,7 @@ class SipSamRoom {
             500:    { minBet:500,    increment:100,    maxBet:1000,   walletSize:20000,   minBank:30000   },
             1000:   { minBet:1000,   increment:500,    maxBet:2000,   walletSize:40000,   minBank:60000   },
             10000:  { minBet:10000,  increment:10000,  maxBet:50000,  walletSize:1000000, minBank:2000000 },
-            100000: { minBet:100000, increment:1000,   maxBet:500000, walletSize:3000000, minBank:5000000 }
+            100000: { minBet:100000, increment:100000, maxBet:500000, walletSize:3000000, minBank:5000000 }
         };
 
         // Parse minBet from roomId (format: sipsam_100_timestamp)
