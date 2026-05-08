@@ -1214,6 +1214,10 @@ class SipSamRoom {
             this.broadcast({ type:'specialAlert', username: player.username, specialName, multiplier: chosen.multiplier });
         }
         this.broadcastState();
+        // Either branch sets hasArranged=true (DQ also marks). Trigger
+        // the all-arranged check so reveal fires immediately when the
+        // declarer was the last outstanding human.
+        this.checkAllArranged();
     }
 
     _onDisqualifyPlayer(client, data) {
