@@ -554,12 +554,11 @@ function syncPiles() {
         const zone = document.querySelector(`.pile-drop[data-pile="${pile}"]`);
         if (zone) piles[pile] = [...zone.querySelectorAll('.card')].map(el => el.dataset.card);
     });
-    // Auto-detect special hint (for display only — declaration doesn't require arrangement)
-    const detected = detectSpecialClient(piles.hand1, piles.hand2, piles.hand3);
-    const msgEl    = document.getElementById('special-msg');
-    if (detected && msgEl && !document.getElementById('btn-declare-special').disabled) {
-        msgEl.textContent = `⭐ Special detected: ${detected.name} (${detected.multiplier}x)! Click Declare Special.`;
-    } else if (msgEl && !msgEl.textContent.startsWith('✅') && !msgEl.textContent.startsWith('❌')) {
+    // No auto-detect alert — players spot specials on their own. Clear any
+    // residual server response message only when stale (success/error
+    // messages start with ✅ or ❌ and stay until the next round).
+    const msgEl = document.getElementById('special-msg');
+    if (msgEl && !msgEl.textContent.startsWith('✅') && !msgEl.textContent.startsWith('❌')) {
         msgEl.textContent = '';
     }
 }
@@ -2333,10 +2332,9 @@ function showSpecialDeniedModal(msg) {
 }
 
 function showSpecialModal() {
-    // Auto-detect what special (if any) the player currently has
+    // No auto-detect — the player must identify their own special. Modal
+    // simply lists the options; no row is highlighted as 'detected'.
     syncPiles();
-    const detectedSpecial = detectSpecialClient(piles.hand1, piles.hand2, piles.hand3)
-        || detectSpecialClientFromRaw(window._lastState?.players?.[mySessionId]?.rawCards || []);
 
     // Remove any existing modal
     const existing = document.getElementById('special-modal-backdrop');
@@ -2355,11 +2353,8 @@ function showSpecialModal() {
 
     ALL_SPECIALS.forEach(sp => {
         const btn = document.createElement('button');
-        btn.className = 'special-option-btn' + (detectedSpecial && detectedSpecial.name === sp.name ? ' special-option-detected' : '');
+        btn.className = 'special-option-btn';
         btn.innerHTML = sp.name + ' <span class="multiplier">' + sp.multiplier + 'x — ' + sp.desc + '</span>';
-        if (detectedSpecial && detectedSpecial.name === sp.name) {
-            btn.title = 'Detected in your current hand!';
-        }
         btn.onclick = () => {
             backdrop.remove();
             sendMsg('declareSpecial', { specialName: sp.name });
