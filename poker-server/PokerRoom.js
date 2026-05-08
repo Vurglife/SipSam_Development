@@ -1283,16 +1283,31 @@ class SipSamRoom {
     }
 
     botArrange(p) {
-        const best = Logic.findBestBotArrangement(p.rawCards);
-        p.hand1 = best.hand1;
-        p.hand2 = best.hand2;
-        p.hand3 = best.hand3;
-        p.hasArranged = true;
-        // Auto-detect and declare specials for bots
-        const special = Logic.detectSpecial(p.hand1, p.hand2, p.hand3);
-        if (special) {
-            p.declaredSpecial = special;
-            console.log(`${p.username} auto-declares special: ${special.name}`);
+        try {
+            const best = Logic.findBestBotArrangement(p.rawCards);
+            if (!best || !best.hand1 || !best.hand2 || !best.hand3) {
+                throw new Error('findBestBotArrangement returned ' + JSON.stringify(best));
+            }
+            p.hand1 = best.hand1;
+            p.hand2 = best.hand2;
+            p.hand3 = best.hand3;
+            p.hasArranged = true;
+            const special = Logic.detectSpecial(p.hand1, p.hand2, p.hand3);
+            if (special) {
+                p.declaredSpecial = special;
+                console.log(`${p.username} auto-declares special: ${special.name}`);
+            }
+        } catch(e) {
+            console.error(`[BOT-ARRANGE] ${p.username} failed:`, e.message);
+            // Fallback: split the dealt cards 3/5/5 in dealt order so the
+            // bot is at least 'arranged' and the round can advance. The
+            // arrangement may be invalid; if so the bot will be DQ'd at
+            // reveal but the timer won't stall.
+            const r = p.rawCards || [];
+            p.hand1 = r.slice(0, 3);
+            p.hand2 = r.slice(3, 8);
+            p.hand3 = r.slice(8, 13);
+            p.hasArranged = true;
         }
     }
 
@@ -1394,15 +1409,35 @@ class SipSamRoom {
 
     startCountdown(seconds, phase, onComplete) {
         let remaining = seconds;
+        const phaseStartedAt = Date.now();
         const interval = setInterval(() => {
-            remaining--;
-            this.gameState.timer = remaining;
-            this.broadcastState();
-            if (remaining<=0) { clearInterval(interval); onComplete(); }
+            try {
+                remaining--;
+                this.gameState.timer = remaining;
+                this.broadcastState();
+                if (remaining <= 0) { clearInterval(interval); onComplete(); }
+            } catch(e) {
+                console.error(`[TIMER] ${phase} tick threw — clearing interval to prevent stall:`, e);
+                clearInterval(interval);
+                // Auto-recover: jump to the next phase so the room doesn't hang.
+                try { onComplete(); } catch(e2) { console.error('[TIMER] onComplete also threw:', e2); }
+            }
         }, 1000);
         if (phase==="arranging") this.arrangeTimer = interval;
         if (phase==="betting")   this.betTimer     = interval;
         if (phase==="revealing") this.revealTimer  = interval;
+
+        // Stall watchdog — independent timer that fires if the phase hasn't
+        // ended within seconds+5. If status is still in this phase, log it
+        // and force onComplete so the room recovers instead of hanging.
+        setTimeout(() => {
+            if (this.gameState.status === phase) {
+                console.warn(`[TIMER] ${phase} stall detected after ${seconds + 5}s — forcing advance. ` +
+                    `players: ${Object.entries(this.gameState.players).map(([s,p]) => `${p.username}(arr=${p.hasArranged} dq=${p.disqualified})`).join(', ')}`);
+                clearInterval(interval);
+                try { onComplete(); } catch(e) { console.error('[TIMER] watchdog onComplete threw:', e); }
+            }
+        }, (seconds + 5) * 1000);
     }
 
     getPublicState(forSessionId) {
