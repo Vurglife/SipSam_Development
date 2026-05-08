@@ -439,8 +439,13 @@ router.post('/exit', requireAuth, async (req, res) => {
         return res.json({ ok:true, skipped:'recent-credit', newBankBalance: user.bank_balance });
     }
 
-    // Verify there's actually a wallet draw outstanding for this user.
+    // CRITICAL: mark + clear synchronously BEFORE any await so concurrent
+    // /exit calls (client + server onLeave + beacon) can't all pass the
+    // cooldown check during each other's awaits and double-credit.
+    _ssMarkCredited(req.userId);
     const session = _ssGetSession(req.userId);
+    _ssClearSession(req.userId);
+
     let allowedCeiling = 0;
     if (session) {
         allowedCeiling = session.walletSize;
@@ -459,8 +464,6 @@ router.post('/exit', requireAuth, async (req, res) => {
         console.warn(`[EXIT] ${req.userId} claimed $${remainingWallet} but ceiling is $${allowedCeiling} — capping`);
     }
 
-    _ssClearSession(req.userId);
-    _ssMarkCredited(req.userId);
     await UserDB.adjustBank(req.userId, credit);
     await TxnDB.record(req.userId, 'wallet_return', credit, null, `Exited $${tableMinBet} table`);
 
@@ -485,10 +488,23 @@ router.post('/exit-beacon', async (req, res) => {
 
         if (_ssRecentlyCredited(userId)) return res.status(204).end();
 
-        _ssClearSession(userId);
+        // Mark synchronously before any await — same race fix as /exit.
         _ssMarkCredited(userId);
-        await UserDB.adjustBank(userId, remainingWallet);
-        await TxnDB.record(userId, 'wallet_return', remainingWallet, null,
+        const session = _ssGetSession(userId);
+        _ssClearSession(userId);
+
+        let allowedCeiling = 0;
+        if (session) {
+            allowedCeiling = session.walletSize;
+        } else {
+            const unsettled = await _findUnsettledDraw(userId);
+            if (!unsettled) return res.status(204).end();
+            allowedCeiling = Math.abs(unsettled.amount);
+        }
+        const credit = Math.min(remainingWallet, allowedCeiling);
+
+        await UserDB.adjustBank(userId, credit);
+        await TxnDB.record(userId, 'wallet_return', credit, null,
             `Exited $${tableMinBet} table (beacon)`);
         res.status(204).end();
     } catch (e) {
