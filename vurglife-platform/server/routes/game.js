@@ -64,6 +64,25 @@ const MILESTONES = {
     century: { wins:100, reward:2000,  field:'milestone_century_last', repeating:true }
 };
 
+// GET /api/game/balance — bank balance + computed tier (used by in-game UI)
+router.get('/balance', requireAuth, async (req, res) => {
+    const user  = await UserDB.findById(req.userId);
+    const { computeTier } = require('../lib/tiers');
+    const t = computeTier(user.bank_balance);
+    res.json({
+        ok: true,
+        user: {
+            id:           user.id,
+            username:     user.username,
+            bankBalance:  user.bank_balance,
+            bank_balance: user.bank_balance,   // legacy alias
+            tier:         t ? t.name  : null,
+            tierEmoji:    t ? t.emoji : null,
+            tierColor:    t ? t.color : null,
+        }
+    });
+});
+
 // GET /api/game/tables — SipSam tables
 router.get('/tables', requireAuth, async (req, res) => {
     const user   = await UserDB.findById(req.userId);

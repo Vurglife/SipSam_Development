@@ -201,8 +201,10 @@ function initSchema() {
 const UserDB = {
     async create(email, username, passwordHash) {
         await getDb();
+        // Starting bank = $10,000 welcome bonus, per platform tier policy
+        // (places every new player at Bronze immediately). See lib/tiers.js.
         return insert(
-            `INSERT INTO users (email, username, password_hash, bank_balance) VALUES (?,?,?,5000)`,
+            `INSERT INTO users (email, username, password_hash, bank_balance) VALUES (?,?,?,10000)`,
             [email.toLowerCase(), username, passwordHash]
         );
     },
@@ -220,8 +222,8 @@ const UserDB = {
     },
     async findByEmailOrUsername(identifier) {
         await getDb();
-        return get('SELECT * FROM users WHERE email = ? OR username = ?',
-            [identifier.toLowerCase(), identifier]);
+        return get('SELECT * FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(username) = LOWER(?)',
+            [identifier, identifier]);
     },
     async updateLastLogin(id) {
         await getDb();
@@ -373,4 +375,4 @@ const TransferDB = {
     }
 };
 
-module.exports = { getDb, UserDB, FriendDB, TxnDB, NotifDB, TransferDB, PurchaseDB };
+module.exports = { getDb, run, get, all, UserDB, FriendDB, TxnDB, NotifDB, TransferDB, PurchaseDB };

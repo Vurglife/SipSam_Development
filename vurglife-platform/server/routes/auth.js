@@ -1,227 +1,283 @@
 // ============================================
-// VURGLIFE — AUTH ROUTES
-// POST /api/auth/register
-// POST /api/auth/login
-// POST /api/auth/logout
-// GET  /api/auth/verify/:token
-// POST /api/auth/forgot-password
-// POST /api/auth/reset-password
-// GET  /api/auth/me
+// VURGLIFE PLATFORM — AUTH ROUTES
+// vurglife-platform/server/routes/auth.js
 // ============================================
-const express  = require('express');
-const bcrypt   = require('bcryptjs');
-const jwt      = require('jsonwebtoken');
-const crypto   = require('crypto');
-const router   = express.Router();
-const { UserDB, TxnDB, NotifDB } = require('../db/database');
-const { sendEmail }              = require('../utils/email');
-const { requireAuth }            = require('../middleware/auth');
+const express = require('express');
+const router  = express.Router();
+const bcrypt  = require('bcrypt');
+const jwt     = require('jsonwebtoken');
+const { UserDB, TxnDB } = require('../db/database');
+const { computeTier, WELCOME_BONUS } = require('../lib/tiers');
 
-const JWT_SECRET  = process.env.JWT_SECRET  || 'vurglife_dev_secret_change_in_prod';
-const BASE_URL    = process.env.BASE_URL    || 'http://localhost:3000';
-const SALT_ROUNDS = 12;
+const JWT_SECRET  = process.env.JWT_SECRET || 'vurglife_jwt_secret_change_in_prod';
+const SALT_ROUNDS = 10;
 
-function makeToken(userId) {
-    return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
+// ── Strip sensitive fields + attach computed tier ─────────────────
+function safeUser(user) {
+    if (!user) return null;
+    const { password_hash, verify_token, reset_token, reset_expires, ...safe } = user;
+    const t = computeTier(safe.bank_balance);
+    safe.tier      = t ? t.name : null;
+    safe.tierEmoji = t ? t.emoji : null;
+    safe.tierColor = t ? t.color : null;
+    return safe;
 }
 
-// ── REGISTER ──────────────────────────────────────────────────────
+// ── Sign a JWT for a user ─────────────────────────────────────────
+function signToken(user) {
+    return jwt.sign(
+        { userId: user.id, username: user.username },
+        JWT_SECRET,
+        { expiresIn: '30d' }
+    );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// POST /api/auth/register
+// ══════════════════════════════════════════════════════════════════
 router.post('/register', async (req, res) => {
     try {
         const { email, username, password } = req.body;
 
-        // Validation
         if (!email || !username || !password)
-            return res.status(400).json({ error: 'All fields required' });
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-            return res.status(400).json({ error: 'Invalid email address' });
+            return res.status(400).json({ error: 'Email, username and password are required.' });
+
         if (username.length < 3 || username.length > 20)
-            return res.status(400).json({ error: 'Username must be 3–20 characters' });
+            return res.status(400).json({ error: 'Username must be 3-20 characters.' });
+
         if (!/^[a-zA-Z0-9_]+$/.test(username))
-            return res.status(400).json({ error: 'Username: letters, numbers and underscores only' });
-        if (password.length < 8)
-            return res.status(400).json({ error: 'Password must be at least 8 characters' });
+            return res.status(400).json({ error: 'Username may only contain letters, numbers and underscores.' });
 
-        // Check duplicates
-        if (await UserDB.findByEmail(email))
-            return res.status(409).json({ error: 'Email already registered' });
-        if (await UserDB.findByUsername(username))
-            return res.status(409).json({ error: 'Username already taken' });
+        if (password.length < 6)
+            return res.status(400).json({ error: 'Password must be at least 6 characters.' });
 
-        // Hash and create
-        const hash  = await bcrypt.hash(password, SALT_ROUNDS);
-        const result = await UserDB.create(email, username, hash);
-        const userId = result.lastInsertRowid;
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+            return res.status(400).json({ error: 'Please enter a valid email address.' });
 
-        // Verification token
-        const verifyToken = crypto.randomBytes(32).toString('hex');
-        await UserDB.setVerifyToken(userId, verifyToken);
+        const existingEmail = await UserDB.findByEmail(email);
+        if (existingEmail)
+            return res.status(409).json({ error: 'An account with that email already exists.' });
 
-        // Welcome notification
-        await NotifDB.create(userId, 'welcome', `Welcome to VurgLife, ${username}! You've been given 5,000 chips to start.`);
-        await TxnDB.record(userId, 'welcome_bonus', 5000, null, 'Welcome bonus chips');
+        const existingUsername = await UserDB.findByUsername(username);
+        if (existingUsername)
+            return res.status(409).json({ error: 'That username is already taken.' });
 
-        // Send verification email
-        await sendEmail(email, 'Verify your VurgLife account', `
-            <h2>Welcome to VurgLife, ${username}!</h2>
-            <p>Click the link below to verify your email address:</p>
-            <a href="${BASE_URL}/verify/${verifyToken}" style="background:#1a8cff;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">
-                Verify Email
-            </a>
-            <p>If you didn't create this account, you can safely ignore this email.</p>
-        `);
+        const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+        const result = await UserDB.create(email, username, passwordHash);
 
-        const token = makeToken(userId);
-        res.cookie('vurglife_token', token, {
-            httpOnly: true, secure: process.env.NODE_ENV === 'production',
-            maxAge: 30 * 24 * 60 * 60 * 1000, sameSite: 'lax'
-        });
+        const newUser = await UserDB.findById(result.lastInsertRowid);
+        if (!newUser)
+            return res.status(500).json({ error: 'Account created but could not retrieve user — try logging in.' });
 
-        const user = await UserDB.findById(userId);
-        res.status(201).json({
-            ok: true,
-            user: safeUser(user || { id: userId, email, username, bank_balance: 5000,
-                avatar_url: null, avatar_preset: 'default', is_verified: 0,
-                total_wins: 0, total_games: 0, last_login: null, created_at: Math.floor(Date.now()/1000),
-                ad_last_session: null, ad_session_count: 0, last_daily_bonus: null,
-                milestone_50_claimed: 0, milestone_100_claimed: 0, milestone_century_last: 0 }),
-            token
-        });
+        // Auto-verify so the account can log in immediately
+        await UserDB.setVerified(newUser.id);
+
+        // Log the welcome bonus as a transaction so it shows in history.
+        // The bank credit itself is built into UserDB.create.
+        try {
+            await TxnDB.record(newUser.id, 'welcome_bonus', WELCOME_BONUS, null,
+                'Welcome bonus — start at Bronze tier');
+        } catch(e) { console.warn('[AUTH] welcome bonus txn log failed:', e.message); }
+
+        const token = signToken(newUser);
+        await UserDB.updateLastLogin(newUser.id);
+
+        const freshUser = await UserDB.findById(newUser.id);
+
+        console.log('[AUTH] Registered: ' + username + ' (' + email + ')');
+        res.json({ ok: true, token, user: safeUser(freshUser) });
 
     } catch (err) {
-        console.error('[Auth] Register error:', err);
-        res.status(500).json({ error: 'Registration failed. Please try again.' });
+        console.error('[AUTH] Register error:', err);
+        res.status(500).json({ error: 'Registration failed — please try again.' });
     }
 });
 
-// ── LOGIN ─────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+// POST /api/auth/login
+// Body: { identifier: "email or username", password: "..." }
+// ══════════════════════════════════════════════════════════════════
 router.post('/login', async (req, res) => {
     try {
-        const { identifier, password } = req.body; // identifier = email or username
+        const { identifier, password } = req.body;
 
         if (!identifier || !password)
-            return res.status(400).json({ error: 'Email/username and password required' });
+            return res.status(400).json({ error: 'Username/email and password are required.' });
 
-        const user = await UserDB.findByEmailOrUsername(identifier);
+        // Find by email OR username (case-insensitive — fixed in DB)
+        const user = await UserDB.findByEmailOrUsername(identifier.trim());
+
         if (!user)
-            return res.status(401).json({ error: 'Invalid credentials' });
+            return res.status(401).json({ error: 'No account found with that username or email.' });
 
         const match = await bcrypt.compare(password, user.password_hash);
         if (!match)
-            return res.status(401).json({ error: 'Invalid credentials' });
+            return res.status(401).json({ error: 'Incorrect password.' });
 
+        // NOTE: is_verified is NOT checked — accounts work immediately after registration.
+        // Uncomment below if you add email verification later:
+        // if (!user.is_verified)
+        //     return res.status(403).json({ error: 'Please verify your email before signing in.' });
+
+        const token = signToken(user);
         await UserDB.updateLastLogin(user.id);
 
-        // Daily login bonus
-        const now        = Math.floor(Date.now() / 1000);
-        const oneDayAgo  = now - 86400;
-        if (!user.last_daily_bonus || user.last_daily_bonus < oneDayAgo) {
+        // Apply daily login bonus if not already claimed today
+        let dailyBonusApplied = false;
+        const now = Math.floor(Date.now() / 1000);
+        const lastBonus = user.last_daily_bonus || 0;
+        const oneDayAgo = now - 86400; // 24 hours
+        if (lastBonus < oneDayAgo) {
             await UserDB.claimDailyBonus(user.id);
-            TxnDB.record(user.id, 'daily_bonus', 500, null, 'Daily login bonus');
-            await NotifDB.create(user.id, 'daily_bonus', '🎁 Daily login bonus: +500 chips added to your bank!');
+            dailyBonusApplied = true;
+            console.log('[AUTH] Daily bonus applied for:', user.username);
         }
 
-        const token = makeToken(user.id);
-        res.cookie('vurglife_token', token, {
-            httpOnly: true, secure: process.env.NODE_ENV === 'production',
-            maxAge: 30 * 24 * 60 * 60 * 1000, sameSite: 'lax'
-        });
+        const freshUser = await UserDB.findById(user.id);
 
-        res.json({ ok: true, user: safeUser(await UserDB.findById(user.id)), token });
+        console.log('[AUTH] Login: ' + user.username);
+        res.json({ ok: true, token, user: { ...safeUser(freshUser), dailyBonusApplied } });
 
     } catch (err) {
-        console.error('[Auth] Login error:', err);
-        res.status(500).json({ error: 'Login failed. Please try again.' });
+        console.error('[AUTH] Login error:', err);
+        res.status(500).json({ error: 'Login failed — please try again.' });
     }
 });
 
-// ── LOGOUT ────────────────────────────────────────────────────────
-router.post('/logout', async (req, res) => {
-    res.clearCookie('vurglife_token');
+// ══════════════════════════════════════════════════════════════════
+// POST /api/auth/logout
+// ══════════════════════════════════════════════════════════════════
+router.post('/logout', (req, res) => {
     res.json({ ok: true });
 });
 
-// ── VERIFY EMAIL ──────────────────────────────────────────────────
-router.get('/verify/:token', async (req, res) => {
-    const user = await UserDB.verifyEmail(req.params.token);
-    if (!user) return res.redirect('/?verified=failed');
-    await NotifDB.create(user.id, 'verified', '✅ Email verified! Your account is fully active.');
-    res.redirect('/?verified=success');
+// ══════════════════════════════════════════════════════════════════
+// POST /api/auth/avatar — save avatar preset
+router.post('/avatar', async (req, res) => {
+    try {
+        const authHeader = req.headers['authorization'];
+        const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+        if (!token) return res.status(401).json({ ok: false, error: 'Not authenticated.' });
+        let decoded;
+        try { decoded = jwt.verify(token, JWT_SECRET); }
+        catch(e) { return res.status(401).json({ ok: false, error: 'Session expired.' }); }
+        const { avatar } = req.body;
+        if (!avatar) return res.status(400).json({ ok: false, error: 'No avatar provided.' });
+        await UserDB.updateAvatar(decoded.userId, avatar);
+        console.log(`[AVATAR] ${decoded.username} → ${avatar}`);
+        res.json({ ok: true });
+    } catch(err) {
+        res.status(500).json({ ok: false, error: 'Server error.' });
+    }
 });
 
-// ── FORGOT PASSWORD ───────────────────────────────────────────────
+// GET /api/auth/me
+// ══════════════════════════════════════════════════════════════════
+router.get('/me', async (req, res) => {
+    try {
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.startsWith('Bearer ')
+            ? authHeader.slice(7)
+            : null;
+
+        if (!token)
+            return res.status(401).json({ ok: false, error: 'Not authenticated.' });
+
+        let decoded;
+        try {
+            decoded = jwt.verify(token, JWT_SECRET);
+        } catch (e) {
+            return res.status(401).json({ ok: false, error: 'Session expired — please sign in again.' });
+        }
+
+        const user = await UserDB.findById(decoded.userId);
+        if (!user)
+            return res.status(401).json({ ok: false, error: 'Account not found.' });
+
+        const newToken = signToken(user);
+        res.json({ ok: true, token: newToken, user: safeUser(user) });
+
+    } catch (err) {
+        console.error('[AUTH] /me error:', err);
+        res.status(500).json({ ok: false, error: 'Server error.' });
+    }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// POST /api/auth/forgot-password
+// ══════════════════════════════════════════════════════════════════
 router.post('/forgot-password', async (req, res) => {
     try {
         const { email } = req.body;
-        const user = await UserDB.findByEmail(email);
-        // Always respond OK (don't leak whether email exists)
-        if (user) {
-            const token   = crypto.randomBytes(32).toString('hex');
-            const expires = Math.floor(Date.now() / 1000) + 3600; // 1 hour
-            await UserDB.setResetToken(user.id, token, expires);
-            await sendEmail(email, 'Reset your VurgLife password', `
-                <h2>Password Reset</h2>
-                <p>Click below to reset your password. This link expires in 1 hour.</p>
-                <a href="${BASE_URL}/reset-password/${token}" style="background:#1a8cff;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">
-                    Reset Password
-                </a>
-            `);
-        }
+        if (!email)
+            return res.status(400).json({ error: 'Email is required.' });
+
+        const user = await UserDB.findByEmail(email.trim());
+
+        if (!user)
+            return res.json({ ok: true, message: 'If that email exists, a reset link has been sent.' });
+
+        const resetToken = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        const expires    = Math.floor(Date.now() / 1000) + 3600;
+
+        await UserDB.setResetToken(user.id, resetToken, expires);
+        console.log('[AUTH] Password reset for ' + user.email + ': token=' + resetToken);
+
         res.json({ ok: true, message: 'If that email exists, a reset link has been sent.' });
+
     } catch (err) {
-        console.error('[Auth] Forgot password error:', err);
-        res.status(500).json({ error: 'Failed to send reset email.' });
+        console.error('[AUTH] Forgot password error:', err);
+        res.status(500).json({ error: 'Server error.' });
     }
 });
 
-// ── RESET PASSWORD ────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+// POST /api/auth/reset-password
+// ══════════════════════════════════════════════════════════════════
 router.post('/reset-password', async (req, res) => {
     try {
         const { token, password } = req.body;
-        if (!token || !password || password.length < 8)
-            return res.status(400).json({ error: 'Invalid request' });
-        const hash = await bcrypt.hash(password, SALT_ROUNDS);
-        const user = await UserDB.resetPassword(token, hash);
-        if (!user) return res.status(400).json({ error: 'Reset link invalid or expired' });
-        res.json({ ok: true, message: 'Password reset successfully. Please log in.' });
+        if (!token || !password)
+            return res.status(400).json({ error: 'Token and new password are required.' });
+
+        if (password.length < 6)
+            return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+
+        const newHash = await bcrypt.hash(password, SALT_ROUNDS);
+        const user    = await UserDB.resetPassword(token, newHash);
+
+        if (!user)
+            return res.status(400).json({ error: 'Invalid or expired reset token.' });
+
+        console.log('[AUTH] Password reset: ' + user.username);
+        res.json({ ok: true, message: 'Password updated — you can now sign in.' });
+
     } catch (err) {
-        res.status(500).json({ error: 'Password reset failed.' });
+        console.error('[AUTH] Reset password error:', err);
+        res.status(500).json({ error: 'Server error.' });
     }
 });
 
-// ── GET CURRENT USER ──────────────────────────────────────────────
-router.get('/me', requireAuth, async (req, res) => {
-    const user = await UserDB.findById(req.userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    const token = makeToken(req.userId);
-    res.json({ ok: true, user: safeUser(user), token });
+// ══════════════════════════════════════════════════════════════════
+// GET /api/auth/verify-email?token=xxx
+// ══════════════════════════════════════════════════════════════════
+router.get('/verify-email', async (req, res) => {
+    try {
+        const { token } = req.query;
+        if (!token) return res.redirect('/?verified=fail');
+
+        const user = await UserDB.verifyEmail(token);
+        if (!user)  return res.redirect('/?verified=fail');
+
+        console.log('[AUTH] Email verified: ' + user.username);
+        res.redirect('/?verified=success');
+
+    } catch (err) {
+        console.error('[AUTH] Verify email error:', err);
+        res.redirect('/?verified=fail');
+    }
 });
 
-// ── SAFE USER OBJECT (no password hash) ──────────────────────────
-function safeUser(u) {
-    if (!u) return null;
-    return {
-        id:           u.id,
-        email:        u.email,
-        username:     u.username,
-        bankBalance:  u.bank_balance,
-        avatarUrl:    u.avatar_url,
-        avatarPreset: u.avatar_preset,
-        isVerified:   !!u.is_verified,
-        totalWins:    u.total_wins,
-        totalGames:   u.total_games,
-        lastLogin:    u.last_login,
-        createdAt:    u.created_at,
-        adLastSession:  u.ad_last_session,
-        adSessionCount: u.ad_session_count,
-        lastDailyBonus: u.last_daily_bonus,
-        milestones: {
-            m50:     !!u.milestone_50_claimed,
-            m100:    !!u.milestone_100_claimed,
-            century: u.milestone_century_last
-        }
-    };
-}
-
 module.exports = router;
-module.exports.safeUser = safeUser;
+module.exports.safeUser  = safeUser;
+module.exports.signToken = signToken;
