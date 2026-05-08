@@ -1059,29 +1059,40 @@ function updateGameUI(state) {
         // bet display now shown in side-extras via updateOpponentSeats
 
         const payoutEl = document.getElementById('my-payout');
+        // Hold the chip-flow + sound until 5s into the reveal phase so
+        // players have time to read their result before the cascade fires.
+        const CHIP_FLOW_DELAY_MS = 5000;
         if (me.lastPayout > 0) {
             payoutEl.textContent=`+${me.lastPayout}`; payoutEl.className='payout-win';
             if (window._lastPayout !== me.lastPayout) {
-                if (typeof SFX !== 'undefined') SFX.win();
-                if (typeof animateChipFlow === 'function') {
-                    animateChipFlow(
-                        document.getElementById('banker-chips'),
-                        document.getElementById('my-chips'),
-                        true, me.lastPayout
-                    );
-                }
+                const amt = me.lastPayout;
+                if (window._chipFlowTimer) clearTimeout(window._chipFlowTimer);
+                window._chipFlowTimer = setTimeout(() => {
+                    if (typeof SFX !== 'undefined') SFX.win();
+                    if (typeof animateChipFlow === 'function') {
+                        animateChipFlow(
+                            document.getElementById('banker-chips'),
+                            document.getElementById('my-chips'),
+                            true, amt
+                        );
+                    }
+                }, CHIP_FLOW_DELAY_MS);
             }
         } else if (me.lastPayout < 0) {
             payoutEl.textContent=`${me.lastPayout}`; payoutEl.className='payout-loss';
             if (window._lastPayout !== me.lastPayout) {
-                if (typeof SFX !== 'undefined') SFX.lose();
-                if (typeof animateChipFlow === 'function') {
-                    animateChipFlow(
-                        document.getElementById('my-chips'),
-                        document.getElementById('banker-chips'),
-                        false, me.lastPayout
-                    );
-                }
+                const amt = me.lastPayout;
+                if (window._chipFlowTimer) clearTimeout(window._chipFlowTimer);
+                window._chipFlowTimer = setTimeout(() => {
+                    if (typeof SFX !== 'undefined') SFX.lose();
+                    if (typeof animateChipFlow === 'function') {
+                        animateChipFlow(
+                            document.getElementById('my-chips'),
+                            document.getElementById('banker-chips'),
+                            false, amt
+                        );
+                    }
+                }, CHIP_FLOW_DELAY_MS);
             }
         } else { payoutEl.textContent=''; }
         window._lastPayout = me.lastPayout;
