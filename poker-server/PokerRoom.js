@@ -763,11 +763,24 @@ class SipSamRoom {
 
     startRevealPhase() {
         if (this.arrangeTimer) clearInterval(this.arrangeTimer);
+        // Re-entrancy guard: if status is already past arranging, bail.
+        if (this.gameState.status !== 'arranging') {
+            console.warn(`[REVEAL] startRevealPhase called while status=${this.gameState.status} — skipping`);
+            return;
+        }
         const revealSecs = this.gameState.blitz ? 20 : 30;
         this.gameState.status  = "revealing";
         this.gameState.timer   = revealSecs;
         this.gameState.message = "All hands revealed! Processing payouts...";
-        this.resolveAllHands();
+        // Wrap resolveAllHands so a single bad player can't strand the room
+        // in 'revealing' with no countdown running.
+        try {
+            this.resolveAllHands();
+        } catch(e) {
+            console.error('[REVEAL] resolveAllHands threw:', e);
+            // Players who failed to resolve keep their current chips/bets.
+            // Game continues — timer fires → roundEnd → startRound as normal.
+        }
         this.broadcastState();
         this.startCountdown(revealSecs, "revealing", () => {
             this.gameState.status  = "roundEnd";
