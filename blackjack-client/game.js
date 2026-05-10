@@ -253,7 +253,9 @@ function _setupInvitedJoinerLobby(roomId, user) {
 
   connectWS(user.username, user.token, roomId);
 }
-let _isInvitedJoiner = false; // true when entering via an accepted invite
+// _isInvitedJoiner already declared above; recovery duplicated this block.
+// Reassigning here is harmless (same value) — kept to preserve line count.
+_isInvitedJoiner = false;
 
 // When an invited friend enters via accepted invite: show the multi lobby
 // with host controls hidden. Mid-game join fast-forwards automatically once
@@ -439,6 +441,29 @@ function onMultiInviteInput(val) {
       document.getElementById('lobby-invite-input').value = name;
       dd.style.display = 'none';
     };
+  });
+
+  dd.style.display = 'block';
+}
+
+function onMultiInviteFocus() { onMultiInviteInput(''); }
+
+// Send the invite to the username currently in the input box.
+// Recovery rebuilt 2026-05-10: original `async function sendMultiInvite() {`
+// declaration was lost, leaving an orphaned try-block. The success path's
+// else/catch branches were also in the MISSING gap (orig 406-424).
+async function sendMultiInvite() {
+  const input    = document.getElementById('lobby-invite-input');
+  const st       = document.getElementById('lobby-invite-status');
+  const username = (input?.value || '').trim();
+  if (!username) { if (st) st.textContent = 'Enter a username first.'; return; }
+  if (!_multiRoomId) {
+    _multiRoomId = `bj_${BJ_TABLE.minBet||100}_${Date.now()}`;
+  }
+  const roomId = _multiRoomId;
+  const user   = JSON.parse(sessionStorage.getItem('bj_user') || '{}');
+  const token  = user.token || sessionStorage.getItem('bj_token');
+  if (st) st.textContent = 'Sending invite…';
   try {
     const res = await fetch('/api/friends/invite', {
       method: 'POST',
@@ -464,26 +489,18 @@ function onMultiInviteInput(val) {
     });
     const d = await res.json();
     if (d.ok) {
-      st.textContent = '✅ Invite sent to ' + username + '! (expires in 5 min)';
-// [LINE 406 MISSING — no Read snapshot covers it]
-// [LINE 407 MISSING — no Read snapshot covers it]
-// [LINE 408 MISSING — no Read snapshot covers it]
-// [LINE 409 MISSING — no Read snapshot covers it]
-// [LINE 410 MISSING — no Read snapshot covers it]
-// [LINE 411 MISSING — no Read snapshot covers it]
-// [LINE 412 MISSING — no Read snapshot covers it]
-// [LINE 413 MISSING — no Read snapshot covers it]
-// [LINE 414 MISSING — no Read snapshot covers it]
-// [LINE 415 MISSING — no Read snapshot covers it]
-// [LINE 416 MISSING — no Read snapshot covers it]
-// [LINE 417 MISSING — no Read snapshot covers it]
-// [LINE 418 MISSING — no Read snapshot covers it]
-// [LINE 419 MISSING — no Read snapshot covers it]
-// [LINE 420 MISSING — no Read snapshot covers it]
-// [LINE 421 MISSING — no Read snapshot covers it]
-// [LINE 422 MISSING — no Read snapshot covers it]
-// [LINE 423 MISSING — no Read snapshot covers it]
-// [LINE 424 MISSING — no Read snapshot covers it]
+      if (st) st.textContent = '✅ Invite sent to ' + username + '! (expires in 5 min)';
+      if (input) input.value = '';
+      const dd = document.getElementById('lobby-multi-invite-dropdown');
+      if (dd) dd.style.display = 'none';
+    } else {
+      if (st) st.textContent = '❌ ' + (d.error || 'Failed to send invite.');
+    }
+  } catch (e) {
+    if (st) st.textContent = '❌ Network error: ' + e.message;
+  }
+}
+
 async function enterTableNow() {
   if (typeof SFX !== 'undefined') SFX.click();
   const roomId = _pendingRoomId || `bj_${BJ_TABLE.minBet||100}_${Date.now()}`;
@@ -533,16 +550,9 @@ document.addEventListener('click', e => {
   if (dd && inp && !dd.contains(e.target) && e.target !== inp) dd.style.display = 'none';
 });
 
-async function enterTableNow() {
-  if (typeof SFX !== 'undefined') SFX.click();
-  const roomId = _pendingRoomId || `bj_100_${Date.now()}`;
-  const user   = JSON.parse(sessionStorage.getItem('bj_user') || '{}');
-
-  try {
-  const dd = document.getElementById('lobby-multi-invite-dropdown');
-  const inp = document.getElementById('lobby-invite-input');
-  if (dd && inp && !dd.contains(e.target) && e.target !== inp) dd.style.display = 'none';
-});
+// (Recovery duplicated this region — broken stub of enterTableNow + a
+// duplicate document.addEventListener('click',...) fragment removed here.
+// The working enterTableNow + its body follow below.)
 
 async function enterTableNow() {
   if (typeof SFX !== 'undefined') SFX.click();
@@ -1598,7 +1608,7 @@ function takeInsurance(take) {
 // ─────────────────────────────────────────────────────
 // COUNTDOWN
 // ─────────────────────────────────────────────────────
-let _cdInterval = null;
+_cdInterval = null;
 function startCountdown(secs, showOverlay) {
   stopCountdown();
   let t = Math.floor(secs); const TOTAL = secs;
