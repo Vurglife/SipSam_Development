@@ -871,15 +871,15 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
           <div class="rsec"><h3>Specials (Override Normal Hand Comparison)</h3>
             <p>When a Special is declared, it applies to the <strong>entire round</strong> and overrides all normal hand comparisons. A Special payout replaces the standard 1×/2× hand result — the multiplier applies to the round bet. Ranked lowest to highest payout:</p>
             <table class="stbl">
-              <tr><th>Rank</th><th>Special Name</th><th>Description</th><th>Payout</th></tr>
-              <tr><td><span class="rnk">#1</span>No Face</td><td>No Face</td><td>All 13 cards are non-face cards (no J, Q, K, A — numbered cards only)</td><td style="color:var(--gold-hi)">2 to 1</td></tr>
-              <tr><td><span class="rnk">#2</span>Four of a Kind</td><td>Four of a Kind</td><td>Any hand among the 3 contains four cards of the same rank</td><td style="color:var(--gold-hi)">3 to 1</td></tr>
-              <tr><td><span class="rnk">#2</span>Straight Flush</td><td>Straight Flush</td><td>Any hand among the 3 contains 5 consecutive cards of the same suit</td><td style="color:var(--gold-hi)">3 to 1</td></tr>
-              <tr><td><span class="rnk">#3</span>Straight-Straight-Straight</td><td>Three Straights</td><td>All 3 hands are straights (5 consecutive cards, mixed suits)</td><td style="color:var(--gold-hi)">5 to 1</td></tr>
-              <tr><td><span class="rnk">#3</span>Flush-Flush-Flush</td><td>Three Flushes</td><td>All 3 hands are flushes (5 cards of the same suit)</td><td style="color:var(--gold-hi)">5 to 1</td></tr>
-              <tr><td><span class="rnk top">#4</span>Royal Flush</td><td>Royal Flush</td><td>Any hand contains A-K-Q-J-10 of the same suit</td><td style="color:var(--gold-hi)">7 to 1</td></tr>
-              <tr><td><span class="rnk top">#5</span>6½ Pairs</td><td>Six and a Half</td><td>6 matching pairs among all 13 cards (one card left over — the "half")</td><td style="color:var(--gold-hi)">8 to 1</td></tr>
-              <tr><td><span class="rnk top">#6</span>Full Suit</td><td>Full Suit</td><td>All 13 cards are of the same suit</td><td style="color:var(--gold-hi)">10 to 1</td></tr>
+              <tr><th>Special Name</th><th>Payout</th><th>VIP $10K Bonus</th><th>Elite $100K Bonus</th></tr>
+              <tr><td>No Face</td><td style="color:var(--gold-hi)">2 to 1</td><td>$25,000</td><td>$300,000</td></tr>
+              <tr><td>Four of a Kind</td><td style="color:var(--gold-hi)">3 to 1</td><td>$75,000</td><td>$1,000,000</td></tr>
+              <tr><td>Straight Flush</td><td style="color:var(--gold-hi)">3 to 1</td><td>$75,000</td><td>$1,000,000</td></tr>
+              <tr><td>Straight-Straight-Straight</td><td style="color:var(--gold-hi)">5 to 1</td><td>$150,000</td><td>$2,000,000</td></tr>
+              <tr><td>Flush-Flush-Flush</td><td style="color:var(--gold-hi)">5 to 1</td><td>$150,000</td><td>$2,000,000</td></tr>
+              <tr><td>Royal Flush</td><td style="color:var(--gold-hi)">7 to 1</td><td>$250,000</td><td>$3,000,000</td></tr>
+              <tr><td>6½ Pairs</td><td style="color:var(--gold-hi)">8 to 1</td><td>$300,000</td><td>$4,000,000</td></tr>
+              <tr><td>Full Suit</td><td style="color:var(--gold-hi)">10 to 1</td><td>$500,000</td><td>$7,000,000</td></tr>
             </table>
             <div class="hl" style="margin-top:10px"><p>⭐ Special payouts replace the normal hand-win result entirely. The highest Special declared in a round takes precedence.</p></div>
           </div>
@@ -1527,7 +1527,15 @@ async function enterRouletteTable(minBet) {
   window.location.href='/roulette/?' + params.toString();
 }
 
-function cancelPregame() { stopAd(); pendingTable=null; pendingGameType='sipsam'; }
+function cancelPregame() {
+  stopAd();
+  pendingTable = null;
+  pendingGameType = 'sipsam';
+  // Dismiss the modal — confirmEnter() removes 'show' but cancel was missing it,
+  // so the overlay stayed up and intercepted clicks.
+  const modal = document.getElementById('mo-pregame');
+  if (modal) modal.classList.remove('show');
+}
 
 async function confirmEnter() {
   stopAd();
