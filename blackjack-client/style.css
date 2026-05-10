@@ -1,98 +1,190 @@
-// [LINE 1 MISSING — no Read snapshot covers it]
-// [LINE 2 MISSING — no Read snapshot covers it]
-// [LINE 3 MISSING — no Read snapshot covers it]
-// [LINE 4 MISSING — no Read snapshot covers it]
-// [LINE 5 MISSING — no Read snapshot covers it]
-// [LINE 6 MISSING — no Read snapshot covers it]
-// [LINE 7 MISSING — no Read snapshot covers it]
-// [LINE 8 MISSING — no Read snapshot covers it]
-// [LINE 9 MISSING — no Read snapshot covers it]
-// [LINE 10 MISSING — no Read snapshot covers it]
-// [LINE 11 MISSING — no Read snapshot covers it]
-// [LINE 12 MISSING — no Read snapshot covers it]
-// [LINE 13 MISSING — no Read snapshot covers it]
-// [LINE 14 MISSING — no Read snapshot covers it]
-// [LINE 15 MISSING — no Read snapshot covers it]
-// [LINE 16 MISSING — no Read snapshot covers it]
-// [LINE 17 MISSING — no Read snapshot covers it]
-// [LINE 18 MISSING — no Read snapshot covers it]
-// [LINE 19 MISSING — no Read snapshot covers it]
-// [LINE 20 MISSING — no Read snapshot covers it]
-// [LINE 21 MISSING — no Read snapshot covers it]
-// [LINE 22 MISSING — no Read snapshot covers it]
-// [LINE 23 MISSING — no Read snapshot covers it]
-// [LINE 24 MISSING — no Read snapshot covers it]
-// [LINE 25 MISSING — no Read snapshot covers it]
-// [LINE 26 MISSING — no Read snapshot covers it]
-// [LINE 27 MISSING — no Read snapshot covers it]
-// [LINE 28 MISSING — no Read snapshot covers it]
-// [LINE 29 MISSING — no Read snapshot covers it]
-// [LINE 30 MISSING — no Read snapshot covers it]
-// [LINE 31 MISSING — no Read snapshot covers it]
-// [LINE 32 MISSING — no Read snapshot covers it]
-// [LINE 33 MISSING — no Read snapshot covers it]
-// [LINE 34 MISSING — no Read snapshot covers it]
-// [LINE 35 MISSING — no Read snapshot covers it]
-// [LINE 36 MISSING — no Read snapshot covers it]
-// [LINE 37 MISSING — no Read snapshot covers it]
-// [LINE 38 MISSING — no Read snapshot covers it]
-// [LINE 39 MISSING — no Read snapshot covers it]
-// [LINE 40 MISSING — no Read snapshot covers it]
-// [LINE 41 MISSING — no Read snapshot covers it]
-// [LINE 42 MISSING — no Read snapshot covers it]
-// [LINE 43 MISSING — no Read snapshot covers it]
-// [LINE 44 MISSING — no Read snapshot covers it]
-// [LINE 45 MISSING — no Read snapshot covers it]
-// [LINE 46 MISSING — no Read snapshot covers it]
-// [LINE 47 MISSING — no Read snapshot covers it]
-// [LINE 48 MISSING — no Read snapshot covers it]
-// [LINE 49 MISSING — no Read snapshot covers it]
-// [LINE 50 MISSING — no Read snapshot covers it]
-// [LINE 51 MISSING — no Read snapshot covers it]
-// [LINE 52 MISSING — no Read snapshot covers it]
-// [LINE 53 MISSING — no Read snapshot covers it]
-// [LINE 54 MISSING — no Read snapshot covers it]
-// [LINE 55 MISSING — no Read snapshot covers it]
-// [LINE 56 MISSING — no Read snapshot covers it]
-// [LINE 57 MISSING — no Read snapshot covers it]
-// [LINE 58 MISSING — no Read snapshot covers it]
-// [LINE 59 MISSING — no Read snapshot covers it]
-// [LINE 60 MISSING — no Read snapshot covers it]
-// [LINE 61 MISSING — no Read snapshot covers it]
-// [LINE 62 MISSING — no Read snapshot covers it]
-// [LINE 63 MISSING — no Read snapshot covers it]
-// [LINE 64 MISSING — no Read snapshot covers it]
-// [LINE 65 MISSING — no Read snapshot covers it]
-// [LINE 66 MISSING — no Read snapshot covers it]
-// [LINE 67 MISSING — no Read snapshot covers it]
-// [LINE 68 MISSING — no Read snapshot covers it]
-// [LINE 69 MISSING — no Read snapshot covers it]
-// [LINE 70 MISSING — no Read snapshot covers it]
-// [LINE 71 MISSING — no Read snapshot covers it]
-// [LINE 72 MISSING — no Read snapshot covers it]
-// [LINE 73 MISSING — no Read snapshot covers it]
-// [LINE 74 MISSING — no Read snapshot covers it]
-// [LINE 75 MISSING — no Read snapshot covers it]
-// [LINE 76 MISSING — no Read snapshot covers it]
-// [LINE 77 MISSING — no Read snapshot covers it]
-// [LINE 78 MISSING — no Read snapshot covers it]
-// [LINE 79 MISSING — no Read snapshot covers it]
-// [LINE 80 MISSING — no Read snapshot covers it]
-// [LINE 81 MISSING — no Read snapshot covers it]
-// [LINE 82 MISSING — no Read snapshot covers it]
-// [LINE 83 MISSING — no Read snapshot covers it]
-// [LINE 84 MISSING — no Read snapshot covers it]
-// [LINE 85 MISSING — no Read snapshot covers it]
-// [LINE 86 MISSING — no Read snapshot covers it]
-// [LINE 87 MISSING — no Read snapshot covers it]
-// [LINE 88 MISSING — no Read snapshot covers it]
-// [LINE 89 MISSING — no Read snapshot covers it]
-// [LINE 90 MISSING — no Read snapshot covers it]
-// [LINE 91 MISSING — no Read snapshot covers it]
-// [LINE 92 MISSING — no Read snapshot covers it]
-// [LINE 93 MISSING — no Read snapshot covers it]
-// [LINE 94 MISSING — no Read snapshot covers it]
-  padding:10px 4px 4px; min-height:0; overflow:visible; }
+/* ============================================================
+   BLACKJACK — VurgLife Table — Rebuilt foundation (lines 1-95)
+   Recovered/rebuilt on 2026-05-10 to repair the 94-line gap that
+   left every screen rendering at once (no .screen{display:none}).
+   ============================================================ */
+
+:root {
+  --gold:    #c9a84c;
+  --gold-lt: #f0d080;
+  --gold-dk: #8b6914;
+  --bg:      #04080f;
+  --bg-2:    #0a1830;
+  --text:    #e8dfc0;
+  --text-dim:#7a9ac0;
+  --red:     #cc1830;
+  --green:   #1a8c4a;
+  --slot-bg: rgba(4,24,60,0.75);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+html, body {
+  background: var(--bg);
+  font-family: 'Rajdhani', sans-serif;
+  color: var(--text);
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ── SCREEN VISIBILITY (the rule whose absence broke everything) ── */
+.screen { display:none; width:100%; height:100%; }
+.screen.active { display:flex; flex-direction:column; }
+
+/* ── LOBBY ── */
+#screen-lobby.active {
+  align-items:center; justify-content:center;
+  background: radial-gradient(ellipse at center,#0a1830 0%, #04080f 100%);
+  overflow-y:auto;
+}
+.lobby-bg {
+  width:100%; min-height:100%;
+  display:flex; align-items:center; justify-content:center;
+  padding:20px 12px;
+}
+.lobby-card {
+  background: linear-gradient(145deg,#0d1f3a,#080f1e);
+  border: 2px solid var(--gold);
+  border-radius: 16px;
+  padding: 28px 24px;
+  text-align: center;
+  width: min(95vw, 480px);
+  box-shadow: 0 0 60px rgba(201,168,76,0.18);
+}
+.lobby-logo {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: clamp(20px,4.5vw,28px);
+  letter-spacing: 4px;
+  color: var(--gold-lt);
+  text-shadow: 0 0 20px rgba(201,168,76,0.5);
+  margin-bottom: 4px;
+}
+.lobby-logo span { color: var(--text); }
+.lobby-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(18px,5vw,26px);
+  letter-spacing: 6px;
+  color: var(--gold);
+  margin-bottom: 6px;
+}
+.lobby-sub {
+  font-size: 12px; color:#888; letter-spacing:2px; text-transform:uppercase;
+  margin-bottom: 22px;
+}
+.lobby-section-label {
+  font-size: 11px; color: var(--text-dim);
+  letter-spacing: 3px; text-transform: uppercase;
+  text-align:left;
+}
+.lobby-modes {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+}
+.mode-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(201,168,76,0.25);
+  border-radius: 12px;
+  padding: 18px 14px;
+  cursor: pointer;
+  transition: all .2s;
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+}
+.mode-card:hover {
+  border-color: var(--gold);
+  background: rgba(201,168,76,0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 18px rgba(201,168,76,0.25);
+}
+.mode-icon { font-size: 36px; line-height:1; }
+.mode-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px; letter-spacing: 3px;
+  color: var(--gold-lt);
+}
+.mode-desc {
+  font-size: 11px; color:#888; line-height:1.45;
+  min-height: 50px;
+}
+.mode-btn {
+  width: 100%;
+  padding: 10px 8px;
+  background: linear-gradient(135deg,var(--gold-dk),var(--gold),var(--gold-dk));
+  border: none; border-radius: 6px;
+  color: #1a1000;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  cursor: pointer; transition: filter .2s, transform .2s;
+}
+.mode-btn:hover  { filter: brightness(1.15); transform: translateY(-1px); }
+.mode-btn:active { transform: translateY(0); }
+.mode-btn:disabled { opacity:.4; cursor:not-allowed; }
+.mode-btn.secondary {
+  background: rgba(201,168,76,0.12);
+  color: var(--gold-lt);
+  border: 1px solid var(--gold-dk);
+}
+.mode-btn.secondary:hover { background: rgba(201,168,76,0.25); }
+
+.btn-secondary {
+  padding: 10px 18px;
+  background: rgba(201,168,76,0.12);
+  border: 1px solid var(--gold-dk); border-radius: 6px;
+  color: var(--gold-lt);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px; font-weight: 600; letter-spacing: 1px;
+  cursor: pointer; transition: background .2s;
+}
+.btn-secondary:hover { background: rgba(201,168,76,0.25); }
+
+/* ── AD SIM (single-player ad countdown) ── */
+.ad-sim {
+  background: rgba(0,0,0,0.4); border: 1px dashed rgba(201,168,76,0.3);
+  border-radius: 8px; padding: 18px; margin: 12px 0;
+}
+.ad-sim .al { font-size:10px; color:#666; letter-spacing:3px; margin-bottom:8px; }
+.ad-sim .ai { font-size:32px; margin-bottom:6px; }
+.ad-bar { background:rgba(255,255,255,0.05); height:6px; border-radius:3px; overflow:hidden; margin:8px 0; }
+.ad-fill { background: linear-gradient(90deg, var(--gold-dk), var(--gold)); height:100%; transition: width .3s; }
+.ad-cnt { font-family:'Rajdhani',sans-serif; font-size:24px; font-weight:900; color:var(--gold-lt); margin:4px 0; }
+
+/* ── GAME SCREEN STRUCTURE ── */
+#screen-game.active {
+  background: radial-gradient(ellipse at center top, #0a1830 0%, #04080f 70%);
+}
+.top-bar {
+  display:flex; justify-content:space-between; align-items:center;
+  padding: 8px 14px;
+  background: linear-gradient(180deg, rgba(10,24,48,0.95) 0%, rgba(10,24,48,0.7) 100%);
+  border-bottom: 1px solid rgba(201,168,76,0.2);
+  font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:700;
+  color: var(--text-dim); letter-spacing:1px;
+  flex-shrink:0;
+}
+.top-bar #game-round { color: var(--gold-lt); }
+.status-bar {
+  text-align:center; padding:6px 12px; min-height:24px;
+  font-size:12px; color:var(--text-dim); letter-spacing:1px;
+  background:rgba(0,0,0,0.3);
+  flex-shrink:0;
+}
+.game-body-bj {
+  flex:1; display:flex; align-items:center; justify-content:center;
+  padding:10px 4px 4px; min-height:0; overflow:visible;
+}
+
+/* ── PHASE BANNER (announces betting/dealing/etc.) ── */
+.phase-banner {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  font-family:'Bebas Neue', sans-serif; font-size:clamp(20px,5vw,40px);
+  letter-spacing:6px; color:var(--gold-lt);
+  text-shadow:0 0 20px rgba(201,168,76,0.6);
+  z-index:10; pointer-events:none;
+  opacity:0; transition:opacity .3s;
+}
+.phase-banner.show { opacity:1; }
+
 
 /* ── OVAL TABLE — SipSam-identical but GREEN felt ── */
 /* ── D-SHAPE TABLE — Modern Dark Luxury Design ── */
