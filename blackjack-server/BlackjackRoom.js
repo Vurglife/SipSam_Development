@@ -89,7 +89,7 @@ class BlackjackRoom {
     const initialWallet = isBot ? 0 : (this.config.walletSize || 0);
     return {
       userId, sessionId, index, isBot, ownerIdx, token:null,
-      wallet:initialWallet, bet:0, insuranceBet:0, tieBet:0, sideBet:null, sideBetAmt:0,
+      wallet:initialWallet, bet:0, insuranceBet:0, insuranceDeclined:false, tieBet:0, sideBet:null, sideBetAmt:0,
       hands:[[]], activeHandIdx:0,
       doubled:[false], stood:[false], busted:[false], splitAces:false,
       result:[null], payout:[0], sideBetResult:null,
@@ -451,26 +451,6 @@ class BlackjackRoom {
     const draw = () => {
       if (dealerShouldHit(this.dealerCards)) {
         this.dealerCards.push(this._drawCard());
-        // [RECOVERY GAP] additional draw scheduling logic missing — see .recovered/blackjack/blackjack-server__BlackjackRoom.js.edits.json
-      }
-      this._clearTimer();
-      this._startDealer();
-    };
-    draw();
-  }
-
-  // ── Phase: Dealer ────────────────────────────────────────────
-
-  _startDealer() {
-    this._clearTimer();
-    this.phase='dealer'; this.activeSeat=null;
-    this.dealerCards[1].faceDown=false;
-    this._broadcast({ type:'phase', phase:'dealer', duration:PHASE_MS.dealer });
-    this._broadcast({ type:'state', state:this._state() });
-
-    const draw = () => {
-      if (dealerShouldHit(this.dealerCards)) {
-        this.dealerCards.push(this._drawCard());
         this._broadcast({ type:'state', state:this._state() });
         setTimeout(draw, 400); // 400ms between dealer cards
       } else {
@@ -799,6 +779,20 @@ class BlackjackRoom {
   async _settle(seat) {
     const now=Date.now(), last=this._recentExits.get(seat.userId)||0;
     if (now-last<10000) return;
+    this._recentExits.set(seat.userId, now);
+    if (!seat.token) return;
+    try {
+      await this._callPlatform('/api/game/game/record-win', {
+        isWin: seat.result.some(r=>r==='win'||r==='blackjack'),
+        tableMinBet: this.config.minBet,
+      }, seat.token);
+    } catch(e) { /* stats-only call — swallow errors */ }
+  }
+
+  async _callPlatform(route, body, token) {
+    const ctrl=new AbortController(), t=setTimeout(()=>ctrl.abort(),8000);
+    const headers = {'Content-Type':'application/json'};
+    if (token) headers['Authorization'] = 'Bearer ' + token;
     try {
       const r=await fetch(`${PLATFORM_URL}${route}`,{
         method:'POST', headers,
@@ -813,11 +807,13 @@ class BlackjackRoom {
   // ── Shoe ─────────────────────────────────────────────────────
 
   _drawCard() {
-    // Never reshuffle mid-round — shoe is only rebuilt between rounds in _startBetting
-      };
-    }
-    // Dealer: face-up card (index 0) always visible after deal
-    // Hole card (index 1, faceDown=true) hidden until dealer phase
+    if (!this.deck.length) this.deck = buildDeck();
+    return this.deck.pop();
+  }
+
+  // ── State Snapshot ───────────────────────────────────────────
+
+  _state(forUserId) {
     const hideHole = new Set(['deal','insurance','player_action']);
     const dealer = this.dealerCards.map((c, idx) => {
       if (idx === 1 && c.faceDown && hideHole.has(this.phase)) {
@@ -825,6 +821,23 @@ class BlackjackRoom {
       }
       return c;
     });
+
+    const seats = {};
+    for (const [i, s] of Object.entries(this.seats)) {
+      seats[i] = {
+        userId:s.userId, sessionId:s.sessionId, index:s.index,
+        isBot:s.isBot, ownerIdx:s.ownerIdx,
+        wallet:s.wallet, bet:s.bet,
+        insuranceBet:s.insuranceBet, insuranceDeclined:s.insuranceDeclined,
+        tieBet:s.tieBet, sideBet:s.sideBet, sideBetAmt:s.sideBetAmt,
+        hands:s.hands, activeHandIdx:s.activeHandIdx,
+        doubled:s.doubled, stood:s.stood, busted:s.busted, splitAces:s.splitAces,
+        result:s.result, payout:s.payout, sideBetResult:s.sideBetResult,
+        acted:s.acted, connected:s.connected,
+        displayName:s.displayName, avatar:s.avatar, streakWins:s.streakWins,
+      };
+    }
+
     return {
       roomId:this.roomId, phase:this.phase, roundNum:this.roundNum, config:this.config,
       dealerCards:dealer,
@@ -832,7 +845,6 @@ class BlackjackRoom {
         if (['dealer','payout','round_end'].includes(this.phase)) {
           return calcHandFull(this.dealerCards).total;
         }
-        // Show only face-up card total during player action
         if (this.dealerCards.length > 0) {
           const { total } = calcHandFull([this.dealerCards[0]]);
           return total;
@@ -843,6 +855,16 @@ class BlackjackRoom {
       playerCount:Object.values(this.seats).filter(s=>!s.isBot).length,
       seatCount:Object.keys(this.seats).length,
     };
+  }
+
+  // ── Utilities ────────────────────────────────────────────────
+
+  _sendTo(ws, msg) {
+    if (ws.readyState === 1) ws.send(JSON.stringify(msg));
+  }
+
+  _clearTimer() {
+    if (this.phaseTimer) { clearTimeout(this.phaseTimer); this.phaseTimer = null; }
   }
 
   // ── Broadcast ────────────────────────────────────────────────
