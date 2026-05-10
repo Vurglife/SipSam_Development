@@ -518,16 +518,21 @@ html, body {
 /* ── ZONES — SipSam layout adapted for Blackjack ── */
 .zone { position:absolute; z-index:4; }
 
-// [LINE 200 MISSING — no Read snapshot covers it]
-// [LINE 201 MISSING — no Read snapshot covers it]
-// [LINE 202 MISSING — no Read snapshot covers it]
-// [LINE 203 MISSING — no Read snapshot covers it]
-// [LINE 204 MISSING — no Read snapshot covers it]
-// [LINE 205 MISSING — no Read snapshot covers it]
-// [LINE 206 MISSING — no Read snapshot covers it]
-// [LINE 207 MISSING — no Read snapshot covers it]
-// [LINE 208 MISSING — no Read snapshot covers it]
-// [LINE 209 MISSING — no Read snapshot covers it]
+/* ── ZONE SUBCLASSES — dealer zone, seat zones ── */
+.bj-dealer-zone {
+  position:absolute; left:50%; top:8%; transform:translateX(-50%);
+  z-index:5; display:flex; flex-direction:column; align-items:center; gap:4px;
+}
+.bj-dealer-zone .dealer-hand { min-height:72px; }
+.dealer-hand-container { display:flex; align-items:center; gap:6px; }
+.empty-seat-zone {
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  padding:8px 6px;
+}
+.empty-seat-label {
+  font-size:10px; color:#5a7090; letter-spacing:2px; text-transform:uppercase;
+  font-family:'Rajdhani',sans-serif;
+}
 .dealer-tag { background:linear-gradient(135deg,#0d4a8a,#1a8cff) !important;
   color:#fff !important; letter-spacing:2px !important; }
 
@@ -630,281 +635,319 @@ html, body {
   border:1.5px solid var(--gold-dk); box-shadow:0 1px 4px rgba(0,0,0,.5); }
 
 /* ── INVITE BUTTON ── */
-// [LINE 310 MISSING — no Read snapshot covers it]
-// [LINE 311 MISSING — no Read snapshot covers it]
-// [LINE 312 MISSING — no Read snapshot covers it]
-// [LINE 313 MISSING — no Read snapshot covers it]
-// [LINE 314 MISSING — no Read snapshot covers it]
-// [LINE 315 MISSING — no Read snapshot covers it]
-// [LINE 316 MISSING — no Read snapshot covers it]
-// [LINE 317 MISSING — no Read snapshot covers it]
-// [LINE 318 MISSING — no Read snapshot covers it]
-// [LINE 319 MISSING — no Read snapshot covers it]
-// [LINE 320 MISSING — no Read snapshot covers it]
-// [LINE 321 MISSING — no Read snapshot covers it]
-// [LINE 322 MISSING — no Read snapshot covers it]
-// [LINE 323 MISSING — no Read snapshot covers it]
-// [LINE 324 MISSING — no Read snapshot covers it]
-// [LINE 325 MISSING — no Read snapshot covers it]
-// [LINE 326 MISSING — no Read snapshot covers it]
-// [LINE 327 MISSING — no Read snapshot covers it]
-// [LINE 328 MISSING — no Read snapshot covers it]
-// [LINE 329 MISSING — no Read snapshot covers it]
-// [LINE 330 MISSING — no Read snapshot covers it]
-// [LINE 331 MISSING — no Read snapshot covers it]
-// [LINE 332 MISSING — no Read snapshot covers it]
-// [LINE 333 MISSING — no Read snapshot covers it]
-// [LINE 334 MISSING — no Read snapshot covers it]
-// [LINE 335 MISSING — no Read snapshot covers it]
-// [LINE 336 MISSING — no Read snapshot covers it]
-// [LINE 337 MISSING — no Read snapshot covers it]
-// [LINE 338 MISSING — no Read snapshot covers it]
-// [LINE 339 MISSING — no Read snapshot covers it]
-// [LINE 340 MISSING — no Read snapshot covers it]
-// [LINE 341 MISSING — no Read snapshot covers it]
-// [LINE 342 MISSING — no Read snapshot covers it]
-// [LINE 343 MISSING — no Read snapshot covers it]
-// [LINE 344 MISSING — no Read snapshot covers it]
-// [LINE 345 MISSING — no Read snapshot covers it]
-// [LINE 346 MISSING — no Read snapshot covers it]
-// [LINE 347 MISSING — no Read snapshot covers it]
-// [LINE 348 MISSING — no Read snapshot covers it]
-// [LINE 349 MISSING — no Read snapshot covers it]
-// [LINE 350 MISSING — no Read snapshot covers it]
-// [LINE 351 MISSING — no Read snapshot covers it]
-// [LINE 352 MISSING — no Read snapshot covers it]
-// [LINE 353 MISSING — no Read snapshot covers it]
-// [LINE 354 MISSING — no Read snapshot covers it]
-// [LINE 355 MISSING — no Read snapshot covers it]
-// [LINE 356 MISSING — no Read snapshot covers it]
-// [LINE 357 MISSING — no Read snapshot covers it]
-// [LINE 358 MISSING — no Read snapshot covers it]
-// [LINE 359 MISSING — no Read snapshot covers it]
-// [LINE 360 MISSING — no Read snapshot covers it]
-// [LINE 361 MISSING — no Read snapshot covers it]
-// [LINE 362 MISSING — no Read snapshot covers it]
-// [LINE 363 MISSING — no Read snapshot covers it]
-// [LINE 364 MISSING — no Read snapshot covers it]
-// [LINE 365 MISSING — no Read snapshot covers it]
-// [LINE 366 MISSING — no Read snapshot covers it]
-// [LINE 367 MISSING — no Read snapshot covers it]
-// [LINE 368 MISSING — no Read snapshot covers it]
-// [LINE 369 MISSING — no Read snapshot covers it]
-// [LINE 370 MISSING — no Read snapshot covers it]
-// [LINE 371 MISSING — no Read snapshot covers it]
-// [LINE 372 MISSING — no Read snapshot covers it]
-// [LINE 373 MISSING — no Read snapshot covers it]
-// [LINE 374 MISSING — no Read snapshot covers it]
-// [LINE 375 MISSING — no Read snapshot covers it]
-// [LINE 376 MISSING — no Read snapshot covers it]
-// [LINE 377 MISSING — no Read snapshot covers it]
-// [LINE 378 MISSING — no Read snapshot covers it]
-// [LINE 379 MISSING — no Read snapshot covers it]
-// [LINE 380 MISSING — no Read snapshot covers it]
-// [LINE 381 MISSING — no Read snapshot covers it]
-// [LINE 382 MISSING — no Read snapshot covers it]
-// [LINE 383 MISSING — no Read snapshot covers it]
-// [LINE 384 MISSING — no Read snapshot covers it]
-// [LINE 385 MISSING — no Read snapshot covers it]
-// [LINE 386 MISSING — no Read snapshot covers it]
-// [LINE 387 MISSING — no Read snapshot covers it]
-// [LINE 388 MISSING — no Read snapshot covers it]
-// [LINE 389 MISSING — no Read snapshot covers it]
-// [LINE 390 MISSING — no Read snapshot covers it]
-// [LINE 391 MISSING — no Read snapshot covers it]
-// [LINE 392 MISSING — no Read snapshot covers it]
-// [LINE 393 MISSING — no Read snapshot covers it]
-// [LINE 394 MISSING — no Read snapshot covers it]
-// [LINE 395 MISSING — no Read snapshot covers it]
-// [LINE 396 MISSING — no Read snapshot covers it]
-// [LINE 397 MISSING — no Read snapshot covers it]
-// [LINE 398 MISSING — no Read snapshot covers it]
-// [LINE 399 MISSING — no Read snapshot covers it]
-// [LINE 400 MISSING — no Read snapshot covers it]
-// [LINE 401 MISSING — no Read snapshot covers it]
-// [LINE 402 MISSING — no Read snapshot covers it]
-// [LINE 403 MISSING — no Read snapshot covers it]
-// [LINE 404 MISSING — no Read snapshot covers it]
-// [LINE 405 MISSING — no Read snapshot covers it]
-// [LINE 406 MISSING — no Read snapshot covers it]
-// [LINE 407 MISSING — no Read snapshot covers it]
-// [LINE 408 MISSING — no Read snapshot covers it]
-// [LINE 409 MISSING — no Read snapshot covers it]
-// [LINE 410 MISSING — no Read snapshot covers it]
-// [LINE 411 MISSING — no Read snapshot covers it]
-// [LINE 412 MISSING — no Read snapshot covers it]
-// [LINE 413 MISSING — no Read snapshot covers it]
-// [LINE 414 MISSING — no Read snapshot covers it]
-// [LINE 415 MISSING — no Read snapshot covers it]
-// [LINE 416 MISSING — no Read snapshot covers it]
-// [LINE 417 MISSING — no Read snapshot covers it]
-// [LINE 418 MISSING — no Read snapshot covers it]
-// [LINE 419 MISSING — no Read snapshot covers it]
-// [LINE 420 MISSING — no Read snapshot covers it]
-// [LINE 421 MISSING — no Read snapshot covers it]
-// [LINE 422 MISSING — no Read snapshot covers it]
-// [LINE 423 MISSING — no Read snapshot covers it]
-// [LINE 424 MISSING — no Read snapshot covers it]
-// [LINE 425 MISSING — no Read snapshot covers it]
-// [LINE 426 MISSING — no Read snapshot covers it]
-// [LINE 427 MISSING — no Read snapshot covers it]
-// [LINE 428 MISSING — no Read snapshot covers it]
-// [LINE 429 MISSING — no Read snapshot covers it]
-// [LINE 430 MISSING — no Read snapshot covers it]
-// [LINE 431 MISSING — no Read snapshot covers it]
-// [LINE 432 MISSING — no Read snapshot covers it]
-// [LINE 433 MISSING — no Read snapshot covers it]
-// [LINE 434 MISSING — no Read snapshot covers it]
-// [LINE 435 MISSING — no Read snapshot covers it]
-// [LINE 436 MISSING — no Read snapshot covers it]
-// [LINE 437 MISSING — no Read snapshot covers it]
-// [LINE 438 MISSING — no Read snapshot covers it]
-// [LINE 439 MISSING — no Read snapshot covers it]
-// [LINE 440 MISSING — no Read snapshot covers it]
-// [LINE 441 MISSING — no Read snapshot covers it]
-// [LINE 442 MISSING — no Read snapshot covers it]
-// [LINE 443 MISSING — no Read snapshot covers it]
-// [LINE 444 MISSING — no Read snapshot covers it]
-// [LINE 445 MISSING — no Read snapshot covers it]
-// [LINE 446 MISSING — no Read snapshot covers it]
-// [LINE 447 MISSING — no Read snapshot covers it]
-// [LINE 448 MISSING — no Read snapshot covers it]
-// [LINE 449 MISSING — no Read snapshot covers it]
-// [LINE 450 MISSING — no Read snapshot covers it]
-// [LINE 451 MISSING — no Read snapshot covers it]
-// [LINE 452 MISSING — no Read snapshot covers it]
-// [LINE 453 MISSING — no Read snapshot covers it]
-// [LINE 454 MISSING — no Read snapshot covers it]
-// [LINE 455 MISSING — no Read snapshot covers it]
-// [LINE 456 MISSING — no Read snapshot covers it]
-// [LINE 457 MISSING — no Read snapshot covers it]
-// [LINE 458 MISSING — no Read snapshot covers it]
-// [LINE 459 MISSING — no Read snapshot covers it]
-// [LINE 460 MISSING — no Read snapshot covers it]
-// [LINE 461 MISSING — no Read snapshot covers it]
-// [LINE 462 MISSING — no Read snapshot covers it]
-// [LINE 463 MISSING — no Read snapshot covers it]
-// [LINE 464 MISSING — no Read snapshot covers it]
-// [LINE 465 MISSING — no Read snapshot covers it]
-// [LINE 466 MISSING — no Read snapshot covers it]
-// [LINE 467 MISSING — no Read snapshot covers it]
-// [LINE 468 MISSING — no Read snapshot covers it]
-// [LINE 469 MISSING — no Read snapshot covers it]
-// [LINE 470 MISSING — no Read snapshot covers it]
-// [LINE 471 MISSING — no Read snapshot covers it]
-// [LINE 472 MISSING — no Read snapshot covers it]
-// [LINE 473 MISSING — no Read snapshot covers it]
-// [LINE 474 MISSING — no Read snapshot covers it]
-// [LINE 475 MISSING — no Read snapshot covers it]
-// [LINE 476 MISSING — no Read snapshot covers it]
-// [LINE 477 MISSING — no Read snapshot covers it]
-// [LINE 478 MISSING — no Read snapshot covers it]
-// [LINE 479 MISSING — no Read snapshot covers it]
-// [LINE 480 MISSING — no Read snapshot covers it]
-// [LINE 481 MISSING — no Read snapshot covers it]
-// [LINE 482 MISSING — no Read snapshot covers it]
-// [LINE 483 MISSING — no Read snapshot covers it]
-// [LINE 484 MISSING — no Read snapshot covers it]
-// [LINE 485 MISSING — no Read snapshot covers it]
-// [LINE 486 MISSING — no Read snapshot covers it]
-// [LINE 487 MISSING — no Read snapshot covers it]
-// [LINE 488 MISSING — no Read snapshot covers it]
-// [LINE 489 MISSING — no Read snapshot covers it]
-// [LINE 490 MISSING — no Read snapshot covers it]
-// [LINE 491 MISSING — no Read snapshot covers it]
-// [LINE 492 MISSING — no Read snapshot covers it]
-// [LINE 493 MISSING — no Read snapshot covers it]
-// [LINE 494 MISSING — no Read snapshot covers it]
-// [LINE 495 MISSING — no Read snapshot covers it]
-// [LINE 496 MISSING — no Read snapshot covers it]
-// [LINE 497 MISSING — no Read snapshot covers it]
-// [LINE 498 MISSING — no Read snapshot covers it]
-// [LINE 499 MISSING — no Read snapshot covers it]
-// [LINE 500 MISSING — no Read snapshot covers it]
-// [LINE 501 MISSING — no Read snapshot covers it]
-// [LINE 502 MISSING — no Read snapshot covers it]
-// [LINE 503 MISSING — no Read snapshot covers it]
-// [LINE 504 MISSING — no Read snapshot covers it]
-// [LINE 505 MISSING — no Read snapshot covers it]
-// [LINE 506 MISSING — no Read snapshot covers it]
-// [LINE 507 MISSING — no Read snapshot covers it]
-// [LINE 508 MISSING — no Read snapshot covers it]
-// [LINE 509 MISSING — no Read snapshot covers it]
-// [LINE 510 MISSING — no Read snapshot covers it]
-// [LINE 511 MISSING — no Read snapshot covers it]
-// [LINE 512 MISSING — no Read snapshot covers it]
-// [LINE 513 MISSING — no Read snapshot covers it]
-// [LINE 514 MISSING — no Read snapshot covers it]
-// [LINE 515 MISSING — no Read snapshot covers it]
-// [LINE 516 MISSING — no Read snapshot covers it]
-// [LINE 517 MISSING — no Read snapshot covers it]
-// [LINE 518 MISSING — no Read snapshot covers it]
-// [LINE 519 MISSING — no Read snapshot covers it]
-// [LINE 520 MISSING — no Read snapshot covers it]
-// [LINE 521 MISSING — no Read snapshot covers it]
-// [LINE 522 MISSING — no Read snapshot covers it]
-// [LINE 523 MISSING — no Read snapshot covers it]
-// [LINE 524 MISSING — no Read snapshot covers it]
-// [LINE 525 MISSING — no Read snapshot covers it]
-// [LINE 526 MISSING — no Read snapshot covers it]
-// [LINE 527 MISSING — no Read snapshot covers it]
-// [LINE 528 MISSING — no Read snapshot covers it]
-// [LINE 529 MISSING — no Read snapshot covers it]
-// [LINE 530 MISSING — no Read snapshot covers it]
-// [LINE 531 MISSING — no Read snapshot covers it]
-// [LINE 532 MISSING — no Read snapshot covers it]
-// [LINE 533 MISSING — no Read snapshot covers it]
-// [LINE 534 MISSING — no Read snapshot covers it]
-// [LINE 535 MISSING — no Read snapshot covers it]
-// [LINE 536 MISSING — no Read snapshot covers it]
-// [LINE 537 MISSING — no Read snapshot covers it]
-// [LINE 538 MISSING — no Read snapshot covers it]
-// [LINE 539 MISSING — no Read snapshot covers it]
-// [LINE 540 MISSING — no Read snapshot covers it]
-// [LINE 541 MISSING — no Read snapshot covers it]
-// [LINE 542 MISSING — no Read snapshot covers it]
-// [LINE 543 MISSING — no Read snapshot covers it]
-// [LINE 544 MISSING — no Read snapshot covers it]
-// [LINE 545 MISSING — no Read snapshot covers it]
-// [LINE 546 MISSING — no Read snapshot covers it]
-// [LINE 547 MISSING — no Read snapshot covers it]
-// [LINE 548 MISSING — no Read snapshot covers it]
-// [LINE 549 MISSING — no Read snapshot covers it]
-// [LINE 550 MISSING — no Read snapshot covers it]
-// [LINE 551 MISSING — no Read snapshot covers it]
-// [LINE 552 MISSING — no Read snapshot covers it]
-// [LINE 553 MISSING — no Read snapshot covers it]
-// [LINE 554 MISSING — no Read snapshot covers it]
-// [LINE 555 MISSING — no Read snapshot covers it]
-// [LINE 556 MISSING — no Read snapshot covers it]
-// [LINE 557 MISSING — no Read snapshot covers it]
-// [LINE 558 MISSING — no Read snapshot covers it]
-// [LINE 559 MISSING — no Read snapshot covers it]
-// [LINE 560 MISSING — no Read snapshot covers it]
-// [LINE 561 MISSING — no Read snapshot covers it]
-// [LINE 562 MISSING — no Read snapshot covers it]
-// [LINE 563 MISSING — no Read snapshot covers it]
-// [LINE 564 MISSING — no Read snapshot covers it]
-// [LINE 565 MISSING — no Read snapshot covers it]
-// [LINE 566 MISSING — no Read snapshot covers it]
-// [LINE 567 MISSING — no Read snapshot covers it]
-// [LINE 568 MISSING — no Read snapshot covers it]
-// [LINE 569 MISSING — no Read snapshot covers it]
-// [LINE 570 MISSING — no Read snapshot covers it]
-// [LINE 571 MISSING — no Read snapshot covers it]
-// [LINE 572 MISSING — no Read snapshot covers it]
-// [LINE 573 MISSING — no Read snapshot covers it]
-// [LINE 574 MISSING — no Read snapshot covers it]
-// [LINE 575 MISSING — no Read snapshot covers it]
-// [LINE 576 MISSING — no Read snapshot covers it]
-// [LINE 577 MISSING — no Read snapshot covers it]
-// [LINE 578 MISSING — no Read snapshot covers it]
-// [LINE 579 MISSING — no Read snapshot covers it]
-// [LINE 580 MISSING — no Read snapshot covers it]
-// [LINE 581 MISSING — no Read snapshot covers it]
-// [LINE 582 MISSING — no Read snapshot covers it]
-// [LINE 583 MISSING — no Read snapshot covers it]
-// [LINE 584 MISSING — no Read snapshot covers it]
+/* ── INVITE BUTTON (empty seats) ────────────────────────── */
+.invite-btn {
+  background: linear-gradient(135deg, rgba(26,140,255,0.15), rgba(26,140,255,0.05));
+  border: 1px solid rgba(74,171,255,0.4);
+  color: #4aabff;
+  font-family:'Rajdhani',sans-serif; font-size:11px; font-weight:700;
+  letter-spacing:1px; padding:5px 10px; border-radius:6px;
+  cursor:pointer; transition: all .2s; white-space:nowrap;
+  text-transform:uppercase;
+}
+.invite-btn:hover {
+  background: rgba(26,140,255,0.25);
+  border-color:#4aabff;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(26,140,255,0.3);
+}
+
+/* ── BET OVERLAY — chip row ─────────────────────────────── */
+.chip-row {
+  display:flex; gap:10px; justify-content:center; align-items:center;
+  flex-wrap:wrap;
+}
+.chip-btn {
+  width:64px; height:64px;
+  border-radius:50%;
+  border:3px dashed rgba(255,255,255,0.45);
+  font-family:'Rajdhani',sans-serif;
+  font-weight:900; font-size:14px;
+  color:#fff;
+  cursor:pointer;
+  position:relative;
+  transition: transform .15s cubic-bezier(.2,.8,.2,1), box-shadow .2s;
+  box-shadow:
+    0 4px 10px rgba(0,0,0,0.5),
+    inset 0 -3px 8px rgba(0,0,0,0.3),
+    inset 0 3px 6px rgba(255,255,255,0.18);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+  letter-spacing:0.5px;
+}
+.chip-btn::before {
+  /* Inner ring detail */
+  content:''; position:absolute; inset:6px;
+  border-radius:50%;
+  border:2px solid rgba(255,255,255,0.18);
+  pointer-events:none;
+}
+.chip-btn:hover {
+  transform: translateY(-4px) scale(1.08);
+  box-shadow:
+    0 8px 20px rgba(0,0,0,0.6),
+    0 0 24px rgba(255,255,255,0.15),
+    inset 0 -3px 8px rgba(0,0,0,0.3),
+    inset 0 3px 6px rgba(255,255,255,0.25);
+}
+.chip-btn:active { transform: translateY(-1px) scale(1.02); }
+.chip-btn:disabled { opacity:.35; cursor:not-allowed; transform:none; }
+/* Chip color variants (typical casino values) */
+.chip-100 { background: radial-gradient(circle at 35% 30%, #1a8c4a 0%, #0e5a2e 70%, #073418 100%); }
+.chip-200 { background: radial-gradient(circle at 35% 30%, #cc1830 0%, #8a0e1c 70%, #4d0510 100%); }
+.chip-350 { background: radial-gradient(circle at 35% 30%, #6a3aa8 0%, #4a2080 70%, #2a1050 100%); }
+.chip-500 { background: radial-gradient(circle at 35% 30%, #1a1a2e 0%, #0a0a1a 70%, #000 100%); }
+
+/* ── TIE BET BUTTON ──────────────────────────────────────── */
+.tie-bet-btn {
+  background: linear-gradient(135deg, rgba(255,215,0,0.18), rgba(201,168,76,0.10));
+  border: 1.5px solid rgba(255,215,0,0.55);
+  color: #ffd700;
+  font-family:'Rajdhani',sans-serif;
+  font-size:13px; font-weight:700; letter-spacing:2px;
+  padding:8px 18px; border-radius:8px;
+  cursor:pointer;
+  text-shadow: 0 1px 6px rgba(255,215,0,0.5);
+  box-shadow: 0 2px 10px rgba(255,215,0,0.2);
+  transition: all .2s;
+}
+.tie-bet-btn:hover {
+  background: linear-gradient(135deg, rgba(255,215,0,0.32), rgba(201,168,76,0.18));
+  border-color:#ffd700;
+  box-shadow: 0 4px 18px rgba(255,215,0,0.45);
+  transform: translateY(-1px);
+}
+.tie-bet-btn.placed {
+  background: linear-gradient(135deg, rgba(255,215,0,0.45), rgba(255,215,0,0.25));
+  border-color:#ffd700;
+  color:#fff;
+  box-shadow: 0 0 20px rgba(255,215,0,0.6);
+}
+
+/* ── ACTION BUTTONS (HIT / STAND / DOUBLE / SPLIT) ──────── */
+#player-actions, #insurance-prompt {
+  background: linear-gradient(180deg, rgba(10,24,48,0.95), rgba(10,24,48,0.7));
+  border-top: 1px solid rgba(201,168,76,0.2);
+  padding: 10px 14px;
+  flex-shrink: 0;
+}
+.action-btn {
+  background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+  border: 1px solid rgba(201,168,76,0.35);
+  color: var(--text);
+  font-family:'Rajdhani',sans-serif;
+  font-weight:700; font-size:14px;
+  letter-spacing:2.5px; text-transform:uppercase;
+  padding:10px 18px;
+  border-radius:8px;
+  cursor:pointer;
+  transition: all .2s cubic-bezier(.2,.8,.2,1);
+  min-width:90px;
+  position:relative;
+  overflow:hidden;
+}
+.action-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(201,168,76,0.18), rgba(201,168,76,0.08));
+  border-color: var(--gold);
+  color: var(--gold-lt);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 16px rgba(201,168,76,0.3);
+}
+.action-btn:active:not(:disabled) { transform: translateY(0); }
+.action-btn:disabled { opacity:.35; cursor:not-allowed; }
+.action-btn.primary {
+  background: linear-gradient(135deg, var(--gold-dk), var(--gold), var(--gold-dk));
+  color:#1a1000;
+  border: none;
+  box-shadow:
+    0 2px 0 rgba(139,105,20,0.6),
+    0 4px 14px rgba(201,168,76,0.35);
+}
+.action-btn.primary:hover:not(:disabled) {
+  filter: brightness(1.12);
+  transform: translateY(-2px);
+  color:#1a1000;
+  box-shadow:
+    0 4px 0 rgba(139,105,20,0.6),
+    0 8px 22px rgba(201,168,76,0.5);
+}
+.action-btn.large { font-size:15px; padding:12px 22px; min-width:110px; }
+
+/* ── INSURANCE PROMPT ────────────────────────────────────── */
+#insurance-prompt {
+  display:none; align-items:center; gap:10px; padding:10px 14px;
+  background: linear-gradient(135deg, rgba(251,191,36,0.10), rgba(10,24,48,0.85));
+  border: 1px solid rgba(251,191,36,0.35);
+  border-radius: 10px;
+  margin: 6px 12px;
+}
+#insurance-prompt.active { display:flex; }
+
+/* ── FREEZE BUTTON (bottom bar) ──────────────────────────── */
+.freeze-btn-bar {
+  background: linear-gradient(135deg, rgba(120,180,220,0.12), rgba(120,180,220,0.04));
+  border: 1px solid rgba(120,180,220,0.4);
+  color: #a8c8e8;
+  font-family:'Rajdhani',sans-serif;
+  font-size:12px; font-weight:700; letter-spacing:1.5px;
+  padding:7px 16px; border-radius:8px;
+  cursor:pointer;
+  transition: all .2s;
+  text-transform:uppercase;
+}
+.freeze-btn-bar:hover {
+  background: linear-gradient(135deg, rgba(120,180,220,0.25), rgba(120,180,220,0.10));
+  border-color:#78b4dc;
+  color:#fff;
+}
+.freeze-btn-bar.active {
+  background: linear-gradient(135deg, rgba(74,171,255,0.35), rgba(74,171,255,0.18));
+  border-color:#4aabff;
+  color:#fff;
+  box-shadow: 0 0 14px rgba(74,171,255,0.4);
+}
+.freeze-indicator {
+  font-size:11px; color:#4aabff; letter-spacing:1px;
+  font-family:'Rajdhani',sans-serif; font-weight:700;
+}
+
+/* ── RESULT BADGES (per-seat win/lose label) ─────────────── */
+.result-badge-inline {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:13px; letter-spacing:2px;
+  padding:3px 10px; border-radius:14px;
+  white-space:nowrap;
+  display:none;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+}
+.result-badge-inline:not(:empty) { display:inline-block; }
+.result-badge-inline.win        { background:linear-gradient(135deg,#1a8c4a,#0e5a2e); color:#fff; box-shadow:0 0 12px rgba(26,140,74,0.6); }
+.result-badge-inline.blackjack  { background:linear-gradient(135deg,#ffd700,#c9a84c); color:#1a1000; box-shadow:0 0 16px rgba(255,215,0,0.7); font-weight:900; }
+.result-badge-inline.lose       { background:linear-gradient(135deg,#cc1830,#8a0e1c); color:#fff; }
+.result-badge-inline.push       { background:rgba(255,255,255,0.15); color:#9aa8c0; border:1px solid rgba(255,255,255,0.2); }
+.result-badge-inline.tie        { background:linear-gradient(135deg,#ffd700,#c9a84c); color:#1a1000; box-shadow:0 0 16px rgba(255,215,0,0.7); font-weight:900; }
+.result-badge-inline.bust       { background:#3a0a14; color:#ff8888; border:1px solid #cc1830; }
+
+/* ── GAME OVER SCREEN ────────────────────────────────────── */
+#screen-gameover.active {
+  align-items:center; justify-content:center;
+  background: radial-gradient(ellipse at center, #0a1830 0%, #04080f 100%);
+}
+.gameover-card {
+  background: linear-gradient(145deg, rgba(13,31,58,0.9), rgba(8,15,30,0.95));
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(201,168,76,0.4);
+  border-radius: 18px;
+  padding: 32px 28px;
+  text-align: center;
+  width: min(92vw, 460px);
+  box-shadow:
+    0 0 80px rgba(201,168,76,0.18),
+    0 8px 32px rgba(0,0,0,0.7);
+}
+.gameover-card h2 {
+  font-family:'Cinzel Decorative', serif;
+  font-size: clamp(20px, 5vw, 28px);
+  letter-spacing: 4px;
+  color: var(--gold-lt);
+  margin-bottom: 8px;
+  text-shadow: 0 0 20px rgba(201,168,76,0.5);
+}
+
+/* ── ANIMATIONS used by inline styles in HTML ───────────── */
+@keyframes betPulse {
+  0%,100% { opacity:.6; }
+  50%     { opacity:1; }
+}
+@keyframes cdPulse {
+  0%   { transform:scale(1);    color:var(--gold-lt); }
+  100% { transform:scale(1.18); color:#fff; }
+}
+@keyframes flashWin {
+  0%   { transform:scale(0.6); opacity:0; }
+  20%  { transform:scale(1.15); opacity:1; }
+  80%  { transform:scale(1.05); opacity:1; }
+  100% { transform:scale(1.3);  opacity:0; }
+}
+
+/* ── PHASE BANNER (already in foundation, just ensure shown) ─ */
+.phase-banner.active { opacity:1; }
+
+/* ── DECK PILE (table corner) ────────────────────────────── */
+.deck-pile {
+  position:absolute; right:6%; top:18%;
+  width:40px; height:56px;
+  display:none; z-index:3;
+}
+
+/* ── IN-GAME MENU (igm) ──────────────────────────────────── */
+#igm-panel {
+  position:fixed; top:0; right:0; bottom:0;
+  width: min(360px, 92vw);
+  background: linear-gradient(180deg, #0a1830 0%, #04080f 100%);
+  border-left: 1px solid rgba(201,168,76,0.4);
+  z-index: 700;
+  transform: translateX(100%);
+  transition: transform .3s cubic-bezier(.2,.8,.2,1);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+  box-shadow: -8px 0 32px rgba(0,0,0,0.7);
+}
+#igm-panel.open { transform: translateX(0); }
+.igm-item {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(201,168,76,0.2);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 6px 12px;
+  font-family:'Rajdhani',sans-serif;
+  font-size: 14px; font-weight: 700; letter-spacing: 1.5px;
+  color: var(--gold-lt);
+  cursor:pointer;
+  transition: all .2s;
+  display:flex; align-items:center; gap:10px;
+  text-transform:uppercase;
+}
+.igm-item:hover {
+  background: rgba(201,168,76,0.10);
+  border-color: var(--gold);
+  transform: translateX(-3px);
+}
+
+/* ── PHASE BANNER ANNOUNCE STATES ────────────────────────── */
+.phase-banner.betting  { color: var(--gold-lt); }
+.phase-banner.dealer   { color: #4aabff; }
+.phase-banner.payout   { color: #1a8c4a; }
+
+/* ── BIG TABLE-WIDE ANNOUNCEMENT (tie wins, blackjacks) ──── */
+#big-announce-stack {
+  position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+  z-index: 1000; pointer-events: none;
+  display: flex; flex-direction: column; gap: 8px;
+  width: min(90vw, 440px);
+}
+.big-announce {
+  background: linear-gradient(135deg, rgba(13,31,58,0.95), rgba(8,15,30,0.95));
+  backdrop-filter: blur(10px);
+  border: 1.5px solid var(--gold);
+  border-radius: 12px;
+  padding: 12px 18px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 30px rgba(201,168,76,0.3);
+  text-align: center;
+  animation: ba-in .35s cubic-bezier(.2,.8,.2,1) forwards;
+}
+.big-announce.ba-tie { border-color: #ffd700; box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 30px rgba(255,215,0,0.5); }
+@keyframes ba-in {
+  0%   { transform: translateY(-30px) scale(0.9); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* ── MOBILE — under 480px adjustments ────────────────────── */
+@media (max-width: 480px) {
+  .chip-btn { width:56px; height:56px; font-size:13px; }
+  .action-btn { font-size:12px; padding:8px 12px; min-width:72px; }
+  .action-btn.large { font-size:13px; padding:10px 16px; min-width:88px; }
+  .top-bar { font-size:11px; padding:6px 10px; }
+  .game-body-bj {
     padding: 4px 2px 2px;
     align-items: flex-start;
   }
