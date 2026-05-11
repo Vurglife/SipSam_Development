@@ -252,12 +252,6 @@
             <div id="bet-fixed-amount" style="font-family:'Rajdhani',sans-serif;font-size:clamp(24px,5.5vw,34px);font-weight:900;color:var(--gold-lt);letter-spacing:2px;text-shadow:0 0 20px rgba(201,168,76,.4)">$—</div>
             <div style="font-size:10px;color:#666;text-align:center">Auto-placed · Tie bet is optional</div>
           </div>
-          <!-- VIP fixed-bet display — shown instead of chip row in VIP tiers -->
-          <div id="bet-fixed-section" style="display:none;flex-direction:column;align-items:center;gap:4px;margin:4px 0">
-            <div style="font-size:10px;color:#7a9ac0;letter-spacing:2px;text-transform:uppercase">Fixed Bet</div>
-            <div id="bet-fixed-amount" style="font-family:'Rajdhani',sans-serif;font-size:clamp(24px,5.5vw,34px);font-weight:900;color:var(--gold-lt);letter-spacing:2px;text-shadow:0 0 20px rgba(201,168,76,.4)">$—</div>
-            <div style="font-size:10px;color:#666;text-align:center">Auto-placed · Tie bet is optional</div>
-          </div>
           <!-- Countdown timer — positioned to the right, out of the way of chips -->
           <div style="position:absolute;right:-100px;top:50%;transform:translateY(-50%);width:76px;height:76px">
             <svg viewBox="0 0 80 80" style="position:absolute;inset:0;transform:rotate(-90deg)">
@@ -289,20 +283,6 @@
         </div>
       </div>
 
-      <!-- ── VIP TIE BET PROMPT — 5s YES/NO decision at start of each round ── -->
-      <div id="tie-bet-overlay" style="display:none;position:absolute;inset:0;z-index:55;background:rgba(2,8,16,.82);backdrop-filter:blur(3px);border-radius:inherit;flex-direction:column;align-items:center;justify-content:center;gap:12px">
-        <div style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#7a9ac0">Round <span id="tie-round-label">—</span></div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,5vw,44px);letter-spacing:4px;color:#c9a84c;text-shadow:0 0 24px rgba(201,168,76,.55);line-height:1">Place Tie Bet?</div>
-        <div id="tie-amount-display" style="font-family:'Rajdhani',sans-serif;font-size:clamp(20px,4vw,30px);font-weight:900;color:var(--gold-lt);letter-spacing:2px">$—</div>
-        <div id="tie-payout-hint" style="font-size:11px;color:#9aa;text-align:center;line-height:1.4;max-width:320px;padding:0 12px">Wins if your total matches the dealer's — bonus: <strong style="color:#ffd700">$—</strong></div>
-        <div style="display:flex;gap:16px;margin-top:6px">
-          <button class="action-btn" style="min-width:120px;background:rgba(68,255,136,.18);border:1px solid rgba(68,255,136,.55);color:#b8ffce;font-size:16px;letter-spacing:3px" onclick="tieBetDecide('yes')">✓ YES</button>
-          <button class="action-btn" style="min-width:120px;background:rgba(255,90,90,.12);border:1px solid rgba(255,90,90,.45);color:#ffb8b8;font-size:16px;letter-spacing:3px" onclick="tieBetDecide('no')">✕ NO</button>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:11px;color:#7a9ac0;letter-spacing:2px;text-transform:uppercase">
-          Auto-skip in <span id="tie-countdown" style="font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:900;color:#f0f6ff">5</span>s
-        </div>
-      </div>
 
       <!-- WIN/LOSE FLASH -->
       <!-- ── YOUR TURN COUNTDOWN — centred on felt, only visible on your turn ── -->
@@ -313,11 +293,9 @@
           <div style="font-size:10px;color:#555;letter-spacing:2px;margin-top:2px">SECONDS</div>
         </div>
       </div>
-        <div style="flex:1">
-          <div style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#fbbf24;margin-bottom:3px">⚠️ DEALER SHOWS ACE</div>
-          <div id="insurance-msg" style="font-size:12px;color:#7a9ac0">Take insurance for half your bet?</div>
-        </div>
-        <button class="action-btn primary" onclick="takeInsurance(true)">YES — INSURE</button>
+
+      <!-- INSURANCE PROMPT — only when dealer up-card is Ace -->
+      <div id="insurance-prompt" style="display:none;align-items:center;gap:10px;padding:10px 14px;background:linear-gradient(135deg,rgba(251,191,36,0.10),rgba(10,24,48,0.85));border:1px solid rgba(251,191,36,0.35);border-radius:10px;margin:6px 12px">
         <div style="flex:1">
           <div style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#fbbf24;margin-bottom:3px">⚠️ DEALER SHOWS ACE</div>
           <div id="insurance-msg" style="font-size:12px;color:#7a9ac0">Take insurance for half your bet?</div>
@@ -369,7 +347,7 @@
 </div>
 
 <script src="vl-card.js?v=3"></script>
-<script src="game.js?v=4"></script>
+<script src="game.js?v=5"></script>
 
 <!-- ═══════════ IGM BUTTON ═══════════ -->
 <button id="ingame-menu-btn" onclick="toggleIngameMenu()" style="display:none;position:fixed;top:8px;right:10px;z-index:500;background:rgba(8,15,30,.9);border:1px solid #1a2d50;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700;letter-spacing:1px;font-family:'Rajdhani',sans-serif;color:#f0f6ff;backdrop-filter:blur(6px);align-items:center;gap:7px;text-transform:uppercase;box-shadow:0 4px 16px rgba(0,0,0,.5)">☰ MENU</button>

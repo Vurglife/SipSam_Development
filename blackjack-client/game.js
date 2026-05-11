@@ -1,238 +1,340 @@
-// ============================================================
-// VURGLIFE BLACKJACK — game.js v4.0
-// Proper Multiplayer/Single lobby, 6-seat semicircle,
-// random player seating, per-seat bot buttons, replenish fixed
-// ============================================================
+'use strict';
+/* ============================================================
+   VurgLife Blackjack — game.js
+   Rebuilt 2026-05-11 from scratch using:
+     - Standard Blackjack rules (universal)
+     - SipSam structural patterns (sendMsg, dispatcher, showScreen, igm)
+     - BlackjackRoom.js WebSocket protocol
+   ============================================================ */
 
+// ─────────────────────────────────────────────────────
+// GLOBALS
+// ─────────────────────────────────────────────────────
 const BJ_WS_URL = `ws://${location.hostname}:3002`;
-// Default table config — overwritten by sessionStorage 'bj_tier' (dashboard tier pick)
-// or 'bj_table' (from invite accept).
-let BJ_TABLE  = { minBet:100, maxBet:500, walletSize:2500, tieBet:100, tieBetPayout:2000, blackjackPayout:null, label:'standard' };
-try {
-  const _tierJson  = sessionStorage.getItem('bj_tier');
-  const _tableJson = sessionStorage.getItem('bj_table');
-  if (_tierJson)  BJ_TABLE = Object.assign(BJ_TABLE, JSON.parse(_tierJson));
-  if (_tableJson) BJ_TABLE = Object.assign(BJ_TABLE, JSON.parse(_tableJson));
-} catch(e) {}
 
-let ws             = null;
-let myUsername     = '';
-let mySessionId    = null;
-let mySeatIndex    = null;   // server seat index (0-5, random)
-let pendingBet     = 0;
-let lastPhase      = '';
-let _betPlaced     = false;
+let BJ_TABLE = {
+  minBet: 100, maxBet: 500, walletSize: 2500,
+  tieBet: 100, tieBetPayout: 2000, blackjackPayout: null,
+  label: 'standard'
+};
 
-// ── Freeze Bet ───────────────────────────────────────────────
-// Stores the player's frozen bet amount and tie bet preference.
-// Session-only freeze — never persists across games
-let _frozenBet     = 0;       // 0 = not frozen (standard tables)
-let _frozenTie     = false;   // whether tie bet is also frozen (standard tables)
-let _freezePending = false;   // freeze was changed mid-round — apply next round
+let ws            = null;
+let myUsername    = '';
+let mySessionId   = null;
+let mySeatIndex   = null;
+let myChips       = 0;
+let pendingBet    = 0;
+let lastPhase     = '';
+let lastState     = null;
+let igmToken      = null;
+let igmBank       = 0;
+let igmWallet     = 0;
 
-// ── VIP Tie Bet decision state ───────────────────────────────
-let _tieDecision   = null;    // 'yes' | 'no' | null — this round's choice
-let _tieFrozen     = false;   // true → skip overlay, apply _tieDecision every round
-let _tiePromptTimer = null;   // active 5s auto-skip timer
-// One-shot guard — set true when the betting-phase flow has run for the
-// current round, cleared on round_end. Prevents double-fire (server broadcasts
-// both `phase:'betting'` AND `state{phase:'betting'}` so both handlers trigger).
-// Critical for tie bets because `place_tie` on the server is a TOGGLE — a second
-// call silently cancels the bet. Applies to ALL tables (VIP + standard freeze).
-let _bettingHandled = false;
+let _isSinglePlayer  = false;
+let _isInvitedJoiner = false;
+let _pendingRoomId   = null;
+let _multiRoomId     = null;
+let _multiWaitTimer  = null;
+let _multiWaitSecs   = 300;
+let _multiInviteFriends = [];
 
-// Remove any stale freeze from previous sessions
-try { localStorage.removeItem('vl_bj_freeze'); } catch(e) {}
+let _bettingHandled  = false;
+let _betPlaced       = false;
+let _frozenBet       = 0;       // 0 = no freeze (standard); else the locked amount
+let _frozenTie       = false;   // tie bet frozen (standard)
 
-function _loadFreeze() { /* no-op — freeze is session-only */ }
-function _saveFreeze() { /* no-op — freeze is session-only */ }
+let _tieDecision     = null;    // 'yes' | 'no' | null — VIP per-round choice
+let _tieFrozen       = false;   // VIP: skip prompt, apply _tieDecision every round
+let _tiePromptTimer  = null;
 
-function _clearFreezeBet() {
-  _frozenBet = 0; _frozenTie = false; _freezePending = false;
-  _updateFreezeUI();
+let _cdInterval      = null;
+let _autoStartTimer  = null;
+
+// Seat indices: server seat index = visual zone (direct mapping)
+function getVisualZone(idx) { return (idx >= 0 && idx < 6) ? idx : -1; }
+
+// ─────────────────────────────────────────────────────
+// UTILITIES
+// ─────────────────────────────────────────────────────
+function fmtChips(n) {
+  if (n == null) return '$0';
+  const v = Math.abs(n);
+  if (v >= 1_000_000) return '$' + (n / 1_000_000).toFixed(v >= 10_000_000 ? 1 : 2).replace(/\.?0+$/, '') + 'M';
+  if (v >= 10_000)    return '$' + (n / 1000).toFixed(0) + 'K';
+  return '$' + n.toLocaleString();
 }
 
-function toggleFreeze() {
-  // Cancel any pending overlay auto-close
-  const ov = document.getElementById('bet-overlay');
-  if (ov) clearTimeout(ov._closeTimer);
-
-  const isVIP = BJ_TABLE.label === 'vip';
-
-  // ── VIP mode: freeze button locks/unlocks the Tie Bet decision across rounds.
-  // The decision itself (YES/NO) is made via the "Place Tie Bet?" overlay each
-  // round UNLESS frozen, in which case the last decision auto-applies.
-  if (isVIP) {
-    if (_tieFrozen) {
-      _tieFrozen = false;
-      _updateFreezeUI();
-      showIngameToast('🔓 Decision Unfrozen', 'You will be asked again next round.');
-    } else {
-      if (!_tieDecision) {
-        showIngameToast('No Decision to Freeze', 'Pick YES or NO on a tie bet first, then freeze.');
-        return;
-      }
-      _tieFrozen = true;
-      _updateFreezeUI();
-      const label = _tieDecision === 'yes' ? 'ALWAYS PLACE TIE BET' : 'ALWAYS SKIP TIE BET';
-      showIngameToast('🔒 Decision Frozen', label);
-    }
-    return;
-  }
-
-  // ── Standard mode: original behaviour (freeze main bet + tie bet together) ──
-  if (_frozenBet > 0) {
-    // Currently frozen — unfreeze
-    const wasInBetting = window._lastBJState?.phase === 'betting' && !_betPlaced;
-    _frozenBet = 0; _frozenTie = false;
-    _saveFreeze();
-    _updateFreezeUI();
-    if (wasInBetting) {
-      _applyBetUIMode();
-      const ov = document.getElementById('bet-overlay');
-      if (ov) ov.style.display = 'flex';
-      showIngameToast('🔓 Freeze Removed', 'Choose your bet for this round.');
-    } else {
-      showIngameToast('🔓 Freeze Removed', 'You will choose your bet manually next round.');
-    }
-  } else {
-    // Not frozen — freeze current bet
-    const currentBet = pendingBet || (window._lastBJState?.seats?.[mySeatIndex]?.bet) || 0;
-    if (!currentBet || currentBet < BJ_TABLE.minBet) {
-      showIngameToast('No Bet to Freeze', 'Place a bet first, then freeze it.');
-      return;
-    }
-    const tieActive = (window._lastBJState?.seats?.[mySeatIndex]?.tieBet || 0) > 0;
-    _frozenBet = currentBet;
-    _frozenTie = tieActive;
-    _saveFreeze();
-    _updateFreezeUI();
-    const tieMsg = _frozenTie ? ' + Tie Bet' : '';
-    showIngameToast('🔒 Bet Frozen', `$${_frozenBet.toLocaleString()}${tieMsg} auto-places every round.`);
-  }
+function showScreen(id) {
+  ['screen-lobby', 'screen-game', 'screen-gameover'].forEach(s => {
+    const el = document.getElementById(s);
+    if (el) el.classList.toggle('active', s === id);
+  });
 }
 
-function _updateFreezeUI() {
-  const isVIP = BJ_TABLE.label === 'vip';
-  const bb = document.getElementById('btn-freeze-bar');
-  const si = document.getElementById('seat-freeze-indicator');
-
-  if (isVIP) {
-    // VIP: freeze button locks the player's YES/NO tie-bet decision across rounds.
-    // Without a prior decision the button is a hint to make one in the overlay.
-    if (bb) {
-      if (_tieFrozen && _tieDecision) {
-        const label = _tieDecision === 'yes' ? 'TIE: YES' : 'TIE: NO';
-        bb.textContent = `🔒 Frozen — ${label}`;
-        bb.className   = 'freeze-btn-bar freeze-btn-bar-active';
-      } else if (_tieDecision) {
-        const label = _tieDecision === 'yes' ? 'YES' : 'NO';
-        bb.textContent = `🔓 Freeze (${label})`;
-        bb.className   = 'freeze-btn-bar';
-      } else {
-        bb.textContent = `🔒 Freeze Tie Decision`;
-        bb.className   = 'freeze-btn-bar';
-      }
-    }
-    if (si) {
-      if (_tieFrozen && _tieDecision) {
-        si.textContent   = _tieDecision === 'yes' ? '🔒 TIE: YES' : '🔒 TIE: NO';
-        si.style.display = 'inline-block';
-      } else {
-        si.textContent   = '';
-        si.style.display = 'none';
-      }
-    }
-    return;
-  }
-
-  // Standard
-  const isFrozen = _frozenBet > 0;
-  if (bb) {
-    bb.textContent = isFrozen
-      ? `🔓 Unfreeze ($${_frozenBet.toLocaleString()}${_frozenTie ? ' +TIE' : ''})`
-      : `🔒 Freeze Bet`;
-    bb.className = isFrozen ? 'freeze-btn-bar freeze-btn-bar-active' : 'freeze-btn-bar';
-  }
-  if (si) {
-    si.textContent = isFrozen ? `🔒 $${_frozenBet.toLocaleString()}${_frozenTie ? ' +TIE' : ''}` : '';
-    si.style.display = isFrozen ? 'inline-block' : 'none';
-  }
+function _showStep(id) {
+  ['lobby-step-choose', 'lobby-step-single', 'lobby-step-multi'].forEach(s => {
+    const el = document.getElementById(s);
+    if (el) el.style.display = (s === id) ? 'block' : 'none';
+  });
 }
 
-function _applyFreezeIfActive() {
-  if (!_frozenBet || _betPlaced) return;
-  // Auto-place frozen bet
-  const avail = window._lastBJState?.seats?.[mySeatIndex]?.wallet ?? myChips;
-  if (_frozenBet > avail) {
-    // Can't afford frozen bet — unfreeze and let player choose manually
-    _frozenBet = 0; _frozenTie = false; _saveFreeze(); _updateFreezeUI();
-    showIngameToast('Freeze Removed', 'Insufficient chips for frozen bet.');
-    return;
+function showIngameToast(title, message) {
+  let stack = document.getElementById('big-announce-stack');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.id = 'big-announce-stack';
+    document.body.appendChild(stack);
   }
-  pendingBet = _frozenBet;
-  updateBetDisplay();
-  _sendBet();
-  // Auto-place tie bet if frozen
-  if (_frozenTie) {
-    setTimeout(() => {
-      const tieCost = 100;
-      const walletAfterBet = (window._lastBJState?.seats?.[mySeatIndex]?.wallet ?? myChips);
-      if (walletAfterBet >= tieCost) sendMsg('place_tie');
-    }, 200);
-  }
+  const el = document.createElement('div');
+  el.className = 'big-announce';
+  el.innerHTML = `<div style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:#c9a84c">${title || ''}</div>
+                  <div style="font-size:12px;color:#9aa8c0;margin-top:2px">${message || ''}</div>`;
+  stack.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .35s'; }, 3000);
+  setTimeout(() => { el.remove(); }, 3500);
 }
-let _lobbyMode     = null;   // 'single' | 'multi'
-let _pendingRoomId = null;
-let _isSinglePlayer = false;
-var myChips        = 0;
 
-window._bjRoomId        = null;
-window._serverSettled   = false;
-window._intentionalExit = false;
-window._lastBJState     = null;
+// ─────────────────────────────────────────────────────
+// CARD HELPERS — Blackjack-specific (ace-aware)
+// ─────────────────────────────────────────────────────
+function cardVal(c) {
+  if (!c || !c.rank) return 0;
+  if (c.rank === 'A') return 11;
+  if (['K', 'Q', 'J'].includes(c.rank)) return 10;
+  return parseInt(c.rank, 10) || 0;
+}
 
-// ── Semicircle seat positions ──────────────────────────────
-// 6 DOM zones arranged in a casino semicircle
-// Zone IDs: seat-0 through seat-5
-// My seat is assigned by server (random) — could be any of the 6
-// Visual positions on table:
-//   [seat-0]  [seat-1]  [seat-2]     ← top arc
-//      [seat-3]  [seat-4]  [seat-5]  ← bottom arc (closest to player)
+function handTotal(hand) {
+  let total = 0, aces = 0;
+  for (const c of (hand || [])) {
+    if (!c || !c.rank || c.faceDown) continue;
+    if (c.rank === 'A') { aces++; total += 11; }
+    else total += cardVal(c);
+  }
+  while (total > 21 && aces > 0) { total -= 10; aces--; }
+  return {
+    total,
+    bust: total > 21,
+    bj:   (hand?.length === 2 && total === 21),
+    soft: aces > 0 && total <= 21
+  };
+}
 
-// Map server seatIndex → visual zone index (0-5)
-// Since any seat could be mine, we just map server indices to visual positions
-// preserving relative order, with mySeat always at visual zone closest to bottom
-// Visual zone = server seat index directly.
-// This guarantees every player at the table sees the same seat layout.
-// Server assigns seats randomly (0-5), so players still appear in different
-// positions each game — but everyone agrees on who sits where.
-function getVisualZone(serverIdx, allServerSeats) {
-  // Direct 1:1 mapping: server seat index IS the visual zone
-  if (serverIdx >= 0 && serverIdx < 6) return serverIdx;
-  return -1;
+function makeVLCard(c) {
+  // Prefer the shared vl-card.js helper if present
+  if (typeof window.vlCard === 'function') return window.vlCard(c);
+  if (typeof vlCard === 'function')        return vlCard(c);
+  // Minimal fallback renderer
+  const el = document.createElement('div');
+  el.className = 'vl-card';
+  el.style.cssText = 'width:42px;height:58px;border-radius:5px;display:inline-flex;'
+    + 'align-items:center;justify-content:center;font-weight:700;font-size:14px;'
+    + 'border:1px solid #999;box-shadow:0 2px 5px rgba(0,0,0,0.6);margin:1px';
+  if (!c || c.faceDown) {
+    el.style.background = 'linear-gradient(135deg,#1a3a8a,#0a1850)';
+    el.style.border = '1px solid #c9a84c';
+    el.textContent = '';
+  } else if (c.rank) {
+    const isRed = c.suit === '♥' || c.suit === '♦';
+    el.style.background = '#fff';
+    el.style.color = isRed ? '#cc1830' : '#000';
+    el.textContent = c.rank + (c.suit || '');
+  }
+  return el;
 }
 
 // ─────────────────────────────────────────────────────
 // LOBBY
 // ─────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────
-// LOBBY — Mode selection, Single Player, Multiplayer waiting room
-// ─────────────────────────────────────────────────────
+function chooseLobby(mode) {
+  if (mode === 'single') {
+    _isSinglePlayer = true;
+    _showStep('lobby-step-single');
+    startAdCountdown();
+  } else if (mode === 'multi') {
+    _isSinglePlayer = false;
+    _showStep('lobby-step-multi');
+    _multiRoomId = `bj_${BJ_TABLE.minBet || 100}_${Date.now()}`;
+    _pendingRoomId = _multiRoomId;
+    _startMultiWaitTimer();
+    _loadMultiFriends();
+    _connectHostToLobby();
+  }
+}
 
-let _multiWaitTimer  = null;  // interval for 5-min countdown
-let _multiWaitSecs   = 300;   // 5 minutes
-let _multiRoomId     = null;  // room created for multiplayer waiting
-let _isInvitedJoiner = false; // true when entering via an accepted invite
+function backToChoose() {
+  if (_multiWaitTimer) { clearInterval(_multiWaitTimer); _multiWaitTimer = null; }
+  _multiRoomId = null;
+  _pendingRoomId = null;
+  if (ws) {
+    window._intentionalExit = true;
+    try { ws.close(); } catch (e) {}
+    ws = null;
+    window._intentionalExit = false;
+  }
+  _showStep('lobby-step-choose');
+}
 
-// When an invited friend enters via accepted invite: show the multi lobby
-// with host controls hidden. Mid-game join fast-forwards automatically once
-// the server pushes active game state over the WebSocket.
+function startAdCountdown() {
+  const fill = document.getElementById('lobby-ad-fill');
+  const cnt  = document.getElementById('lobby-ad-cnt');
+  const btn  = document.getElementById('lobby-enter-btn');
+  if (!fill || !cnt || !btn) return;
+
+  let t = 10;
+  cnt.textContent  = t;
+  fill.style.width = '0%';
+  btn.disabled     = true;
+
+  const iv = setInterval(() => {
+    t--;
+    cnt.textContent  = Math.max(0, t);
+    fill.style.width = ((10 - t) / 10 * 100) + '%';
+    if (t <= 0) {
+      clearInterval(iv);
+      btn.disabled = false;
+      // Auto-enter so a single-player flow runs without an extra click
+      enterTableNow();
+    }
+  }, 1000);
+}
+
+function _startMultiWaitTimer() {
+  if (_multiWaitTimer) clearInterval(_multiWaitTimer);
+  _multiWaitSecs = 300;
+  const upd = () => {
+    const el = document.getElementById('lobby-wait-timer');
+    if (el) {
+      const m = Math.floor(_multiWaitSecs / 60);
+      const s = (_multiWaitSecs % 60).toString().padStart(2, '0');
+      el.textContent = `${m}:${s}`;
+    }
+  };
+  upd();
+  _multiWaitTimer = setInterval(() => {
+    _multiWaitSecs--;
+    upd();
+    if (_multiWaitSecs <= 0) { clearInterval(_multiWaitTimer); _multiWaitTimer = null; startNow(); }
+  }, 1000);
+}
+
+function startNow() {
+  if (_multiWaitTimer) { clearInterval(_multiWaitTimer); _multiWaitTimer = null; }
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    sendMsg('startGame');
+  } else {
+    enterTableNow();
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// MULTIPLAYER INVITE
+// ─────────────────────────────────────────────────────
+async function _loadMultiFriends() {
+  try {
+    const token = igmToken || JSON.parse(sessionStorage.getItem('bj_user') || '{}').token;
+    if (!token) return;
+    const res = await fetch('/api/friends/list', {
+      headers: { 'Authorization': 'Bearer ' + token },
+      credentials: 'include'
+    });
+    if (!res.ok) return;
+    const d = await res.json();
+    _multiInviteFriends = d.friends || d.data || [];
+  } catch (e) { _multiInviteFriends = []; }
+}
+
+function onMultiInviteInput(val) {
+  const dd = document.getElementById('lobby-multi-invite-dropdown');
+  if (!dd) return;
+  const query = (val || '').trim().toLowerCase();
+  const matches = query
+    ? _multiInviteFriends.filter(f => (f.username || f.friend_username || '').toLowerCase().includes(query)).slice(0, 8)
+    : _multiInviteFriends.slice(0, 8);
+
+  dd.innerHTML = '';
+  if (!matches.length) {
+    const msg = document.createElement('div');
+    msg.style.cssText = 'padding:10px 12px;font-size:12px;color:#7a9ac0;font-style:italic';
+    msg.textContent = query ? 'No matches found.' : 'No friends yet — type a username to invite anyone.';
+    dd.appendChild(msg);
+    dd.style.display = 'block';
+    return;
+  }
+
+  matches.forEach(f => {
+    const name = f.username || f.friend_username;
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;font-size:13px;color:#e8dfc0;border-bottom:1px solid rgba(255,255,255,.04);transition:background .15s';
+    row.innerHTML = `<span style="width:26px;height:26px;border-radius:50%;background:rgba(201,168,76,.2);border:1px solid rgba(201,168,76,.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#c9a84c">${(name[0] || '?').toUpperCase()}</span>
+                     <span style="flex:1">${name}</span>`;
+    row.onmouseenter = () => row.style.background = 'rgba(26,92,170,.2)';
+    row.onmouseleave = () => row.style.background = '';
+    row.onmousedown = () => {
+      document.getElementById('lobby-invite-input').value = name;
+      dd.style.display = 'none';
+    };
+    dd.appendChild(row);
+  });
+  dd.style.display = 'block';
+}
+function onMultiInviteFocus() { onMultiInviteInput(''); }
+
+async function sendMultiInvite() {
+  const input    = document.getElementById('lobby-invite-input');
+  const st       = document.getElementById('lobby-invite-status');
+  const username = (input?.value || '').trim();
+  if (!username) { if (st) st.textContent = 'Enter a username first.'; return; }
+  if (!_multiRoomId) _multiRoomId = `bj_${BJ_TABLE.minBet || 100}_${Date.now()}`;
+  const user  = JSON.parse(sessionStorage.getItem('bj_user') || '{}');
+  const token = user.token || sessionStorage.getItem('bj_token') || igmToken;
+
+  if (st) st.textContent = 'Sending invite…';
+  try {
+    const res = await fetch('/api/friends/invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      credentials: 'include',
+      body: JSON.stringify({
+        toUsername:   username,
+        roomId:       _multiRoomId,
+        tableMinBet:  BJ_TABLE.minBet || 100,
+        game:         'blackjack',
+        tableConfig:  Object.assign({}, BJ_TABLE),
+        expiresIn:    300
+      })
+    });
+    const d = await res.json();
+    if (d.ok) {
+      if (st) st.textContent = '✅ Invite sent to ' + username + ' (expires in 5 min)';
+      if (input) input.value = '';
+      const dd = document.getElementById('lobby-multi-invite-dropdown');
+      if (dd) dd.style.display = 'none';
+    } else {
+      if (st) st.textContent = '❌ ' + (d.error || 'Failed to send invite.');
+    }
+  } catch (e) {
+    if (st) st.textContent = '❌ Network error: ' + e.message;
+  }
+}
+
+async function _connectHostToLobby() {
+  const user  = JSON.parse(sessionStorage.getItem('bj_user') || '{}');
+  const token = user.token || sessionStorage.getItem('bj_token') || igmToken;
+  const ok    = await _drawWalletFromBank(token);
+  if (!ok) {
+    _showStep('lobby-step-choose');
+    if (_multiWaitTimer) { clearInterval(_multiWaitTimer); _multiWaitTimer = null; }
+    return;
+  }
+  connectWS(user.username || myUsername, token, _multiRoomId);
+}
+
 function _setupInvitedJoinerLobby(roomId, user) {
   _isInvitedJoiner = true;
+  _multiRoomId = roomId;
   _showStep('lobby-step-multi');
-
-  ['lobby-multi-timer-row','lobby-multi-invite-panel','lobby-multi-host-actions']
+  ['lobby-multi-timer-row', 'lobby-multi-invite-panel', 'lobby-multi-host-actions']
     .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
 
   const seatsList = document.getElementById('lobby-seats-list');
@@ -247,517 +349,132 @@ function _setupInvitedJoinerLobby(roomId, user) {
     exitBtn.className = 'btn-secondary';
     exitBtn.style.cssText = 'width:100%;margin-top:8px;font-size:12px;padding:10px 14px';
     exitBtn.textContent = '← Exit';
-    exitBtn.onclick = () => { window._intentionalExit = true; window.location.replace('/'); };
+    exitBtn.onclick = exitToLobby;
     msg.insertAdjacentElement('afterend', exitBtn);
   }
 
   connectWS(user.username, user.token, roomId);
 }
-// _isInvitedJoiner already declared above; recovery duplicated this block.
-// Reassigning here is harmless (same value) — kept to preserve line count.
-_isInvitedJoiner = false;
 
-// When an invited friend enters via accepted invite: show the multi lobby
-// with host controls hidden. Mid-game join fast-forwards automatically once
-// the server pushes active game state over the WebSocket.
-
-function _showStep(id) {
-  ['lobby-step-choose','lobby-step-single','lobby-step-multi'].forEach(s => {
-    const el = document.getElementById(s);
-    if (el) el.style.display = s === id ? 'block' : 'none';
+function _renderMultiSeats(players) {
+  const rows = document.getElementById('lobby-player-rows');
+  if (!rows) return;
+  rows.innerHTML = '';
+  (players || []).forEach((p, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 4px;font-size:13px;color:#e8dfc0';
+    row.innerHTML = `<span style="width:22px;height:22px;border-radius:50%;background:rgba(201,168,76,.2);border:1px solid #c9a84c;display:flex;align-items:center;justify-content:center;font-size:11px;color:#c9a84c">${((p.username || '?')[0] || '').toUpperCase()}</span>
+                     <span style="flex:1">${p.username}${p.isHost ? ' <span style="font-size:10px;color:#4aabff">(host)</span>' : ''}</span>`;
+    rows.appendChild(row);
   });
 }
 
-function backToChoose() {
-  // Cancel any running multi timer
-  if (_multiWaitTimer) { clearInterval(_multiWaitTimer); _multiWaitTimer = null; }
-  _multiRoomId = null;
-  _showStep('lobby-step-choose');
-}
-
-function chooseLobby(mode) {
-  _lobbyMode = mode;
-  _isSinglePlayer = (mode === 'single');
-  if (typeof SFX !== 'undefined') SFX.click();
-  const tmb = BJ_TABLE.minBet || 100;
-  if (mode === 'single') {
-    _showStep('lobby-step-single');
-    _pendingRoomId = `bj_${tmb}_${Date.now()}_private`;
-    startAdCountdown(() => enterTableNow());
-  } else {
-    _pendingRoomId = `bj_${tmb}_${Date.now()}`;
-    _multiRoomId   = _pendingRoomId;
-    window._bjRoomId = _pendingRoomId;
-    _showStep('lobby-step-multi');
-    _startMultiWait();
-    _loadMultiFriends();
-    _connectHostToLobby();
-  }
-}
-
-// Host joins its own WS room as soon as it enters the multi lobby, so that any
-// invited friend who joins later sees the host in the player list and so that
-// a single 'startGame' message from the host can kick betting for everyone.
-async function _connectHostToLobby() {
-  let enterOk = false;
+// ─────────────────────────────────────────────────────
+// ENTER TABLE  (wallet draw + WS connect + auto-start single)
+// ─────────────────────────────────────────────────────
+async function _drawWalletFromBank(token) {
   try {
     const res = await fetch('/api/game/bj/enter', {
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(igmToken||'')},
-      credentials:'include',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || '') },
+      credentials: 'include',
       body: JSON.stringify({ tableMinBet: BJ_TABLE.minBet || 100 })
     });
     const d = await res.json();
     if (d?.ok) {
-      enterOk = true;
-      if (typeof igmBank !== 'undefined') igmBank = d.newBankBalance;
-    } else {
-      showIngameToast('Entry Failed', d?.error || 'Could not draw wallet from bank.');
+      myChips  = d.walletSize ?? BJ_TABLE.walletSize ?? 2500;
+      igmWallet = myChips;
+      if (typeof d.newBankBalance === 'number') igmBank = d.newBankBalance;
+      return true;
     }
-  } catch(e) {
-    showIngameToast('Entry Failed', 'Server error — please try again.');
-  }
-  if (!enterOk) {
-    // Return to mode-select so the user can retry; session has no bank debit
-    _showStep('lobby-step-choose');
-    if (_multiWaitTimer) { clearInterval(_multiWaitTimer); _multiWaitTimer = null; }
-    return;
-  }
-  connectWS(myUsername, igmToken, _multiRoomId);
-}
-
-// ── Single player: ad countdown ──────────────────────
-function startAdCountdown(onComplete) {
-  const fill = document.getElementById('lobby-ad-fill');
-  const cnt  = document.getElementById('lobby-ad-cnt');
-  const btn  = document.getElementById('lobby-enter-btn');
-  if (!fill || !cnt || !btn) return;
-
-  let t = 10;
-  cnt.textContent  = t;
-  fill.style.width = '0%';
-  btn.disabled     = true;
-  btn.textContent  = 'ENTER TABLE →';
-
-  const iv = setInterval(() => {
-    t--;
-    cnt.textContent  = t;
-    fill.style.width = ((10 - t) / 10 * 100) + '%';
-    if (t <= 0) {
-      clearInterval(iv);
-      btn.disabled = false;
-      if (typeof onComplete === 'function') onComplete();
-    }
-  }, 1000);
-}
-
-function startNow() {
-  if (_multiWaitTimer) { clearInterval(_multiWaitTimer); _multiWaitTimer = null; }
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    sendMsg('startGame');
-  } else {
-    enterTableNow();
-  }
-}
-
-// ── Multiplayer invite (lobby) ────────────────────────
-let _multiInviteFriends = [];
-
-async function _loadMultiFriends() {
-  try {
-    // igmToken is set by the IIFE from bj_user sessionStorage — use it directly
-    const token = igmToken || (typeof authToken !== 'undefined' ? authToken : '');
-    if (!token) { _multiInviteFriends = []; return; }
-    const res = await fetch('/api/game/friends', {
-      headers: { 'Authorization': 'Bearer ' + token }, credentials: 'include'
-    });
-    const d = await res.json();
-    // API returns already-accepted friends — no filtering needed
-    _multiInviteFriends = d.friends || d.data || [];
-    console.log('[BJ Lobby] Friends loaded:', _multiInviteFriends.length);
-  } catch(e) {
-    console.warn('[BJ Lobby] Could not load friends:', e.message);
-    _multiInviteFriends = [];
-  }
-}
-
-function onMultiInviteInput(val) {
-  const dd = document.getElementById('lobby-multi-invite-dropdown');
-  if (!dd) return;
-
-  // Show all friends when empty, filter when typing
-  const query = val.trim().toLowerCase();
-  const matches = query
-    ? _multiInviteFriends.filter(f =>
-        (f.username||f.friend_username||'').toLowerCase().includes(query)
-      ).slice(0, 8)
-    : _multiInviteFriends.slice(0, 8); // show all friends on empty/focus
-
-  dd.innerHTML = '';
-
-  if (!matches.length) {
-    // Show a helpful message instead of hiding
-    const msg = document.createElement('div');
-    msg.style.cssText = 'padding:10px 12px;font-size:12px;color:#7a9ac0;font-style:italic';
-    msg.textContent = query ? 'No matches found.' : 'No friends yet — type a username to invite anyone.';
-    dd.appendChild(msg);
-    dd.style.display = 'block';
-    return;
-  }
-
-  // Header label
-  const hdr = document.createElement('div');
-  hdr.style.cssText = 'padding:6px 12px 4px;font-size:9px;font-weight:700;letter-spacing:2px;color:#4aabff;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.06)';
-  hdr.textContent = 'Friends';
-  dd.appendChild(hdr);
-
-  matches.forEach(f => {
-    const name = f.username || f.friend_username;
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;font-size:13px;color:#e8dfc0;border-bottom:1px solid rgba(255,255,255,.04);transition:background .15s';
-    row.innerHTML = `
-      <span style="width:26px;height:26px;border-radius:50%;background:rgba(201,168,76,.2);border:1px solid rgba(201,168,76,.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#c9a84c;flex-shrink:0">${name[0].toUpperCase()}</span>
-      <span style="flex:1">${name}</span>
-      <span style="font-size:10px;color:#4aabff">🤝 Friend</span>`;
-    row.onmouseenter = () => row.style.background = 'rgba(26,92,170,.2)';
-    row.onmouseleave = () => row.style.background = '';
-    row.onmousedown = () => {
-      document.getElementById('lobby-invite-input').value = name;
-      dd.style.display = 'none';
-    };
-  });
-
-  dd.style.display = 'block';
-}
-
-function onMultiInviteFocus() { onMultiInviteInput(''); }
-
-// Send the invite to the username currently in the input box.
-// Recovery rebuilt 2026-05-10: original `async function sendMultiInvite() {`
-// declaration was lost, leaving an orphaned try-block. The success path's
-// else/catch branches were also in the MISSING gap (orig 406-424).
-async function sendMultiInvite() {
-  const input    = document.getElementById('lobby-invite-input');
-  const st       = document.getElementById('lobby-invite-status');
-  const username = (input?.value || '').trim();
-  if (!username) { if (st) st.textContent = 'Enter a username first.'; return; }
-  if (!_multiRoomId) {
-    _multiRoomId = `bj_${BJ_TABLE.minBet||100}_${Date.now()}`;
-  }
-  const roomId = _multiRoomId;
-  const user   = JSON.parse(sessionStorage.getItem('bj_user') || '{}');
-  const token  = user.token || sessionStorage.getItem('bj_token');
-  if (st) st.textContent = 'Sending invite…';
-  try {
-    const res = await fetch('/api/friends/invite', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      credentials: 'include',
-      body: JSON.stringify({
-        toUsername:   username,
-        roomId:       roomId,
-        tableMinBet:  BJ_TABLE.minBet || 100,
-        game:         'blackjack',
-        tableConfig:  {
-          minBet: BJ_TABLE.minBet || 100,
-          maxBet: BJ_TABLE.maxBet || 500,
-          wallet: BJ_TABLE.walletSize || 2500,
-          walletSize: BJ_TABLE.walletSize || 2500,
-          tieBet: BJ_TABLE.tieBet || 100,
-          tieBetPayout: BJ_TABLE.tieBetPayout || 2000,
-          blackjackPayout: BJ_TABLE.blackjackPayout || null,
-          tier: BJ_TABLE.label || 'standard',
-        },
-        expiresIn:    300  // 5 minutes
-      })
-    });
-    const d = await res.json();
-    if (d.ok) {
-      if (st) st.textContent = '✅ Invite sent to ' + username + '! (expires in 5 min)';
-      if (input) input.value = '';
-      const dd = document.getElementById('lobby-multi-invite-dropdown');
-      if (dd) dd.style.display = 'none';
-    } else {
-      if (st) st.textContent = '❌ ' + (d.error || 'Failed to send invite.');
-    }
+    showIngameToast('Entry Failed', d?.error || 'Could not draw wallet from bank.');
+    return false;
   } catch (e) {
-    if (st) st.textContent = '❌ Network error: ' + e.message;
-  }
-}
-
-async function enterTableNow() {
-  if (typeof SFX !== 'undefined') SFX.click();
-  const roomId = _pendingRoomId || `bj_${BJ_TABLE.minBet||100}_${Date.now()}`;
-  const user   = JSON.parse(sessionStorage.getItem('bj_user') || '{}');
-
-  try {
-    const d = await fetch('/api/game/bj/enter', {
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(user.token||igmToken||'')},
-      credentials:'include',
-      body: JSON.stringify({ tableMinBet: BJ_TABLE.minBet || 100 })
-    }).then(r => r.json());
-    if (d.ok && typeof igmBank !== 'undefined') igmBank = d.newBankBalance;
-  } catch(e) {}
-
-  st.textContent = 'Sending…'; st.style.color = '#7a9ac0';
-  try {
-    const res = await fetch('/api/friends/invite', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      credentials: 'include',
-      body: JSON.stringify({
-        toUsername:   username,
-        roomId:       roomId,
-        tableMinBet:  100,
-        game:         'blackjack',
-        expiresIn:    300  // 5 minutes
-      })
-    });
-    const d = await res.json();
-    if (d.ok) {
-      st.textContent = '✅ Invite sent to ' + username + '! (expires in 5 min)';
-      st.style.color = '#22c55e';
-      inp.value = '';
-      setTimeout(() => { st.textContent = ''; }, 6000);
-    } else {
-      st.textContent = '❌ ' + (d.error || 'Failed to send');
-      st.style.color = '#fca5a5';
-    }
-  } catch(e) {
-  }
-}
-
-document.addEventListener('click', e => {
-  const dd = document.getElementById('lobby-multi-invite-dropdown');
-  const inp = document.getElementById('lobby-invite-input');
-  if (dd && inp && !dd.contains(e.target) && e.target !== inp) dd.style.display = 'none';
-});
-
-// (Recovery duplicated this region — broken stub of enterTableNow + a
-// duplicate document.addEventListener('click',...) fragment removed here.
-// The working enterTableNow + its body follow below.)
-
-async function enterTableNow() {
-  if (typeof SFX !== 'undefined') SFX.click();
-  const roomId = _pendingRoomId || `bj_${BJ_TABLE.minBet||100}_${Date.now()}`;
-  const user   = JSON.parse(sessionStorage.getItem('bj_user') || '{}');
-
-  // Deduct wallet from bank BEFORE entering the game. If this fails, abort —
-  // otherwise exit would credit a wallet that was never drawn.
-  let enterOk = false;
-  try {
-    const d = await fetch('/api/game/bj/enter', {
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(user.token||igmToken||'')},
-      credentials:'include',
-      body: JSON.stringify({ tableMinBet: BJ_TABLE.minBet || 100 })
-    }).then(r => r.json());
-    if (d?.ok) {
-      enterOk = true;
-      if (typeof igmBank !== 'undefined') igmBank = d.newBankBalance;
-    } else {
-      showIngameToast('Entry Failed', d?.error || 'Could not draw wallet from bank.');
-    }
-  } catch(e) {
     showIngameToast('Entry Failed', 'Server error — please try again.');
+    return false;
   }
-  if (!enterOk) return;
+}
 
-  window._bjRoomId = roomId;
-  document.getElementById('screen-lobby').classList.remove('active');
-  document.getElementById('screen-game').classList.add('active');
-  document.getElementById('ingame-menu-btn').style.display = 'flex';
+async function enterTableNow() {
+  const user  = JSON.parse(sessionStorage.getItem('bj_user') || '{}');
+  const token = user.token || sessionStorage.getItem('bj_token') || igmToken;
+  myUsername  = user.username || myUsername || 'Player';
 
-  connectWS(user.username || myUsername, user.token || igmToken, roomId);
+  if (!_isInvitedJoiner) {
+    const ok = await _drawWalletFromBank(token);
+    if (!ok) { _showStep('lobby-step-choose'); return; }
+  }
+
+  // Transition to game screen
+  showScreen('screen-game');
+  const menuBtn = document.getElementById('ingame-menu-btn');
+  if (menuBtn) menuBtn.style.display = 'flex';
+
+  const roomId = _pendingRoomId || _multiRoomId || `bj_${BJ_TABLE.minBet || 100}_${Date.now()}`;
+  connectWS(myUsername, token, roomId);
+
+  // Single player: auto-start once WS is open (server only auto-starts on explicit startGame)
+  if (_isSinglePlayer) {
+    if (_autoStartTimer) clearTimeout(_autoStartTimer);
+    _autoStartTimer = setTimeout(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) sendMsg('startGame');
+    }, 800);
+  }
 }
 
 // ─────────────────────────────────────────────────────
 // WEBSOCKET
 // ─────────────────────────────────────────────────────
 function connectWS(username, token, roomId) {
-  myUsername   = username;
-  mySessionId  = 'bj_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+  myUsername  = username;
+  mySessionId = mySessionId || `s_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  igmToken    = token || igmToken;
   window._bjRoomId = roomId;
 
-  const ov = document.createElement('div');
-  ov.id = 'vurglife-connect-overlay';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#070e08;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px';
-  ov.innerHTML = `
-    <div style="font-family:'Cinzel Decorative',serif;font-size:38px;letter-spacing:6px;color:#c9a84c">BLACKJACK</div>
-    <div style="color:#7a9ac0;font-size:13px;letter-spacing:2px;text-transform:uppercase">Connecting as ${username}…</div>
-    <div style="width:180px;height:2px;background:#1a2a1a;border-radius:2px;overflow:hidden">
-      <div id="vl-connect-bar" style="height:100%;width:0%;background:#c9a84c;transition:width .4s ease"></div>
-    </div>`;
-  document.body.appendChild(ov);
-  let pct=0;
-  const bar=ov.querySelector('#vl-connect-bar');
-  const bt=setInterval(()=>{pct=Math.min(pct+8,85);if(bar)bar.style.width=pct+'%';},200);
-  const rmOv=()=>{clearInterval(bt);if(bar)bar.style.width='100%';setTimeout(()=>ov.remove(),300);};
-
-  const tableMinBet = BJ_TABLE.minBet || 100;
-  const tokParam = token ? `&token=${encodeURIComponent(token)}` : '';
-  const url = `${BJ_WS_URL}/blackjack?roomId=${encodeURIComponent(roomId)}&userId=${encodeURIComponent(username)}&sessionId=${encodeURIComponent(mySessionId)}&minBet=${tableMinBet}${tokParam}`;
-  ws = new WebSocket(url);
-
-
-  const timeout = setTimeout(() => {
-    ws.close(); rmOv();
-    showIngameToast('Connection Failed', 'Server not responding.');
-  }, 10000);
-
-  ws.onopen = () => {
-    clearTimeout(timeout);
-    ws.send(JSON.stringify({ type:'set_name',   name:   username }));
-    ws.send(JSON.stringify({ type:'set_avatar', avatar: window._myAvatar || '' }));
-    rmOv();
-    const nameEl = document.getElementById('my-name');
-    if (nameEl) nameEl.textContent = (window._myAvatar ? window._myAvatar+' ' : '') + username;
-  };
-
-  ws.onmessage = e => {
-    try { handleMsg(JSON.parse(e.data)); }
-    catch (err) { console.error('[BJ] msg error:', err); }
-  };
-
-  ws.onclose = () => {
-    if (!window._intentionalExit) setTimeout(() => reconnectWS(token, roomId), 3000);
-  };
-
-  ws.onerror = () => { clearTimeout(timeout); rmOv(); };
-}
-
-function sendMsg(type, data={}) { if (!ws||ws.readyState!==WebSocket.OPEN) return; ws.send(JSON.stringify({type,...data})); }
-// [LINE 544 MISSING — no Read snapshot covers it]
-// [LINE 545 MISSING — no Read snapshot covers it]
-// [LINE 546 MISSING — no Read snapshot covers it]
-// [LINE 547 MISSING — no Read snapshot covers it]
-// [LINE 548 MISSING — no Read snapshot covers it]
-// [LINE 549 MISSING — no Read snapshot covers it]
-// [LINE 550 MISSING — no Read snapshot covers it]
-// [LINE 551 MISSING — no Read snapshot covers it]
-// [LINE 552 MISSING — no Read snapshot covers it]
-// [LINE 553 MISSING — no Read snapshot covers it]
-// [LINE 554 MISSING — no Read snapshot covers it]
-// [LINE 555 MISSING — no Read snapshot covers it]
-// [LINE 556 MISSING — no Read snapshot covers it]
-function applyState(state) {
-  if (!state) return;
-  window._lastBJState = state;
-
-  // While any player is sitting in lobby-step-multi, keep the player list in
-  // sync with the server's seat map so everyone sees the same roster.
-  const lobbyStep = document.getElementById('lobby-step-multi');
-  if (lobbyStep && lobbyStep.style.display !== 'none' && state.seats) {
-    const entries = Object.entries(state.seats).sort((a,b)=>(+a[0])-(+b[0]));
-    const players = entries.map(([idx,s],i) => ({
-      username: s.displayName || s.userId || 'Player',
-      isHost: i === 0
-    }));
-    _renderMultiSeats(players);
-  }
-
-  // Find my seat
-  mySeatIndex = null;
-  for (const [idx,seat] of Object.entries(state.seats||{})) {
-    if (seat.isYou) { mySeatIndex = parseInt(idx); break; }
-  }
-
-  // Sync wallet
-  const mySeat = mySeatIndex !== null ? state.seats?.[mySeatIndex] : null;
-  if (mySeat) {
-    myChips = mySeat.wallet;
-    if (typeof igmWallet !== 'undefined') igmWallet = myChips;
-    const ce = document.getElementById('my-chips');
-    if (ce) ce.textContent = '$' + myChips.toLocaleString();
-    // Keep bet overlay wallet in sync
-    const ow = document.getElementById('bet-overlay-wallet');
-    if (ow) ow.textContent = '$' + myChips.toLocaleString();
-  }
-
-  // Sync tie bet button — amount is tier-specific
-  const tieBetVal = mySeat?.tieBet || 0;
-  const tieBetAmt = BJ_TABLE.tieBet || 100;
-  const tbBtn = document.getElementById('btn-tie-bet');
-  if (tbBtn) {
-    const amtLabel = '$' + tieBetAmt.toLocaleString();
-    tbBtn.classList.toggle('tie-bet-active', tieBetVal > 0);
-    tbBtn.textContent = tieBetVal > 0 ? `✓ TIE BET (${amtLabel})` : `🎯 TIE BET — ${amtLabel}`;
-  }
-  // Sync tie bet hint payout copy
-  const hint = document.getElementById('bet-tiebet-hint');
-  if (hint) {
-    const payout = BJ_TABLE.tieBetPayout || 2000;
-    if (BJ_TABLE.label === 'vip') {
-      hint.innerHTML = `<strong style="color:#ffd700">$${payout.toLocaleString()} Bonus</strong><br>Wins if your total = dealer's total`;
-    } else {
-      hint.innerHTML = `<strong style="color:#ffd700">$2,000 Bonus</strong> · $500 main bet: <strong style="color:#ffd700">$3,000 Bonus</strong><br>Wins if your total = dealer's total`;
-    }
-  }
-
-  if (state.phase === 'betting' && lastPhase !== 'betting') {
-    _betPlaced = false; pendingBet = 0; updateBetDisplay();
-
-    if (!_bettingHandled) {
-      _bettingHandled = true;
-      if (BJ_TABLE.label === 'vip') {
-        _startVipBettingFlow();
-      } else if (_frozenBet === 0) {
-        _applyBetUIMode();
-      } else {
-        setTimeout(() => _applyFreezeIfActive(), 300);
-      }
-    }
-  }
-
-  renderDealer(state);
-  renderSeats(state);
-  updateUI(state);
-
-  // Drive bet overlay — never shown during VIP rounds (auto-place silently);
-  // only shown for standard tables when the player hasn't placed and isn't frozen.
-  const overlay = document.getElementById('bet-overlay');
-  if (overlay) {
-    const isVIP = BJ_TABLE.label === 'vip';
-    const show  = !isVIP
-      && state.phase === 'betting'
-      && mySeatIndex !== null
-      && !_betPlaced
-      && (mySeat?.bet || 0) === 0
-      && _frozenBet === 0;
-    overlay.style.display = show ? 'flex' : 'none';
-  }
-
-  lastPhase = state.phase;
-}
-
-// ─────────────────────────────────────────────────────
-// WS LIFECYCLE — reconnect, message send/dispatch
-// ─────────────────────────────────────────────────────
-
-function reconnectWS(token, roomId) {
-  if (window._intentionalExit || window._serverSettled) return;
   const tableMinBet = BJ_TABLE.minBet || 100;
   const tokParam    = token ? `&token=${encodeURIComponent(token)}` : '';
   const url = `${BJ_WS_URL}/blackjack?roomId=${encodeURIComponent(roomId)}`
-            + `&userId=${encodeURIComponent(myUsername)}`
+            + `&userId=${encodeURIComponent(username)}`
             + `&sessionId=${encodeURIComponent(mySessionId)}`
             + `&minBet=${tableMinBet}${tokParam}`;
+  console.log('[BJ] connecting:', url);
   ws = new WebSocket(url);
-  ws.onopen    = () => { ws.send(JSON.stringify({ type:'set_name', name:myUsername })); };
-  ws.onmessage = e  => { try { handleMsg(JSON.parse(e.data)); } catch(err) {} };
-  ws.onclose   = () => {
-    if (!window._intentionalExit) setTimeout(() => reconnectWS(token, roomId), 3000);
+
+  ws.onopen = () => {
+    console.log('[BJ] WS open');
+    ws.send(JSON.stringify({ type: 'set_name',   name:   username }));
+    if (window._myAvatar) ws.send(JSON.stringify({ type: 'set_avatar', avatar: window._myAvatar }));
   };
+  ws.onmessage = e => {
+    try { handleMsg(JSON.parse(e.data)); }
+    catch (err) { console.error('[BJ] msg parse error:', err); }
+  };
+  ws.onclose = () => {
+    console.log('[BJ] WS closed');
+    if (!window._intentionalExit && !window._serverSettled) {
+      setTimeout(() => reconnectWS(token, roomId), 3000);
+    }
+  };
+  ws.onerror = err => console.error('[BJ] WS error:', err);
+}
+
+function reconnectWS(token, roomId) {
+  if (window._intentionalExit || window._serverSettled) return;
+  connectWS(myUsername, token, roomId);
 }
 
 function sendMsg(type, data = {}) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    console.warn('[BJ] sendMsg: WS not open', type);
+    return;
+  }
   ws.send(JSON.stringify({ type, ...data }));
 }
 function sendAction(type) { sendMsg(type); }
 
-// Dispatcher for incoming WS messages from BlackjackRoom
+// ─────────────────────────────────────────────────────
+// MESSAGE DISPATCHER
+// ─────────────────────────────────────────────────────
 function handleMsg(msg) {
   if (!msg || !msg.type) return;
   switch (msg.type) {
@@ -769,422 +486,148 @@ function handleMsg(msg) {
     case 'chatMessage': appendChat(msg); break;
     case 'toast':       showIngameToast(msg.title, msg.message); break;
     case 'kicked':      handleKicked(msg); break;
+    default:            console.log('[BJ] unknown msg:', msg.type);
   }
-}
-
-function appendChat(msg) {
-  if (!msg) return;
-  const log = document.getElementById('chat-log') || document.getElementById('chat-popup');
-  if (!log) return;
-  const row = document.createElement('div');
-  row.style.cssText = 'padding:4px 10px;font-size:12px;color:#e0eeff';
-  const who = msg.username || 'Player';
-  row.innerHTML = `<strong style="color:#4aabff">${who}:</strong> ${(msg.message || '').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}`;
-  log.appendChild(row);
-  log.scrollTop = log.scrollHeight;
 }
 
 function handleKicked(msg) {
   window._intentionalExit = true;
-  showIngameToast('Removed from table', msg.reason === 'insufficient_funds'
-    ? 'Insufficient funds to continue.'
-    : (msg.reason || 'You have been removed.'));
+  const reason = msg.reason === 'insufficient_funds' ? 'Insufficient funds to continue.' :
+                 msg.reason === 'left'               ? 'You have left the table.'        :
+                                                       (msg.reason || 'You have been removed.');
+  showIngameToast('Removed from Table', reason);
   setTimeout(() => { window.location.replace('/'); }, 1500);
 }
 
-function showIngameToast(title, message) {
-  let stack = document.getElementById('big-announce-stack');
-  if (!stack) {
-    stack = document.createElement('div');
-    stack.id = 'big-announce-stack';
-    document.body.appendChild(stack);
-  }
-  const el = document.createElement('div');
-  el.className = 'big-announce';
-  el.innerHTML = `<div style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:#c9a84c">${title}</div>
-                  <div style="font-size:12px;color:#9aa8c0;margin-top:2px">${message || ''}</div>`;
-  stack.appendChild(el);
-  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .35s'; }, 3500);
-  setTimeout(() => { el.remove(); }, 4000);
-}
-
 // ─────────────────────────────────────────────────────
-// CARD HELPERS  (ace-aware totals, value lookup)
+// STATE SYNC
 // ─────────────────────────────────────────────────────
-function cardVal(c) {
-  if (!c || !c.rank) return 0;
-  if (c.rank === 'A') return 11;
-  if (['K','Q','J'].includes(c.rank)) return 10;
-  return parseInt(c.rank, 10) || 0;
-}
-function handTotal(hand) {
-  let total = 0, aces = 0;
-  for (const c of (hand || [])) {
-    if (!c || !c.rank || c.faceDown) continue;
-    if (c.rank === 'A') { aces++; total += 11; }
-    else total += cardVal(c);
+function applyState(state) {
+  if (!state) return;
+  lastState = state;
+  window._lastBJState = state;
+
+  // Lobby sync: while in lobby-step-multi, show seats from server
+  const lobbyStep = document.getElementById('lobby-step-multi');
+  if (lobbyStep && lobbyStep.style.display !== 'none' && state.seats) {
+    const entries = Object.entries(state.seats).sort((a, b) => (+a[0]) - (+b[0]));
+    const players = entries.map(([idx, s], i) => ({
+      username: s.displayName || s.userId || 'Player',
+      isHost:   i === 0
+    }));
+    _renderMultiSeats(players);
   }
-  while (total > 21 && aces > 0) { total -= 10; aces--; }
-  const bust = total > 21;
-  const bj   = (hand?.length === 2 && total === 21);
-  return { total, bust, bj };
-}
 
-// Wrapper so renderSeats can build a card element via the shared vl-card.js.
-// Falls back to a minimal placeholder if vl-card.js isn't loaded yet.
-function makeVLCard(c) {
-  if (typeof window.vlCard === 'function') return window.vlCard(c);
-  if (typeof vlCard === 'function')        return vlCard(c);
-  // Fallback minimal renderer
-  const el = document.createElement('div');
-  el.className = 'vl-card';
-  el.style.cssText = 'width:26px;height:36px;border-radius:4px;background:#fff;color:#000;'
-    + 'display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;'
-    + 'border:1px solid #888;box-shadow:0 1px 3px rgba(0,0,0,0.5)';
-  if (c?.faceDown) {
-    el.style.background = 'linear-gradient(135deg,#1a3a8a,#0a1850)';
-    el.style.border = '1px solid #c9a84c';
-    el.textContent = '';
-  } else if (c?.rank) {
-    const isRed = c.suit === '♥' || c.suit === '♦';
-    el.style.color = isRed ? '#cc1830' : '#000';
-    el.textContent = c.rank + (c.suit || '');
-  }
-  return el;
-}
-
-// ─────────────────────────────────────────────────────
-// RENDER — dealer zone + 6 seats
-// ─────────────────────────────────────────────────────
-function renderDealer(state) {
-  const dealerEl = document.getElementById('dealer-cards');
-  if (dealerEl) {
-    dealerEl.innerHTML = '';
-    (state.dealerCards || []).forEach(c => dealerEl.appendChild(makeVLCard(c)));
-  }
-  const totalEl = document.getElementById('dealer-total-display');
-  if (totalEl) {
-    const t = state.dealerTotal;
-    totalEl.textContent = (t != null && t > 0) ? String(t) : '';
-    totalEl.classList.toggle('bust', state.dealerCards && handTotal(state.dealerCards).bust);
-    totalEl.classList.toggle('bj',   state.dealerCards && handTotal(state.dealerCards).bj);
-  }
-}
-
-function renderSeats(state) {
-  const allSeatIdxs = Object.keys(state.seats || {}).map(Number).sort();
-  const occupiedZones = new Set();
-  const mySeat = mySeatIndex !== null ? state.seats?.[mySeatIndex] : null;
-
-  // Render each occupied seat into its visual zone
-  for (const [seatIdxStr, seat] of Object.entries(state.seats || {})) {
-    const seatIdx = parseInt(seatIdxStr, 10);
-    const vz = getVisualZone(seatIdx, allSeatIdxs);
-    occupiedZones.add(vz);
-    const isMe = (seatIdx === mySeatIndex);
-
-    // Hide empty-seat UI
-    const emptyEl = document.getElementById(`seat${vz}-empty`);
-    if (emptyEl) emptyEl.style.display = 'none';
-
-    // Name tag
-    const nameEl = document.getElementById(`seat${vz}-name`);
-    if (nameEl) {
-      nameEl.textContent = (seat.avatar ? seat.avatar + ' ' : '') + (seat.displayName || 'Player');
-      nameEl.classList.toggle('is-you',    isMe);
-      nameEl.classList.toggle('is-active', state.activeSeat === seatIdx);
-      nameEl.classList.toggle('is-bot',    !!seat.isBot);
-    }
-
-    // Wallet + current bet
-    const chipsEl = document.getElementById(`seat${vz}-chips`);
-    if (chipsEl) chipsEl.textContent = (seat.wallet > 0) ? '$' + seat.wallet.toLocaleString() : '';
-    const betEl   = document.getElementById(`seat${vz}-bet`);
-    if (betEl)   betEl.textContent   = (seat.bet    > 0) ? '$' + seat.bet.toLocaleString()    : '';
-
-    // Cards
-    const cardsEl = document.getElementById(`seat${vz}-cards`);
-    if (cardsEl) {
-      const hands  = seat.hands || [];
-      const isSplit = hands.length > 1;
-
-      if (isSplit) {
-        // SPLIT MODE — render each hand in its own wrapper with per-hand total + result
-        cardsEl.innerHTML = '';
-        cardsEl.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;justify-content:center';
-        hands.forEach((hand, hi) => {
-          const wrapper = document.createElement('div');
-          wrapper.className = 'split-hand-wrapper' + (hi === seat.activeHandIdx ? ' active' : '');
-          wrapper.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px';
-          const box = document.createElement('div');
-          box.className = 'split-hand-box';
-          box.style.cssText = 'display:flex;gap:2px';
-          (hand || []).forEach(c => box.appendChild(makeVLCard(c)));
-          const {total, bust, bj} = handTotal(hand || []);
-          if (total > 0) {
-            const t = document.createElement('div');
-            t.className = 'hand-total' + (bust ? ' bust' : bj ? ' bj' : '');
-            t.textContent = bj ? 'BJ!' : (bust ? 'BUST' : String(total));
-            box.appendChild(t);
-          }
-          wrapper.appendChild(box);
-          // Per-hand result
-          const r = seat.result?.[hi];
-          if (r) {
-            const rb = document.createElement('div');
-            rb.className = 'result-badge-inline ' + r;
-            rb.textContent = r === 'blackjack' ? 'BLACKJACK!' : (r === 'tie' ? 'TIE!' : r.toUpperCase());
-            wrapper.appendChild(rb);
-          }
-          cardsEl.appendChild(wrapper);
-        });
-      } else {
-        // NORMAL MODE — diff-based render (only append new cards)
-        cardsEl.style.cssText = '';
-        const flat = (hands[0] || []).filter(c => c && c.rank);
-        const existing = cardsEl.querySelectorAll('.vl-card').length;
-        if (flat.length < existing) cardsEl.innerHTML = '';
-        const shown = cardsEl.querySelectorAll('.vl-card').length;
-        flat.slice(shown).forEach(c => {
-          cardsEl.appendChild(makeVLCard(c));
-          if (typeof SFX !== 'undefined') SFX.card?.();
-        });
-        cardsEl.querySelectorAll('.hand-total').forEach(e => e.remove());
-        const {total, bust, bj} = handTotal(hands[0] || []);
-        if (total > 0) {
-          const t = document.createElement('div');
-          t.className = 'hand-total' + (bust ? ' bust' : bj ? ' bj' : '');
-          t.textContent = bj ? 'BJ!' : (bust ? 'BUST' : String(total));
-          cardsEl.appendChild(t);
-        }
-      }
-    }
-
-    // Result badge — overall seat result (priority: 'tie' > 'push' so tie wins are visible)
-    const rs = document.getElementById(`seat${vz}-result`);
-    if (rs && seat.result?.some(r => r !== null)) {
-      const priority = ['blackjack','win','tie','push','bust','lose'];
-      const best = priority.find(p => seat.result.includes(p)) || seat.result.find(r => r);
-      if (best) {
-        rs.className   = 'result-badge-inline ' + best;
-        rs.textContent = best === 'blackjack' ? 'BLACKJACK!' : (best === 'tie' ? 'TIE!' : best.toUpperCase());
-      } else {
-        rs.textContent = '';
-      }
-    } else if (rs) {
-      rs.textContent = '';
+  // Find my seat
+  mySeatIndex = null;
+  for (const [idx, seat] of Object.entries(state.seats || {})) {
+    if (seat.userId === myUsername || seat.sessionId === mySessionId) {
+      mySeatIndex = parseInt(idx, 10);
+      break;
     }
   }
+  const mySeat = (mySeatIndex !== null) ? state.seats?.[mySeatIndex] : null;
 
-  // Show empty-seat UI for any visual zone that's not occupied
-  for (let vz = 0; vz < 6; vz++) {
-    if (occupiedZones.has(vz)) continue;
-    const nameEl = document.getElementById(`seat${vz}-name`);
-    if (nameEl) nameEl.textContent = '';
-    const chipsEl = document.getElementById(`seat${vz}-chips`);
-    if (chipsEl) chipsEl.textContent = '';
-    const betEl = document.getElementById(`seat${vz}-bet`);
-    if (betEl) betEl.textContent = '';
-    const cardsEl = document.getElementById(`seat${vz}-cards`);
-    if (cardsEl) cardsEl.innerHTML = '';
-    const rs = document.getElementById(`seat${vz}-result`);
-    if (rs) rs.textContent = '';
-    const emptyEl = document.getElementById(`seat${vz}-empty`);
-    if (emptyEl) emptyEl.style.display = '';
+  // Wallet sync (server-authoritative)
+  if (mySeat) {
+    myChips = mySeat.wallet;
+    igmWallet = myChips;
+  }
+
+  renderDealer(state);
+  renderSeats(state);
+  updateUI(state);
+
+  // Phase transitions
+  if (state.phase !== lastPhase) {
+    onPhaseChange(state.phase, lastPhase, state);
+    lastPhase = state.phase;
   }
 }
 
-function updateUI(state) {
-  // Round + status display in the top bar
-  const roundEl = document.getElementById('game-round');
-  if (roundEl) roundEl.textContent = state.roundNum ? 'Round ' + state.roundNum : 'Round —';
-  const statusEl = document.getElementById('game-status');
-  if (statusEl) statusEl.textContent = fmtPhase(state.phase);
+function onPhaseChange(newPhase, oldPhase, state) {
+  console.log('[BJ] phase change:', oldPhase, '→', newPhase);
+  const mySeat = (mySeatIndex !== null) ? state.seats?.[mySeatIndex] : null;
 
-  // Action button enable/disable based on whose turn it is and current hand
-  const mySeat = mySeatIndex !== null ? state.seats?.[mySeatIndex] : null;
-  if (!mySeat) return;
-  const isMyTurn = (state.activeSeat === mySeatIndex && state.phase === 'player_action');
-  const pa = document.getElementById('player-actions');
-  if (pa) pa.style.display = isMyTurn ? '' : 'none';
-  if (isMyTurn) {
-    const hi   = mySeat.activeHandIdx || 0;
-    const hand = (mySeat.hands || [[]])[hi] || [];
-    const w    = mySeat.wallet || 0;
-    const b    = mySeat.bet    || 0;
-    const dbl  = document.getElementById('btn-double');
-    const spl  = document.getElementById('btn-split');
-    const ss   = document.getElementById('split-status');
-    if (dbl) dbl.disabled = hand.length !== 2 || w < b;
-    if (spl) spl.disabled = hand.length !== 2 || !hand[0] || !hand[1]
-      || cardVal(hand[0]) !== cardVal(hand[1])
-      || (mySeat.hands || []).length >= 4 || w < b;
-    if (ss) ss.textContent = mySeat.hands?.length > 1
-      ? `Playing Hand ${hi+1} of ${mySeat.hands.length}`
-      : '';
-  }
-
-  // Sync wallet display
-  myChips = mySeat.wallet;
-  const ce = document.getElementById('my-chips');
-  if (ce) ce.textContent = '$' + myChips.toLocaleString();
-  const ow = document.getElementById('bet-overlay-wallet');
-  if (ow) ow.textContent = '$' + myChips.toLocaleString();
-
-  // Sync tie bet button label (tier-specific amount)
-  const tieBetVal = mySeat.tieBet || 0;
-  const tieBetAmt = BJ_TABLE.tieBet || 100;
-  const tbBtn = document.getElementById('btn-tie-bet');
-  if (tbBtn) {
-    const amtLabel = '$' + tieBetAmt.toLocaleString();
-    tbBtn.classList.toggle('placed', tieBetVal > 0);
-    tbBtn.textContent = tieBetVal > 0 ? `✓ TIE BET (${amtLabel})` : `🎯 TIE BET — ${amtLabel}`;
-  }
-  // Sync tie bet hint payout copy
-  const hint = document.getElementById('bet-tiebet-hint');
-  if (hint) {
-    const payout = BJ_TABLE.tieBetPayout || 2000;
-    hint.innerHTML = (BJ_TABLE.label === 'vip')
-      ? `<strong style="color:#ffd700">$${payout.toLocaleString()} Bonus</strong><br>Wins if your total = dealer's total`
-      : `<strong style="color:#ffd700">$2,000 Bonus</strong> · $500 main bet: <strong style="color:#ffd700">$3,000 Bonus</strong><br>Wins if your total = dealer's total`;
+  if (newPhase === 'betting') {
+    _betPlaced = false; pendingBet = 0; _bettingHandled = true;
+    _hideTieBetPrompt();
+    hideInsurancePrompt();
+    document.getElementById('player-actions').style.display = 'none';
+    if (BJ_TABLE.label === 'vip') {
+      // VIP: hide bet overlay; ask Tie Bet decision via popup
+      hideBetOverlay();
+      _startVipBettingFlow();
+    } else if (_frozenBet > 0) {
+      hideBetOverlay();
+      _applyFreezeIfActive();
+    } else {
+      showBetOverlay(state);
+    }
+    startCountdown(10, false);
+  } else if (newPhase === 'deal') {
+    hideBetOverlay();
+    _hideTieBetPrompt();
+    stopCountdown();
+  } else if (newPhase === 'insurance') {
+    if (mySeat && !mySeat.insuranceBet && !mySeat.insuranceDeclined) showInsurancePrompt();
+    startCountdown(7, false);
+  } else if (newPhase === 'player_action') {
+    hideInsurancePrompt();
+    // Action buttons visibility handled by updateUI
+  } else if (newPhase === 'dealer') {
+    stopCountdown();
+    document.getElementById('player-actions').style.display = 'none';
+  } else if (newPhase === 'payout') {
+    stopCountdown();
+    document.getElementById('player-actions').style.display = 'none';
+    if (mySeat) {
+      const r = (mySeat.result || []).find(x => x);
+      if (r) flashTable(r);
+    }
+  } else if (newPhase === 'round_end') {
+    hideBetOverlay();
+    hideInsurancePrompt();
+    stopCountdown();
+    document.getElementById('player-actions').style.display = 'none';
+  } else if (newPhase === 'waiting') {
+    hideBetOverlay();
+    hideInsurancePrompt();
+    stopCountdown();
   }
 }
 
-// ─────────────────────────────────────────────────────
-// PHASE HANDLER
-// ─────────────────────────────────────────────────────
 function handlePhase(msg) {
-  // First transition out of the waiting lobby: when the server signals the
-  // round is starting (any phase other than 'waiting'), move everyone still on
-  // the lobby screen to the game screen.
+  // Transition lobby → game on any non-waiting phase
   if (msg.phase && msg.phase !== 'waiting') {
     const lobby = document.getElementById('screen-lobby');
     if (lobby && lobby.classList.contains('active')) {
-      lobby.classList.remove('active');
-      const game = document.getElementById('screen-game');
-      if (game) game.classList.add('active');
-      const menu = document.getElementById('ingame-menu-btn');
-      if (menu) menu.style.display = 'flex';
-    }
-  }
-
-  const gs = document.getElementById('game-status');
-  if (gs) gs.textContent = fmtPhase(msg.phase);
-
-  // Phase banner — brief flash for key transitions only (not player_action)
-  const bannerMap = {
-    deal:'DEALING CARDS', insurance:'INSURANCE?',
-    dealer:"DEALER'S TURN", payout:'RESULTS'
-  };
-  const banner = document.getElementById('phase-banner');
-  if (banner) {
-    if (bannerMap[msg.phase]) {
-      banner.textContent = bannerMap[msg.phase];
-      banner.classList.add('visible');
-      clearTimeout(banner._t);
-      banner._t = setTimeout(() => banner.classList.remove('visible'), 1400);
-    } else {
-      // Hide immediately for other phases
-      banner.classList.remove('visible');
-    }
-  }
-
-  if (msg.duration) startCountdown(msg.duration / 1000, false);
-  else              stopCountdown();
-
-  if (msg.phase === 'betting') {
-    _betPlaced = false; pendingBet = 0; updateBetDisplay();
-    const rl = document.getElementById('bet-round-label');
-    if (rl) rl.textContent = window._lastBJState?.roundNum || '—';
-
-    if (_bettingHandled) {
-      // Already initialised by the state-handler path for this round — just
-      // refresh UI and bail, do NOT re-send place_tie (server toggles it off).
-      _updateFreezeUI();
-    } else {
-      _bettingHandled = true;
-      if (BJ_TABLE.label === 'vip') {
-        // VIP: 5s "Place Tie Bet?" overlay at start of each round, unless the
-        // player froze their last decision — in which case apply it silently and
-        // auto-place the main bet.
-        const ov = document.getElementById('bet-overlay');
-        if (ov) ov.style.display = 'none';
-        _updateFreezeUI();
-        _startVipBettingFlow();
-      } else if (_frozenBet > 0) {
-        // FREEZE IS ACTIVE — never show betting overlay, auto-place silently
-        const ov = document.getElementById('bet-overlay');
-        if (ov) ov.style.display = 'none';
-        _updateFreezeUI();
-        setTimeout(() => _applyFreezeIfActive(), 300);
-      } else {
-        // No freeze — show betting overlay (standard chips)
-        _applyBetUIMode();
-        const ov = document.getElementById('bet-overlay');
-        if (ov) ov.style.display = 'flex';
-        _updateFreezeUI();
-      }
-    }
-  } else {
-    const ov = document.getElementById('bet-overlay');
-    if (ov) ov.style.display = 'none';
-    _hideTieBetPrompt();
-  }
-
-  if (msg.phase === 'deal' && window._lastBJState) setTimeout(() => runDealAnim(window._lastBJState), 50);
-  if (msg.phase === 'player_action') {
-    // Countdown is managed per-player by handleYourTurn — don't stop it here
-    if (window._lastBJState) showControls(window._lastBJState);
-  }
-  if (msg.phase === 'dealer') { stopCountdown(); const pa=document.getElementById('player-actions'); if(pa)pa.style.display='none'; }
-  if (msg.phase === 'payout') { stopCountdown(); setTimeout(() => { const seat=window._lastBJState?.seats?.[mySeatIndex]; if(seat?.result)flashTable(seat.result[0]); }, 400); }
-  if (msg.phase === 'round_end') {
-    stopCountdown();
-    ['player-actions','insurance-panel'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
-    _hideTieBetPrompt();
-    // Release the one-shot betting-phase guard so the next round can fire once.
-    _bettingHandled = false;
-    // Clear per-round VIP tie decision when not frozen so the prompt returns next round.
-    if (BJ_TABLE.label === 'vip' && !_tieFrozen) {
-      _tieDecision = null;
-      _updateFreezeUI();
+      showScreen('screen-game');
+      const menuBtn = document.getElementById('ingame-menu-btn');
+      if (menuBtn) menuBtn.style.display = 'flex';
     }
   }
 }
 
 function handleYourTurn(msg) {
-  if (mySeatIndex === null && window._lastBJState) {
-    for (const [idx,seat] of Object.entries(window._lastBJState.seats||{})) {
-      if (seat.isYou) { mySeatIndex = parseInt(idx); break; }
-    }
-  }
-
   if (msg.seatIndex === mySeatIndex) {
-    // MY TURN — start 10s countdown and show action buttons
-    if (msg.duration) startCountdown(msg.duration / 1000, true);
-    const gs = document.getElementById('game-status');
-    if (gs) gs.textContent = 'Your turn — Hit or Stand';
-    if (window._lastBJState) showControls(window._lastBJState);
+    startCountdown(Math.floor((msg.duration || 10000) / 1000), true);
+    if (lastState) updateUI(lastState);
   } else {
-    // ANOTHER PLAYER'S TURN — hide my buttons, stop my countdown, show who is playing
     stopCountdown();
-    const pa = document.getElementById('player-actions');
-    if (pa) pa.style.display = 'none';
+    document.getElementById('player-actions').style.display = 'none';
     const allSeats = window._lastBJState?.seats || {};
     const activeName = allSeats[msg.seatIndex]?.displayName || `Player ${msg.seatIndex + 1}`;
     const gs = document.getElementById('game-status');
-    if (gs) gs.textContent = `${activeName}'s turn — waiting…`;
+    if (gs) gs.textContent = `${activeName}'s turn…`;
   }
 }
 
-
 function handleTieWin(msg) {
   if (typeof SFX !== 'undefined') SFX.bj?.();
-
-  const name  = msg.displayName || 'A player';
-  const bonus = msg.bonus ? '$' + msg.bonus.toLocaleString() : '';
+  const name   = msg.displayName || 'A player';
+  const bonus  = msg.bonus ? '$' + msg.bonus.toLocaleString() : '';
   const credit = msg.totalCredit ? '$' + msg.totalCredit.toLocaleString() : '';
-
   let stack = document.getElementById('big-announce-stack');
   if (!stack) {
     stack = document.createElement('div');
@@ -1193,255 +636,467 @@ function handleTieWin(msg) {
   }
   const el = document.createElement('div');
   el.className = 'big-announce ba-tie';
-  el.innerHTML = `
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:#ffd700">TIE BET WIN!</div>
-    <div style="font-size:13px;color:#e8dfc0;margin-top:4px">${name}</div>
-    <div style="font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:900;color:#ffd700;margin-top:2px">+${bonus}${credit ? ' (paid '+credit+')' : ''}</div>
-  `;
+  el.innerHTML = `<div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:#ffd700">TIE BET WIN!</div>
+                  <div style="font-size:13px;color:#e8dfc0;margin-top:4px">${name}</div>
+                  <div style="font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:900;color:#ffd700;margin-top:2px">+${bonus}${credit ? ' (paid ' + credit + ')' : ''}</div>`;
   stack.appendChild(el);
-
-  // Mark the result-flash element so flashTable() doesn't overwrite us
   const flash = document.getElementById('result-flash');
-  if (flash) {
-    flash._tieTimer = setTimeout(() => { delete flash._tieTimer; }, 2200);
+  if (flash) flash._tieTimer = setTimeout(() => { delete flash._tieTimer; }, 2200);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .4s'; }, 3500);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// ─────────────────────────────────────────────────────
+// RENDER — dealer
+// ─────────────────────────────────────────────────────
+function renderDealer(state) {
+  const cardsEl = document.getElementById('dealer-cards');
+  if (cardsEl) {
+    cardsEl.innerHTML = '';
+    (state.dealerCards || []).forEach(c => cardsEl.appendChild(makeVLCard(c)));
+  }
+  const totalEl = document.getElementById('dealer-total-display');
+  if (totalEl) {
+    const t = state.dealerTotal;
+    totalEl.textContent = (t != null && t > 0) ? String(t) : '';
+    const ht = handTotal(state.dealerCards || []);
+    totalEl.classList.toggle('bust', ht.bust);
+    totalEl.classList.toggle('bj',   ht.bj);
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// RENDER — seats
+// ─────────────────────────────────────────────────────
+function renderSeats(state) {
+  const allSeatIdxs = Object.keys(state.seats || {}).map(Number).sort();
+  const occupiedZones = new Set();
+
+  for (const [seatIdxStr, seat] of Object.entries(state.seats || {})) {
+    const seatIdx = parseInt(seatIdxStr, 10);
+    const vz = getVisualZone(seatIdx);
+    if (vz < 0) continue;
+    occupiedZones.add(vz);
+    const isMe = (seatIdx === mySeatIndex);
+
+    const emptyEl = document.getElementById(`seat${vz}-empty`);
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    const nameEl = document.getElementById(`seat${vz}-name`);
+    if (nameEl) {
+      nameEl.textContent = (seat.avatar ? seat.avatar + ' ' : '') + (seat.displayName || 'Player');
+      nameEl.classList.toggle('is-you',    isMe);
+      nameEl.classList.toggle('is-active', state.activeSeat === seatIdx);
+      nameEl.classList.toggle('is-bot',    !!seat.isBot);
+    }
+    const chipsEl = document.getElementById(`seat${vz}-chips`);
+    if (chipsEl) chipsEl.textContent = (seat.wallet > 0) ? fmtChips(seat.wallet) : '';
+    const betEl = document.getElementById(`seat${vz}-bet`);
+    if (betEl)   betEl.textContent   = (seat.bet > 0)    ? fmtChips(seat.bet)    : '';
+
+    const cardsEl = document.getElementById(`seat${vz}-cards`);
+    if (cardsEl) {
+      const hands = seat.hands || [];
+      const isSplit = hands.length > 1;
+      if (isSplit) {
+        cardsEl.innerHTML = '';
+        cardsEl.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;justify-content:center';
+        hands.forEach((hand, hi) => {
+          const wrap = document.createElement('div');
+          wrap.className = 'split-hand-wrapper' + (hi === seat.activeHandIdx ? ' active' : '');
+          wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px';
+          const box = document.createElement('div');
+          box.style.cssText = 'display:flex;gap:2px';
+          (hand || []).forEach(c => box.appendChild(makeVLCard(c)));
+          const ht = handTotal(hand || []);
+          if (ht.total > 0) {
+            const t = document.createElement('div');
+            t.className = 'hand-total' + (ht.bust ? ' bust' : ht.bj ? ' bj' : '');
+            t.style.cssText = 'font-size:11px;font-weight:700;color:' + (ht.bust ? '#ff5555' : ht.bj ? '#ffd700' : '#e8dfc0');
+            t.textContent = ht.bj ? 'BJ!' : (ht.bust ? 'BUST' : String(ht.total));
+            box.appendChild(t);
+          }
+          wrap.appendChild(box);
+          const r = seat.result?.[hi];
+          if (r) {
+            const rb = document.createElement('div');
+            rb.className = 'result-badge-inline ' + r;
+            rb.textContent = r === 'blackjack' ? 'BJ!' : (r === 'tie' ? 'TIE!' : r.toUpperCase());
+            wrap.appendChild(rb);
+          }
+          cardsEl.appendChild(wrap);
+        });
+      } else {
+        cardsEl.innerHTML = '';
+        cardsEl.style.cssText = 'display:flex;gap:3px;align-items:flex-end;flex-wrap:wrap';
+        const hand = hands[0] || [];
+        hand.forEach(c => cardsEl.appendChild(makeVLCard(c)));
+        const ht = handTotal(hand);
+        if (ht.total > 0) {
+          const t = document.createElement('div');
+          t.className = 'hand-total' + (ht.bust ? ' bust' : ht.bj ? ' bj' : '');
+          t.style.cssText = 'font-size:12px;font-weight:700;margin-left:4px;color:' + (ht.bust ? '#ff5555' : ht.bj ? '#ffd700' : '#e8dfc0');
+          t.textContent = ht.bj ? 'BJ!' : (ht.bust ? 'BUST' : String(ht.total));
+          cardsEl.appendChild(t);
+        }
+      }
+    }
+
+    // Overall seat result badge (priority: blackjack > win > tie > push > bust > lose)
+    const rs = document.getElementById(`seat${vz}-result`);
+    if (rs) {
+      const priority = ['blackjack', 'win', 'tie', 'push', 'bust', 'lose'];
+      const results = seat.result || [];
+      const best = priority.find(p => results.includes(p));
+      if (best) {
+        rs.className   = 'result-badge-inline ' + best;
+        rs.textContent = best === 'blackjack' ? 'BLACKJACK!' : (best === 'tie' ? 'TIE!' : best.toUpperCase());
+      } else {
+        rs.className = 'result-badge-inline';
+        rs.textContent = '';
+      }
+    }
   }
 
-  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .4s'; }, 3500);
-  setTimeout(() => { el.remove(); }, 4000);
+  // Empty seats — show invite/bot UI
+  for (let vz = 0; vz < 6; vz++) {
+    if (occupiedZones.has(vz)) continue;
+    const nameEl = document.getElementById(`seat${vz}-name`);   if (nameEl)  nameEl.textContent  = '';
+    const chipsEl = document.getElementById(`seat${vz}-chips`); if (chipsEl) chipsEl.textContent = '';
+    const betEl  = document.getElementById(`seat${vz}-bet`);    if (betEl)   betEl.textContent   = '';
+    const cardsEl = document.getElementById(`seat${vz}-cards`); if (cardsEl) cardsEl.innerHTML   = '';
+    const rs = document.getElementById(`seat${vz}-result`);     if (rs)      { rs.textContent = ''; rs.className = 'result-badge-inline'; }
+    const emptyEl = document.getElementById(`seat${vz}-empty`); if (emptyEl) emptyEl.style.display = '';
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// UPDATE UI — top bar, action buttons, tie bet
+// ─────────────────────────────────────────────────────
+function updateUI(state) {
+  const roundEl  = document.getElementById('game-round');
+  if (roundEl) roundEl.textContent = state.roundNum ? 'Round ' + state.roundNum : 'Round —';
+  const statusEl = document.getElementById('game-status');
+  if (statusEl) statusEl.textContent = fmtPhase(state.phase);
+
+  const mySeat = (mySeatIndex !== null) ? state.seats?.[mySeatIndex] : null;
+
+  // Action buttons: only show on my turn
+  const isMyTurn = (state.activeSeat === mySeatIndex && state.phase === 'player_action' && mySeat);
+  const pa = document.getElementById('player-actions');
+  if (pa) pa.style.display = isMyTurn ? '' : 'none';
+  if (isMyTurn && mySeat) {
+    const hi   = mySeat.activeHandIdx || 0;
+    const hand = (mySeat.hands || [[]])[hi] || [];
+    const w    = mySeat.wallet || 0;
+    const b    = mySeat.bet    || 0;
+    const ht   = handTotal(hand);
+    const dbl  = document.getElementById('btn-double');
+    const spl  = document.getElementById('btn-split');
+    const hit  = document.getElementById('btn-hit');
+    const stnd = document.getElementById('btn-stand');
+    if (hit)  hit.disabled  = ht.bust || mySeat.splitAces;
+    if (stnd) stnd.disabled = false;
+    if (dbl)  dbl.disabled  = hand.length !== 2 || w < b;
+    if (spl)  spl.disabled  = hand.length !== 2 || !hand[0] || !hand[1]
+                           || cardVal(hand[0]) !== cardVal(hand[1])
+                           || (mySeat.hands || []).length >= 4 || w < b;
+    const ss = document.getElementById('split-status');
+    if (ss) ss.textContent = (mySeat.hands?.length > 1)
+      ? `Playing Hand ${hi + 1} of ${mySeat.hands.length}` : '';
+  }
+
+  // Wallet display
+  if (mySeat) {
+    const ow = document.getElementById('bet-overlay-wallet');
+    if (ow) ow.textContent = fmtChips(myChips);
+  }
+
+  // Tie bet button label
+  const tieBetVal = mySeat?.tieBet || 0;
+  const tieBetAmt = BJ_TABLE.tieBet || 100;
+  const tbBtn = document.getElementById('btn-tie-bet');
+  if (tbBtn) {
+    const amt = fmtChips(tieBetAmt);
+    tbBtn.classList.toggle('placed', tieBetVal > 0);
+    tbBtn.textContent = tieBetVal > 0 ? `✓ TIE BET (${amt})` : `🎯 TIE BET — ${amt}`;
+  }
+
+  // Tie bet hint
+  const hint = document.getElementById('bet-tiebet-hint');
+  if (hint) {
+    const payout = BJ_TABLE.tieBetPayout || 2000;
+    hint.innerHTML = (BJ_TABLE.label === 'vip')
+      ? `<strong style="color:#ffd700">${fmtChips(payout)} Bonus</strong><br>Wins if your total = dealer's total`
+      : `<strong style="color:#ffd700">$2,000 Bonus</strong> · $500 main bet: <strong style="color:#ffd700">$3,000 Bonus</strong><br>Wins if your total = dealer's total`;
+  }
+
+  // Freeze button UI
+  _updateFreezeUI();
 }
 
 function fmtPhase(p) {
-  return {waiting:'Waiting for players…',betting:'Place your bet (10s)',deal:'Dealing…',
-    insurance:'Insurance?',player_action:'Your turn — Hit or Stand',dealer:"Dealer's turn",
-    payout:'Payouts',round_end:'Round complete'}[p] || (p||'Connecting…');
+  return {
+    waiting:        'Waiting for players…',
+    betting:        'Place your bet (10s)',
+    deal:           'Dealing…',
+    insurance:      'Insurance?',
+    player_action:  'Your turn — Hit or Stand',
+    dealer:         "Dealer's turn",
+    payout:         'Payouts',
+    round_end:      'Round complete'
+  }[p] || (p || 'Connecting…');
 }
 
-
 // ─────────────────────────────────────────────────────
-// TABLE FLASH
+// BET OVERLAY  (standard tier only)
 // ─────────────────────────────────────────────────────
-function flashTable(result) {
-  const oval = document.getElementById('oval-table');
-  if (!oval) return;
-  oval.classList.remove('flash-win','flash-lose','flash-bj');
-  if (result === 'blackjack')                       { oval.classList.add('flash-bj');   if (typeof SFX !== 'undefined') SFX.bj?.(); }
-  else if (result === 'win')                        { oval.classList.add('flash-win');  if (typeof SFX !== 'undefined') SFX.win?.(); }
-  else if (result === 'lose' || result === 'bust')  { oval.classList.add('flash-lose'); if (typeof SFX !== 'undefined') SFX.lose?.(); }
-  else if (result === 'push' || result === 'tie')   {                                   if (typeof SFX !== 'undefined') SFX.push?.(); }
-  setTimeout(() => oval.classList.remove('flash-win','flash-lose','flash-bj'), 700);
+function showBetOverlay(state) {
+  const overlay = document.getElementById('bet-overlay');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  document.getElementById('bet-chips-section')?.style?.setProperty('display', 'flex');
+  document.getElementById('bet-confirm-section')?.style?.setProperty('display', 'block');
+  document.getElementById('bet-fixed-section')?.style?.setProperty('display', 'none');
+  const rl = document.getElementById('bet-round-label');
+  if (rl) rl.textContent = state.roundNum || '—';
+  const ow = document.getElementById('bet-overlay-wallet');
+  if (ow) ow.textContent = fmtChips(myChips);
+  pendingBet = 0;
+  updateBetDisplay();
+}
 
-  const flash = document.getElementById('result-flash');
-  const txt   = document.getElementById('result-flash-text');
-  // Don't overwrite an active tie-win celebration banner
-  if (flash && flash._tieTimer) return;
-  if (flash && txt) {
-    const labels = { blackjack:'BLACKJACK!', win:'WIN', tie:'TIE!', lose:'LOSE', bust:'BUST', push:'PUSH' };
-    const colors = { blackjack:'#ffd700',   win:'#44ff88', tie:'#ffd700', lose:'#ff5555', bust:'#ff5555', push:'#4ab8ff' };
-    txt.textContent  = labels[result] || '';
-    txt.style.color  = colors[result] || '#fff';
-    flash.style.display = 'flex';
-    setTimeout(() => flash.style.display = 'none', 1500);
+function hideBetOverlay() {
+  const overlay = document.getElementById('bet-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function addChip(amount) {
+  if (_betPlaced) return;
+  if (BJ_TABLE.label === 'vip') return; // VIP: no chip selection
+  const seat = lastState?.seats?.[mySeatIndex];
+  const avail = seat?.wallet ?? myChips;
+  const newTotal = pendingBet + amount;
+  if (newTotal > avail) {
+    showIngameToast('Insufficient Chips', `Need ${fmtChips(newTotal)} to place this bet.`);
+    return;
   }
-}
-
-// ─────────────────────────────────────────────────────
-// BET CONTROLS
-// ─────────────────────────────────────────────────────
-
-// Configure the betting overlay for the current tier.
-// Standard tiers: show chip grid. VIP: hide chips, show fixed-bet display.
-function _applyBetUIMode() {
-  const chipSection   = document.getElementById('bet-chips-section');
-  const betConfirm    = document.getElementById('bet-confirm-section');
-  const fixedSection  = document.getElementById('bet-fixed-section');
-  const tieBetSection = document.getElementById('bet-tiebet-section');
-  const alt           = document.getElementById('bet-alert-text');
-  const isVIP = BJ_TABLE.label === 'vip';
-
-  if (chipSection)   chipSection.style.display   = 'flex';
-  if (tieBetSection) tieBetSection.style.display = 'flex';
-
-  if (isVIP) {
-    if (betConfirm)   betConfirm.style.display   = 'none';
-    if (fixedSection) {
-      fixedSection.style.display = 'flex';
-      const amtEl = document.getElementById('bet-fixed-amount');
-      if (amtEl) amtEl.textContent = '$' + (BJ_TABLE.minBet || 0).toLocaleString();
-    }
-    if (alt) alt.textContent = 'Placing your bet…';
-  } else {
-    if (betConfirm)   betConfirm.style.display   = 'block';
-    if (fixedSection) fixedSection.style.display = 'none';
-    if (alt) alt.textContent = 'Tap a chip to bet';
+  if (newTotal > (BJ_TABLE.maxBet || 500)) {
+    showIngameToast('Bet Limit', `Maximum bet is ${fmtChips(BJ_TABLE.maxBet || 500)}.`);
+    return;
   }
+  pendingBet = newTotal;
+  updateBetDisplay();
+  // Auto-place after a brief pause so player can stack chips
+  clearTimeout(window._betSendTimer);
+  window._betSendTimer = setTimeout(() => _sendBet(), 800);
 }
 
-// VIP betting flow entry:
-// • If the tie decision is frozen, apply it silently and auto-place the main bet.
-// • Otherwise show the 5s "Place Tie Bet?" overlay; tieBetDecide() triggers the
-//   main-bet auto-place once a choice is made (or on auto-skip).
+function updateBetDisplay() {
+  const el = document.getElementById('bet-display');
+  if (el) el.textContent = pendingBet > 0 ? fmtChips(pendingBet) : '';
+}
+
+function _sendBet() {
+  if (_betPlaced || pendingBet <= 0) return;
+  const min = BJ_TABLE.minBet || 100;
+  if (pendingBet < min) {
+    showIngameToast('Bet Too Low', `Minimum bet is ${fmtChips(min)}.`);
+    return;
+  }
+  sendMsg('place_bet', { amount: pendingBet });
+  _betPlaced = true;
+}
+function placeBet() { _sendBet(); }
+
+function _autoPlaceFixedBet() {
+  if (_betPlaced) return;
+  if (BJ_TABLE.label !== 'vip') return;
+  const seat = lastState?.seats?.[mySeatIndex];
+  const avail = seat?.wallet ?? myChips;
+  const amt = BJ_TABLE.minBet || 0;
+  if (!amt || amt > avail) return;
+  pendingBet = amt;
+  _sendBet();
+}
+
+function placeTieBet() {
+  if (_betPlaced && BJ_TABLE.label !== 'vip') {
+    showIngameToast('Bet Already Placed', 'Tie bet must be placed before main bet.');
+    return;
+  }
+  sendMsg('place_tie');
+}
+
+// ─────────────────────────────────────────────────────
+// TIE BET PROMPT  (VIP only)
+// ─────────────────────────────────────────────────────
 function _startVipBettingFlow() {
   if (BJ_TABLE.label !== 'vip') return;
   _hideTieBetPrompt();
   if (_tieFrozen && _tieDecision) {
-    if (_tieDecision === 'yes' && ws) sendMsg('place_tie');
-    _updateFreezeUI();
+    if (_tieDecision === 'yes') sendMsg('place_tie');
     setTimeout(() => _autoPlaceFixedBet(), 300);
     return;
   }
-  // Fresh decision required this round
   _tieDecision = null;
-  _updateFreezeUI();
   _showTieBetPrompt();
 }
 
-// VIP auto-placement: bet is fixed, no chip choice — send it immediately.
-// Tie bet is NOT auto-placed here; the tie decision is collected via the
-// "Place Tie Bet?" overlay (or applied from the frozen decision) before this
-// is called.
-function _autoPlaceFixedBet() {
-  if (_betPlaced) return;
-  if (BJ_TABLE.label !== 'vip') return;
-  const avail = window._lastBJState?.seats?.[mySeatIndex]?.wallet ?? myChips;
-  const amt = BJ_TABLE.minBet || 0;
-  if (!amt || amt > avail) {
-    const alt = document.getElementById('bet-alert-text');
-    if (alt) alt.textContent = 'Insufficient wallet for fixed bet';
-    return;
-  }
-  pendingBet = amt;
-  updateBetDisplay();
-  _sendBet();
-}
-
-// ── VIP Tie Bet prompt ───────────────────────────────────────
-// Shows the 5s "Place Tie Bet?" overlay at start of betting phase.
-// Player picks YES / NO (or lets it auto-skip to NO on timeout).
-// After the decision is recorded, the main bet is auto-placed.
 function _showTieBetPrompt() {
   const ov = document.getElementById('tie-bet-overlay');
   if (!ov) return;
-  const amtEl   = document.getElementById('tie-amount-display');
-  const hintEl  = document.getElementById('tie-payout-hint');
-  const rEl     = document.getElementById('tie-round-label');
-  const cdEl    = document.getElementById('tie-countdown');
-
-  const tieAmt  = BJ_TABLE.tieBet || 100;
-  const payout  = BJ_TABLE.tieBetPayout || 2000;
-  if (amtEl)  amtEl.textContent  = '$' + tieAmt.toLocaleString();
-  if (hintEl) hintEl.innerHTML   = `Wins if your total matches the dealer's — bonus: <strong style="color:#ffd700">$${payout.toLocaleString()}</strong>`;
-  if (rEl)    rEl.textContent    = window._lastBJState?.roundNum || '—';
-
   ov.style.display = 'flex';
+  const lbl = document.getElementById('tie-round-label');
+  if (lbl) lbl.textContent = lastState?.roundNum || '—';
+  const amt = document.getElementById('tie-amount-display');
+  if (amt) amt.textContent = fmtChips(BJ_TABLE.tieBet || 100);
+  const hint = document.getElementById('tie-payout-hint');
+  if (hint) hint.innerHTML = `Wins if your total matches the dealer's — bonus: <strong style="color:#ffd700">${fmtChips(BJ_TABLE.tieBetPayout || 2000)}</strong>`;
 
-  let t = 5;
-  if (cdEl) cdEl.textContent = t;
-  clearInterval(_tiePromptTimer);
+  let n = 5;
+  const cn = document.getElementById('tie-countdown');
+  if (cn) cn.textContent = n;
+  if (_tiePromptTimer) clearInterval(_tiePromptTimer);
   _tiePromptTimer = setInterval(() => {
-    t--;
-    if (cdEl) cdEl.textContent = Math.max(0, t);
-    if (t <= 0) {
-      clearInterval(_tiePromptTimer);
-      _tiePromptTimer = null;
-      // Auto-skip: default to NO
-      tieBetDecide('no', /*auto=*/true);
-    }
+    n--;
+    if (cn) cn.textContent = n;
+    if (n <= 0) { clearInterval(_tiePromptTimer); _tiePromptTimer = null; tieBetDecide('no', true); }
   }, 1000);
 }
 
 function _hideTieBetPrompt() {
+  if (_tiePromptTimer) { clearInterval(_tiePromptTimer); _tiePromptTimer = null; }
   const ov = document.getElementById('tie-bet-overlay');
   if (ov) ov.style.display = 'none';
-  if (_tiePromptTimer) { clearInterval(_tiePromptTimer); _tiePromptTimer = null; }
 }
 
 function tieBetDecide(choice, auto) {
-  if (choice !== 'yes' && choice !== 'no') return;
   _tieDecision = choice;
   _hideTieBetPrompt();
-  if (choice === 'yes' && ws) sendMsg('place_tie');
+  if (choice === 'yes') sendMsg('place_tie');
+  setTimeout(() => _autoPlaceFixedBet(), 300);
+}
+
+// ─────────────────────────────────────────────────────
+// INSURANCE
+// ─────────────────────────────────────────────────────
+function showInsurancePrompt() {
+  const el = document.getElementById('insurance-prompt');
+  if (el) el.style.display = 'flex';
+}
+function hideInsurancePrompt() {
+  const el = document.getElementById('insurance-prompt');
+  if (el) el.style.display = 'none';
+}
+function takeInsurance(take) {
+  sendMsg('insurance', { take: !!take });
+  hideInsurancePrompt();
+}
+
+// ─────────────────────────────────────────────────────
+// FREEZE BET  (standard tier toggle, persists across rounds)
+// ─────────────────────────────────────────────────────
+function toggleFreeze() {
+  if (BJ_TABLE.label === 'vip') {
+    // VIP: freeze the tie decision instead
+    if (_tieFrozen) {
+      _tieFrozen = false;
+      showIngameToast('Decision Unfrozen', 'You will be asked again next round.');
+    } else {
+      if (!_tieDecision) {
+        showIngameToast('No Decision to Freeze', 'Pick YES or NO on a tie bet first.');
+        return;
+      }
+      _tieFrozen = true;
+      const label = (_tieDecision === 'yes') ? 'ALWAYS PLACE TIE BET' : 'ALWAYS SKIP TIE BET';
+      showIngameToast('🔒 Decision Frozen', label);
+    }
+    _updateFreezeUI();
+    return;
+  }
+  // Standard tier: freeze the current pending or last bet
+  if (_frozenBet > 0) {
+    _frozenBet = 0; _frozenTie = false;
+    showIngameToast('Freeze Removed', 'Bet is no longer frozen.');
+  } else {
+    const seat = lastState?.seats?.[mySeatIndex];
+    const amt = pendingBet > 0 ? pendingBet : (seat?.bet || 0);
+    if (amt <= 0) {
+      showIngameToast('No Bet to Freeze', 'Place a bet first, then press freeze.');
+      return;
+    }
+    _frozenBet = amt;
+    _frozenTie = (seat?.tieBet || 0) > 0;
+    showIngameToast('🔒 Bet Frozen', `${fmtChips(amt)} will auto-place every round.`);
+  }
   _updateFreezeUI();
-  if (!auto && typeof SFX !== 'undefined') SFX.click?.();
-  // Now auto-place the fixed main bet
-  setTimeout(() => _autoPlaceFixedBet(), 100);
 }
 
-function addChip(val) {
-  if (typeof SFX !== 'undefined') SFX.chip();
-  const avail = window._lastBJState?.seats?.[mySeatIndex]?.wallet ?? myChips;
-  if (val > avail) { showIngameToast('Insufficient Chips', `Need $${val.toLocaleString()} to place this bet.`); return; }
-  pendingBet = val;
-  updateBetDisplay();
+function _applyFreezeIfActive() {
+  if (_betPlaced) return;
+  if (BJ_TABLE.label === 'vip') return;
+  if (_frozenBet <= 0) return;
+  const seat = lastState?.seats?.[mySeatIndex];
+  const avail = seat?.wallet ?? myChips;
+  if (_frozenBet > avail) {
+    _frozenBet = 0; _frozenTie = false;
+    _updateFreezeUI();
+    showIngameToast('Freeze Removed', 'Insufficient chips for frozen bet.');
+    return;
+  }
+  pendingBet = _frozenBet;
   _sendBet();
+  if (_frozenTie) setTimeout(() => sendMsg('place_tie'), 200);
 }
 
-function _sendBet() {
-  if (!ws || pendingBet < BJ_TABLE.minBet) return;
-  _betPlaced = true;
-  sendMsg('place_bet', { amount: pendingBet });
-  stopCountdown();
-
-  const ov = document.getElementById('bet-overlay');
-  if (!ov) return;
-
-  // Hide chips, keep tie bet visible after bet placed
-  const chipSection   = document.getElementById('bet-chips-section');
-  const betConfirm    = document.getElementById('bet-confirm-section');
-  const fixedSection  = document.getElementById('bet-fixed-section');
-  const tieBetSection = document.getElementById('bet-tiebet-section');
-  const alt           = document.getElementById('bet-alert-text');
-
-  if (chipSection)   chipSection.style.display   = 'none';
-  if (betConfirm)    betConfirm.style.display    = 'none';
-  if (fixedSection)  fixedSection.style.display  = 'none';
-  if (tieBetSection) tieBetSection.style.display = 'flex';
-  if (alt) alt.textContent = `✓ Bet $${pendingBet.toLocaleString()} placed`;
-
-  // Auto-close overlay after 3 seconds — but NOT in VIP: player needs the full
-  // betting window to toggle tie bet since the main bet was auto-placed.
-  clearTimeout(ov._closeTimer);
-  if (BJ_TABLE.label !== 'vip') {
-    ov._closeTimer = setTimeout(() => {
-      ov.style.display = 'none';
-    }, 3000);
+function _updateFreezeUI() {
+  const bb = document.getElementById('btn-freeze-bar');
+  if (!bb) return;
+  if (BJ_TABLE.label === 'vip') {
+    if (_tieFrozen && _tieDecision) {
+      bb.textContent = `🔒 Frozen — TIE: ${_tieDecision.toUpperCase()}`;
+      bb.classList.add('active');
+    } else {
+      bb.textContent = '🔓 Freeze Tie Bet';
+      bb.classList.remove('active');
+    }
+  } else {
+    if (_frozenBet > 0) {
+      bb.textContent = `🔒 Frozen ${fmtChips(_frozenBet)}` + (_frozenTie ? ' + Tie' : '');
+      bb.classList.add('active');
+    } else {
+      bb.textContent = '🔒 Freeze Bet';
+      bb.classList.remove('active');
+    }
   }
 }
 
-function placeBet() { _sendBet(); }
-
-function placeTieBet() {
-  if (!ws) return;
-  sendMsg('place_tie');
-  if (typeof SFX !== 'undefined') SFX.chip();
-}
-
-function updateBetDisplay() {
-  const d = document.getElementById('bet-display');
-  const a = document.getElementById('bet-alert-text');
-  if (d) d.textContent = pendingBet > 0 ? '$' + pendingBet.toLocaleString() : '';
-  if (a) a.textContent = pendingBet >= BJ_TABLE.minBet ? `Bet: $${pendingBet.toLocaleString()}` : 'Tap a chip to bet';
-}
-
-function takeInsurance(take) {
-  sendMsg('insurance', { take });
-  const ip = document.getElementById('insurance-panel');
-  if (ip) ip.style.display = 'none';
+// ─────────────────────────────────────────────────────
+// FLASH (oval colour pulse on win/lose)
+// ─────────────────────────────────────────────────────
+function flashTable(result) {
+  const oval = document.getElementById('oval-table');
+  if (!oval) return;
+  oval.classList.remove('flash-win', 'flash-lose', 'flash-bj');
+  if (result === 'blackjack')                        { oval.classList.add('flash-bj');   if (typeof SFX !== 'undefined') SFX.bj?.(); }
+  else if (result === 'win')                         { oval.classList.add('flash-win');  if (typeof SFX !== 'undefined') SFX.win?.(); }
+  else if (result === 'lose' || result === 'bust')   { oval.classList.add('flash-lose'); if (typeof SFX !== 'undefined') SFX.lose?.(); }
+  setTimeout(() => oval.classList.remove('flash-win', 'flash-lose', 'flash-bj'), 800);
 }
 
 // ─────────────────────────────────────────────────────
 // COUNTDOWN
 // ─────────────────────────────────────────────────────
-let _cdInterval = null;
 function startCountdown(secs, showOverlay) {
   stopCountdown();
-  let t = Math.floor(secs); const TOTAL = secs;
+  let t = Math.floor(secs);
+  const TOTAL   = secs;
   const cd      = document.getElementById('cd-number');
   const overlay = document.getElementById('your-turn-overlay');
   const ring    = document.getElementById('bet-ring');
   const bc      = document.getElementById('bet-countdown');
-
-  // Only show the big centred overlay during player action turns, not betting/insurance
-  if (overlay) { overlay.style.display = showOverlay ? 'flex' : 'none'; }
+  if (overlay) overlay.style.display = showOverlay ? 'flex' : 'none';
 
   const update = rem => {
     if (cd) { cd.textContent = rem; cd.classList.toggle('urgent', rem > 0 && rem <= 3); }
@@ -1467,148 +1122,170 @@ function stopCountdown() {
   if (cd) cd.classList.remove('urgent');
 }
 
-// VIP auto-placement: bet is fixed, no chip choice — send it immediately.
-// Tie bet is NOT auto-placed; the player must opt in each round via the
-// bottom-bar "Tie Bet $X" button while the betting timer is running.
-
 // ─────────────────────────────────────────────────────
-// DEAL ANIMATION
+// SEAT INTERACTIONS  (empty seat invite / add bot)
 // ─────────────────────────────────────────────────────
-let _dealActive = false;
-function runDealAnim(state) {
-  if (_dealActive) return;
-  const oval = document.getElementById('oval-table'); if (!oval) return;
-  oval.querySelectorAll('.deal-anim-card').forEach(e => e.remove());
-  _dealActive = true;
-  const deck = document.getElementById('deck-pile');
-  if (deck) deck.classList.add('visible');
-
-  const ow=oval.offsetWidth, oh=oval.offsetHeight, cx=ow/2, cy=oh/2;
-
-  // Visual zone positions for 6 seats in semicircle
-  const vzPos = [
-    {x:ow*0.18, y:oh*0.22},  // vz0 top-left
-    {x:ow*0.50, y:oh*0.16},  // vz1 top-centre
-    {x:ow*0.82, y:oh*0.22},  // vz2 top-right
-    {x:ow*0.22, y:oh*0.72},  // vz3 bottom-left
-    {x:ow*0.50, y:oh*0.80},  // vz4 bottom-centre (primary)
-    {x:ow*0.78, y:oh*0.72},  // vz5 bottom-right
-  ];
-  const dealerPos = {x:cx, y:oh*0.12};
-
-  if (!document.getElementById('bj-deal-kf')) {
-    const s=document.createElement('style');s.id='bj-deal-kf';
-    s.textContent='@keyframes bjDealCard{0%{opacity:1;transform:translate(0,0) rotate(0deg)}100%{opacity:.85;transform:translate(var(--dx),var(--dy)) rotate(var(--dr))}}';
-    document.head.appendChild(s);
-  }
-
-  const seats    = Object.keys(state.seats||{}).map(Number).sort();
-  const allSeats = seats;
-  const order    = [];
-  for (let r=0; r<2; r++) {
-    seats.forEach(si => order.push({si, dealer:false}));
-    order.push({si:-1, dealer:true});
-  }
-
-  let idx = 0;
-  const dealOne = () => {
-    if (idx >= order.length) { if(deck)deck.classList.remove('visible'); _dealActive=false; return; }
-    const {si, dealer} = order[idx];
-    const target = dealer ? dealerPos : (vzPos[getVisualZone(si, allSeats)] || {x:cx,y:cy});
-
-    const card = document.createElement('div');
-    card.className = 'deal-anim-card';
-    const tx = (target.x - cx + (Math.random()-.5)*12).toFixed(1);
-    const ty = (target.y - cy + (Math.random()-.5)*10).toFixed(1);
-    const dr = ((Math.random()-.5)*16).toFixed(1)+'deg';
-    card.style.cssText = `position:absolute;left:${cx-14}px;top:${cy-20}px;width:28px;height:40px;border-radius:5px;background:#083a7a url('backVurgLife.png') center/80% no-repeat;border:1.5px solid #8b6914;box-shadow:0 2px 8px rgba(0,0,0,.8);--dx:${tx}px;--dy:${ty}px;--dr:${dr};animation:bjDealCard .25s ease-out forwards;z-index:50`;
-    oval.appendChild(card);
-    if (typeof SFX !== 'undefined') SFX.card();
-    card.addEventListener('animationend', () => { card.style.transition='opacity .18s'; card.style.opacity='0'; setTimeout(()=>card.remove(),200); }, {once:true});
-    idx++;
-    setTimeout(dealOne, 50);
-  };
-  dealOne();
+function inviteToSeat() {
+  toggleIngameMenu();
+  setTimeout(() => igmShowSub('igm-sub-invite'), 200);
+}
+function addBotToSeat(visualZone) {
+  sendMsg('add_bot');
 }
 
 // ─────────────────────────────────────────────────────
-// AUTO-LOGIN
+// IN-GAME MENU
+// ─────────────────────────────────────────────────────
+function toggleIngameMenu() {
+  const ov = document.getElementById('igm-overlay');
+  const pn = document.getElementById('igm-panel');
+  if (!ov || !pn) return;
+  const open = pn.style.transform !== 'translateX(0%)' && !pn.classList.contains('open');
+  if (open) {
+    ov.style.display = 'block';
+    pn.style.transform = 'translateX(0%)';
+    pn.classList.add('open');
+    document.body.classList.add('igm-open');
+    igmRefresh();
+  } else {
+    closeIngameMenu();
+  }
+}
+function closeIngameMenu() {
+  const ov = document.getElementById('igm-overlay');
+  const pn = document.getElementById('igm-panel');
+  if (ov) ov.style.display = 'none';
+  if (pn) { pn.style.transform = 'translateX(100%)'; pn.classList.remove('open'); }
+  document.body.classList.remove('igm-open');
+  // Hide any open sub-panel
+  document.querySelectorAll('.igm-sub').forEach(s => s.style.display = 'none');
+  const m = document.getElementById('igm-main');
+  if (m) m.style.display = 'block';
+}
+function igmShowSub(id) {
+  document.querySelectorAll('.igm-sub').forEach(s => s.style.display = 'none');
+  const sub = document.getElementById(id);
+  if (sub) sub.style.display = 'block';
+  const main = document.getElementById('igm-main');
+  if (main) main.style.display = 'none';
+}
+function igmBack() {
+  document.querySelectorAll('.igm-sub').forEach(s => s.style.display = 'none');
+  const main = document.getElementById('igm-main');
+  if (main) main.style.display = 'block';
+}
+function igmShowReplenish() { igmShowSub('igm-sub-replenish'); }
+function igmShowInvite()    { igmShowSub('igm-sub-invite'); }
+function igmShowPayouts()   { igmShowSub('igm-sub-payouts'); }
+function igmShowRules()     { igmShowSub('igm-sub-rules'); }
+
+function igmRefresh() {
+  const u = document.getElementById('igm-username');     if (u) u.textContent = myUsername || '—';
+  const w = document.getElementById('igm-wallet-display'); if (w) w.textContent = 'Wallet: ' + fmtChips(myChips);
+  const b = document.getElementById('igm-bank-display');   if (b) b.textContent = fmtChips(igmBank);
+  const rw = document.getElementById('rep-cur-wallet');    if (rw) rw.textContent = fmtChips(myChips);
+  const rb = document.getElementById('rep-cur-bank');      if (rb) rb.textContent = fmtChips(igmBank);
+}
+
+async function igmExitTable() {
+  closeIngameMenu();
+  window._intentionalExit = true;
+  const token = igmToken;
+  try {
+    if (token) {
+      await fetch('/api/game/bj/exit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        credentials: 'include',
+        body: JSON.stringify({ remainingWallet: myChips, tableMinBet: BJ_TABLE.minBet || 100 })
+      });
+    }
+  } catch (e) {}
+  if (ws) { try { ws.send(JSON.stringify({ type: 'leave' })); ws.close(); } catch (e) {} }
+  setTimeout(() => { window.location.replace('/'); }, 400);
+}
+function exitToLobby() { igmExitTable(); }
+
+// ─────────────────────────────────────────────────────
+// CHAT
+// ─────────────────────────────────────────────────────
+function toggleChatPopup() {
+  const p = document.getElementById('chat-popup');
+  if (!p) return;
+  p.style.display = (p.style.display === 'flex') ? 'none' : 'flex';
+  if (p.style.display === 'flex') document.getElementById('chat-bar-input')?.focus();
+}
+function chatBarSend() {
+  const inp = document.getElementById('chat-bar-input');
+  if (!inp) return;
+  const msg = inp.value.trim();
+  if (!msg) return;
+  sendMsg('chatMessage', { message: msg });
+  inp.value = '';
+}
+function appendChat(msg) {
+  // Minimal chat sink — full popup logging can be added later
+  console.log('[chat]', msg.username || '?', ':', msg.message);
+}
+
+// ─────────────────────────────────────────────────────
+// AUTO-LOGIN  (called from VurgLife dashboard via sessionStorage)
 // ─────────────────────────────────────────────────────
 window.addEventListener('beforeunload', () => {
-  if (window._intentionalExit||window._serverSettled||!igmToken||!myChips) return;
+  if (window._intentionalExit || window._serverSettled || !igmToken || !myChips) return;
   const mb = BJ_TABLE.minBet || 100;
-  navigator.sendBeacon('/api/game/bj/exit-beacon?token='+encodeURIComponent(igmToken),
-    new Blob([JSON.stringify({remainingWallet:myChips,tableMinBet:mb})],{type:'application/json'}));
+  navigator.sendBeacon('/api/game/bj/exit-beacon?token=' + encodeURIComponent(igmToken),
+    new Blob([JSON.stringify({ remainingWallet: myChips, tableMinBet: mb })], { type: 'application/json' }));
 });
 
 window.addEventListener('DOMContentLoaded', () => {
-  _loadFreeze();
-  _updateFreezeUI();
-
-  // ── Path 1: URL has roomId params (from direct link or invite redirect) ──
-  const urlParams = new URLSearchParams(window.location.search);
-  const urlRoomId = urlParams.get('roomId');
-  const urlMinBet = urlParams.get('minBet');
-
-  if (urlRoomId) {
-    // Skip lobby entirely — connect directly to the specified room
-    const user = JSON.parse(sessionStorage.getItem('bj_user') || '{}');
-    myUsername = user.username || '';
-    _isSinglePlayer = urlRoomId.includes('_private');
-    _lobbyMode = _isSinglePlayer ? 'single' : 'multi';
-    window._bjRoomId = urlRoomId;
-    _pendingRoomId   = urlRoomId;
-
-    document.getElementById('screen-lobby').classList.remove('active');
-    document.getElementById('screen-game').classList.add('active');
-    document.getElementById('ingame-menu-btn').style.display = 'flex';
-
-    if (!user.username) {
-      // Not logged in via sessionStorage — try IGM token fallback
-      setTimeout(() => {
-        const tok = typeof igmToken !== 'undefined' ? igmToken : '';
-        const uname = typeof myUsername !== 'undefined' ? myUsername : 'Player';
-        connectWS(uname, tok, urlRoomId);
-      }, 300);
-    } else {
-      // Handle table entry if not already done
-      if (!JSON.parse(sessionStorage.getItem('bj_table') || '{}').enterHandled) {
-        fetch('/api/game/bj/enter', {
-          method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+user.token},
-          credentials:'include', body:JSON.stringify({tableMinBet: Number(urlMinBet) || 100})
-        }).catch(() => {});
-      }
-      sessionStorage.removeItem('bj_user');
-      sessionStorage.removeItem('bj_table');
-      connectWS(user.username, user.token, urlRoomId);
-    }
-    return;
-  }
-
-  // ── Path 2: sessionStorage set ──────────────────────────────
+  // Load saved user from sessionStorage (set by the dashboard before redirect)
   try {
     const uj = sessionStorage.getItem('bj_user');
     if (uj) {
       const user = JSON.parse(uj);
       myUsername = user.username || '';
-      // Load table config if previously set by the dashboard
+      igmToken   = user.token || '';
+      if (typeof user.bank === 'number') igmBank = user.bank;
       const tj = sessionStorage.getItem('bj_table');
       if (tj) {
-        try {
-          const t = JSON.parse(tj);
-          if (t && typeof t === 'object') {
-            BJ_TABLE = Object.assign({}, BJ_TABLE, t);
-          }
-        } catch (_) {}
+        try { BJ_TABLE = Object.assign({}, BJ_TABLE, JSON.parse(tj)); } catch (_) {}
       }
-      // Tier override (e.g. 'vip')
       const tier = sessionStorage.getItem('bj_tier');
       if (tier) BJ_TABLE.label = tier;
+      // Refresh the lobby header tier line
+      const sub = document.querySelector('.lobby-sub');
+      if (sub) {
+        sub.textContent = `Min ${fmtChips(BJ_TABLE.minBet || 100)} · Max ${fmtChips(BJ_TABLE.maxBet || 500)} per hand · ${fmtChips(BJ_TABLE.walletSize || 2500)} starting wallet`;
+      }
     }
   } catch (e) {
     console.warn('[BJ] auto-login parse error:', e.message);
   }
 
-  // Show the lobby (Single Player / Multiplayer chooser)
+  // URL has roomId → invited-joiner path
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlRoomId = urlParams.get('roomId');
+  if (urlRoomId) {
+    _isInvitedJoiner = urlParams.get('invited') === '1';
+    _pendingRoomId   = urlRoomId;
+    const user = JSON.parse(sessionStorage.getItem('bj_user') || '{}');
+    if (_isInvitedJoiner) {
+      _setupInvitedJoinerLobby(urlRoomId, user);
+    } else {
+      // Direct join: skip lobby, go straight to table
+      _isSinglePlayer = false;
+      enterTableNow();
+    }
+    return;
+  }
+
   _showStep('lobby-step-choose');
+});
+
+// Click-outside to close invite dropdown
+document.addEventListener('click', e => {
+  const dd = document.getElementById('lobby-multi-invite-dropdown');
+  const inp = document.getElementById('lobby-invite-input');
+  if (dd && inp && !dd.contains(e.target) && e.target !== inp) dd.style.display = 'none';
 });
