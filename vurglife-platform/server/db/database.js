@@ -238,9 +238,11 @@ const UserDB = {
         run(`UPDATE users SET ad_last_session = strftime('%s','now'), ad_session_count = ? WHERE id = ?`,
             [count, id]);
     },
-    async claimDailyBonus(id) {
+    async claimDailyBonus(id, amount = 500) {
         await getDb();
-        run(`UPDATE users SET last_daily_bonus = strftime('%s','now'), bank_balance = bank_balance + 500 WHERE id = ?`, [id]);
+        const credit = Math.max(0, Math.floor(Number(amount) || 0));
+        run(`UPDATE users SET last_daily_bonus = strftime('%s','now'), bank_balance = bank_balance + ? WHERE id = ?`, [credit, id]);
+        return credit;
     },
     async setVerifyToken(id, token) {
         await getDb();

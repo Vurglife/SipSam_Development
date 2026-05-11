@@ -7,7 +7,7 @@ const router  = express.Router();
 const bcrypt  = require('bcrypt');
 const jwt     = require('jsonwebtoken');
 const { UserDB, TxnDB } = require('../db/database');
-const { computeTier, WELCOME_BONUS } = require('../lib/tiers');
+const { computeTier, WELCOME_BONUS, dailyBonusFor } = require('../lib/tiers');
 
 const JWT_SECRET  = process.env.JWT_SECRET || 'vurglife_jwt_secret_change_in_prod';
 const SALT_ROUNDS = 10;
@@ -122,21 +122,34 @@ router.post('/login', async (req, res) => {
         const token = signToken(user);
         await UserDB.updateLastLogin(user.id);
 
-        // Apply daily login bonus if not already claimed today
+        // Apply daily login bonus if not already claimed today.
+        // Per-tier rate from lib/tiers.js — higher-tier players get more.
+        // No banking / no rollover: the credit only fires when at least 24h
+        // have elapsed since the last claim; a missed day is lost.
         let dailyBonusApplied = false;
+        let dailyBonusAmount  = 0;
         const now = Math.floor(Date.now() / 1000);
         const lastBonus = user.last_daily_bonus || 0;
-        const oneDayAgo = now - 86400; // 24 hours
+        const oneDayAgo = now - 86400;
         if (lastBonus < oneDayAgo) {
-            await UserDB.claimDailyBonus(user.id);
-            dailyBonusApplied = true;
-            console.log('[AUTH] Daily bonus applied for:', user.username);
+            dailyBonusAmount = dailyBonusFor(user.bank_balance);
+            if (dailyBonusAmount > 0) {
+                await UserDB.claimDailyBonus(user.id, dailyBonusAmount);
+                try {
+                    await TxnDB.record(user.id, 'daily_bonus', dailyBonusAmount, null,
+                        `Daily login bonus (${computeTier(user.bank_balance)?.name || 'Unranked'})`);
+                } catch(e) { console.warn('[AUTH] daily bonus txn log failed:', e.message); }
+                dailyBonusApplied = true;
+                console.log(`[AUTH] Daily bonus $${dailyBonusAmount} applied for ${user.username}`);
+            } else {
+                console.log(`[AUTH] ${user.username} below Bronze — no daily bonus`);
+            }
         }
 
         const freshUser = await UserDB.findById(user.id);
 
         console.log('[AUTH] Login: ' + user.username);
-        res.json({ ok: true, token, user: { ...safeUser(freshUser), dailyBonusApplied } });
+        res.json({ ok: true, token, user: { ...safeUser(freshUser), dailyBonusApplied, dailyBonusAmount } });
 
     } catch (err) {
         console.error('[AUTH] Login error:', err);

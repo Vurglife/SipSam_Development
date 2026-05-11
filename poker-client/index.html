@@ -537,7 +537,7 @@
   </div>
 </div>
 
-<script src="game.js?v=36"></script>
+<script src="game.js?v=37"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      IN-GAME SLIDE-OUT MENU
@@ -1263,12 +1263,13 @@ function syncWalletDisplay() {
 
 // ── TIER BADGE (mirrors server lib/tiers.js) ────────────
 const SIPSAM_TIERS = [
-  { name:'Elite',    minBank:5000000, color:'#9b5cff', emoji:'💎' },
-  { name:'VIP',      minBank:2000000, color:'#ff5577', emoji:'👑' },
-  { name:'Platinum', minBank:60000,   color:'#cfd6e4', emoji:'🔷' },
-  { name:'Gold',     minBank:30000,   color:'#e8c96a', emoji:'🏆' },
-  { name:'Silver',   minBank:15000,   color:'#bcc2c8', emoji:'🥈' },
-  { name:'Bronze',   minBank:5000,    color:'#cd7f32', emoji:'🥉' },
+  { name:'Celestial', minBank:10000000, color:'#7ec8ff', emoji:'✨' },
+  { name:'Elite',     minBank: 7000000, color:'#9b5cff', emoji:'💎' },
+  { name:'VIP',       minBank: 2000000, color:'#ff5577', emoji:'👑' },
+  { name:'Platinum',  minBank:   60000, color:'#cfd6e4', emoji:'🔷' },
+  { name:'Gold',      minBank:   30000, color:'#e8c96a', emoji:'🏆' },
+  { name:'Silver',    minBank:   15000, color:'#bcc2c8', emoji:'🥈' },
+  { name:'Bronze',    minBank:    5000, color:'#cd7f32', emoji:'🥉' },
 ];
 function computeTierFromBank(bank) {
   const b = Number(bank) || 0;

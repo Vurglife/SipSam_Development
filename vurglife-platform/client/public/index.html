@@ -1220,12 +1220,13 @@ function getBank() { return currentUser?.bankBalance ?? currentUser?.bank_balanc
 
 // ── Tier mirror of server lib/tiers.js — keep in sync.
 const PLATFORM_TIERS = [
-  { name:'Elite',    minBank:5000000, color:'#9b5cff', emoji:'💎' },
-  { name:'VIP',      minBank:2000000, color:'#ff5577', emoji:'👑' },
-  { name:'Platinum', minBank:60000,   color:'#cfd6e4', emoji:'🔷' },
-  { name:'Gold',     minBank:30000,   color:'#e8c96a', emoji:'🏆' },
-  { name:'Silver',   minBank:15000,   color:'#bcc2c8', emoji:'🥈' },
-  { name:'Bronze',   minBank:5000,    color:'#cd7f32', emoji:'🥉' },
+  { name:'Celestial', minBank:10000000, color:'#7ec8ff', emoji:'✨', dailyBonus:10000, adBonus:2500 },
+  { name:'Elite',     minBank: 7000000, color:'#9b5cff', emoji:'💎', dailyBonus: 5000, adBonus:1700 },
+  { name:'VIP',       minBank: 2000000, color:'#ff5577', emoji:'👑', dailyBonus: 2000, adBonus:1300 },
+  { name:'Platinum',  minBank:   60000, color:'#cfd6e4', emoji:'🔷', dailyBonus: 1500, adBonus:1000 },
+  { name:'Gold',      minBank:   30000, color:'#e8c96a', emoji:'🏆', dailyBonus: 1000, adBonus: 700 },
+  { name:'Silver',    minBank:   15000, color:'#bcc2c8', emoji:'🥈', dailyBonus:  700, adBonus: 500 },
+  { name:'Bronze',    minBank:    5000, color:'#cd7f32', emoji:'🥉', dailyBonus:  500, adBonus: 300 },
 ];
 function computeTierClient(bank) {
   const b=Number(bank)||0;

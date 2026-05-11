@@ -7,7 +7,8 @@ const jwt     = require('jsonwebtoken');
 const { UserDB, TxnDB, NotifDB, FriendDB } = require('../db/database');
 const { requireAuth }            = require('../middleware/auth');
 const { safeUser }               = require('./auth');
-const JWT_SECRET = process.env.JWT_SECRET || 'vurglife_dev_secret_change_in_prod';
+const JWT_SECRET = process.env.JWT_SECRET || 'vurglife_jwt_secret_change_in_prod';
+const GAME_SERVER_SECRET = process.env.GAME_SERVER_SECRET || 'vurglife_local_game_server_secret';
 
 // ── SIPSAM TABLE CONFIG ──────────────────────────────────────────────────
 const TABLE_CONFIG = {
@@ -381,6 +382,7 @@ router.post('/enter', requireAuth, async (req, res) => {
     // Deduct wallet from bank
     await UserDB.adjustBank(req.userId, -cfg.walletSize);
     await TxnDB.record(req.userId, 'wallet_draw', -cfg.walletSize, null, `Entered $${tableMinBet} table`);
+    _ssRecentCredits.delete(req.userId);
     _ssSetSession(req.userId, cfg.walletSize, Number(tableMinBet));
 
     res.json({
@@ -391,89 +393,120 @@ router.post('/enter', requireAuth, async (req, res) => {
     });
 });
 
-// Recent-credit cooldown: prevents double-credits when both the explicit
-// /exit and the beforeunload beacon fire within the same exit. Survives
-// platform restarts only by losing the cooldown — but losing the cooldown
-// on a fresh process means the FIRST credit wins and there is no in-flight
-// double to defend against, so this is safe.
-const _ssRecentCredits = new Map(); // userId -> lastCreditAtMs
-const _SS_COOLDOWN_MS = 10000;
-function _ssRecentlyCredited(userId) {
-    const at = _ssRecentCredits.get(userId);
-    return !!(at && Date.now() - at < _SS_COOLDOWN_MS);
+// Recent-credit guard: prevents double credits when explicit exit,
+// beforeunload beacon, and server-side onLeave all fire for the same session.
+// Trusted game-server settlement can still add the difference if a client
+// beacon returned only the capped starting wallet before the server reported
+// the final, post-payout wallet.
+const _ssRecentCredits = new Map(); // userId -> { at, amount }
+const _SS_COOLDOWN_MS = 60000;
+const _ssExitLocks = new Map();
+
+function _ssRecentCredit(userId) {
+    const rec = _ssRecentCredits.get(userId);
+    if (!rec) return null;
+    if (Date.now() - rec.at >= _SS_COOLDOWN_MS) {
+        _ssRecentCredits.delete(userId);
+        return null;
+    }
+    return rec;
 }
-function _ssMarkCredited(userId) { _ssRecentCredits.set(userId, Date.now()); }
+function _ssMarkCredited(userId, amount) {
+    _ssRecentCredits.set(userId, { at: Date.now(), amount: Math.max(0, Number(amount) || 0) });
+}
+function _isTrustedGameServer(req) {
+    return req.get('x-game-server-secret') === GAME_SERVER_SECRET;
+}
+async function _ssWithExitLock(userId, fn) {
+    const previous = _ssExitLocks.get(userId) || Promise.resolve();
+    const run = previous.catch(() => {}).then(fn);
+    const cleanup = run.finally(() => {
+        if (_ssExitLocks.get(userId) === cleanup) _ssExitLocks.delete(userId);
+    });
+    _ssExitLocks.set(userId, cleanup);
+    return run;
+}
 
 // Look up whether the player has an outstanding (unsettled) wallet_draw
 // in the transaction log. Used as a fallback when the in-memory session
-// map is empty (e.g. after a platform restart) so we don't silently drop
-// the wallet — but ALSO don't grant a free wallet when no draw happened.
-// Returns the most recent unmatched wallet_draw row, or null.
+// map is empty (for example after a platform restart).
 async function _findUnsettledDraw(userId) {
     try {
         const last = await TxnDB.lastByTypes(userId,
             ['wallet_draw','wallet_return']);
-        // Most recent should be a draw; if it's a return, there's nothing owed.
         if (last && last.type === 'wallet_draw') return last;
         return null;
     } catch(e) { return null; }
 }
 
-// POST /api/game/exit — return remaining wallet chips to bank.
-// Two layers of defence against the "free wallet on exit when /enter
-// silently failed" bug:
-//   1. _ssRecentlyCredited cooldown — same as before, kills duplicate
-//      credits within 10s (client + server-side onLeave + beacon).
-//   2. Active session OR unmatched wallet_draw must exist. If neither,
-//      we refuse to credit — the player never paid in, so there's
-//      nothing to refund.
-// Cap remainingWallet to the tier's walletSize so a tampered client
-// can't claim more than they were dealt.
-router.post('/exit', requireAuth, async (req, res) => {
-    const { remainingWallet, tableMinBet } = req.body;
-    if (typeof remainingWallet !== 'number' || remainingWallet < 0)
-        return res.status(400).json({ error: 'Invalid wallet amount' });
-
-    if (_ssRecentlyCredited(req.userId)) {
-        const user = await UserDB.findById(req.userId);
-        return res.json({ ok:true, skipped:'recent-credit', newBankBalance: user.bank_balance });
+async function _handleSipSamExit(userId, remainingWallet, tableMinBet, trusted, sourceLabel) {
+    const requested = Math.max(0, Math.floor(Number(remainingWallet) || 0));
+    const recent = _ssRecentCredit(userId);
+    if (recent) {
+        if (trusted && requested > recent.amount) {
+            const delta = requested - recent.amount;
+            await UserDB.adjustBank(userId, delta);
+            await TxnDB.record(userId, 'wallet_return', delta, null,
+                `SipSam server wallet reconciliation at $${tableMinBet} table (${sourceLabel || 'server'})`);
+            _ssMarkCredited(userId, requested);
+            const user = await UserDB.findById(userId);
+            return { ok:true, reconciled:true, returned:delta, totalReturned:requested, newBankBalance:user.bank_balance };
+        }
+        const user = await UserDB.findById(userId);
+        return { ok:true, skipped:'recent-credit', credited:recent.amount, newBankBalance:user.bank_balance };
     }
 
-    // CRITICAL: mark + clear synchronously BEFORE any await so concurrent
-    // /exit calls (client + server onLeave + beacon) can't all pass the
-    // cooldown check during each other's awaits and double-credit.
-    _ssMarkCredited(req.userId);
-    const session = _ssGetSession(req.userId);
-    _ssClearSession(req.userId);
+    const session = _ssGetSession(userId);
+    _ssClearSession(userId);
 
     let allowedCeiling = 0;
     if (session) {
         allowedCeiling = session.walletSize;
     } else {
-        const unsettled = await _findUnsettledDraw(req.userId);
+        const unsettled = await _findUnsettledDraw(userId);
         if (!unsettled) {
-            console.warn(`[EXIT] ${req.userId} called /exit with no session and no unsettled draw — refusing to credit`);
-            const user = await UserDB.findById(req.userId);
-            return res.json({ ok:true, skipped:'no-draw', newBankBalance: user.bank_balance });
+            console.warn(`[EXIT] ${userId} called /exit with no session and no unsettled draw - refusing to credit`);
+            const user = await UserDB.findById(userId);
+            return { ok:true, skipped:'no-draw', newBankBalance:user.bank_balance };
         }
         allowedCeiling = Math.abs(unsettled.amount);
     }
 
-    const credit = Math.min(remainingWallet, allowedCeiling);
-    if (credit !== remainingWallet) {
-        console.warn(`[EXIT] ${req.userId} claimed $${remainingWallet} but ceiling is $${allowedCeiling} — capping`);
+    const credit = trusted ? requested : Math.min(requested, allowedCeiling);
+    if (!trusted && credit !== requested) {
+        console.warn(`[EXIT] ${userId} claimed $${requested} but ceiling is $${allowedCeiling} - capping client credit`);
     }
 
-    await UserDB.adjustBank(req.userId, credit);
-    await TxnDB.record(req.userId, 'wallet_return', credit, null, `Exited $${tableMinBet} table`);
+    await UserDB.adjustBank(userId, credit);
+    await TxnDB.record(userId, 'wallet_return', credit, null,
+        `Exited $${tableMinBet} table${trusted ? ' (server settled)' : sourceLabel ? ' (' + sourceLabel + ')' : ''}`);
+    _ssMarkCredited(userId, credit);
 
-    const user = await UserDB.findById(req.userId);
-    res.json({ ok:true, newBankBalance: user.bank_balance });
+    const user = await UserDB.findById(userId);
+    return { ok:true, returned:credit, trusted, newBankBalance:user.bank_balance };
+}
+
+// POST /api/game/exit - return remaining wallet chips to bank.
+router.post('/exit', requireAuth, async (req, res) => {
+    const { remainingWallet, tableMinBet } = req.body;
+    if (!Number.isFinite(remainingWallet) || remainingWallet < 0)
+        return res.status(400).json({ error: 'Invalid wallet amount' });
+
+    try {
+        const result = await _ssWithExitLock(req.userId, () =>
+            _handleSipSamExit(req.userId, remainingWallet, tableMinBet, _isTrustedGameServer(req), req.body?.reason)
+        );
+        res.json(result);
+    } catch(e) {
+        console.error('[exit] error:', e);
+        res.status(500).json({ error:'Exit settlement failed' });
+    }
 });
 
-// POST /api/game/exit-beacon — beacon-friendly refund (used by beforeunload)
-// navigator.sendBeacon cannot set Authorization headers, so the JWT is in the query.
-// Body is a Blob containing JSON: { remainingWallet, tableMinBet }
+// POST /api/game/exit-beacon - beacon-friendly refund (used by beforeunload)
+// navigator.sendBeacon cannot set Authorization headers, so this path remains
+// client-capped. If the game server later reports a higher final wallet, the
+// trusted /exit path reconciles the difference.
 router.post('/exit-beacon', async (req, res) => {
     try {
         const token = req.query?.token;
@@ -483,29 +516,12 @@ router.post('/exit-beacon', async (req, res) => {
         catch { return res.status(401).end(); }
 
         const { remainingWallet, tableMinBet } = req.body || {};
-        if (typeof remainingWallet !== 'number' || remainingWallet < 0)
+        if (!Number.isFinite(remainingWallet) || remainingWallet < 0)
             return res.status(400).end();
 
-        if (_ssRecentlyCredited(userId)) return res.status(204).end();
-
-        // Mark synchronously before any await — same race fix as /exit.
-        _ssMarkCredited(userId);
-        const session = _ssGetSession(userId);
-        _ssClearSession(userId);
-
-        let allowedCeiling = 0;
-        if (session) {
-            allowedCeiling = session.walletSize;
-        } else {
-            const unsettled = await _findUnsettledDraw(userId);
-            if (!unsettled) return res.status(204).end();
-            allowedCeiling = Math.abs(unsettled.amount);
-        }
-        const credit = Math.min(remainingWallet, allowedCeiling);
-
-        await UserDB.adjustBank(userId, credit);
-        await TxnDB.record(userId, 'wallet_return', credit, null,
-            `Exited $${tableMinBet} table (beacon)`);
+        await _ssWithExitLock(userId, () =>
+            _handleSipSamExit(userId, remainingWallet, tableMinBet, false, 'beacon')
+        );
         res.status(204).end();
     } catch (e) {
         console.error('[exit-beacon] error:', e);
@@ -573,12 +589,11 @@ router.get('/media/status', requireAuth, async (req, res) => {
 // POST /api/ads/watch — record an ad watch, grant chips
 router.post('/media/watch', requireAuth, async (req, res) => {
     const { adType } = req.body; // 'reward' | 'pregame' | 'milestone'
-    const user  = UserDB.findById(req.userId);
+    const user  = await UserDB.findById(req.userId);
     const now   = Math.floor(Date.now() / 1000);
     const oneHour = 3600;
 
     if (adType === 'reward') {
-        // Check cooldown
         const cooldownEnds = user.ad_last_session ? user.ad_last_session + oneHour : 0;
         if (now < cooldownEnds)
             return res.status(429).json({ error: 'Cooldown active', secondsRemaining: cooldownEnds - now });
@@ -588,19 +603,21 @@ router.post('/media/watch', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'Maximum ads watched for this session' });
 
         const newCount = user.ad_session_count + 1;
-        const chips    = 500;
+        // Per-tier ad reward from lib/tiers.js. Falls back to 300 for
+        // sub-Bronze players so the reward path always credits something.
+        const { adBonusFor } = require('../lib/tiers');
+        const chips = adBonusFor(user.bank_balance) || 300;
 
         await UserDB.adjustBank(req.userId, chips);
         await UserDB.updateAdSession(req.userId, newCount >= maxAds ? 0 : newCount);
 
-        // If they hit max, reset and start cooldown
         if (newCount >= maxAds) {
             await UserDB.updateAdSession(req.userId, 0);
         }
 
         await TxnDB.record(req.userId, 'ad_reward', chips, null, `Ad watch reward (${newCount}/${maxAds})`);
 
-        const updatedUser = UserDB.findById(req.userId);
+        const updatedUser = await UserDB.findById(req.userId);
         return res.json({
             ok:          true,
             chipsEarned: chips,
@@ -737,12 +754,11 @@ router.get('/media/status', requireAuth, async (req, res) => {
 // POST /api/ads/watch — record an ad watch, grant chips
 router.post('/media/watch', requireAuth, async (req, res) => {
     const { adType } = req.body; // 'reward' | 'pregame' | 'milestone'
-    const user  = UserDB.findById(req.userId);
+    const user  = await UserDB.findById(req.userId);
     const now   = Math.floor(Date.now() / 1000);
     const oneHour = 3600;
 
     if (adType === 'reward') {
-        // Check cooldown
         const cooldownEnds = user.ad_last_session ? user.ad_last_session + oneHour : 0;
         if (now < cooldownEnds)
             return res.status(429).json({ error: 'Cooldown active', secondsRemaining: cooldownEnds - now });
@@ -752,19 +768,21 @@ router.post('/media/watch', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'Maximum ads watched for this session' });
 
         const newCount = user.ad_session_count + 1;
-        const chips    = 500;
+        // Per-tier ad reward from lib/tiers.js. Falls back to 300 for
+        // sub-Bronze players so the reward path always credits something.
+        const { adBonusFor } = require('../lib/tiers');
+        const chips = adBonusFor(user.bank_balance) || 300;
 
         await UserDB.adjustBank(req.userId, chips);
         await UserDB.updateAdSession(req.userId, newCount >= maxAds ? 0 : newCount);
 
-        // If they hit max, reset and start cooldown
         if (newCount >= maxAds) {
             await UserDB.updateAdSession(req.userId, 0);
         }
 
         await TxnDB.record(req.userId, 'ad_reward', chips, null, `Ad watch reward (${newCount}/${maxAds})`);
 
-        const updatedUser = UserDB.findById(req.userId);
+        const updatedUser = await UserDB.findById(req.userId);
         return res.json({
             ok:          true,
             chipsEarned: chips,
