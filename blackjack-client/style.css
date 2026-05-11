@@ -592,6 +592,42 @@ html, body {
 }
 .seat-bot-btn:hover { border-color:#4aabff; color:#4aabff; background:rgba(74,171,255,.15); }
 
+/* ── CARD SIZE OVERRIDES — mobile-first, readability prioritised ──
+   - My own seat's cards: largest (vl-lg) so I can always see my hand
+   - Dealer cards: large (vl-lg) so the table read is clear
+   - Other seats: default size to keep the table layout tidy
+   The .bj-seat-mine class is toggled on the player's seat element by
+   renderSeats(); vl-lg is applied directly when the card is built. */
+.bj-dealer-zone .vl-card,
+.bj-seat-mine .vl-card {
+  /* vl-lg dimensions; rule override for our specific contexts */
+  width: 84px;
+  height: 122px;
+}
+.bj-dealer-zone .vl-card .vl-rank,
+.bj-seat-mine .vl-card .vl-rank { font-size: 44px; }
+.bj-dealer-zone .vl-card .vl-suit,
+.bj-seat-mine .vl-card .vl-suit { font-size: 50px; }
+.bj-dealer-zone .vl-card .vl-pip,
+.bj-dealer-zone .vl-card .vl-pip-br,
+.bj-seat-mine   .vl-card .vl-pip,
+.bj-seat-mine   .vl-card .vl-pip-br { font-size: 14px; }
+
+/* Highlight my seat — subtle gold ring so I can always find myself */
+.bj-seat-mine {
+  filter: drop-shadow(0 0 14px rgba(201,168,76,0.45));
+}
+
+/* Mobile: keep cards proportional, push dealer cards slightly larger */
+@media (max-width: 480px) {
+  .bj-seat-mine .vl-card  { width: 72px; height: 104px; }
+  .bj-seat-mine .vl-card .vl-rank { font-size: 38px; }
+  .bj-seat-mine .vl-card .vl-suit { font-size: 42px; }
+  .bj-dealer-zone .vl-card { width: 64px; height: 92px; }
+  .bj-dealer-zone .vl-card .vl-rank { font-size: 32px; }
+  .bj-dealer-zone .vl-card .vl-suit { font-size: 36px; }
+}
+
 /* ── HANDS ── */
 .dealer-hand { display:flex; gap:6px; min-height:72px; align-items:flex-end;
   filter:drop-shadow(0 4px 12px rgba(0,0,0,.7)); flex-wrap:wrap; justify-content:center; }
@@ -723,12 +759,51 @@ html, body {
   box-shadow: 0 0 20px rgba(255,215,0,0.6);
 }
 
-/* ── ACTION BUTTONS (HIT / STAND / DOUBLE / SPLIT) ──────── */
-#player-actions, #insurance-prompt {
-  background: linear-gradient(180deg, rgba(10,24,48,0.95), rgba(10,24,48,0.7));
-  border-top: 1px solid rgba(201,168,76,0.2);
-  padding: 10px 14px;
-  flex-shrink: 0;
+/* ── ACTION PANEL POSITIONING — fixed bottom-center on all screen sizes ──
+   Player actions, insurance, waiting-msg, and the freeze-button strip are
+   all siblings of .oval-table inside .game-body-bj (a flex row). Without
+   fixed positioning they float to the side of the table. Pinning them to
+   bottom-center keeps the action area predictable and thumb-reachable
+   on mobile. */
+#player-actions,
+#insurance-prompt {
+  position: fixed !important;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 78px;
+  z-index: 200;
+  width: auto;
+  max-width: min(96vw, 720px);
+  background: linear-gradient(180deg, rgba(10,24,48,0.92) 0%, rgba(8,15,30,0.96) 100%);
+  border: 1px solid rgba(201,168,76,0.35);
+  border-radius: 14px;
+  padding: 12px 22px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.6), 0 0 24px rgba(201,168,76,0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+/* Freeze button strip — anchored at the very bottom of the viewport */
+.game-body-bj > div:last-child {
+  position: fixed !important;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 199;
+  border-top: none !important;
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+#waiting-msg {
+  position: fixed !important;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 78px;
+  z-index: 200;
+  background: rgba(10,24,48,0.92);
+  border: 1px solid rgba(74,171,255,0.4);
+  border-radius: 14px;
+  padding: 10px 22px;
+  backdrop-filter: blur(8px);
 }
 .action-btn {
   background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));

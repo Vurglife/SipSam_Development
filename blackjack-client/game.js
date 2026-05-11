@@ -120,26 +120,31 @@ function handTotal(hand) {
   };
 }
 
-function makeVLCard(c) {
-  // Prefer the shared vl-card.js helper if present
-  if (typeof window.vlCard === 'function') return window.vlCard(c);
-  if (typeof vlCard === 'function')        return vlCard(c);
-  // Minimal fallback renderer
-  const el = document.createElement('div');
-  el.className = 'vl-card';
-  el.style.cssText = 'width:42px;height:58px;border-radius:5px;display:inline-flex;'
-    + 'align-items:center;justify-content:center;font-weight:700;font-size:14px;'
-    + 'border:1px solid #999;box-shadow:0 2px 5px rgba(0,0,0,0.6);margin:1px';
-  if (!c || c.faceDown) {
-    el.style.background = 'linear-gradient(135deg,#1a3a8a,#0a1850)';
-    el.style.border = '1px solid #c9a84c';
-    el.textContent = '';
-  } else if (c.rank) {
-    const isRed = c.suit === '♥' || c.suit === '♦';
-    el.style.background = '#fff';
-    el.style.color = isRed ? '#cc1830' : '#000';
-    el.textContent = c.rank + (c.suit || '');
+function makeVLCard(c, size) {
+  // size: 'sm' | 'lg' | undefined (default).  Used by renderSeats/renderDealer.
+  let el;
+  if (typeof window.vlCard === 'function')      el = window.vlCard(c);
+  else if (typeof vlCard === 'function')        el = vlCard(c);
+  else {
+    // Minimal fallback renderer
+    el = document.createElement('div');
+    el.className = 'vl-card';
+    el.style.cssText = 'width:62px;height:90px;border-radius:5px;display:inline-flex;'
+      + 'align-items:center;justify-content:center;font-weight:700;font-size:20px;'
+      + 'border:1px solid #999;box-shadow:0 2px 5px rgba(0,0,0,0.6);margin:1px';
+    if (!c || c.faceDown) {
+      el.style.background = 'linear-gradient(135deg,#1a3a8a,#0a1850)';
+      el.style.border = '1px solid #c9a84c';
+      el.textContent = '';
+    } else if (c.rank) {
+      const isRed = c.suit === '♥' || c.suit === '♦';
+      el.style.background = '#fff';
+      el.style.color = isRed ? '#cc1830' : '#000';
+      el.textContent = c.rank + (c.suit || '');
+    }
   }
+  if (size === 'lg') el.classList.add('vl-lg');
+  else if (size === 'sm') el.classList.add('vl-sm');
   return el;
 }
 
@@ -713,7 +718,7 @@ function renderDealer(state) {
   const cardsEl = document.getElementById('dealer-cards');
   if (cardsEl) {
     cardsEl.innerHTML = '';
-    (state.dealerCards || []).forEach(c => cardsEl.appendChild(makeVLCard(c)));
+    (state.dealerCards || []).forEach(c => cardsEl.appendChild(makeVLCard(c, 'lg')));
   }
   const totalEl = document.getElementById('dealer-total-display');
   if (totalEl) {
@@ -739,6 +744,10 @@ function renderSeats(state) {
     occupiedZones.add(vz);
     const isMe = (seatIdx === mySeatIndex);
 
+    // Mark the seat element so CSS can scale up MY cards / highlight my seat
+    const seatEl = document.getElementById(`bj-seat-${vz}`);
+    if (seatEl) seatEl.classList.toggle('bj-seat-mine', isMe);
+
     const emptyEl = document.getElementById(`seat${vz}-empty`);
     if (emptyEl) emptyEl.style.display = 'none';
 
@@ -758,6 +767,8 @@ function renderSeats(state) {
     if (cardsEl) {
       const hands = seat.hands || [];
       const isSplit = hands.length > 1;
+      // My own cards render at large size for readability; others stay default
+      const cardSize = isMe ? 'lg' : null;
       if (isSplit) {
         cardsEl.innerHTML = '';
         cardsEl.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;justify-content:center';
@@ -767,7 +778,7 @@ function renderSeats(state) {
           wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px';
           const box = document.createElement('div');
           box.style.cssText = 'display:flex;gap:2px';
-          (hand || []).forEach(c => box.appendChild(makeVLCard(c)));
+          (hand || []).forEach(c => box.appendChild(makeVLCard(c, cardSize)));
           const ht = handTotal(hand || []);
           if (ht.total > 0) {
             const t = document.createElement('div');
@@ -790,7 +801,7 @@ function renderSeats(state) {
         cardsEl.innerHTML = '';
         cardsEl.style.cssText = 'display:flex;gap:3px;align-items:flex-end;flex-wrap:wrap';
         const hand = hands[0] || [];
-        hand.forEach(c => cardsEl.appendChild(makeVLCard(c)));
+        hand.forEach(c => cardsEl.appendChild(makeVLCard(c, cardSize)));
         const ht = handTotal(hand);
         if (ht.total > 0) {
           const t = document.createElement('div');
@@ -821,6 +832,8 @@ function renderSeats(state) {
   // Empty seats — show invite/bot UI
   for (let vz = 0; vz < 6; vz++) {
     if (occupiedZones.has(vz)) continue;
+    const seatEl = document.getElementById(`bj-seat-${vz}`);
+    if (seatEl) seatEl.classList.remove('bj-seat-mine');
     const nameEl = document.getElementById(`seat${vz}-name`);   if (nameEl)  nameEl.textContent  = '';
     const chipsEl = document.getElementById(`seat${vz}-chips`); if (chipsEl) chipsEl.textContent = '';
     const betEl  = document.getElementById(`seat${vz}-bet`);    if (betEl)   betEl.textContent   = '';
@@ -1265,6 +1278,160 @@ async function igmExitTable() {
   setTimeout(() => { window.location.replace('/'); }, 400);
 }
 function exitToLobby() { igmExitTable(); }
+
+// ─────────────────────────────────────────────────────
+// IGM menu-item handlers (wired from index.html onclick=)
+// ─────────────────────────────────────────────────────
+function igmReplenish() { igmShowSub('igm-sub-replenish'); }
+function igmInvite()    { igmShowSub('igm-sub-invite'); }
+function igmExit()      { igmExitTable(); }
+
+function igmAddBot() {
+  // Server picks the next free seat; no zone needed
+  sendMsg('add_bot');
+  closeIngameMenu();
+  showIngameToast('Bot Added', 'A bot will join the next empty seat.');
+}
+
+function igmFillMax() {
+  // Fill the replenish input with the player's full bank balance
+  const input = document.getElementById('rep-amount');
+  if (input) input.value = String(Math.max(0, igmBank | 0));
+}
+
+async function doReplenish() {
+  const input = document.getElementById('rep-amount');
+  const err   = document.getElementById('rep-err');
+  const amt   = Math.floor(Number(input?.value || 0));
+  if (err) err.style.display = 'none';
+  if (!amt || amt <= 0) {
+    if (err) { err.textContent = 'Enter a positive amount.'; err.style.display = 'block'; }
+    return;
+  }
+  if (amt > igmBank) {
+    if (err) { err.textContent = `Insufficient bank (have ${fmtChips(igmBank)}).`; err.style.display = 'block'; }
+    return;
+  }
+  try {
+    const res = await fetch('/api/game/replenish', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + igmToken },
+      credentials: 'include',
+      body: JSON.stringify({ amount: amt, gameType: 'blackjack', tableMinBet: BJ_TABLE.minBet || 100 })
+    });
+    const d = await res.json();
+    if (!d?.ok) {
+      if (err) { err.textContent = d?.error || 'Replenish failed.'; err.style.display = 'block'; }
+      return;
+    }
+    // Server already debited the bank — credit our local wallet via add_wallet
+    sendMsg('add_wallet', { amount: amt });
+    if (typeof d.newBankBalance === 'number') igmBank = d.newBankBalance;
+    myChips += amt;
+    igmWallet = myChips;
+    igmRefresh();
+    if (input) input.value = '';
+    showIngameToast('Replenished', `+${fmtChips(amt)} drawn to wallet.`);
+    setTimeout(() => igmBack(), 600);
+  } catch (e) {
+    if (err) { err.textContent = 'Network error: ' + e.message; err.style.display = 'block'; }
+  }
+}
+
+// IGM invite panel (mirrors the lobby invite — uses different element IDs)
+let _igmInviteFriends = null;
+async function _igmLoadFriends() {
+  if (_igmInviteFriends) return _igmInviteFriends;
+  try {
+    const r = await fetch('/api/friends', { headers: { 'Authorization': 'Bearer ' + igmToken } });
+    const d = await r.json();
+    _igmInviteFriends = d.friends || [];
+    return _igmInviteFriends;
+  } catch (e) { _igmInviteFriends = []; return []; }
+}
+
+function _renderIgmInviteDropdown(dd, friends, others, q) {
+  dd.innerHTML = '';
+  if (!friends.length && !others.length) {
+    const msg = document.createElement('div');
+    msg.style.cssText = 'padding:10px 12px;font-size:12px;color:#7a9ac0;font-style:italic';
+    msg.textContent = q ? 'No matches found.' : 'No friends yet — type a username.';
+    dd.appendChild(msg);
+    dd.style.display = 'block';
+    return;
+  }
+  const addRow = (name, isFriend) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;font-size:13px;color:#e8dfc0;border-bottom:1px solid rgba(255,255,255,.04)';
+    row.innerHTML = `<span style="width:22px;height:22px;border-radius:50%;background:rgba(201,168,76,.18);border:1px solid #c9a84c;display:flex;align-items:center;justify-content:center;font-size:11px;color:#c9a84c">${(name[0] || '?').toUpperCase()}</span>
+                     <span style="flex:1">${name}</span>${isFriend ? '<span style="font-size:10px;color:#4aabff">🤝</span>' : ''}`;
+    row.onmousedown = () => {
+      const inp = document.getElementById('invite-username');
+      if (inp) inp.value = name;
+      dd.style.display = 'none';
+    };
+    dd.appendChild(row);
+  };
+  friends.forEach(f => addRow(f.username || f.friend_username, true));
+  others.forEach(u => addRow(u.username, false));
+  dd.style.display = 'block';
+}
+
+let _igmSearchTimer = null;
+function onLobbyInviteInput(val) {
+  const dd = document.getElementById('lobby-invite-dropdown');
+  if (!dd) return;
+  clearTimeout(_igmSearchTimer);
+  const q = (val || '').trim().toLowerCase();
+  _igmLoadFriends().then(friends => {
+    const matches = q
+      ? friends.filter(f => (f.username || '').toLowerCase().includes(q)).slice(0, 6)
+      : friends.slice(0, 6);
+    _renderIgmInviteDropdown(dd, matches, [], q);
+  });
+  if (!q) return;
+  _igmSearchTimer = setTimeout(async () => {
+    const friends = await _igmLoadFriends();
+    const friendNames = new Set(friends.map(f => (f.username || '').toLowerCase()));
+    const all = await _searchAllPlayers(val);
+    const fm = friends.filter(f => (f.username || '').toLowerCase().includes(q)).slice(0, 6);
+    const om = all.filter(u => !friendNames.has((u.username || '').toLowerCase())).slice(0, 6);
+    _renderIgmInviteDropdown(dd, fm, om, q);
+  }, 350);
+}
+function onLobbyInviteFocus() { onLobbyInviteInput(''); }
+
+async function sendLobbyInvite() {
+  const inp = document.getElementById('invite-username');
+  const st  = document.getElementById('invite-status');
+  const username = (inp?.value || '').trim();
+  if (!username) { if (st) st.textContent = 'Enter a username first.'; return; }
+  const roomId = window._bjRoomId || `bj_${BJ_TABLE.minBet || 100}_${Date.now()}`;
+  if (st) st.textContent = 'Sending invite…';
+  try {
+    const r = await fetch('/api/friends/invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + igmToken },
+      body: JSON.stringify({
+        toUsername:  username,
+        roomId:      roomId,
+        tableMinBet: BJ_TABLE.minBet || 100,
+        game:        'blackjack',
+        tableConfig: Object.assign({}, BJ_TABLE),
+        expiresIn:   300
+      })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      if (st) st.textContent = '✅ Invite sent to ' + username;
+      if (inp) inp.value = '';
+    } else {
+      if (st) st.textContent = '❌ ' + (d.error || 'Failed.');
+    }
+  } catch (e) {
+    if (st) st.textContent = '❌ ' + e.message;
+  }
+}
 
 // ─────────────────────────────────────────────────────
 // CHAT

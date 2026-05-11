@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#04080f"/>
 <title>Blackjack — VurgLife</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Rajdhani:wght@400;600;700&family=Bebas+Neue&family=Exo+2:wght@400;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="style.css?v=5"/>
+<link rel="stylesheet" href="style.css?v=6"/>
 <link rel="stylesheet" href="vl-card.css?v=3"/>
 </head>
 <body>
@@ -347,7 +347,7 @@
 </div>
 
 <script src="vl-card.js?v=3"></script>
-<script src="game.js?v=6"></script>
+<script src="game.js?v=7"></script>
 
 <!-- ═══════════ IGM BUTTON ═══════════ -->
 <button id="ingame-menu-btn" onclick="toggleIngameMenu()" style="display:none;position:fixed;top:8px;right:10px;z-index:500;background:rgba(8,15,30,.9);border:1px solid #1a2d50;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700;letter-spacing:1px;font-family:'Rajdhani',sans-serif;color:#f0f6ff;backdrop-filter:blur(6px);align-items:center;gap:7px;text-transform:uppercase;box-shadow:0 4px 16px rgba(0,0,0,.5)">☰ MENU</button>
@@ -377,22 +377,6 @@
 
     <div class="igm-item" onclick="igmShowRules()"><div class="igm-ico">📖</div><div class="igm-body"><div class="igm-title">Game Rules</div><div class="igm-desc">Blackjack rules &amp; payouts</div></div><span class="igm-arrow">›</span></div>
     <div style="height:1px;background:#1a2d50;margin:4px 0"></div>
-    <div class="igm-item igm-danger" onclick="igmExit()"><div class="igm-ico">🚪</div><div class="igm-body"><div class="igm-title">Exit Game</div><div class="igm-desc">Chips returned to your bank</div></div><span class="igm-arrow">›</span></div>
-  </nav>
-
-  <!-- Replenish sub -->
-  <div id="igm-sub-replenish" class="igm-sub">
-    <div class="igm-sub-head"><button onclick="igmBack()" class="igm-back-btn">← Back</button><span>Replenish Wallet</span></div>
-    <div style="padding:20px">
-      <div style="background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;padding:14px;margin-bottom:16px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px"><span style="color:#7a9ac0">Wallet</span><span id="rep-cur-wallet" style="font-weight:700;color:#e8c96a">$—</span></div>
-        <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#7a9ac0">Bank</span><span id="rep-cur-bank" style="font-weight:700">$—</span></div>
-      </div>
-      <div style="display:flex;gap:8px;margin-bottom:10px">
-        <input id="rep-amount" type="number" placeholder="Amount..." style="flex:1;background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 13px;color:#f0f6ff;font-family:'Exo 2',sans-serif;font-size:14px;outline:none">
-        <button onclick="igmFillMax()" style="background:#0f1e38;border:1px solid #1a2d50;border-radius:7px;padding:10px 12px;color:#4aabff;font-size:11px;font-weight:700;cursor:pointer">MAX</button>
-      </div>
-      <div id="rep-err" style="font-size:11px;color:#fca5a5;margin-bottom:8px;display:none"></div>
     <div class="igm-item igm-danger" onclick="igmExit()"><div class="igm-ico">🚪</div><div class="igm-body"><div class="igm-title">Exit Game</div><div class="igm-desc">Chips returned to your bank</div></div><span class="igm-arrow">›</span></div>
   </nav>
 
