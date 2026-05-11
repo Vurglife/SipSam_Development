@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="VurgLife">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/images/icon-192.png">
-<link rel="stylesheet" href="style.css?v=23">
+<link rel="stylesheet" href="style.css?v=25">
   <style>
     /* Lobby config banner (pre-selected from dashboard) */
     .lobby-title { font-family:'Bebas Neue',serif; font-size:2rem; letter-spacing:4px; margin:0 0 4px; }
@@ -537,7 +537,7 @@
   </div>
 </div>
 
-<script src="game.js?v=34"></script>
+<script src="game.js?v=36"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      IN-GAME SLIDE-OUT MENU
@@ -701,22 +701,22 @@
           <li>Lose all 3 → <span style="color:#ef4444">−2× bet</span></li>
         </ul>
         <div class="igm-rule-h">⭐ Specials (override all hands)</div>
-        <p style="margin:0 0 8px;font-size:12px;color:#7a9ac0">Must be declared before arranging. Winner gets multiplier × bet <strong style="color:#4aabff">plus a house bonus</strong>. VIP table ($10K) pays a much larger bonus.</p>
+        <p style="margin:0 0 8px;font-size:12px;color:#7a9ac0">Must be declared before arranging. Winner gets multiplier x bet <strong style="color:#4aabff">plus a house bonus</strong>. VIP ($10K) and Elite ($100K) tables pay larger bonuses.</p>
         <table style="width:100%;border-collapse:collapse;font-size:12px;color:#c7d7ef">
           <thead><tr style="color:#4aabff;border-bottom:1px solid #1a2d50">
             <th style="text-align:left;padding:5px 6px;font-weight:700">SPECIAL</th>
-            <th style="text-align:center;padding:5px 6px;font-weight:700">MULT</th>
-            <th style="text-align:center;padding:5px 6px;font-weight:700">BONUS</th>
-            <th style="text-align:center;padding:5px 6px;font-weight:700;color:#e8c96a">VIP BONUS</th></tr></thead>
+            <th style="text-align:center;padding:5px 6px;font-weight:700">PAYOUT</th>
+            <th style="text-align:center;padding:5px 6px;font-weight:700;color:#e8c96a">VIP $10K</th>
+            <th style="text-align:center;padding:5px 6px;font-weight:700;color:#c9a4ff">ELITE $100K</th></tr></thead>
           <tbody>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">No Face</td><td style="text-align:center;color:#22c55e">2×</td><td style="text-align:center;color:#4aabff">+$1,000</td><td style="text-align:center;color:#e8c96a">+$100,000</td></tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Four of a Kind</td><td style="text-align:center;color:#22c55e">3×</td><td style="text-align:center;color:#4aabff">+$2,500</td><td style="text-align:center;color:#e8c96a">+$250,000</td></tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Straight Flush</td><td style="text-align:center;color:#22c55e">3×</td><td style="text-align:center;color:#4aabff">+$2,500</td><td style="text-align:center;color:#e8c96a">+$250,000</td></tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Straight-Straight-Straight</td><td style="text-align:center;color:#22c55e">5×</td><td style="text-align:center;color:#4aabff">+$7,000</td><td style="text-align:center;color:#e8c96a">+$500,000</td></tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Flush-Flush-Flush</td><td style="text-align:center;color:#22c55e">5×</td><td style="text-align:center;color:#4aabff">+$7,000</td><td style="text-align:center;color:#e8c96a">+$500,000</td></tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Royal Flush</td><td style="text-align:center;color:#22c55e">7×</td><td style="text-align:center;color:#4aabff">+$10,000</td><td style="text-align:center;color:#e8c96a">+$750,000</td></tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">6½ Pairs</td><td style="text-align:center;color:#22c55e">8×</td><td style="text-align:center;color:#4aabff">+$15,000</td><td style="text-align:center;color:#e8c96a">+$1,000,000</td></tr>
-            <tr><td style="padding:5px 6px;color:#e8c96a">Full Suit</td><td style="text-align:center;color:#22c55e">10×</td><td style="text-align:center;color:#4aabff">+$50,000</td><td style="text-align:center;color:#e8c96a">+$3,000,000</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">No Face</td><td style="text-align:center;color:#22c55e">2 to 1</td><td style="text-align:center;color:#e8c96a">+$25,000</td><td style="text-align:center;color:#c9a4ff">+$300,000</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Four of a Kind</td><td style="text-align:center;color:#22c55e">3 to 1</td><td style="text-align:center;color:#e8c96a">+$75,000</td><td style="text-align:center;color:#c9a4ff">+$1,000,000</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Straight Flush</td><td style="text-align:center;color:#22c55e">3 to 1</td><td style="text-align:center;color:#e8c96a">+$75,000</td><td style="text-align:center;color:#c9a4ff">+$1,000,000</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Straight-Straight-Straight</td><td style="text-align:center;color:#22c55e">5 to 1</td><td style="text-align:center;color:#e8c96a">+$150,000</td><td style="text-align:center;color:#c9a4ff">+$2,000,000</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Flush-Flush-Flush</td><td style="text-align:center;color:#22c55e">5 to 1</td><td style="text-align:center;color:#e8c96a">+$150,000</td><td style="text-align:center;color:#c9a4ff">+$2,000,000</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">Royal Flush</td><td style="text-align:center;color:#22c55e">7 to 1</td><td style="text-align:center;color:#e8c96a">+$250,000</td><td style="text-align:center;color:#c9a4ff">+$3,000,000</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">6½ Pairs</td><td style="text-align:center;color:#22c55e">8 to 1</td><td style="text-align:center;color:#e8c96a">+$300,000</td><td style="text-align:center;color:#c9a4ff">+$4,000,000</td></tr>
+            <tr><td style="padding:5px 6px;color:#e8c96a">Full Suit</td><td style="text-align:center;color:#22c55e">10 to 1</td><td style="text-align:center;color:#e8c96a">+$500,000</td><td style="text-align:center;color:#c9a4ff">+$7,000,000</td></tr>
           </tbody>
         </table>
       </div>
@@ -875,43 +875,56 @@ function playTone(freq, type, duration, vol, delay) {
   type=type||'sine'; duration=duration||0.15; vol=vol||0.18; delay=delay||0;
   if (!soundEnabled) return;
   try {
-    var ctx=getAudioCtx(), osc=ctx.createOscillator(), gain=ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
+    var ctx=getAudioCtx(), osc=ctx.createOscillator(), gain=ctx.createGain(), filter=ctx.createBiquadFilter();
+    osc.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
     osc.type=type; osc.frequency.value=freq;
+    filter.type='lowpass';
+    filter.frequency.value=Math.max(420, Math.min(1800, freq*2.2));
+    filter.Q.value=0.7;
     var t=ctx.currentTime+delay;
-    gain.gain.setValueAtTime(0,t);
-    gain.gain.linearRampToValueAtTime(vol,t+0.01);
+    gain.gain.setValueAtTime(0.0001,t);
+    gain.gain.linearRampToValueAtTime(vol,t+0.012);
     gain.gain.exponentialRampToValueAtTime(0.001,t+duration);
-    osc.start(t); osc.stop(t+duration+0.05);
+    osc.start(t); osc.stop(t+duration+0.04);
   } catch(e){}
 }
+
+function payoutChipCount(amount) {
+  var amt = Math.abs(Number(amount) || 0);
+  if (amt >= 1000000) return 34;
+  if (amt >= 500000)  return 30;
+  if (amt >= 100000)  return 26;
+  if (amt >= 50000)   return 22;
+  if (amt >= 10000)   return 18;
+  return Math.max(6, Math.min(16, Math.ceil(amt / 1200)));
+}
+
 var SFX = {
-  click:   function(){ playTone(880,'sine',0.08,0.1); },
-  deal:    function(){ playTone(1200,'sine',0.06,0.12); setTimeout(function(){playTone(1000,'sine',0.06,0.1);},60); },
-  chip:    function(){ playTone(700,'triangle',0.1,0.15); },
-  win:     function(){ [523,659,784,1047].forEach(function(f,i){playTone(f,'sine',0.3,0.22,i*0.12);}); },
-  lose:    function(){ [300,250,200].forEach(function(f,i){playTone(f,'sawtooth',0.18,0.14,i*0.1);}); },
-  special: function(){ [523,659,784,880,1047].forEach(function(f,i){playTone(f,'sine',0.35,0.25,i*0.1);}); },
-  timer:   function(){ playTone(880,'square',0.05,0.08); },
-  chat:    function(){ playTone(880,'sine',0.08,0.1); setTimeout(function(){playTone(1100,'sine',0.08,0.1);},100); },
-  confirm: function(){ playTone(600,'sine',0.1,0.12); setTimeout(function(){playTone(800,'sine',0.1,0.12);},100); },
-  chipIn:  function(){ playTone(900,'triangle',0.08,0.15); setTimeout(function(){playTone(1100,'triangle',0.08,0.12);},80); },
-  // Sequence of percussive clicks to simulate chips clattering as they
-  // stack. Count grows with payout size for a richer cascade.
-  chipStack: function(count){
-    var n = Math.max(3, Math.min(10, count|0 || 6));
+  click:   function(){ playTone(520,'sine',0.07,0.07); },
+  deal:    function(){ playTone(560,'triangle',0.07,0.07); setTimeout(function(){playTone(430,'triangle',0.08,0.055);},65); },
+  chip:    function(){ playTone(330,'triangle',0.09,0.08); },
+  win:     function(){ [330,392,494,587].forEach(function(f,i){playTone(f,'sine',0.22,0.085,i*0.09);}); },
+  lose:    function(){ [260,220,185].forEach(function(f,i){playTone(f,'triangle',0.16,0.06,i*0.08);}); },
+  special: function(){ [330,392,494,587,659].forEach(function(f,i){playTone(f,'sine',0.28,0.12,i*0.08);}); },
+  timer:   function(){ playTone(480,'sine',0.05,0.045); },
+  chat:    function(){ playTone(520,'sine',0.06,0.055); setTimeout(function(){playTone(640,'sine',0.06,0.04);},90); },
+  confirm: function(){ playTone(360,'triangle',0.09,0.07); setTimeout(function(){playTone(470,'triangle',0.10,0.055);},95); },
+  chipIn:  function(){ playTone(320,'triangle',0.08,0.07); setTimeout(function(){playTone(390,'triangle',0.08,0.055);},80); },
+  chipStack: function(count, amount){
+    var n = Math.max(4, Math.min(18, count|0 || 8));
+    var amt = Math.abs(Number(amount) || 0);
+    var spacing = amt >= 100000 ? 0.045 : 0.058;
     for (var i = 0; i < n; i++) {
-      var freq = 1100 + Math.random() * 400;
-      playTone(freq, 'square', 0.07 + Math.random()*0.04, 0.04 + Math.random()*0.02, 0.03 + i * 0.055);
+      var freq = 250 + Math.random() * 190 + (i % 3) * 18;
+      var vol  = 0.018 + Math.random() * 0.016;
+      playTone(freq, 'triangle', 0.075 + Math.random()*0.04, vol, 0.04 + i * spacing);
     }
   },
 };
 
 // ── CHIP-FLOW ANIMATION ─────────────────────────────────
-// Spawn a flurry of chip discs that fly from `fromEl` to `toEl` to
-// visualise a payout exchange. Used at round-end: win → chips fly
-// banker→player, loss → chips fly player→banker. Plays the chipStack
-// SFX in time with the cascade.
+// Win: chips flow banker -> player. Loss: chips flow player -> banker.
+// Larger payouts spawn richer cascades, but still cap the count to protect mobile.
 function animateChipFlow(fromEl, toEl, isWin, amount) {
   try {
     if (!fromEl || !toEl) return;
@@ -922,26 +935,57 @@ function animateChipFlow(fromEl, toEl, isWin, amount) {
     var tx = t.left + t.width  / 2;
     var ty = t.top  + t.height / 2;
     var amt = Math.abs(Number(amount) || 0);
-    var count = Math.min(10, Math.max(4, Math.ceil(amt / 4000)));
+    var count = payoutChipCount(amt);
+    var spread = Math.min(96, 34 + count * 2.2);
+    var travelX = tx - fx;
+    var travelY = ty - fy;
+    var lift = Math.min(160, Math.max(46, Math.abs(travelY) * 0.24 + count * 1.7));
+
     for (var i = 0; i < count; i++) (function(idx){
       var chip = document.createElement('div');
       chip.className = 'chip-fly' + (isWin ? ' chip-fly-win' : ' chip-fly-lose');
+      var size = 18 + Math.min(10, Math.random() * 7 + (amt >= 100000 ? 2 : 0));
+      chip.style.width = size + 'px';
+      chip.style.height = size + 'px';
       chip.style.left = fx + 'px';
       chip.style.top  = fy + 'px';
+      chip.style.opacity = '0';
       document.body.appendChild(chip);
+
+      var lane = (idx - (count - 1) / 2) / Math.max(1, count - 1);
+      var endJitterX = lane * spread + (Math.random() - 0.5) * 22;
+      var endJitterY = (Math.random() - 0.5) * 30;
+      var midX = travelX * (0.46 + Math.random()*0.12) + lane * spread * 0.55;
+      var midY = travelY * (0.42 + Math.random()*0.12) - lift - Math.random() * 42;
+      var endX = travelX + endJitterX;
+      var endY = travelY + endJitterY;
+      var rot = (isWin ? 1 : -1) * (160 + Math.random() * 260);
+      var delay = idx * (amt >= 100000 ? 34 : 44);
+      var duration = 980 + Math.random()*260 + Math.min(360, count*12);
+
       setTimeout(function(){
-        var jitterX = (Math.random() - 0.5) * 38;
-        var jitterY = (Math.random() - 0.5) * 38;
-        var dx = (tx - fx) + jitterX;
-        var dy = (ty - fy) + jitterY;
-        var rot = (Math.random() - 0.5) * 540;
-        chip.style.transition = 'transform .65s cubic-bezier(.34,1.2,.64,1), opacity .65s ease-out';
-        chip.style.transform = 'translate(' + dx + 'px,' + dy + 'px) rotate(' + rot + 'deg) scale(.85)';
-        chip.style.opacity = '0.1';
-        setTimeout(function(){ if (chip.parentNode) chip.remove(); }, 700);
-      }, idx * 55);
+        if (chip.animate) {
+          var anim = chip.animate([
+            { transform:'translate(-50%, -50%) translate(0,0) rotate(0deg) scale(.74)', opacity:0 },
+            { transform:'translate(-50%, -50%) translate(' + (midX*0.18).toFixed(1) + 'px,' + (midY*0.16).toFixed(1) + 'px) rotate(' + (rot*0.15).toFixed(1) + 'deg) scale(1)', opacity:.98, offset:.12 },
+            { transform:'translate(-50%, -50%) translate(' + midX.toFixed(1) + 'px,' + midY.toFixed(1) + 'px) rotate(' + (rot*0.55).toFixed(1) + 'deg) scale(1.08)', opacity:1, offset:.58 },
+            { transform:'translate(-50%, -50%) translate(' + endX.toFixed(1) + 'px,' + endY.toFixed(1) + 'px) rotate(' + rot.toFixed(1) + 'deg) scale(.82)', opacity:.12 }
+          ], {
+            duration: duration,
+            easing: 'cubic-bezier(.18,.84,.22,1)',
+            fill: 'forwards'
+          });
+          anim.onfinish = function(){ if (chip.parentNode) chip.remove(); };
+        } else {
+          chip.style.transition = 'transform 1.05s cubic-bezier(.18,.84,.22,1), opacity 1.05s ease-out';
+          chip.style.opacity = '.12';
+          chip.style.transform = 'translate(-50%, -50%) translate(' + endX + 'px,' + endY + 'px) rotate(' + rot + 'deg) scale(.82)';
+          setTimeout(function(){ if (chip.parentNode) chip.remove(); }, 1150);
+        }
+      }, delay);
     })(i);
-    if (typeof SFX !== 'undefined' && SFX.chipStack) SFX.chipStack(count);
+
+    if (typeof SFX !== 'undefined' && SFX.chipStack) SFX.chipStack(count, amt);
   } catch(e) { console.warn('[CHIP-FLOW]', e.message); }
 }
 
@@ -1612,23 +1656,43 @@ function doSendChips() {
 }
 
 // ── EXIT ────────────────────────────────────────────────
+// Deferred-exit rule (server-enforced):
+//   • Waiting / Game-Over phases: settle wallet immediately (legacy path).
+//   • Mid-round phases (betting / arranging / revealing / roundEnd):
+//     send 'requestExit' over the WS. Server marks pendingExit and
+//     finalises the settlement at the natural end of the current round
+//     using the AUTHORITATIVE post-payout chip count. Client navigates
+//     when the server replies with 'exitOk'.
+// This prevents the client-side wallet snapshot (which may not include
+// the most recent payouts) from determining the credit amount.
 async function exitToLobby() {
   try {
-    // igmToken is captured at game load BEFORE sessionStorage is cleared by game.js
-    // It is the only reliable source of the auth token at this point
     const token = igmToken
       || (()=>{ try { return JSON.parse(sessionStorage.getItem('sipsam_user')||'{}').token||null; } catch(e){ return null; } })();
     const tableMinBet = igmTableCfg?.minBet || 0;
+    const phase = (window._lastState?.status) || 'waiting';
+    const midRound = ['betting','arranging','revealing','roundEnd'].includes(phase);
 
-    if (!token) {
-      console.error('[EXIT] No auth token available — chips cannot be returned to bank!');
+    if (midRound && typeof sendMsg === 'function') {
+      // Defer to round end. Server replies 'exitOk' once it settles.
+      _showExitWaitOverlay();
+      const navigateAway = () => {
+        sessionStorage.removeItem('sipsam_table');
+        sessionStorage.removeItem('sipsam_wallet');
+        if (igmToken) sessionStorage.setItem('vl_return_token', igmToken);
+        window._intentionalExit = true;
+        window.location.href = '/';
+      };
+      window._exitOkHandler = () => { window._serverSettled = true; navigateAway(); };
+      // Fallback: if server doesn't ack within 90s (e.g. WS dropped), force exit.
+      setTimeout(() => { if (!window._serverSettled) navigateAway(); }, 90000);
+      try { sendMsg('requestExit', {}); } catch(e) { console.warn('[EXIT] sendMsg failed:', e); navigateAway(); }
+      return;
     }
 
-    // Only call exit if server has NOT already settled (game ended naturally).
-    // Prevents double-crediting the bank.
+    // Waiting / Game-Over: immediate client-side settle (legacy path).
     if (!window._serverSettled) {
       const wallet = (typeof myChips !== 'undefined') ? myChips : igmWallet;
-      console.log(`[EXIT] Calling exit API — wallet: $${wallet}, token: ${token ? 'YES' : 'MISSING'}`);
       if (token) {
         const res = await fetch('/api/game/exit', {
           method:'POST',
@@ -1639,26 +1703,38 @@ async function exitToLobby() {
         const data = await res.json().catch(()=>({}));
         if (data.ok) {
           console.log(`[EXIT] ✅ Chips returned — new bank: $${data.newBankBalance}`);
-          // Mark as settled so beforeunload beacon does NOT fire a second credit
           window._serverSettled = true;
         } else {
           console.error('[EXIT] ❌ Exit API error:', data.error);
         }
+      } else {
+        console.error('[EXIT] No auth token available — chips cannot be returned to bank!');
       }
-    } else {
-      console.log('[EXIT] Skipping exit API — server already settled chips to bank.');
     }
     sessionStorage.removeItem('sipsam_table');
     sessionStorage.removeItem('sipsam_wallet');
   } catch(e) { console.error('[EXIT] exitToLobby error:', e); }
-  // Store token in sessionStorage so dashboard can restore the session
-  if (igmToken) {
-    sessionStorage.setItem('vl_return_token', igmToken);
-  }
+  if (igmToken) sessionStorage.setItem('vl_return_token', igmToken);
   myChips              = 0;
   igmWallet            = 0;
-  window._intentionalExit = true; // prevent beforeunload beacon from double-crediting
+  window._intentionalExit = true;
   window.location.href = '/';
+}
+
+function _showExitWaitOverlay() {
+  if (document.getElementById('exit-wait-overlay')) return;
+  const ov = document.createElement('div');
+  ov.id = 'exit-wait-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(2,6,9,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;color:#f0f6ff;font-family:\'Rajdhani\',sans-serif;text-align:center;padding:0 20px';
+  ov.innerHTML = `
+    <div style="font-family:'Bebas Neue',serif;font-size:42px;letter-spacing:6px;color:#c9a84c">EXITING</div>
+    <div style="font-size:14px;letter-spacing:2px;color:#7a9ac0;text-transform:uppercase">Settling at end of round</div>
+    <div style="width:180px;height:3px;background:#1a2a3a;border-radius:3px;overflow:hidden;margin-top:8px">
+      <div style="height:100%;background:linear-gradient(90deg,#c9a84c,#7ec8ff);animation:exitWaitBar 1.4s linear infinite"></div>
+    </div>
+    <div style="font-size:12px;color:#5a7a98;max-width:300px;line-height:1.5;margin-top:10px">Your wallet will be returned to your bank exactly as it stands when this round concludes. Do not close the tab.</div>
+    <style>@keyframes exitWaitBar { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }</style>`;
+  document.body.appendChild(ov);
 }
 
 // ── IN-GAME TOAST ───────────────────────────────────────

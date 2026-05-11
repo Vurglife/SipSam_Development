@@ -1911,10 +1911,10 @@ function handleServerMessage(msg) {
         showSpecialDeniedModal(msg);
         document.getElementById('btn-arrange').disabled = true;
         document.getElementById('btn-declare-special').disabled = true;
+    } else if (msg.type === 'specialAnnouncements') {
+        queueSpecialAnnouncements(msg.announcements || []);
     } else if (msg.type === 'specialAlert') {
-        // Show a banner on the table for everyone
-        showSpecialAlertBanner(msg.username, msg.specialName, msg.multiplier);
-        if (typeof SFX !== 'undefined') SFX.special();
+        queueSpecialAnnouncements([{ username: msg.username, specialName: msg.specialName, multiplier: msg.multiplier }]);
     } else if (msg.type === 'walletDebt') {
         const tmEl = document.getElementById('table-message');
         if (tmEl) tmEl.textContent = `💸 ${msg.reason}`;
@@ -1953,6 +1953,19 @@ function handleServerMessage(msg) {
         // dashboard so the next game can start fresh in a different room.
         showIngameToast('🏁 Room Closed', 'This game is over. Returning to dashboard.');
         setTimeout(() => { window._serverSettled = true; window._intentionalExit = true; window.location.href = '/'; }, 1500);
+
+    } else if (msg.type === 'exitPending') {
+        // Server has queued our exit request. Overlay already up; nothing to do.
+        console.log('[EXIT] queued by server — waiting for round end');
+
+    } else if (msg.type === 'exitOk') {
+        // Server has settled our wallet → bank using the final post-payout
+        // chip count. Safe to navigate.
+        console.log('[EXIT] server settled — navigating');
+        window._serverSettled = true;
+        if (typeof window._exitOkHandler === 'function') {
+            try { window._exitOkHandler(); } catch(e) { console.error('[EXIT] handler error:', e); }
+        }
 
     } else if (msg.type === 'bankerForfeited') {
         showIngameToast('🏦 Banker Forfeited!', msg.message || 'Banker left — you receive 2× your bet!');
@@ -2068,24 +2081,70 @@ function handleServerMessage(msg) {
 }
 
 // ── SPECIAL ALERT BANNER ─────────────────────────────────────────
-function showSpecialAlertBanner(username, specialName, multiplier) {
-    // Remove existing banner
+const SPECIAL_ANNOUNCEMENT_MS = 5000;
+let specialAnnouncementQueue = [];
+let specialAnnouncementActive = false;
+
+function queueSpecialAnnouncements(items) {
+    const list = Array.isArray(items) ? items : [items];
+    list.filter(Boolean).forEach(item => specialAnnouncementQueue.push(item));
+    if (!specialAnnouncementActive) showNextSpecialAnnouncement();
+}
+
+function showNextSpecialAnnouncement() {
+    if (!specialAnnouncementQueue.length) {
+        specialAnnouncementActive = false;
+        return;
+    }
+    specialAnnouncementActive = true;
+    const next = specialAnnouncementQueue.shift();
+    showSpecialAlertBanner(next);
+    if (typeof SFX !== 'undefined') SFX.special();
+    setTimeout(() => {
+        const existing = document.querySelector('.special-alert-banner');
+        if (existing) existing.remove();
+        setTimeout(showNextSpecialAnnouncement, 250);
+    }, SPECIAL_ANNOUNCEMENT_MS);
+}
+
+function formatSignedChips(amount) {
+    const n = Number(amount) || 0;
+    const abs = '$' + Math.abs(n).toLocaleString();
+    if (n > 0) return '+' + abs;
+    if (n < 0) return '-' + abs;
+    return '$0';
+}
+
+function showSpecialAlertBanner(announcementOrUsername, specialName, multiplier) {
+    const ann = (announcementOrUsername && typeof announcementOrUsername === 'object')
+        ? announcementOrUsername
+        : { username: announcementOrUsername, specialName, multiplier };
+
     const existing = document.querySelector('.special-alert-banner');
     if (existing) existing.remove();
 
     const oval = document.querySelector('.oval-table');
     if (!oval) return;
 
+    const payment = Number(ann.payment) || 0;
+    const bonus = Number(ann.bonus) || 0;
     const banner = document.createElement('div');
-    banner.className = 'special-alert-banner';
-    banner.innerHTML = `⭐ ${username} declares <strong>${specialName}</strong> — ${multiplier}x payout!`;
-    oval.appendChild(banner);
+    banner.className = 'special-alert-banner ' + (payment < 0 ? 'special-alert-loss' : 'special-alert-win');
 
-    // Auto-remove after 5 seconds
-    setTimeout(() => banner.remove(), 5000);
+    const title = document.createElement('div');
+    title.className = 'special-alert-title';
+    title.textContent = (ann.isBanker ? 'Banker ' : '') + (ann.username || 'Player') + ': ' + (ann.specialName || 'Special');
+
+    const detail = document.createElement('div');
+    detail.className = 'special-alert-detail';
+    const multText = ann.multiplier ? ann.multiplier + ' to 1' : 'Special';
+    detail.textContent = multText + ' | Bonus ' + formatSignedChips(bonus) + ' | Payment ' + formatSignedChips(payment);
+
+    banner.appendChild(title);
+    banner.appendChild(detail);
+    oval.appendChild(banner);
 }
 
-// ── DISQUALIFY PANEL ──────────────────────────────────────────────
 function buildDisqualifyPanel(state) {
     const panel = document.getElementById('disqualify-panel');
     const btns  = document.getElementById('dq-buttons');
