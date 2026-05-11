@@ -260,31 +260,6 @@ _isInvitedJoiner = false;
 // When an invited friend enters via accepted invite: show the multi lobby
 // with host controls hidden. Mid-game join fast-forwards automatically once
 // the server pushes active game state over the WebSocket.
-function _setupInvitedJoinerLobby(roomId, user) {
-  _isInvitedJoiner = true;
-  _showStep('lobby-step-multi');
-
-  ['lobby-multi-timer-row','lobby-multi-invite-panel','lobby-multi-host-actions']
-    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
-
-  const seatsList = document.getElementById('lobby-seats-list');
-  if (seatsList && !document.getElementById('invited-wait-msg')) {
-    const msg = document.createElement('div');
-    msg.id = 'invited-wait-msg';
-    msg.style.cssText = 'text-align:center;margin:14px 0;color:#c9a84c;font-weight:700;font-size:15px';
-    msg.textContent = 'Waiting for host to start the game…';
-    seatsList.insertAdjacentElement('afterend', msg);
-
-    const exitBtn = document.createElement('button');
-    exitBtn.className = 'btn-secondary';
-    exitBtn.style.cssText = 'width:100%;margin-top:8px;font-size:12px;padding:10px 14px';
-    exitBtn.textContent = '← Exit';
-    exitBtn.onclick = () => { window._intentionalExit = true; window.location.replace('/'); };
-    msg.insertAdjacentElement('afterend', exitBtn);
-  }
-
-  connectWS(user.username, user.token, roomId);
-}
 
 function _showStep(id) {
   ['lobby-step-choose','lobby-step-single','lobby-step-multi'].forEach(s => {
@@ -367,6 +342,15 @@ function startAdCountdown(onComplete) {
   const iv = setInterval(() => {
     t--;
     cnt.textContent  = t;
+    fill.style.width = ((10 - t) / 10 * 100) + '%';
+    if (t <= 0) {
+      clearInterval(iv);
+      btn.disabled = false;
+      if (typeof onComplete === 'function') onComplete();
+    }
+  }, 1000);
+}
+
 function startNow() {
   if (_multiWaitTimer) { clearInterval(_multiWaitTimer); _multiWaitTimer = null; }
   if (ws && ws.readyState === WebSocket.OPEN) {
@@ -616,11 +600,31 @@ function connectWS(username, token, roomId) {
   const url = `${BJ_WS_URL}/blackjack?roomId=${encodeURIComponent(roomId)}&userId=${encodeURIComponent(username)}&sessionId=${encodeURIComponent(mySessionId)}&minBet=${tableMinBet}${tokParam}`;
   ws = new WebSocket(url);
 
-  const timeout = setTimeout(() => { ws.close(); rmOv(); showIngameToast('Connection Failed','Server not responding.'); }, 10000);
+
+  const timeout = setTimeout(() => {
+    ws.close(); rmOv();
+    showIngameToast('Connection Failed', 'Server not responding.');
+  }, 10000);
 
   ws.onopen = () => {
     clearTimeout(timeout);
-  ws.onclose   = () => { if (!window._intentionalExit) setTimeout(() => reconnectWS(token,roomId), 3000); };
+    ws.send(JSON.stringify({ type:'set_name',   name:   username }));
+    ws.send(JSON.stringify({ type:'set_avatar', avatar: window._myAvatar || '' }));
+    rmOv();
+    const nameEl = document.getElementById('my-name');
+    if (nameEl) nameEl.textContent = (window._myAvatar ? window._myAvatar+' ' : '') + username;
+  };
+
+  ws.onmessage = e => {
+    try { handleMsg(JSON.parse(e.data)); }
+    catch (err) { console.error('[BJ] msg error:', err); }
+  };
+
+  ws.onclose = () => {
+    if (!window._intentionalExit) setTimeout(() => reconnectWS(token, roomId), 3000);
+  };
+
+  ws.onerror = () => { clearTimeout(timeout); rmOv(); };
 }
 
 function sendMsg(type, data={}) { if (!ws||ws.readyState!==WebSocket.OPEN) return; ws.send(JSON.stringify({type,...data})); }
@@ -693,67 +697,7 @@ function applyState(state) {
 
   if (state.phase === 'betting' && lastPhase !== 'betting') {
     _betPlaced = false; pendingBet = 0; updateBetDisplay();
-    // Restore chip section visibility for new round — only if not frozen
-  const tableMinBet = BJ_TABLE.minBet || 100;
-  const tokParam = token ? `&token=${encodeURIComponent(token)}` : '';
-  const url = `${BJ_WS_URL}/blackjack?roomId=${encodeURIComponent(roomId)}&userId=${encodeURIComponent(username)}&sessionId=${encodeURIComponent(mySessionId)}&minBet=${tableMinBet}${tokParam}`;
-  ws = new WebSocket(url);
 
-  const timeout = setTimeout(() => { ws.close(); rmOv(); showIngameToast('Connection Failed','Server not responding.'); }, 10000);
-
-  ws.onopen = () => {
-    clearTimeout(timeout);
-    // NOTE: wallet is server-authoritative (initialized from tier walletSize).
-    // We no longer send set_wallet — it was causing wallet resets on reconnect.
-    ws.send(JSON.stringify({ type:'set_name',   name:   username }));
-    ws.send(JSON.stringify({ type:'set_avatar', avatar: window._myAvatar || '' }));
-    rmOv();
-    const nameEl = document.getElementById('my-name');
-    if (nameEl) nameEl.textContent = (window._myAvatar ? window._myAvatar+' ' : '') + username;
-  };
-
-  ws.onmessage = e => { try { handleMsg(JSON.parse(e.data)); } catch(err) { console.error('[BJ]',err); } };
-  ws.onclose   = () => { if (!window._intentionalExit) setTimeout(() => reconnectWS(token,roomId), 3000); };
-  ws.onerror   = ()  => { clearTimeout(timeout); rmOv(); };
-}
-
-function reconnectWS(token,roomId) {
-  if (window._intentionalExit || window._serverSettled) return;
-  const tableMinBet = BJ_TABLE.minBet || 100;
-  const tokParam = token ? `&token=${encodeURIComponent(token)}` : '';
-  const url = `${BJ_WS_URL}/blackjack?roomId=${encodeURIComponent(roomId)}&userId=${encodeURIComponent(myUsername)}&sessionId=${encodeURIComponent(mySessionId)}&minBet=${tableMinBet}${tokParam}`;
-  ws = new WebSocket(url);
-  ws.onopen    = () => { ws.send(JSON.stringify({type:'set_name',name:myUsername})); };
-  ws.onmessage = e => { try { handleMsg(JSON.parse(e.data)); } catch(err) {} };
-  ws.onclose   = () => { if (!window._intentionalExit) setTimeout(() => reconnectWS(token,roomId), 3000); };
-}
-
-function sendMsg(type, data={}) { if (!ws||ws.readyState!==WebSocket.OPEN) return; ws.send(JSON.stringify({type,...data})); }
-function sendAction(type) { sendMsg(type); }
-  }
-
-  // Sync tie bet button — amount is tier-specific
-  const tieBetVal = mySeat?.tieBet || 0;
-  const tieBetAmt = BJ_TABLE.tieBet || 100;
-  const tbBtn = document.getElementById('btn-tie-bet');
-  if (tbBtn) {
-    const amtLabel = '$' + tieBetAmt.toLocaleString();
-    tbBtn.classList.toggle('tie-bet-active', tieBetVal > 0);
-    tbBtn.textContent = tieBetVal > 0 ? `✓ TIE BET (${amtLabel})` : `🎯 TIE BET — ${amtLabel}`;
-  }
-  // Sync tie bet hint payout copy
-  const hint = document.getElementById('bet-tiebet-hint');
-  if (hint) {
-    const payout = BJ_TABLE.tieBetPayout || 2000;
-    if (BJ_TABLE.label === 'vip') {
-      hint.innerHTML = `<strong style="color:#ffd700">$${payout.toLocaleString()} Bonus</strong><br>Wins if your total = dealer's total`;
-    } else {
-      hint.innerHTML = `<strong style="color:#ffd700">$2,000 Bonus</strong> · $500 main bet: <strong style="color:#ffd700">$3,000 Bonus</strong><br>Wins if your total = dealer's total`;
-    }
-  }
-
-  if (state.phase === 'betting' && lastPhase !== 'betting') {
-    _betPlaced = false; pendingBet = 0; updateBetDisplay();
     if (!_bettingHandled) {
       _bettingHandled = true;
       if (BJ_TABLE.label === 'vip') {
@@ -770,88 +714,340 @@ function sendAction(type) { sendMsg(type); }
   renderSeats(state);
   updateUI(state);
 
-  // Drive bet overlay — never show when freeze is active (standard only).
-  // VIP: no overlay at all. Main bet auto-places silently. Tie bet is controlled
-  // via the merged bottom-bar "Tie Bet Freeze" button, which works in any phase.
+  // Drive bet overlay — never shown during VIP rounds (auto-place silently);
+  // only shown for standard tables when the player hasn't placed and isn't frozen.
   const overlay = document.getElementById('bet-overlay');
   if (overlay) {
     const isVIP = BJ_TABLE.label === 'vip';
-    let show;
-    if (isVIP) {
-      show = false;
-    } else {
-      show = state.phase==='betting' && mySeatIndex!==null && !_betPlaced && (mySeat?.bet||0)===0 && _frozenBet===0;
-    }
-    if (show && overlay.style.display !== 'flex') overlay.style.display = 'flex';
-    else if (!show && overlay.style.display !== 'none') overlay.style.display = 'none';
+    const show  = !isVIP
+      && state.phase === 'betting'
+      && mySeatIndex !== null
+      && !_betPlaced
+      && (mySeat?.bet || 0) === 0
+      && _frozenBet === 0;
+    overlay.style.display = show ? 'flex' : 'none';
   }
 
   lastPhase = state.phase;
 }
 
-  if (mySeat) {
-    myChips = mySeat.wallet;
-    if (typeof igmWallet !== 'undefined') igmWallet = myChips;
-    const ce = document.getElementById('my-chips');
-    if (ce) ce.textContent = '$' + myChips.toLocaleString();
-    // Keep bet overlay wallet in sync
-    const ow = document.getElementById('bet-overlay-wallet');
-    if (ow) ow.textContent = '$' + myChips.toLocaleString();
+// ─────────────────────────────────────────────────────
+// WS LIFECYCLE — reconnect, message send/dispatch
+// ─────────────────────────────────────────────────────
+
+function reconnectWS(token, roomId) {
+  if (window._intentionalExit || window._serverSettled) return;
+  const tableMinBet = BJ_TABLE.minBet || 100;
+  const tokParam    = token ? `&token=${encodeURIComponent(token)}` : '';
+  const url = `${BJ_WS_URL}/blackjack?roomId=${encodeURIComponent(roomId)}`
+            + `&userId=${encodeURIComponent(myUsername)}`
+            + `&sessionId=${encodeURIComponent(mySessionId)}`
+            + `&minBet=${tableMinBet}${tokParam}`;
+  ws = new WebSocket(url);
+  ws.onopen    = () => { ws.send(JSON.stringify({ type:'set_name', name:myUsername })); };
+  ws.onmessage = e  => { try { handleMsg(JSON.parse(e.data)); } catch(err) {} };
+  ws.onclose   = () => {
+    if (!window._intentionalExit) setTimeout(() => reconnectWS(token, roomId), 3000);
+  };
+}
+
+function sendMsg(type, data = {}) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ type, ...data }));
+}
+function sendAction(type) { sendMsg(type); }
+
+// Dispatcher for incoming WS messages from BlackjackRoom
+function handleMsg(msg) {
+  if (!msg || !msg.type) return;
+  switch (msg.type) {
+    case 'state':       applyState(msg.state); break;
+    case 'phase':       handlePhase(msg); break;
+    case 'your_turn':   handleYourTurn(msg); break;
+    case 'tie_win':     handleTieWin(msg); break;
+    case 'chatHistory': if (Array.isArray(msg.messages)) msg.messages.forEach(appendChat); break;
+    case 'chatMessage': appendChat(msg); break;
+    case 'toast':       showIngameToast(msg.title, msg.message); break;
+    case 'kicked':      handleKicked(msg); break;
+  }
+}
+
+function appendChat(msg) {
+  if (!msg) return;
+  const log = document.getElementById('chat-log') || document.getElementById('chat-popup');
+  if (!log) return;
+  const row = document.createElement('div');
+  row.style.cssText = 'padding:4px 10px;font-size:12px;color:#e0eeff';
+  const who = msg.username || 'Player';
+  row.innerHTML = `<strong style="color:#4aabff">${who}:</strong> ${(msg.message || '').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}`;
+  log.appendChild(row);
+  log.scrollTop = log.scrollHeight;
+}
+
+function handleKicked(msg) {
+  window._intentionalExit = true;
+  showIngameToast('Removed from table', msg.reason === 'insufficient_funds'
+    ? 'Insufficient funds to continue.'
+    : (msg.reason || 'You have been removed.'));
+  setTimeout(() => { window.location.replace('/'); }, 1500);
+}
+
+function showIngameToast(title, message) {
+  let stack = document.getElementById('big-announce-stack');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.id = 'big-announce-stack';
+    document.body.appendChild(stack);
+  }
+  const el = document.createElement('div');
+  el.className = 'big-announce';
+  el.innerHTML = `<div style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:#c9a84c">${title}</div>
+                  <div style="font-size:12px;color:#9aa8c0;margin-top:2px">${message || ''}</div>`;
+  stack.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .35s'; }, 3500);
+  setTimeout(() => { el.remove(); }, 4000);
+}
+
+// ─────────────────────────────────────────────────────
+// CARD HELPERS  (ace-aware totals, value lookup)
+// ─────────────────────────────────────────────────────
+function cardVal(c) {
+  if (!c || !c.rank) return 0;
+  if (c.rank === 'A') return 11;
+  if (['K','Q','J'].includes(c.rank)) return 10;
+  return parseInt(c.rank, 10) || 0;
+}
+function handTotal(hand) {
+  let total = 0, aces = 0;
+  for (const c of (hand || [])) {
+    if (!c || !c.rank || c.faceDown) continue;
+    if (c.rank === 'A') { aces++; total += 11; }
+    else total += cardVal(c);
+  }
+  while (total > 21 && aces > 0) { total -= 10; aces--; }
+  const bust = total > 21;
+  const bj   = (hand?.length === 2 && total === 21);
+  return { total, bust, bj };
+}
+
+// Wrapper so renderSeats can build a card element via the shared vl-card.js.
+// Falls back to a minimal placeholder if vl-card.js isn't loaded yet.
+function makeVLCard(c) {
+  if (typeof window.vlCard === 'function') return window.vlCard(c);
+  if (typeof vlCard === 'function')        return vlCard(c);
+  // Fallback minimal renderer
+  const el = document.createElement('div');
+  el.className = 'vl-card';
+  el.style.cssText = 'width:26px;height:36px;border-radius:4px;background:#fff;color:#000;'
+    + 'display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;'
+    + 'border:1px solid #888;box-shadow:0 1px 3px rgba(0,0,0,0.5)';
+  if (c?.faceDown) {
+    el.style.background = 'linear-gradient(135deg,#1a3a8a,#0a1850)';
+    el.style.border = '1px solid #c9a84c';
+    el.textContent = '';
+  } else if (c?.rank) {
+    const isRed = c.suit === '♥' || c.suit === '♦';
+    el.style.color = isRed ? '#cc1830' : '#000';
+    el.textContent = c.rank + (c.suit || '');
+  }
+  return el;
+}
+
+// ─────────────────────────────────────────────────────
+// RENDER — dealer zone + 6 seats
+// ─────────────────────────────────────────────────────
+function renderDealer(state) {
+  const dealerEl = document.getElementById('dealer-cards');
+  if (dealerEl) {
+    dealerEl.innerHTML = '';
+    (state.dealerCards || []).forEach(c => dealerEl.appendChild(makeVLCard(c)));
+  }
+  const totalEl = document.getElementById('dealer-total-display');
+  if (totalEl) {
+    const t = state.dealerTotal;
+    totalEl.textContent = (t != null && t > 0) ? String(t) : '';
+    totalEl.classList.toggle('bust', state.dealerCards && handTotal(state.dealerCards).bust);
+    totalEl.classList.toggle('bj',   state.dealerCards && handTotal(state.dealerCards).bj);
+  }
+}
+
+function renderSeats(state) {
+  const allSeatIdxs = Object.keys(state.seats || {}).map(Number).sort();
+  const occupiedZones = new Set();
+  const mySeat = mySeatIndex !== null ? state.seats?.[mySeatIndex] : null;
+
+  // Render each occupied seat into its visual zone
+  for (const [seatIdxStr, seat] of Object.entries(state.seats || {})) {
+    const seatIdx = parseInt(seatIdxStr, 10);
+    const vz = getVisualZone(seatIdx, allSeatIdxs);
+    occupiedZones.add(vz);
+    const isMe = (seatIdx === mySeatIndex);
+
+    // Hide empty-seat UI
+    const emptyEl = document.getElementById(`seat${vz}-empty`);
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    // Name tag
+    const nameEl = document.getElementById(`seat${vz}-name`);
+    if (nameEl) {
+      nameEl.textContent = (seat.avatar ? seat.avatar + ' ' : '') + (seat.displayName || 'Player');
+      nameEl.classList.toggle('is-you',    isMe);
+      nameEl.classList.toggle('is-active', state.activeSeat === seatIdx);
+      nameEl.classList.toggle('is-bot',    !!seat.isBot);
+    }
+
+    // Wallet + current bet
+    const chipsEl = document.getElementById(`seat${vz}-chips`);
+    if (chipsEl) chipsEl.textContent = (seat.wallet > 0) ? '$' + seat.wallet.toLocaleString() : '';
+    const betEl   = document.getElementById(`seat${vz}-bet`);
+    if (betEl)   betEl.textContent   = (seat.bet    > 0) ? '$' + seat.bet.toLocaleString()    : '';
+
+    // Cards
+    const cardsEl = document.getElementById(`seat${vz}-cards`);
+    if (cardsEl) {
+      const hands  = seat.hands || [];
+      const isSplit = hands.length > 1;
+
+      if (isSplit) {
+        // SPLIT MODE — render each hand in its own wrapper with per-hand total + result
+        cardsEl.innerHTML = '';
+        cardsEl.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;justify-content:center';
+        hands.forEach((hand, hi) => {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'split-hand-wrapper' + (hi === seat.activeHandIdx ? ' active' : '');
+          wrapper.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px';
+          const box = document.createElement('div');
+          box.className = 'split-hand-box';
+          box.style.cssText = 'display:flex;gap:2px';
+          (hand || []).forEach(c => box.appendChild(makeVLCard(c)));
+          const {total, bust, bj} = handTotal(hand || []);
+          if (total > 0) {
+            const t = document.createElement('div');
+            t.className = 'hand-total' + (bust ? ' bust' : bj ? ' bj' : '');
+            t.textContent = bj ? 'BJ!' : (bust ? 'BUST' : String(total));
+            box.appendChild(t);
+          }
+          wrapper.appendChild(box);
+          // Per-hand result
+          const r = seat.result?.[hi];
+          if (r) {
+            const rb = document.createElement('div');
+            rb.className = 'result-badge-inline ' + r;
+            rb.textContent = r === 'blackjack' ? 'BLACKJACK!' : (r === 'tie' ? 'TIE!' : r.toUpperCase());
+            wrapper.appendChild(rb);
+          }
+          cardsEl.appendChild(wrapper);
+        });
+      } else {
+        // NORMAL MODE — diff-based render (only append new cards)
+        cardsEl.style.cssText = '';
+        const flat = (hands[0] || []).filter(c => c && c.rank);
+        const existing = cardsEl.querySelectorAll('.vl-card').length;
+        if (flat.length < existing) cardsEl.innerHTML = '';
+        const shown = cardsEl.querySelectorAll('.vl-card').length;
+        flat.slice(shown).forEach(c => {
+          cardsEl.appendChild(makeVLCard(c));
+          if (typeof SFX !== 'undefined') SFX.card?.();
+        });
+        cardsEl.querySelectorAll('.hand-total').forEach(e => e.remove());
+        const {total, bust, bj} = handTotal(hands[0] || []);
+        if (total > 0) {
+          const t = document.createElement('div');
+          t.className = 'hand-total' + (bust ? ' bust' : bj ? ' bj' : '');
+          t.textContent = bj ? 'BJ!' : (bust ? 'BUST' : String(total));
+          cardsEl.appendChild(t);
+        }
+      }
+    }
+
+    // Result badge — overall seat result (priority: 'tie' > 'push' so tie wins are visible)
+    const rs = document.getElementById(`seat${vz}-result`);
+    if (rs && seat.result?.some(r => r !== null)) {
+      const priority = ['blackjack','win','tie','push','bust','lose'];
+      const best = priority.find(p => seat.result.includes(p)) || seat.result.find(r => r);
+      if (best) {
+        rs.className   = 'result-badge-inline ' + best;
+        rs.textContent = best === 'blackjack' ? 'BLACKJACK!' : (best === 'tie' ? 'TIE!' : best.toUpperCase());
+      } else {
+        rs.textContent = '';
+      }
+    } else if (rs) {
+      rs.textContent = '';
+    }
   }
 
-  // Sync tie bet button — amount is tier-specific
-  const tieBetVal = mySeat?.tieBet || 0;
+  // Show empty-seat UI for any visual zone that's not occupied
+  for (let vz = 0; vz < 6; vz++) {
+    if (occupiedZones.has(vz)) continue;
+    const nameEl = document.getElementById(`seat${vz}-name`);
+    if (nameEl) nameEl.textContent = '';
+    const chipsEl = document.getElementById(`seat${vz}-chips`);
+    if (chipsEl) chipsEl.textContent = '';
+    const betEl = document.getElementById(`seat${vz}-bet`);
+    if (betEl) betEl.textContent = '';
+    const cardsEl = document.getElementById(`seat${vz}-cards`);
+    if (cardsEl) cardsEl.innerHTML = '';
+    const rs = document.getElementById(`seat${vz}-result`);
+    if (rs) rs.textContent = '';
+    const emptyEl = document.getElementById(`seat${vz}-empty`);
+    if (emptyEl) emptyEl.style.display = '';
+  }
+}
+
+function updateUI(state) {
+  // Round + status display in the top bar
+  const roundEl = document.getElementById('game-round');
+  if (roundEl) roundEl.textContent = state.roundNum ? 'Round ' + state.roundNum : 'Round —';
+  const statusEl = document.getElementById('game-status');
+  if (statusEl) statusEl.textContent = fmtPhase(state.phase);
+
+  // Action button enable/disable based on whose turn it is and current hand
+  const mySeat = mySeatIndex !== null ? state.seats?.[mySeatIndex] : null;
+  if (!mySeat) return;
+  const isMyTurn = (state.activeSeat === mySeatIndex && state.phase === 'player_action');
+  const pa = document.getElementById('player-actions');
+  if (pa) pa.style.display = isMyTurn ? '' : 'none';
+  if (isMyTurn) {
+    const hi   = mySeat.activeHandIdx || 0;
+    const hand = (mySeat.hands || [[]])[hi] || [];
+    const w    = mySeat.wallet || 0;
+    const b    = mySeat.bet    || 0;
+    const dbl  = document.getElementById('btn-double');
+    const spl  = document.getElementById('btn-split');
+    const ss   = document.getElementById('split-status');
+    if (dbl) dbl.disabled = hand.length !== 2 || w < b;
+    if (spl) spl.disabled = hand.length !== 2 || !hand[0] || !hand[1]
+      || cardVal(hand[0]) !== cardVal(hand[1])
+      || (mySeat.hands || []).length >= 4 || w < b;
+    if (ss) ss.textContent = mySeat.hands?.length > 1
+      ? `Playing Hand ${hi+1} of ${mySeat.hands.length}`
+      : '';
+  }
+
+  // Sync wallet display
+  myChips = mySeat.wallet;
+  const ce = document.getElementById('my-chips');
+  if (ce) ce.textContent = '$' + myChips.toLocaleString();
+  const ow = document.getElementById('bet-overlay-wallet');
+  if (ow) ow.textContent = '$' + myChips.toLocaleString();
+
+  // Sync tie bet button label (tier-specific amount)
+  const tieBetVal = mySeat.tieBet || 0;
   const tieBetAmt = BJ_TABLE.tieBet || 100;
   const tbBtn = document.getElementById('btn-tie-bet');
   if (tbBtn) {
     const amtLabel = '$' + tieBetAmt.toLocaleString();
-    tbBtn.classList.toggle('tie-bet-active', tieBetVal > 0);
+    tbBtn.classList.toggle('placed', tieBetVal > 0);
     tbBtn.textContent = tieBetVal > 0 ? `✓ TIE BET (${amtLabel})` : `🎯 TIE BET — ${amtLabel}`;
   }
   // Sync tie bet hint payout copy
   const hint = document.getElementById('bet-tiebet-hint');
   if (hint) {
     const payout = BJ_TABLE.tieBetPayout || 2000;
-    if (BJ_TABLE.label === 'vip') {
-      hint.innerHTML = `<strong style="color:#ffd700">$${payout.toLocaleString()} Bonus</strong><br>Wins if your total = dealer's total`;
-    } else {
-      hint.innerHTML = `<strong style="color:#ffd700">$2,000 Bonus</strong> · $500 main bet: <strong style="color:#ffd700">$3,000 Bonus</strong><br>Wins if your total = dealer's total`;
-    }
+    hint.innerHTML = (BJ_TABLE.label === 'vip')
+      ? `<strong style="color:#ffd700">$${payout.toLocaleString()} Bonus</strong><br>Wins if your total = dealer's total`
+      : `<strong style="color:#ffd700">$2,000 Bonus</strong> · $500 main bet: <strong style="color:#ffd700">$3,000 Bonus</strong><br>Wins if your total = dealer's total`;
   }
-
-  if (state.phase === 'betting' && lastPhase !== 'betting') {
-    _betPlaced = false; pendingBet = 0; updateBetDisplay();
-    if (BJ_TABLE.label === 'vip') {
-      // Silent auto-place; overlay stays hidden. Short window for Tie Bet tap.
-      setTimeout(() => _autoPlaceFixedBet(), 2500);
-    } else if (_frozenBet === 0) {
-      _applyBetUIMode();
-    } else {
-      setTimeout(() => _applyFreezeIfActive(), 300);
-    }
-  }
-
-  renderDealer(state);
-  renderSeats(state);
-  updateUI(state);
-
-  // Drive bet overlay — never show when freeze is active (standard only).
-  // VIP: no overlay at all. Main bet auto-places silently. Tie bet is controlled
-  // via the merged bottom-bar "Tie Bet Freeze" button, which works in any phase.
-  const overlay = document.getElementById('bet-overlay');
-  if (overlay) {
-    const isVIP = BJ_TABLE.label === 'vip';
-    let show;
-    if (isVIP) {
-      show = false;
-    } else {
-      show = state.phase==='betting' && mySeatIndex!==null && !_betPlaced && (mySeat?.bet||0)===0 && _frozenBet===0;
-    }
-    if (show && overlay.style.display !== 'flex') overlay.style.display = 'flex';
-    else if (!show && overlay.style.display !== 'none') overlay.style.display = 'none';
-  }
-
-  lastPhase = state.phase;
 }
 
 // ─────────────────────────────────────────────────────
@@ -987,182 +1183,31 @@ function handleTieWin(msg) {
 
   const name  = msg.displayName || 'A player';
   const bonus = msg.bonus ? '$' + msg.bonus.toLocaleString() : '';
-// [LINE 860 MISSING — no Read snapshot covers it]
-// [LINE 861 MISSING — no Read snapshot covers it]
-// [LINE 862 MISSING — no Read snapshot covers it]
-// [LINE 863 MISSING — no Read snapshot covers it]
-// [LINE 864 MISSING — no Read snapshot covers it]
-// [LINE 865 MISSING — no Read snapshot covers it]
-// [LINE 866 MISSING — no Read snapshot covers it]
-// [LINE 867 MISSING — no Read snapshot covers it]
-// [LINE 868 MISSING — no Read snapshot covers it]
-// [LINE 869 MISSING — no Read snapshot covers it]
-// [LINE 870 MISSING — no Read snapshot covers it]
-// [LINE 871 MISSING — no Read snapshot covers it]
-// [LINE 872 MISSING — no Read snapshot covers it]
-// [LINE 873 MISSING — no Read snapshot covers it]
-// [LINE 874 MISSING — no Read snapshot covers it]
-// [LINE 875 MISSING — no Read snapshot covers it]
-// [LINE 876 MISSING — no Read snapshot covers it]
-// [LINE 877 MISSING — no Read snapshot covers it]
-// [LINE 878 MISSING — no Read snapshot covers it]
-// [LINE 879 MISSING — no Read snapshot covers it]
-// [LINE 880 MISSING — no Read snapshot covers it]
-// [LINE 881 MISSING — no Read snapshot covers it]
-// [LINE 882 MISSING — no Read snapshot covers it]
-// [LINE 883 MISSING — no Read snapshot covers it]
-// [LINE 884 MISSING — no Read snapshot covers it]
-// [LINE 885 MISSING — no Read snapshot covers it]
-// [LINE 886 MISSING — no Read snapshot covers it]
-// [LINE 887 MISSING — no Read snapshot covers it]
-// [LINE 888 MISSING — no Read snapshot covers it]
-// [LINE 889 MISSING — no Read snapshot covers it]
-// [LINE 890 MISSING — no Read snapshot covers it]
-// [LINE 891 MISSING — no Read snapshot covers it]
-// [LINE 892 MISSING — no Read snapshot covers it]
-// [LINE 893 MISSING — no Read snapshot covers it]
-// [LINE 894 MISSING — no Read snapshot covers it]
-// [LINE 895 MISSING — no Read snapshot covers it]
-// [LINE 896 MISSING — no Read snapshot covers it]
-// [LINE 897 MISSING — no Read snapshot covers it]
-// [LINE 898 MISSING — no Read snapshot covers it]
-// [LINE 899 MISSING — no Read snapshot covers it]
-// [LINE 900 MISSING — no Read snapshot covers it]
-// [LINE 901 MISSING — no Read snapshot covers it]
-// [LINE 902 MISSING — no Read snapshot covers it]
-// [LINE 903 MISSING — no Read snapshot covers it]
-// [LINE 904 MISSING — no Read snapshot covers it]
-// [LINE 905 MISSING — no Read snapshot covers it]
-// [LINE 906 MISSING — no Read snapshot covers it]
-// [LINE 907 MISSING — no Read snapshot covers it]
-// [LINE 908 MISSING — no Read snapshot covers it]
-// [LINE 909 MISSING — no Read snapshot covers it]
-// [LINE 910 MISSING — no Read snapshot covers it]
-// [LINE 911 MISSING — no Read snapshot covers it]
-// [LINE 912 MISSING — no Read snapshot covers it]
-// [LINE 913 MISSING — no Read snapshot covers it]
-// [LINE 914 MISSING — no Read snapshot covers it]
-// [LINE 915 MISSING — no Read snapshot covers it]
-// [LINE 916 MISSING — no Read snapshot covers it]
-// [LINE 917 MISSING — no Read snapshot covers it]
-// [LINE 918 MISSING — no Read snapshot covers it]
-// [LINE 919 MISSING — no Read snapshot covers it]
-// [LINE 920 MISSING — no Read snapshot covers it]
-// [LINE 921 MISSING — no Read snapshot covers it]
-// [LINE 922 MISSING — no Read snapshot covers it]
-// [LINE 923 MISSING — no Read snapshot covers it]
-// [LINE 924 MISSING — no Read snapshot covers it]
-// [LINE 925 MISSING — no Read snapshot covers it]
-// [LINE 926 MISSING — no Read snapshot covers it]
-// [LINE 927 MISSING — no Read snapshot covers it]
-// [LINE 928 MISSING — no Read snapshot covers it]
-// [LINE 929 MISSING — no Read snapshot covers it]
-// [LINE 930 MISSING — no Read snapshot covers it]
-// [LINE 931 MISSING — no Read snapshot covers it]
-// [LINE 932 MISSING — no Read snapshot covers it]
-// [LINE 933 MISSING — no Read snapshot covers it]
-// [LINE 934 MISSING — no Read snapshot covers it]
-// [LINE 935 MISSING — no Read snapshot covers it]
-// [LINE 936 MISSING — no Read snapshot covers it]
-// [LINE 937 MISSING — no Read snapshot covers it]
-// [LINE 938 MISSING — no Read snapshot covers it]
-// [LINE 939 MISSING — no Read snapshot covers it]
-// [LINE 940 MISSING — no Read snapshot covers it]
-// [LINE 941 MISSING — no Read snapshot covers it]
-// [LINE 942 MISSING — no Read snapshot covers it]
-// [LINE 943 MISSING — no Read snapshot covers it]
-// [LINE 944 MISSING — no Read snapshot covers it]
-// [LINE 945 MISSING — no Read snapshot covers it]
-// [LINE 946 MISSING — no Read snapshot covers it]
-// [LINE 947 MISSING — no Read snapshot covers it]
-// [LINE 948 MISSING — no Read snapshot covers it]
-// [LINE 949 MISSING — no Read snapshot covers it]
-// [LINE 950 MISSING — no Read snapshot covers it]
-// [LINE 951 MISSING — no Read snapshot covers it]
-// [LINE 952 MISSING — no Read snapshot covers it]
-// [LINE 953 MISSING — no Read snapshot covers it]
-// [LINE 954 MISSING — no Read snapshot covers it]
-// [LINE 955 MISSING — no Read snapshot covers it]
-// [LINE 956 MISSING — no Read snapshot covers it]
-// [LINE 957 MISSING — no Read snapshot covers it]
-// [LINE 958 MISSING — no Read snapshot covers it]
-// [LINE 959 MISSING — no Read snapshot covers it]
-// [LINE 960 MISSING — no Read snapshot covers it]
-// [LINE 961 MISSING — no Read snapshot covers it]
-// [LINE 962 MISSING — no Read snapshot covers it]
-// [LINE 963 MISSING — no Read snapshot covers it]
-// [LINE 964 MISSING — no Read snapshot covers it]
-// [LINE 965 MISSING — no Read snapshot covers it]
-// [LINE 966 MISSING — no Read snapshot covers it]
-// [LINE 967 MISSING — no Read snapshot covers it]
-// [LINE 968 MISSING — no Read snapshot covers it]
-// [LINE 969 MISSING — no Read snapshot covers it]
-// [LINE 970 MISSING — no Read snapshot covers it]
-// [LINE 971 MISSING — no Read snapshot covers it]
-// [LINE 972 MISSING — no Read snapshot covers it]
-// [LINE 973 MISSING — no Read snapshot covers it]
-// [LINE 974 MISSING — no Read snapshot covers it]
-          wrapper.appendChild(box);
+  const credit = msg.totalCredit ? '$' + msg.totalCredit.toLocaleString() : '';
 
-          // Per-hand result
-          const r = seat.result?.[hi];
-          if (r) {
-            const rb = document.createElement('div');
-            rb.className = 'result-badge-inline ' + r;
-            rb.textContent = r==='blackjack'?'BLACKJACK!':(r==='tie'?'TIE!':r.toUpperCase());
-            wrapper.appendChild(rb);
-          }
-          cardsEl.appendChild(wrapper);
-        });
-      } else {
-        // NORMAL MODE — diff render, no full rebuild
-        cardsEl.style.cssText = '';
-        const flat = (hands[0]||[]).filter(c => c && c.rank);
-        const existing = cardsEl.querySelectorAll('.vl-card').length;
-        if (flat.length < existing) cardsEl.innerHTML = '';
-        const shown = cardsEl.querySelectorAll('.vl-card').length;
-        flat.slice(shown).forEach(c => {
-          cardsEl.appendChild(makeVLCard(c));
-          if (typeof SFX !== 'undefined') SFX.card();
-        });
-        cardsEl.querySelectorAll('.hand-total').forEach(e => e.remove());
-        const {total, bust, bj} = handTotal(hands[0]||[]);
-        if (total > 0) {
-          const t = document.createElement('div');
-          t.className = 'hand-total' + (bust?' bust':bj?' bj':'');
-          t.textContent = bj?'BJ!':(bust?'BUST':String(total));
-          cardsEl.appendChild(t);
-        }
-      }
-    }
-
-    // Result badge — 'tie' ranks above 'push' so players see they hit the tie bet
-    const rs = document.getElementById(`seat${vz}-result`);
-    if (rs && seat.result?.some(r => r !== null)) {
-      const priority = ['blackjack','win','tie','push','bust','lose'];
-      const best = priority.find(p => seat.result.includes(p)) || seat.result.find(r => r);
-      if (best) {
-        rs.className = 'result-badge-inline ' + best;
-        rs.textContent = best==='blackjack'?'BLACKJACK!':(best==='tie'?'TIE!':best.toUpperCase());
-      }
-    }
-
-    // My payout — show NET profit (credit minus original bet)
-    if (isMe && seat.payout) {
-      const grossCredit = (seat.payout||[]).reduce((a,b) => a+(b||0), 0);
-    const hi   = mySeat.activeHandIdx || 0;
-    const hand = (mySeat.hands||[[]])[hi] || [];
-    const w    = mySeat.wallet || 0;
-    const b    = mySeat.bet || 0;
-    const dbl  = document.getElementById('btn-double');
-    const spl  = document.getElementById('btn-split');
-    const ss   = document.getElementById('split-status');
-    if (dbl) dbl.disabled = hand.length !== 2 || w < b;
-    if (spl) spl.disabled = hand.length !== 2 || !hand[0] || !hand[1] ||
-      cardVal(hand[0]) !== cardVal(hand[1]) ||
-      (mySeat.hands||[]).length >= 4 || w < b;
-    if (ss) ss.textContent = mySeat.hands?.length > 1 ? `Playing Hand ${hi+1} of ${mySeat.hands.length}` : '';
+  let stack = document.getElementById('big-announce-stack');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.id = 'big-announce-stack';
+    document.body.appendChild(stack);
   }
+  const el = document.createElement('div');
+  el.className = 'big-announce ba-tie';
+  el.innerHTML = `
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:#ffd700">TIE BET WIN!</div>
+    <div style="font-size:13px;color:#e8dfc0;margin-top:4px">${name}</div>
+    <div style="font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:900;color:#ffd700;margin-top:2px">+${bonus}${credit ? ' (paid '+credit+')' : ''}</div>
+  `;
+  stack.appendChild(el);
+
+  // Mark the result-flash element so flashTable() doesn't overwrite us
+  const flash = document.getElementById('result-flash');
+  if (flash) {
+    flash._tieTimer = setTimeout(() => { delete flash._tieTimer; }, 2200);
+  }
+
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .4s'; }, 3500);
+  setTimeout(() => { el.remove(); }, 4000);
 }
 
 function fmtPhase(p) {
@@ -1171,132 +1216,29 @@ function fmtPhase(p) {
     payout:'Payouts',round_end:'Round complete'}[p] || (p||'Connecting…');
 }
 
-// ─────────────────────────────────────────────────────
-// TABLE FLASH
-// ─────────────────────────────────────────────────────
-// [LINE 1044 MISSING — no Read snapshot covers it]
-// [LINE 1045 MISSING — no Read snapshot covers it]
-// [LINE 1046 MISSING — no Read snapshot covers it]
-// [LINE 1047 MISSING — no Read snapshot covers it]
-// [LINE 1048 MISSING — no Read snapshot covers it]
-// [LINE 1049 MISSING — no Read snapshot covers it]
-// [LINE 1050 MISSING — no Read snapshot covers it]
-// [LINE 1051 MISSING — no Read snapshot covers it]
-// [LINE 1052 MISSING — no Read snapshot covers it]
-// [LINE 1053 MISSING — no Read snapshot covers it]
-// [LINE 1054 MISSING — no Read snapshot covers it]
-// [LINE 1055 MISSING — no Read snapshot covers it]
-// [LINE 1056 MISSING — no Read snapshot covers it]
-// [LINE 1057 MISSING — no Read snapshot covers it]
-// [LINE 1058 MISSING — no Read snapshot covers it]
-// [LINE 1059 MISSING — no Read snapshot covers it]
-// [LINE 1060 MISSING — no Read snapshot covers it]
-// [LINE 1061 MISSING — no Read snapshot covers it]
-// [LINE 1062 MISSING — no Read snapshot covers it]
-// [LINE 1063 MISSING — no Read snapshot covers it]
-// [LINE 1064 MISSING — no Read snapshot covers it]
-// [LINE 1065 MISSING — no Read snapshot covers it]
-// [LINE 1066 MISSING — no Read snapshot covers it]
-// [LINE 1067 MISSING — no Read snapshot covers it]
-// [LINE 1068 MISSING — no Read snapshot covers it]
-// [LINE 1069 MISSING — no Read snapshot covers it]
-// [LINE 1070 MISSING — no Read snapshot covers it]
-// [LINE 1071 MISSING — no Read snapshot covers it]
-// [LINE 1072 MISSING — no Read snapshot covers it]
-// [LINE 1073 MISSING — no Read snapshot covers it]
-// [LINE 1074 MISSING — no Read snapshot covers it]
-          // Per-hand result
-          const r = seat.result?.[hi];
-          if (r) {
-            const rb = document.createElement('div');
-            rb.className = 'result-badge-inline ' + r;
-            rb.textContent = r==='blackjack'?'BLACKJACK!':(r==='tie'?'TIE!':r.toUpperCase());
-            wrapper.appendChild(rb);
-          }
-          cardsEl.appendChild(wrapper);
-        });
-      } else {
-        // NORMAL MODE — diff render, no full rebuild
-        cardsEl.style.cssText = '';
-        const flat = (hands[0]||[]).filter(c => c && c.rank);
-        const existing = cardsEl.querySelectorAll('.vl-card').length;
-        if (flat.length < existing) cardsEl.innerHTML = '';
-        const shown = cardsEl.querySelectorAll('.vl-card').length;
-        flat.slice(shown).forEach(c => {
-          cardsEl.appendChild(makeVLCard(c));
-          if (typeof SFX !== 'undefined') SFX.card();
-        });
-        cardsEl.querySelectorAll('.hand-total').forEach(e => e.remove());
-        const {total, bust, bj} = handTotal(hands[0]||[]);
-        if (total > 0) {
-          const t = document.createElement('div');
-          t.className = 'hand-total' + (bust?' bust':bj?' bj':'');
-          t.textContent = bj?'BJ!':(bust?'BUST':String(total));
-          cardsEl.appendChild(t);
-        }
-      }
-    }
-
-    // Result badge — 'tie' ranks above 'push' so players see they hit the tie bet
-    const rs = document.getElementById(`seat${vz}-result`);
-    if (rs && seat.result?.some(r => r !== null)) {
-      const priority = ['blackjack','win','tie','push','bust','lose'];
-      const best = priority.find(p => seat.result.includes(p)) || seat.result.find(r => r);
-      if (best) {
-        rs.className = 'result-badge-inline ' + best;
-        rs.textContent = best==='blackjack'?'BLACKJACK!':(best==='tie'?'TIE!':best.toUpperCase());
-      }
-    }
-
-    // My payout — show NET profit (credit minus original bet)
-    if (isMe && seat.payout) {
-      const grossCredit = (seat.payout||[]).reduce((a,b) => a+(b||0), 0);
-      // Net = what was credited back minus the bet that was already deducted
-      // For blackjack ($500 bet): gross=$1,250, net=+$750
-      // For win ($500 bet):       gross=$1,000, net=+$500
-      // For lose ($500 bet):      gross=$0,     net=-$500
-
-function fmtPhase(p) {
-  return {waiting:'Waiting for players…',betting:'Place your bet (10s)',deal:'Dealing…',
-    insurance:'Insurance?',player_action:'Your turn — Hit or Stand',dealer:"Dealer's turn",
-    payout:'Payouts',round_end:'Round complete'}[p] || (p||'Connecting…');
-}
 
 // ─────────────────────────────────────────────────────
 // TABLE FLASH
 // ─────────────────────────────────────────────────────
 function flashTable(result) {
-  const oval = document.getElementById('oval-table'); if (!oval) return;
+  const oval = document.getElementById('oval-table');
+  if (!oval) return;
   oval.classList.remove('flash-win','flash-lose','flash-bj');
-  if (result==='blackjack') { oval.classList.add('flash-bj'); if(typeof SFX!=='undefined')SFX.bj?.(); }
-  else if (result==='win')  { oval.classList.add('flash-win'); if(typeof SFX!=='undefined')SFX.win(); }
-  else if (result==='lose'||result==='bust') { oval.classList.add('flash-lose'); if(typeof SFX!=='undefined')SFX.lose(); }
-  else if (result==='push') { if(typeof SFX!=='undefined')SFX.push?.(); }
+  if (result === 'blackjack')                       { oval.classList.add('flash-bj');   if (typeof SFX !== 'undefined') SFX.bj?.(); }
+  else if (result === 'win')                        { oval.classList.add('flash-win');  if (typeof SFX !== 'undefined') SFX.win?.(); }
+  else if (result === 'lose' || result === 'bust')  { oval.classList.add('flash-lose'); if (typeof SFX !== 'undefined') SFX.lose?.(); }
+  else if (result === 'push' || result === 'tie')   {                                   if (typeof SFX !== 'undefined') SFX.push?.(); }
   setTimeout(() => oval.classList.remove('flash-win','flash-lose','flash-bj'), 700);
 
   const flash = document.getElementById('result-flash');
   const txt   = document.getElementById('result-flash-text');
-  // Don't overwrite an active tie win celebration
+  // Don't overwrite an active tie-win celebration banner
   if (flash && flash._tieTimer) return;
   if (flash && txt) {
-  const txt   = document.getElementById('result-flash-text');
-  // Don't overwrite an active tie win celebration
-  if (flash && flash._tieTimer) return;
-  if (flash && txt) {
-    const labels = {blackjack:'BLACKJACK!',win:'WIN',tie:'TIE!',lose:'LOSE',bust:'BUST',push:'PUSH'};
-    const colors = {blackjack:'#ffd700',win:'#44ff88',tie:'#ffd700',lose:'#ff5555',bust:'#ff5555',push:'#4ab8ff'};
-    txt.textContent = labels[result]||''; txt.style.color = colors[result]||'#fff';
-    flash.style.display = 'flex';
-    setTimeout(() => flash.style.display = 'none', 1500);
-  }
-}
-  const txt   = document.getElementById('result-flash-text');
-  // Don't overwrite an active tie win celebration
-  if (flash && flash._tieTimer) return;
-  if (flash && txt) {
-    const labels = {blackjack:'BLACKJACK!',win:'WIN',tie:'TIE!',lose:'LOSE',bust:'BUST',push:'PUSH'};
-    const colors = {blackjack:'#ffd700',win:'#44ff88',tie:'#ffd700',lose:'#ff5555',bust:'#ff5555',push:'#4ab8ff'};
-    txt.textContent = labels[result]||''; txt.style.color = colors[result]||'#fff';
+    const labels = { blackjack:'BLACKJACK!', win:'WIN', tie:'TIE!', lose:'LOSE', bust:'BUST', push:'PUSH' };
+    const colors = { blackjack:'#ffd700',   win:'#44ff88', tie:'#ffd700', lose:'#ff5555', bust:'#ff5555', push:'#4ab8ff' };
+    txt.textContent  = labels[result] || '';
+    txt.style.color  = colors[result] || '#fff';
     flash.style.display = 'flex';
     setTimeout(() => flash.style.display = 'none', 1500);
   }
@@ -1503,139 +1445,31 @@ function startCountdown(secs, showOverlay) {
 
   const update = rem => {
     if (cd) { cd.textContent = rem; cd.classList.toggle('urgent', rem > 0 && rem <= 3); }
-    if (ring) { ring.style.strokeDashoffset = 213.6*(1-rem/TOTAL); ring.style.stroke = rem<=3?'#ef4444':rem<=5?'#f87171':'#c9a84c'; }
-  const alt           = document.getElementById('bet-alert-text');
-  const isVIP = BJ_TABLE.label === 'vip';
-
-  if (chipSection)   chipSection.style.display   = 'flex';
-  if (tieBetSection) tieBetSection.style.display = 'flex';
-
-  if (isVIP) {
-    if (betConfirm)   betConfirm.style.display   = 'none';
-    if (fixedSection) {
-      fixedSection.style.display = 'flex';
-      const amtEl = document.getElementById('bet-fixed-amount');
-      if (amtEl) amtEl.textContent = '$' + (BJ_TABLE.minBet || 0).toLocaleString();
+    if (ring) {
+      ring.style.strokeDashoffset = 213.6 * (1 - rem / TOTAL);
+      ring.style.stroke = rem <= 3 ? '#ef4444' : rem <= 5 ? '#f87171' : '#c9a84c';
     }
-    if (alt) alt.textContent = 'Placing your bet…';
-  } else {
-    if (betConfirm)   betConfirm.style.display   = 'block';
-    if (fixedSection) fixedSection.style.display = 'none';
-    if (alt) alt.textContent = 'Tap a chip to bet';
-  }
+    if (bc) bc.textContent = rem;
+  };
+  update(t);
+  _cdInterval = setInterval(() => {
+    t--;
+    if (t <= 0) { stopCountdown(); return; }
+    update(t);
+  }, 1000);
+}
+
+function stopCountdown() {
+  if (_cdInterval) { clearInterval(_cdInterval); _cdInterval = null; }
+  const overlay = document.getElementById('your-turn-overlay');
+  if (overlay) overlay.style.display = 'none';
+  const cd = document.getElementById('cd-number');
+  if (cd) cd.classList.remove('urgent');
 }
 
 // VIP auto-placement: bet is fixed, no chip choice — send it immediately.
 // Tie bet is NOT auto-placed; the player must opt in each round via the
 // bottom-bar "Tie Bet $X" button while the betting timer is running.
-function _autoPlaceFixedBet() {
-  if (_betPlaced) return;
-  if (BJ_TABLE.label !== 'vip') return;
-  const avail = window._lastBJState?.seats?.[mySeatIndex]?.wallet ?? myChips;
-  const amt = BJ_TABLE.minBet || 0;
-  if (!amt || amt > avail) {
-    const alt = document.getElementById('bet-alert-text');
-    if (alt) alt.textContent = 'Insufficient wallet for fixed bet';
-    return;
-  }
-  pendingBet = amt;
-  updateBetDisplay();
-  _sendBet();
-}
-
-function addChip(val) {
-  if (typeof SFX !== 'undefined') SFX.chip();
-  const avail = window._lastBJState?.seats?.[mySeatIndex]?.wallet ?? myChips;
-  if (val > avail) { showIngameToast('Insufficient Chips', `Need $${val.toLocaleString()} to place this bet.`); return; }
-  pendingBet = val;
-  updateBetDisplay();
-  _sendBet();
-}
-
-function _sendBet() {
-  if (!ws || pendingBet < BJ_TABLE.minBet) return;
-  _betPlaced = true;
-  sendMsg('place_bet', { amount: pendingBet });
-  stopCountdown();
-
-  const ov = document.getElementById('bet-overlay');
-  if (!ov) return;
-
-  // Hide chips, keep tie bet visible after bet placed
-  const chipSection   = document.getElementById('bet-chips-section');
-  const betConfirm    = document.getElementById('bet-confirm-section');
-  const fixedSection  = document.getElementById('bet-fixed-section');
-  const tieBetSection = document.getElementById('bet-tiebet-section');
-  const alt           = document.getElementById('bet-alert-text');
-
-  if (chipSection)   chipSection.style.display   = 'none';
-  if (betConfirm)    betConfirm.style.display    = 'none';
-  if (fixedSection)  fixedSection.style.display  = 'none';
-  if (tieBetSection) tieBetSection.style.display = 'flex';
-  if (alt) alt.textContent = `✓ Bet $${pendingBet.toLocaleString()} placed`;
-
-  // Auto-close overlay after 3 seconds — but NOT in VIP: player needs the full
-  // betting window to toggle tie bet since the main bet was auto-placed.
-  clearTimeout(ov._closeTimer);
-  if (BJ_TABLE.label !== 'vip') {
-    ov._closeTimer = setTimeout(() => {
-      ov.style.display = 'none';
-    }, 3000);
-  }
-}
-
-function placeBet() { _sendBet(); }
-
-function placeTieBet() {
-  if (!ws) return;
-  sendMsg('place_tie');
-  if (typeof SFX !== 'undefined') SFX.chip();
-}
-
-function updateBetDisplay() {
-  const d = document.getElementById('bet-display');
-  const a = document.getElementById('bet-alert-text');
-  if (d) d.textContent = pendingBet > 0 ? '$' + pendingBet.toLocaleString() : '';
-  if (a) a.textContent = pendingBet >= BJ_TABLE.minBet ? `Bet: $${pendingBet.toLocaleString()}` : 'Tap a chip to bet';
-}
-
-function takeInsurance(take) {
-  sendMsg('insurance', { take });
-  const ip = document.getElementById('insurance-panel');
-  if (ip) ip.style.display = 'none';
-}
-
-// ─────────────────────────────────────────────────────
-// COUNTDOWN
-// ─────────────────────────────────────────────────────
-_cdInterval = null;
-function startCountdown(secs, showOverlay) {
-  stopCountdown();
-  let t = Math.floor(secs); const TOTAL = secs;
-  const cd      = document.getElementById('cd-number');
-  const overlay = document.getElementById('your-turn-overlay');
-  const ring    = document.getElementById('bet-ring');
-  const bc      = document.getElementById('bet-countdown');
-
-  // Only show the big centred overlay during player action turns, not betting/insurance
-  if (overlay) { overlay.style.display = showOverlay ? 'flex' : 'none'; }
-
-  const update = rem => {
-    if (cd) { cd.textContent = rem; cd.classList.toggle('urgent', rem > 0 && rem <= 3); }
-    if (ring) { ring.style.strokeDashoffset = 213.6*(1-rem/TOTAL); ring.style.stroke = rem<=3?'#ef4444':rem<=5?'#f87171':'#c9a84c'; }
-    if (bc) bc.textContent = rem;
-    if (rem <= 3 && rem > 0 && typeof SFX !== 'undefined') SFX.timer?.();
-  };
-  update(t);
-  _cdInterval = setInterval(() => { t--; if (t <= 0) { stopCountdown(); return; } update(t); }, 1000);
-}
-function stopCountdown() {
-  clearInterval(_cdInterval);
-  const cd      = document.getElementById('cd-number');
-  const overlay = document.getElementById('your-turn-overlay');
-  if (overlay) overlay.style.display = 'none';
-  if (cd) cd.classList.remove('urgent');
-}
 
 // ─────────────────────────────────────────────────────
 // DEAL ANIMATION
@@ -1754,3 +1588,27 @@ window.addEventListener('DOMContentLoaded', () => {
   // ── Path 2: sessionStorage set ──────────────────────────────
   try {
     const uj = sessionStorage.getItem('bj_user');
+    if (uj) {
+      const user = JSON.parse(uj);
+      myUsername = user.username || '';
+      // Load table config if previously set by the dashboard
+      const tj = sessionStorage.getItem('bj_table');
+      if (tj) {
+        try {
+          const t = JSON.parse(tj);
+          if (t && typeof t === 'object') {
+            BJ_TABLE = Object.assign({}, BJ_TABLE, t);
+          }
+        } catch (_) {}
+      }
+      // Tier override (e.g. 'vip')
+      const tier = sessionStorage.getItem('bj_tier');
+      if (tier) BJ_TABLE.label = tier;
+    }
+  } catch (e) {
+    console.warn('[BJ] auto-login parse error:', e.message);
+  }
+
+  // Show the lobby (Single Player / Multiplayer chooser)
+  _showStep('lobby-step-choose');
+});
