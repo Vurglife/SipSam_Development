@@ -537,7 +537,7 @@
   </div>
 </div>
 
-<script src="game.js?v=37"></script>
+<script src="game.js?v=38"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      IN-GAME SLIDE-OUT MENU
@@ -1672,7 +1672,9 @@ async function exitToLobby() {
       || (()=>{ try { return JSON.parse(sessionStorage.getItem('sipsam_user')||'{}').token||null; } catch(e){ return null; } })();
     const tableMinBet = igmTableCfg?.minBet || 0;
     const phase = (window._lastState?.status) || 'waiting';
-    const midRound = ['betting','arranging','revealing','roundEnd'].includes(phase);
+    // roundEnd is NOT mid-round — the round has fully resolved and chips are
+    // final, so exits during roundEnd settle immediately via the legacy path.
+    const midRound = ['betting','arranging','revealing'].includes(phase);
 
     if (midRound && typeof sendMsg === 'function') {
       // Defer to round end. Server replies 'exitOk' once it settles.

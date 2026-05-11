@@ -503,25 +503,48 @@ class SipSamRoom {
         return ['betting', 'arranging'].includes(this.gameState.status);
     }
 
-    // Any phase where a round is in flight. Used by the deferred-exit rule:
-    // a non-banker exit during these phases is held until the round resolves.
+    // Any phase where a round is in flight. roundEnd is EXCLUDED here because
+    // by then the round has fully resolved — exits during roundEnd should
+    // settle immediately, not wait for the next round to start.
     _isMidRoundPhase() {
-        return ['betting', 'arranging', 'revealing', 'roundEnd'].includes(this.gameState.status);
+        return ['betting', 'arranging', 'revealing'].includes(this.gameState.status);
     }
 
-    // Player clicked Exit on the client — same effect as disconnecting, but
-    // explicit so the client can show "Settling at end of round…" UI.
+    // Player clicked Exit on the client. Behaviour by phase:
+    //   • betting / revealing  → mark pendingExit; reveal-end finalises
+    //   • arranging            → mark pendingExit AND auto-DQ them now so
+    //                            the round can advance to reveal without
+    //                            waiting on the arrange timer. Natural DQ
+    //                            penalty applies (lose bet to banker).
+    //   • roundEnd / waiting / gameOver → no defer; caller disconnects and
+    //                                     onLeave settles immediately.
     _onRequestExit(client) {
         const player = this.gameState.players[client.sessionId];
         if (!player || player.isBot) return;
         if (this._isMidRoundPhase() && !player.isBanker) {
             player.pendingExit = true;
+            // Speed up arrange-phase exits: apply natural DQ immediately so
+            // checkAllArranged isn't blocked waiting on this player. Without
+            // this the room sat through the full ~65s arrange timer before
+            // disqualifyLate ran, then a further ~30s reveal — total ~95s of
+            // overlay wait. With auto-DQ the room can move straight to reveal.
+            if (this.gameState.status === 'arranging' && !player.hasArranged && !player.disqualified) {
+                const banker = this.gameState.players[this.gameState.bankerSessionId];
+                this._applyDqPayment(player, banker, 'Left game during arrange phase.');
+                player.hasArranged = true;
+                console.log(`[EXIT-REQ] ${player.username} auto-DQ during arrange — round can now advance.`);
+                this.broadcast({ type:'playerDisqualified', username:player.username, reason:'Left game during arrange phase.' });
+            }
             this.sendToClient(client, { type:'exitPending', message:'Settling at end of round…' });
             console.log(`[EXIT-REQ] ${player.username} requested exit; deferring to round end.`);
             this.broadcastState();
+            // Trigger an immediate check — if every remaining player is now
+            // arranged (bots arrange synchronously on deal), reveal starts.
+            this.checkAllArranged();
             return;
         }
-        // Banker or non-mid-round: caller can just disconnect; onLeave handles it.
+        // Not mid-round (waiting / roundEnd / gameOver) — caller will disconnect
+        // and onLeave's immediate-settle path handles it.
         this.sendToClient(client, { type:'exitOk' });
     }
 
@@ -764,6 +787,12 @@ class SipSamRoom {
     startRound() {
         this._clearAllPhaseTimers();
         if (this._nextRoundTimer) { clearTimeout(this._nextRoundTimer); this._nextRoundTimer = null; }
+        // Defensive: any pendingExit player that slipped past reveal (e.g.
+        // exit requested AFTER _finalizePendingExits already fired during the
+        // current roundEnd window) is settled here before the next round.
+        if (Object.values(this.gameState.players).some(p => p && p.pendingExit)) {
+            this._finalizePendingExits();
+        }
         this.gameState.round++;
         if (this.gameState.round > this.gameState.maxRounds) { this.endGame(); return; }
         console.log("--- Round", this.gameState.round, "---");
