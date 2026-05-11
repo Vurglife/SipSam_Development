@@ -228,46 +228,65 @@ function startNow() {
 }
 
 // ─────────────────────────────────────────────────────
-// MULTIPLAYER INVITE
+// MULTIPLAYER INVITE (matches SipSam patterns — same endpoints)
 // ─────────────────────────────────────────────────────
 async function _loadMultiFriends() {
+  // Cache once per session; subsequent calls are no-ops
+  if (_multiInviteFriends.length) return _multiInviteFriends;
   try {
     const token = igmToken || JSON.parse(sessionStorage.getItem('bj_user') || '{}').token;
-    if (!token) return;
-    const res = await fetch('/api/friends/list', {
-      headers: { 'Authorization': 'Bearer ' + token },
-      credentials: 'include'
+    if (!token) return [];
+    const r = await fetch('/api/friends', {
+      headers: { 'Authorization': 'Bearer ' + token }
     });
-    if (!res.ok) return;
-    const d = await res.json();
-    _multiInviteFriends = d.friends || d.data || [];
-  } catch (e) { _multiInviteFriends = []; }
+    const d = await r.json();
+    _multiInviteFriends = d.friends || [];
+    return _multiInviteFriends;
+  } catch (e) {
+    console.warn('[BJ] friends load:', e.message);
+    _multiInviteFriends = [];
+    return [];
+  }
 }
 
-function onMultiInviteInput(val) {
-  const dd = document.getElementById('lobby-multi-invite-dropdown');
-  if (!dd) return;
-  const query = (val || '').trim().toLowerCase();
-  const matches = query
-    ? _multiInviteFriends.filter(f => (f.username || f.friend_username || '').toLowerCase().includes(query)).slice(0, 8)
-    : _multiInviteFriends.slice(0, 8);
+async function _searchAllPlayers(q) {
+  try {
+    const token = igmToken || JSON.parse(sessionStorage.getItem('bj_user') || '{}').token;
+    if (!token) return [];
+    const r = await fetch('/api/friends/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ query: q })
+    });
+    const d = await r.json();
+    return d.users || d.results || [];
+  } catch (e) {
+    return [];
+  }
+}
 
+let _multiSearchTimer = null;
+
+function _renderMultiInviteDropdown(dd, friends, others, query) {
   dd.innerHTML = '';
-  if (!matches.length) {
+
+  if (!friends.length && !others.length) {
     const msg = document.createElement('div');
     msg.style.cssText = 'padding:10px 12px;font-size:12px;color:#7a9ac0;font-style:italic';
-    msg.textContent = query ? 'No matches found.' : 'No friends yet — type a username to invite anyone.';
+    msg.textContent = query
+      ? 'No matches found — type a full username to invite.'
+      : 'No friends yet — type a username to invite anyone.';
     dd.appendChild(msg);
     dd.style.display = 'block';
     return;
   }
 
-  matches.forEach(f => {
-    const name = f.username || f.friend_username;
+  const addRow = (name, isFriend) => {
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;font-size:13px;color:#e8dfc0;border-bottom:1px solid rgba(255,255,255,.04);transition:background .15s';
-    row.innerHTML = `<span style="width:26px;height:26px;border-radius:50%;background:rgba(201,168,76,.2);border:1px solid rgba(201,168,76,.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#c9a84c">${(name[0] || '?').toUpperCase()}</span>
-                     <span style="flex:1">${name}</span>`;
+    row.innerHTML = `<span style="width:26px;height:26px;border-radius:50%;background:rgba(201,168,76,.2);border:1px solid rgba(201,168,76,.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#c9a84c">${((name || '?')[0] || '').toUpperCase()}</span>
+                     <span style="flex:1">${name}</span>
+                     <span style="font-size:10px;color:${isFriend ? '#4aabff' : '#666'}">${isFriend ? '🤝 Friend' : ''}</span>`;
     row.onmouseenter = () => row.style.background = 'rgba(26,92,170,.2)';
     row.onmouseleave = () => row.style.background = '';
     row.onmousedown = () => {
@@ -275,9 +294,50 @@ function onMultiInviteInput(val) {
       dd.style.display = 'none';
     };
     dd.appendChild(row);
-  });
+  };
+
+  if (friends.length) {
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'padding:6px 12px 4px;font-size:9px;font-weight:700;letter-spacing:2px;color:#4aabff;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.06)';
+    hdr.textContent = 'Friends';
+    dd.appendChild(hdr);
+    friends.forEach(f => addRow(f.username || f.friend_username, true));
+  }
+  if (others.length) {
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'padding:6px 12px 4px;font-size:9px;font-weight:700;letter-spacing:2px;color:#888;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.06);margin-top:4px';
+    hdr.textContent = 'Other Players';
+    dd.appendChild(hdr);
+    others.forEach(u => addRow(u.username, false));
+  }
   dd.style.display = 'block';
 }
+
+function onMultiInviteInput(val) {
+  const dd = document.getElementById('lobby-multi-invite-dropdown');
+  if (!dd) return;
+  clearTimeout(_multiSearchTimer);
+  const q = (val || '').trim().toLowerCase();
+  if (!q) {
+    _loadMultiFriends().then(friends => _renderMultiInviteDropdown(dd, friends.slice(0, 8), [], ''));
+    return;
+  }
+  // Immediate friend-list filter
+  _loadMultiFriends().then(friends => {
+    const friendMatches = friends.filter(f => (f.username || '').toLowerCase().includes(q)).slice(0, 8);
+    _renderMultiInviteDropdown(dd, friendMatches, [], q);
+  });
+  // Debounced global player search
+  _multiSearchTimer = setTimeout(async () => {
+    const friends = await _loadMultiFriends();
+    const friendNames = new Set(friends.map(f => (f.username || '').toLowerCase()));
+    const all = await _searchAllPlayers(val);
+    const friendMatches    = friends.filter(f => (f.username || '').toLowerCase().includes(q)).slice(0, 8);
+    const nonFriendMatches = all.filter(u => !friendNames.has((u.username || '').toLowerCase())).slice(0, 8);
+    _renderMultiInviteDropdown(dd, friendMatches, nonFriendMatches, q);
+  }, 350);
+}
+
 function onMultiInviteFocus() { onMultiInviteInput(''); }
 
 async function sendMultiInvite() {
