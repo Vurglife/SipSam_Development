@@ -1955,8 +1955,12 @@ function handleServerMessage(msg) {
         setTimeout(() => { window._serverSettled = true; window._intentionalExit = true; window.location.href = '/'; }, 1500);
 
     } else if (msg.type === 'exitPending') {
-        // Server has queued our exit request. Overlay already up; nothing to do.
+        // Server has queued our exit request. Cancels the legacy fallback
+        // so we don't double-fire /api/game/exit.
         console.log('[EXIT] queued by server — waiting for round end');
+        if (typeof window._exitPendingHandler === 'function') {
+            try { window._exitPendingHandler(); } catch(e) {}
+        }
 
     } else if (msg.type === 'exitOk') {
         // Server has settled our wallet → bank using the final post-payout

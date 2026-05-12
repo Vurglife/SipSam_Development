@@ -537,7 +537,7 @@
   </div>
 </div>
 
-<script src="game.js?v=38"></script>
+<script src="game.js?v=39"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      IN-GAME SLIDE-OUT MENU
@@ -1677,7 +1677,8 @@ async function exitToLobby() {
     const midRound = ['betting','arranging','revealing'].includes(phase);
 
     if (midRound && typeof sendMsg === 'function') {
-      // Defer to round end. Server replies 'exitOk' once it settles.
+      // Defer to round end. Server replies 'exitPending' on receipt and
+      // 'exitOk' once it settles.
       _showExitWaitOverlay();
       const navigateAway = () => {
         sessionStorage.removeItem('sipsam_table');
@@ -1686,10 +1687,37 @@ async function exitToLobby() {
         window._intentionalExit = true;
         window.location.href = '/';
       };
+
+      // Legacy fallback for a stale server that doesn't know the
+      // 'requestExit' message yet. If we don't see an 'exitPending' ack
+      // within 4 s, we assume the server is old and fall back to a direct
+      // /api/game/exit call so the player isn't stuck on the overlay.
+      window._exitPendingAcked = false;
       window._exitOkHandler = () => { window._serverSettled = true; navigateAway(); };
-      // Fallback: if server doesn't ack within 90s (e.g. WS dropped), force exit.
-      setTimeout(() => { if (!window._serverSettled) navigateAway(); }, 90000);
-      try { sendMsg('requestExit', {}); } catch(e) { console.warn('[EXIT] sendMsg failed:', e); navigateAway(); }
+      window._exitPendingHandler = () => { window._exitPendingAcked = true; };
+
+      const fallbackToLegacy = async () => {
+        if (window._serverSettled) return;
+        console.warn('[EXIT] No exitPending ack — falling back to direct /api/game/exit');
+        try {
+          const wallet = (typeof myChips !== 'undefined') ? myChips : igmWallet;
+          if (token) {
+            await fetch('/api/game/exit', {
+              method:'POST',
+              headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+              credentials:'include',
+              body:JSON.stringify({remainingWallet:wallet, tableMinBet})
+            });
+          }
+        } catch(e) { console.error('[EXIT] fallback /exit failed:', e); }
+        window._serverSettled = true;
+        navigateAway();
+      };
+
+      setTimeout(() => { if (!window._exitPendingAcked) fallbackToLegacy(); }, 4000);
+      // Hard cap: if everything else hangs, force-navigate after 60s.
+      setTimeout(() => { if (!window._serverSettled) navigateAway(); }, 60000);
+      try { sendMsg('requestExit', {}); } catch(e) { console.warn('[EXIT] sendMsg failed:', e); fallbackToLegacy(); }
       return;
     }
 
