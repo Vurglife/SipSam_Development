@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(git reset *)",
+      "Bash(git clean *)",
+      "Bash(rm *)",
+      "Bash(del *)",
+      "Bash(Remove-Item *)",
+      "Bash(npm install *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Read(./secrets/**)",
+      "Read(./**/secrets/**)",
+      "Read(./**/node_modules/**)",
+      "Read(./.git/**)",
+      "Read(./.claude/worktrees/**)",
+      "Read(./.claude/.claude/worktrees/**)",
+      "Read(./**/*.tmp)",
+      "Edit(./vurglife-platform/data/vurglife.db*)",
+      "Write(./vurglife-platform/data/vurglife.db*)"
+    ]
+  }
+}

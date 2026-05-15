@@ -3,11 +3,14 @@
 ## Now
 
 - Apply this project memory template to PokerProject.
+- Add and validate project-local Claude Code configuration.
+- Confirm Claude Code runtime sees the project skills and agents.
 - Confirm the next priority for PokerProject.
 - Confirm whether the existing commit-on-master rule remains current.
 
 ## Next
 
+- Start Claude Code in `G:\SipSam\PokerProject` and verify `/status`, `/memory`, `/project-memory`, and `/agents`.
 - Audit the active SipSam/Poker flow only if requested.
 - Identify current validation gaps for server logic, wallet/bank behavior, and frontend flows.
 - Record a concise current architecture map after targeted inspection.

@@ -13,6 +13,9 @@
 | --- | --- | --- | --- |
 | 2026-05-15 | Rely on uncommitted throwaway worktrees or chat memory for important changes. | Existing handoff reports prior work was lost when temporary worktrees were deleted. | Commit meaningful changes promptly according to the project rule and preserve concise project memory in files. |
 | 2026-05-15 | Start future work by rereading every large document. | It wastes time and tokens. | Read this folder first, then use targeted searches or specific handoff sections only when needed. |
+| 2026-05-15 | Put every Claude Code rule into always-loaded `CLAUDE.md`. | It increases token use every session and makes procedures harder to trigger intentionally. | Keep `CLAUDE.md` short and move repeatable workflows into `.claude/skills`. |
+| 2026-05-15 | Make Claude Code agents read-only when the user wants implementation handled by Claude. | It reduces Claude Code's usefulness and leaves more manual work for Mitstar. | Let specialist agents edit when requested, but keep safety rules around secrets, destructive commands, direct database edits, and validation. |
+| 2026-05-15 | Leave meaningful Claude Code work uncommitted. | The project already lost substantial uncommitted work. | Claude Code should commit current-task changes after validation and avoid staging unrelated files. |
 
 ## Removed Failed Artifacts
 
