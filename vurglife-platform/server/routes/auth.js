@@ -7,7 +7,7 @@ const router  = express.Router();
 const bcrypt  = require('bcrypt');
 const jwt     = require('jsonwebtoken');
 const { UserDB, TxnDB } = require('../db/database');
-const { computeTier, WELCOME_BONUS, dailyBonusFor } = require('../lib/tiers');
+const { computeTier, WELCOME_BONUS, DAILY_BONUS, dailyBonusFor } = require('../lib/tiers');
 
 const JWT_SECRET  = process.env.JWT_SECRET || 'vurglife_jwt_secret_change_in_prod';
 const SALT_ROUNDS = 10;
@@ -20,6 +20,7 @@ function safeUser(user) {
     safe.tier      = t ? t.name : null;
     safe.tierEmoji = t ? t.emoji : null;
     safe.tierColor = t ? t.color : null;
+    safe.dailyBonus = dailyBonusState(user);
     return safe;
 }
 
@@ -30,6 +31,52 @@ function signToken(user) {
         JWT_SECRET,
         { expiresIn: '30d' }
     );
+}
+
+function dailyBonusAmountFor(user) {
+    return dailyBonusFor(user.bank_balance) || DAILY_BONUS;
+}
+
+function dailyBonusState(user) {
+    const now = Math.floor(Date.now() / 1000);
+    const lastClaimedAt = Number(user.last_daily_bonus) || 0;
+    const nextClaimAt = lastClaimedAt ? lastClaimedAt + 86400 : 0;
+    const available = !lastClaimedAt || now >= nextClaimAt;
+    return {
+        available,
+        amount: dailyBonusAmountFor(user),
+        lastClaimedAt: lastClaimedAt || null,
+        nextClaimAt: available ? null : nextClaimAt,
+        secondsRemaining: available ? 0 : Math.max(0, nextClaimAt - now)
+    };
+}
+
+async function authUserFromRequest(req, res) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.slice(7)
+        : null;
+
+    if (!token) {
+        res.status(401).json({ ok: false, error: 'Not authenticated.' });
+        return null;
+    }
+
+    let decoded;
+    try {
+        decoded = jwt.verify(token, JWT_SECRET);
+    } catch (e) {
+        res.status(401).json({ ok: false, error: 'Session expired — please sign in again.' });
+        return null;
+    }
+
+    const user = await UserDB.findById(decoded.userId);
+    if (!user) {
+        res.status(401).json({ ok: false, error: 'Account not found.' });
+        return null;
+    }
+
+    return { decoded, user };
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -122,38 +169,51 @@ router.post('/login', async (req, res) => {
         const token = signToken(user);
         await UserDB.updateLastLogin(user.id);
 
-        // Apply daily login bonus if not already claimed today.
-        // Per-tier rate from lib/tiers.js — higher-tier players get more.
-        // No banking / no rollover: the credit only fires when at least 24h
-        // have elapsed since the last claim; a missed day is lost.
-        let dailyBonusApplied = false;
-        let dailyBonusAmount  = 0;
-        const now = Math.floor(Date.now() / 1000);
-        const lastBonus = user.last_daily_bonus || 0;
-        const oneDayAgo = now - 86400;
-        if (lastBonus < oneDayAgo) {
-            dailyBonusAmount = dailyBonusFor(user.bank_balance);
-            if (dailyBonusAmount > 0) {
-                await UserDB.claimDailyBonus(user.id, dailyBonusAmount);
-                try {
-                    await TxnDB.record(user.id, 'daily_bonus', dailyBonusAmount, null,
-                        `Daily login bonus (${computeTier(user.bank_balance)?.name || 'Unranked'})`);
-                } catch(e) { console.warn('[AUTH] daily bonus txn log failed:', e.message); }
-                dailyBonusApplied = true;
-                console.log(`[AUTH] Daily bonus $${dailyBonusAmount} applied for ${user.username}`);
-            } else {
-                console.log(`[AUTH] ${user.username} below Bronze — no daily bonus`);
-            }
-        }
-
         const freshUser = await UserDB.findById(user.id);
 
         console.log('[AUTH] Login: ' + user.username);
-        res.json({ ok: true, token, user: { ...safeUser(freshUser), dailyBonusApplied, dailyBonusAmount } });
+        res.json({ ok: true, token, user: safeUser(freshUser) });
 
     } catch (err) {
         console.error('[AUTH] Login error:', err);
         res.status(500).json({ error: 'Login failed — please try again.' });
+    }
+});
+
+// POST /api/auth/daily-bonus/claim
+router.post('/daily-bonus/claim', async (req, res) => {
+    try {
+        const auth = await authUserFromRequest(req, res);
+        if (!auth) return;
+
+        const { user } = auth;
+        const state = dailyBonusState(user);
+        if (!state.available) {
+            return res.status(409).json({
+                ok: false,
+                error: 'Daily bonus already claimed. Come back tomorrow.',
+                dailyBonus: state
+            });
+        }
+
+        const amount = dailyBonusAmountFor(user);
+        await UserDB.claimDailyBonus(user.id, amount);
+        try {
+            await TxnDB.record(user.id, 'daily_bonus', amount, 'daily',
+                `Daily bonus claimed (${computeTier(user.bank_balance)?.name || 'Free Chips'})`);
+        } catch(e) { console.warn('[AUTH] daily bonus txn log failed:', e.message); }
+
+        const freshUser = await UserDB.findById(user.id);
+        console.log(`[AUTH] Daily bonus $${amount} claimed for ${user.username}`);
+        res.json({
+            ok: true,
+            amount,
+            newBankBalance: freshUser.bank_balance,
+            user: safeUser(freshUser)
+        });
+    } catch (err) {
+        console.error('[AUTH] Daily bonus claim error:', err);
+        res.status(500).json({ ok: false, error: 'Daily bonus claim failed.' });
     }
 });
 

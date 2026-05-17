@@ -429,7 +429,7 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
         <div class="fh">3–20 characters · Letters, numbers, underscores only</div></div>
       <div class="fg" style="margin-bottom:0"><label class="fl">Password</label><input id="reg-pw" type="password" class="fi" placeholder="At least 8 characters"></div>
       <div class="div"></div>
-      <button id="reg-btn" class="btn bg bfull" onclick="doRegister()">♠ Create Account — Get 5,000 Free Chips</button>
+      <button id="reg-btn" class="btn bg bfull" onclick="doRegister()">♠ Create Account — Get 10,000 Free Chips</button>
     </div>
     <div class="auth-foot">Already registered? <span class="al" onclick="showScreen('screen-login')">Sign in</span><br><br>
       <span class="al" style="font-size:12px" onclick="showScreen('screen-landing')">← Back</span></div>
@@ -521,6 +521,14 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
           <div class="sc"><div class="sc-lbl">Games Played</div><div class="sc-val" id="home-games">0</div></div>
           <div class="sc"><div class="sc-lbl">Win Rate</div><div class="sc-val" id="home-wr">—</div></div>
         </div>
+        <div class="adp" id="daily-bonus-panel">
+          <div class="adp-info" style="flex:1">
+            <h3 id="daily-title">Daily Bonus</h3>
+            <p>Open VurgLife daily and accept your bonus. Missed days do not accumulate.</p>
+            <div class="ad-st ready" id="daily-status">Checking daily bonus...</div>
+          </div>
+          <button class="btn bg bsm" id="daily-claim-btn" onclick="claimDailyBonus()">Accept Bonus</button>
+        </div>
         <div class="sh">Choose Your Game</div>
         <div class="games-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:20px">
           <div class="gcard live" onclick="showPanel('play')"><div class="gi">🃏</div><div class="gn">SipSam</div><div class="gd">Beat the Banker. 3 hands. Specials pay big.</div></div>
@@ -532,7 +540,7 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
         <div class="sh">📺 Earn Free Chips</div>
         <div class="adp">
           <div class="adp-info" style="flex:1">
-            <h3>Watch Ads → Earn $500 Chips Per Ad</h3>
+            <h3 id="ad-title-home">Watch Ads → Earn Chips</h3>
             <p>Up to 5 ads per session · 1-hour cooldown between sessions</p>
             <div class="ad-st ready" id="ad-st-home">✅ Ready to watch</div>
           </div>
@@ -574,7 +582,7 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
         <div class="sh">System Notifications</div>
         <div id="sys-msgs">
           <div class="msg-card"><div class="msg-head"><span class="msg-from">🎉 VurgLife</span><span class="msg-time">Now</span></div>
-            <div class="msg-body">Welcome to VurgLife! Your account has been created and 5,000 chips added to your bank.</div></div>
+            <div class="msg-body">Welcome to VurgLife! Your account has been created and 10,000 chips added to your bank.</div></div>
         </div>
         <div class="sh" style="margin-top:18px">Friend Messages</div>
         <div id="friend-msgs"><div style="color:var(--text-dim);font-size:13px;padding:12px 0">No friend messages yet. Add friends to start chatting!</div></div>
@@ -606,8 +614,8 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
         <div id="ct-ads">
           <div class="adp">
             <div class="adp-info" style="flex:1">
-              <h3>Earn $500 Chips Per Ad</h3>
-              <p>Up to 5 ads per session · 1-hour cooldown · Max $2,500 per session</p>
+              <h3 id="ad-title-chips">Earn Chips Per Ad</h3>
+              <p id="ad-desc-chips">Up to 5 ads per session · 1-hour cooldown</p>
               <div class="ad-st ready" id="ad-st-chips">✅ Ready to watch</div>
             </div>
             <button class="btn bp" onclick="startAd('reward')">Watch Ad →</button>
@@ -778,9 +786,9 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
           <div><div class="r-amt">$1,000</div></div></div>
         <div class="rcard"><div class="r-ico">🎁</div>
           <div class="r-body"><div class="r-title">Daily Login Bonus</div>
-            <div class="r-desc">Log in every day to receive a free chip bonus. Automatically applied on first login each day.</div>
+            <div class="r-desc">Open VurgLife every day and accept the bonus. Missed days do not accumulate.</div>
             <div class="r-date">Resets every 24 hours</div></div>
-          <div><div class="r-amt">$500</div><div style="font-size:10px;color:var(--text-dim);margin-top:3px">PER DAY</div></div></div>
+          <div><div class="r-amt" id="daily-reward-amt">$500</div><div id="daily-reward-btn" style="font-size:10px;color:var(--text-dim);margin-top:3px">PER DAY</div></div></div>
       </div>
 
       <!-- FRIENDS -->
@@ -1165,7 +1173,7 @@ async function doRegister() {
   const pw=document.getElementById('reg-pw').value;
   btn.disabled=true; btn.innerHTML='<span class="sp"></span> Creating...';
   const res = await apiPost('/api/auth/register',{email,username:user,password:pw});
-  btn.disabled=false; btn.innerHTML='♠ Create Account — Get 5,000 Free Chips';
+  btn.disabled=false; btn.innerHTML='♠ Create Account — Get 10,000 Free Chips';
   if (res.error) { err.textContent=res.error; err.classList.add('show'); return; }
   if (res.token) { authToken=res.token; localStorage.setItem('vurglife_token', authToken); }
   currentUser=res.user;
@@ -1237,6 +1245,69 @@ function computeTierClient(bank) {
   for (const t of PLATFORM_TIERS) if (b>=t.minBank) return t;
   return null;
 }
+function getTierPerks() {
+  const t=computeTierClient(getBank());
+  return {
+    tierName: t ? t.name : 'Free Chips',
+    dailyBonus: t ? t.dailyBonus : 500,
+    adBonus: t ? t.adBonus : 300
+  };
+}
+function currentDailyBonus() {
+  const perks=getTierPerks();
+  return currentUser?.dailyBonus || {
+    available:false,
+    amount:perks.dailyBonus,
+    secondsRemaining:0,
+    nextClaimAt:null
+  };
+}
+function fmtDuration(seconds) {
+  const s=Math.max(0, Math.floor(Number(seconds)||0));
+  const h=Math.floor(s/3600);
+  const m=Math.ceil((s%3600)/60);
+  if (h<=0) return `${Math.max(1,m)} min`;
+  return `${h}h ${m}m`;
+}
+function refreshDailyBonus() {
+  if (!currentUser) return;
+  const perks=getTierPerks();
+  const daily=currentDailyBonus();
+  const amount=Number(daily.amount || perks.dailyBonus || 500);
+  const ready=daily.available === true;
+  const status=document.getElementById('daily-status');
+  const title=document.getElementById('daily-title');
+  const btn=document.getElementById('daily-claim-btn');
+  const rewardAmt=document.getElementById('daily-reward-amt');
+  const rewardBtn=document.getElementById('daily-reward-btn');
+  if (title) title.textContent=`Daily Bonus: $${amount.toLocaleString()}`;
+  if (rewardAmt) rewardAmt.textContent='$'+amount.toLocaleString();
+  if (status) {
+    status.className='ad-st '+(ready?'ready':'cool');
+    status.textContent=ready
+      ? 'Ready to claim now'
+      : `Claimed. Come back tomorrow so you do not miss your next Bonus. Next in ${fmtDuration(daily.secondsRemaining)}`;
+  }
+  if (btn) {
+    btn.disabled=!ready;
+    btn.textContent=ready ? 'Accept Bonus' : 'Claimed';
+  }
+  if (rewardBtn) {
+    rewardBtn.innerHTML=ready
+      ? '<button class="btn bg bsm" onclick="claimDailyBonus()">Accept</button>'
+      : `<div class="r-claimed">NEXT IN ${fmtDuration(daily.secondsRemaining).toUpperCase()}</div>`;
+  }
+}
+function refreshAdCopy() {
+  const perks=getTierPerks();
+  const amt='$'+Number(perks.adBonus || 300).toLocaleString();
+  const home=document.getElementById('ad-title-home');
+  const chips=document.getElementById('ad-title-chips');
+  const desc=document.getElementById('ad-desc-chips');
+  if (home) home.textContent=`Watch Ads → Earn ${amt} Chips Per Ad`;
+  if (chips) chips.textContent=`Earn ${amt} Chips Per Ad`;
+  if (desc) desc.textContent=`Up to 5 ads per session · 1-hour cooldown · Max $${((perks.adBonus || 300)*5).toLocaleString()} per session`;
+}
 function refreshTierBadge() {
   const el=document.getElementById('tb-tier'); if (!el) return;
   const t=computeTierClient(getBank());
@@ -1278,6 +1349,14 @@ function refreshUI() {
   const notif=document.getElementById('home-notif');
   if (notif && u.dailyBonusApplied) notif.textContent='🎁 Daily login bonus of $500 applied!';
   else if (notif) notif.textContent='Ready to play, '+u.username+'!';
+  if (notif) {
+    const daily=currentDailyBonus();
+    notif.textContent=daily.available
+      ? `Accept today's $${Number(daily.amount || getTierPerks().dailyBonus).toLocaleString()} daily bonus before you play.`
+      : 'Come back tomorrow so you do not miss your next Bonus.';
+  }
+  refreshDailyBonus();
+  refreshAdCopy();
 }
 
 // ── TABLE GRID ────────────────────────────────────────
@@ -1642,7 +1721,29 @@ function stopAd() { clearInterval(adTimer); }
 
 function startAd(type) {
   adCtx={type};
+  const perks=getTierPerks();
+  const amt=Number(perks.adBonus || 300);
+  runAd('reward',30,`Earn ${amt.toLocaleString()} Chips`,`Watch this 30-second ad to earn $${amt.toLocaleString()} chips.`);
+  return;
+  runAd('reward',30,`ðŸ“º Earn ${amt.toLocaleString()} Chips`,`Watch this 30-second ad to earn $${amt.toLocaleString()} chips.`);
+  return;
   runAd('reward',30,'📺 Earn 500 Chips','Watch this 30-second ad to earn $500 chips.');
+}
+
+async function claimDailyBonus() {
+  const res = await apiPost('/api/auth/daily-bonus/claim',{});
+  if (res.error) {
+    toast('Daily Bonus', res.error);
+    if (res.dailyBonus) { currentUser.dailyBonus=res.dailyBonus; refreshUI(); }
+    return;
+  }
+  currentUser = res.user || currentUser;
+  if (res.newBankBalance != null) {
+    currentUser.bankBalance=res.newBankBalance;
+    currentUser.bank_balance=res.newBankBalance;
+  }
+  refreshUI();
+  toast('Daily Bonus Accepted', `+$${Number(res.amount || 0).toLocaleString()} added. Come back tomorrow so you do not miss your next Bonus.`);
 }
 
 function cancelAd() { stopAd(); document.getElementById('mo-reward').classList.remove('show'); adCtx=null; }
@@ -1655,6 +1756,12 @@ async function claimAd() {
     if (res.error) { toast('⚠️ Error',res.error); return; }
     currentUser.bankBalance=res.newBankBalance; currentUser.bank_balance=res.newBankBalance;
     refreshUI(); checkAdStatus();
+    toast('Chips Earned',`+$${Number(res.chipsEarned || 0).toLocaleString()} added! (${res.adsWatched}/${res.maxAds} ads today)`);
+    if (!res.sessionComplete) setTimeout(()=>{ if(confirm(`Watch another ad for +$${Number(res.chipsEarned || getTierPerks().adBonus || 300).toLocaleString()} chips?`)) startAd('reward'); },800);
+    return;
+    toast('ðŸŽ‰ Chips Earned!',`+$${Number(res.chipsEarned || 0).toLocaleString()} added! (${res.adsWatched}/${res.maxAds} ads today)`);
+    if (!res.sessionComplete) setTimeout(()=>{ if(confirm(`Watch another ad for +$${Number(res.chipsEarned || getTierPerks().adBonus || 300).toLocaleString()} chips?`)) startAd('reward'); },800);
+    return;
     toast('🎉 Chips Earned!',`+$500 added! (${res.adsWatched}/${res.maxAds} ads today)`);
     if (!res.sessionComplete) setTimeout(()=>{ if(confirm('Watch another ad for +$500 chips?')) startAd('reward'); },800);
   } else if (adCtx.type==='milestone') {

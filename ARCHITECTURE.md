@@ -93,7 +93,8 @@ Current SipSam tiers (table key → bank / wallet / increment / maxBet):
 - **Single source of truth (server):** `vurglife-platform/server/lib/tiers.js`
   — `TIERS`, `computeTier`, `dailyBonusFor`, `adBonusFor`, `WELCOME_BONUS`.
 - Bonuses scale by the player's bank tier at claim time. Daily bonus is
-  awarded once per 24h on first login; ad bonus per watch-ad claim.
+  claimed manually once per 24h with the dashboard **Accept Bonus** button;
+  missed days do not accumulate. Ad bonus is per watch-ad claim.
 - **Client mirrors** (hardcoded copies — keep in sync with tiers.js):
   - `vurglife-platform/client/public/index.html` → `PLATFORM_TIERS`
   - `poker-client/index.html` → `SIPSAM_TIERS`
