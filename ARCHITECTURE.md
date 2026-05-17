@@ -56,27 +56,32 @@ npm start
 
 ---
 
-## 3. TABLE_CONFIG — FOUR copies, must stay in sync ⚠️
+## 3. TABLE_CONFIG — server is single-source ✅
 
-This is the project's biggest desync hazard. It caused the Elite
-$50-increment bug and the wallet-refund bug. When changing any table tier
-(minBet/increment/maxBet/walletSize/minBank), update **all four**:
+**Authoritative money config:** `shared/sipsam-tables.js` (UMD module).
+The server reads ONLY this — never an inline copy:
+- `vurglife-platform/server/routes/game.js` → `require('../../../shared/sipsam-tables.js')`
+- `poker-server/PokerRoom.js` → top-level `require('../shared/sipsam-tables.js')`,
+  used by both `_onStartGame` and `_applyTableConfigFromRoomId`.
 
-1. `poker-client/game.js` → `TABLE_CONFIGS` (keys: `bankRequired`)
-2. `vurglife-platform/server/routes/game.js` → `TABLE_CONFIG` (keys: `minBank`)
-3. `poker-server/PokerRoom.js` → `TABLE_CONFIG` **×2** copies:
-   - `_onStartGame` (~line 118)
-   - `_applyTableConfigFromRoomId` (~line 1559)
-4. `vurglife-platform/client/public/index.html` → dashboard `TABLES`
-   (keys: `inc`, `wallet`, `minBank`) + `buildGrid` tier-label/branch logic
+**To add/adjust a tier: edit `shared/sipsam-tables.js` ONLY.** All server
+money paths pick it up on restart. No more 4-way edit; the Elite-increment
+and wallet-refund desync bug class is structurally eliminated.
+
+**Two browser DISPLAY-ONLY mirrors remain** (cosmetic — they set dashboard/
+lobby labels, NOT what the player is charged; the server bills correctly even
+if they drift):
+- `poker-client/game.js` → `TABLE_CONFIGS` (field name `bankRequired`)
+- `vurglife-platform/client/public/index.html` → `TABLES` (fields `inc`,
+  `wallet`, `minBank`) + `buildGrid` tier-label branch logic
+
+Update the two mirrors only when you want the dashboard label/preview to
+match a tier change. A drift here is cosmetic, never a money bug.
 
 Current SipSam tiers (minBet → bank / wallet / increment / maxBet):
 `100`→5K/3K/50/150 · `250`→15K/10K/50/500 · `500`→30K/20K/100/1K ·
 `1000`→60K/40K/500/2K · `10000`→2M/1M/10K/50K (VIP) ·
 `100000`→7M/5M/100K/500K (Elite) · `500000`→10M/7M/250K/1M (Celestial)
-
-> **Permanent fix in progress:** collapse these to one shared module so this
-> section becomes obsolete. Until then, treat the 4-way edit as mandatory.
 
 ---
 
