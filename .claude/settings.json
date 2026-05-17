@@ -1,5 +1,9 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "ENABLE_TOOL_SEARCH": "auto"
+  },
+  "cleanupPeriodDays": 14,
   "permissions": {
     "allow": [
       "Bash(git status *)",
@@ -33,13 +37,36 @@
       "Read(./**/.env.*)",
       "Read(./secrets/**)",
       "Read(./**/secrets/**)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
       "Read(./**/node_modules/**)",
       "Read(./.git/**)",
       "Read(./.claude/worktrees/**)",
       "Read(./.claude/.claude/worktrees/**)",
       "Read(./**/*.tmp)",
+      "Bash(git push --force*)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard*)",
+      "Bash(rm -rf*)",
+      "Edit(./**/*.db)",
+      "Write(./**/*.db)",
       "Edit(./vurglife-platform/data/vurglife.db*)",
       "Write(./vurglife-platform/data/vurglife.db*)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/ship-gate.sh\"",
+            "timeout": 60,
+            "statusMessage": "Ship-gate: syntax/JSON validation"
+          }
+        ]
+      }
     ]
   }
 }
