@@ -32,6 +32,7 @@ let igmWallet     = 0;
 
 let _isSinglePlayer  = false;
 let _isInvitedJoiner = false;
+let _isMultiplayerHost = false;
 let _pendingRoomId   = null;
 let _multiRoomId     = null;
 let _multiWaitTimer  = null;
@@ -42,6 +43,7 @@ let _bettingHandled  = false;
 let _betPlaced       = false;
 let _frozenBet       = 0;       // 0 = no freeze (standard); else the locked amount
 let _frozenTie       = false;   // tie bet frozen (standard)
+let _tieBetWantedThisRound = false;
 
 let _tieDecision     = null;    // 'yes' | 'no' | null — VIP per-round choice
 let _tieFrozen       = false;   // VIP: skip prompt, apply _tieDecision every round
@@ -52,6 +54,10 @@ let _autoStartTimer  = null;
 
 // Seat indices: server seat index = visual zone (direct mapping)
 function getVisualZone(idx) { return (idx >= 0 && idx < 6) ? idx : -1; }
+
+function publicMultiRoomId() {
+  return BJ_TABLE.publicRoomId || `bj_public_${BJ_TABLE.minBet || 100}`;
+}
 
 // ─────────────────────────────────────────────────────
 // UTILITIES
@@ -158,8 +164,12 @@ function chooseLobby(mode) {
     startAdCountdown();
   } else if (mode === 'multi') {
     _isSinglePlayer = false;
+    _isInvitedJoiner = false;
+    _isMultiplayerHost = false;
     _showStep('lobby-step-multi');
-    _multiRoomId = `bj_${BJ_TABLE.minBet || 100}_${Date.now()}`;
+    // Public multiplayer rooms are global by tier. The first occupied seat is
+    // treated as host; later entrants and invited players are guests.
+    _multiRoomId = publicMultiRoomId();
     _pendingRoomId = _multiRoomId;
     _startMultiWaitTimer();
     _loadMultiFriends();
@@ -224,6 +234,10 @@ function _startMultiWaitTimer() {
 }
 
 function startNow() {
+  if (!_isMultiplayerHost && !_isSinglePlayer) {
+    showIngameToast('Host Only', 'Only the host can start a multiplayer table.');
+    return;
+  }
   if (_multiWaitTimer) { clearInterval(_multiWaitTimer); _multiWaitTimer = null; }
   if (ws && ws.readyState === WebSocket.OPEN) {
     sendMsg('startGame');
@@ -395,30 +409,34 @@ async function _connectHostToLobby() {
   connectWS(user.username || myUsername, token, _multiRoomId);
 }
 
-function _setupInvitedJoinerLobby(roomId, user) {
+async function _setupInvitedJoinerLobby(roomId, user) {
   _isInvitedJoiner = true;
+  _isSinglePlayer = false;
+  _isMultiplayerHost = false;
   _multiRoomId = roomId;
+  _pendingRoomId = roomId;
   _showStep('lobby-step-multi');
+
   ['lobby-multi-timer-row', 'lobby-multi-invite-panel', 'lobby-multi-host-actions']
     .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  _ensureGuestCancelOnly();
 
   const seatsList = document.getElementById('lobby-seats-list');
   if (seatsList && !document.getElementById('invited-wait-msg')) {
     const msg = document.createElement('div');
     msg.id = 'invited-wait-msg';
     msg.style.cssText = 'text-align:center;margin:14px 0;color:#c9a84c;font-weight:700;font-size:15px';
-    msg.textContent = 'Waiting for host to start the game…';
+    msg.textContent = 'Guest seat joined. Waiting for host to start the game.';
     seatsList.insertAdjacentElement('afterend', msg);
-
-    const exitBtn = document.createElement('button');
-    exitBtn.className = 'btn-secondary';
-    exitBtn.style.cssText = 'width:100%;margin-top:8px;font-size:12px;padding:10px 14px';
-    exitBtn.textContent = '← Exit';
-    exitBtn.onclick = exitToLobby;
-    msg.insertAdjacentElement('afterend', exitBtn);
   }
 
-  connectWS(user.username, user.token, roomId);
+  const token = user.token || sessionStorage.getItem('bj_token') || igmToken;
+  const ok = await _drawWalletFromBank(token);
+  if (!ok) {
+    _showStep('lobby-step-choose');
+    return;
+  }
+  connectWS(user.username || myUsername, token, roomId);
 }
 
 function _renderMultiSeats(players) {
@@ -432,6 +450,57 @@ function _renderMultiSeats(players) {
                      <span style="flex:1">${p.username}${p.isHost ? ' <span style="font-size:10px;color:#4aabff">(host)</span>' : ''}</span>`;
     rows.appendChild(row);
   });
+}
+
+function _ensureGuestCancelOnly() {
+  let btn = document.getElementById('guest-cancel-btn');
+  const hostActions = document.getElementById('lobby-multi-host-actions');
+  if (!btn && hostActions) {
+    btn = document.createElement('button');
+    btn.id = 'guest-cancel-btn';
+    btn.className = 'btn-secondary';
+    btn.style.cssText = 'width:100%;margin-top:8px;font-size:12px;padding:10px 14px';
+    btn.textContent = 'Cancel';
+    btn.onclick = exitToLobby;
+    hostActions.insertAdjacentElement('afterend', btn);
+  }
+  if (btn) btn.style.display = 'block';
+}
+
+function _syncMultiLobbyRole(state, orderedEntries) {
+  if (_isSinglePlayer) return;
+  const lobbyStep = document.getElementById('lobby-step-multi');
+  if (!lobbyStep || lobbyStep.style.display === 'none') return;
+
+  const ownIndex = orderedEntries.findIndex(([, s]) =>
+    s.userId === myUsername || s.sessionId === mySessionId || s.isYou
+  );
+  _isMultiplayerHost = !_isInvitedJoiner && ownIndex === 0;
+  const isGuest = !_isMultiplayerHost;
+
+  const timer = document.getElementById('lobby-multi-timer-row');
+  const invite = document.getElementById('lobby-multi-invite-panel');
+  const hostActions = document.getElementById('lobby-multi-host-actions');
+  [timer, invite, hostActions].forEach(el => { if (el) el.style.display = _isMultiplayerHost ? '' : 'none'; });
+
+  let msg = document.getElementById('invited-wait-msg');
+  if (isGuest && !msg) {
+    const seatsList = document.getElementById('lobby-seats-list');
+    if (seatsList) {
+      msg = document.createElement('div');
+      msg.id = 'invited-wait-msg';
+      msg.style.cssText = 'text-align:center;margin:14px 0;color:#c9a84c;font-weight:700;font-size:15px';
+      seatsList.insertAdjacentElement('afterend', msg);
+    }
+  }
+  if (msg) {
+    msg.textContent = isGuest ? 'Guest seat joined. Waiting for host to start the game.' : 'You are hosting this public multiplayer table.';
+    msg.style.display = isGuest ? 'block' : 'none';
+  }
+
+  const cancelBtn = document.getElementById('guest-cancel-btn');
+  if (isGuest) _ensureGuestCancelOnly();
+  else if (cancelBtn) cancelBtn.style.display = 'none';
 }
 
 // ─────────────────────────────────────────────────────
@@ -581,6 +650,7 @@ function applyState(state) {
       isHost:   i === 0
     }));
     _renderMultiSeats(players);
+    _syncMultiLobbyRole(state, entries);
   }
 
   // Find my seat
@@ -615,7 +685,7 @@ function onPhaseChange(newPhase, oldPhase, state) {
   const mySeat = (mySeatIndex !== null) ? state.seats?.[mySeatIndex] : null;
 
   if (newPhase === 'betting') {
-    _betPlaced = false; pendingBet = 0; _bettingHandled = true;
+    _betPlaced = false; pendingBet = 0; _tieBetWantedThisRound = false; _bettingHandled = true;
     _hideTieBetPrompt();
     hideInsurancePrompt();
     document.getElementById('player-actions').style.display = 'none';
@@ -771,13 +841,17 @@ function renderSeats(state) {
       const cardSize = isMe ? 'lg' : null;
       if (isSplit) {
         cardsEl.innerHTML = '';
-        cardsEl.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;justify-content:center';
+        cardsEl.style.cssText = isMe
+          ? 'display:flex;flex-direction:row;gap:8px;flex-wrap:nowrap;justify-content:center;align-items:flex-end;width:max-content;max-width:none'
+          : 'display:flex;gap:6px;flex-wrap:wrap;justify-content:center';
         hands.forEach((hand, hi) => {
           const wrap = document.createElement('div');
           wrap.className = 'split-hand-wrapper' + (hi === seat.activeHandIdx ? ' active' : '');
           wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px';
           const box = document.createElement('div');
-          box.style.cssText = 'display:flex;gap:2px';
+          box.style.cssText = isMe
+            ? 'display:flex;flex-direction:row;gap:4px;flex-wrap:nowrap;align-items:flex-end'
+            : 'display:flex;gap:2px';
           (hand || []).forEach(c => box.appendChild(makeVLCard(c, cardSize)));
           const ht = handTotal(hand || []);
           if (ht.total > 0) {
@@ -799,7 +873,9 @@ function renderSeats(state) {
         });
       } else {
         cardsEl.innerHTML = '';
-        cardsEl.style.cssText = 'display:flex;gap:3px;align-items:flex-end;flex-wrap:wrap';
+        cardsEl.style.cssText = isMe
+          ? 'display:flex;flex-direction:row;gap:8px;align-items:flex-end;flex-wrap:nowrap;width:max-content;max-width:none'
+          : 'display:flex;gap:3px;align-items:flex-end;flex-wrap:wrap';
         const hand = hands[0] || [];
         hand.forEach(c => cardsEl.appendChild(makeVLCard(c, cardSize)));
         const ht = handTotal(hand);
@@ -998,7 +1074,9 @@ function placeTieBet() {
     showIngameToast('Bet Already Placed', 'Tie bet must be placed before main bet.');
     return;
   }
+  _tieBetWantedThisRound = !_tieBetWantedThisRound;
   sendMsg('place_tie');
+  _updateFreezeUI();
 }
 
 // ─────────────────────────────────────────────────────
@@ -1072,7 +1150,7 @@ function takeInsurance(take) {
 // ─────────────────────────────────────────────────────
 function toggleFreeze() {
   if (BJ_TABLE.label === 'vip') {
-    // VIP: freeze the tie decision instead
+    // VIP: freeze the YES/NO tie decision.
     if (_tieFrozen) {
       _tieFrozen = false;
       showIngameToast('Decision Unfrozen', 'You will be asked again next round.');
@@ -1083,25 +1161,34 @@ function toggleFreeze() {
       }
       _tieFrozen = true;
       const label = (_tieDecision === 'yes') ? 'ALWAYS PLACE TIE BET' : 'ALWAYS SKIP TIE BET';
-      showIngameToast('🔒 Decision Frozen', label);
+      showIngameToast('Decision Frozen', label);
     }
     _updateFreezeUI();
     return;
   }
-  // Standard tier: freeze the current pending or last bet
+
+  // Standard tier: SipSam-style freeze. Lock the current amount and whether
+  // Tie Bet is selected, then auto-place both on future betting phases.
   if (_frozenBet > 0) {
-    _frozenBet = 0; _frozenTie = false;
+    _frozenBet = 0;
+    _frozenTie = false;
     showIngameToast('Freeze Removed', 'Bet is no longer frozen.');
   } else {
     const seat = lastState?.seats?.[mySeatIndex];
-    const amt = pendingBet > 0 ? pendingBet : (seat?.bet || 0);
+    const amt = pendingBet > 0 ? pendingBet : (seat?.bet || 0) || (BJ_TABLE.minBet || 100);
     if (amt <= 0) {
       showIngameToast('No Bet to Freeze', 'Place a bet first, then press freeze.');
       return;
     }
     _frozenBet = amt;
-    _frozenTie = (seat?.tieBet || 0) > 0;
-    showIngameToast('🔒 Bet Frozen', `${fmtChips(amt)} will auto-place every round.`);
+    const tieAlreadyPlaced = (seat?.tieBet || 0) > 0;
+    _frozenTie = _tieBetWantedThisRound || tieAlreadyPlaced;
+    showIngameToast('Bet Frozen', `${fmtChips(amt)}${_frozenTie ? ' + Tie Bet' : ''} will auto-place every round.`);
+    if (lastState?.phase === 'betting' && !_betPlaced) {
+      pendingBet = amt;
+      if (_frozenTie && !tieAlreadyPlaced && !_tieBetWantedThisRound) sendMsg('place_tie');
+      setTimeout(() => _sendBet(), _frozenTie ? 200 : 0);
+    }
   }
   _updateFreezeUI();
 }
@@ -1112,15 +1199,21 @@ function _applyFreezeIfActive() {
   if (_frozenBet <= 0) return;
   const seat = lastState?.seats?.[mySeatIndex];
   const avail = seat?.wallet ?? myChips;
-  if (_frozenBet > avail) {
-    _frozenBet = 0; _frozenTie = false;
+  if (_frozenBet + (_frozenTie ? (BJ_TABLE.tieBet || 100) : 0) > avail) {
+    _frozenBet = 0;
+    _frozenTie = false;
     _updateFreezeUI();
     showIngameToast('Freeze Removed', 'Insufficient chips for frozen bet.');
     return;
   }
   pendingBet = _frozenBet;
-  _sendBet();
-  if (_frozenTie) setTimeout(() => sendMsg('place_tie'), 200);
+  if (_frozenTie) {
+    _tieBetWantedThisRound = true;
+    sendMsg('place_tie');
+    setTimeout(() => _sendBet(), 200);
+  } else {
+    _sendBet();
+  }
 }
 
 function _updateFreezeUI() {
@@ -1128,18 +1221,19 @@ function _updateFreezeUI() {
   if (!bb) return;
   if (BJ_TABLE.label === 'vip') {
     if (_tieFrozen && _tieDecision) {
-      bb.textContent = `🔒 Frozen — TIE: ${_tieDecision.toUpperCase()}`;
+      bb.textContent = `Frozen - TIE: ${_tieDecision.toUpperCase()}`;
       bb.classList.add('active');
     } else {
-      bb.textContent = '🔓 Freeze Tie Bet';
+      bb.textContent = 'Freeze Tie Bet';
       bb.classList.remove('active');
     }
   } else {
     if (_frozenBet > 0) {
-      bb.textContent = `🔒 Frozen ${fmtChips(_frozenBet)}` + (_frozenTie ? ' + Tie' : '');
+      bb.textContent = `Frozen ${fmtChips(_frozenBet)}` + (_frozenTie ? ' + Tie' : '');
       bb.classList.add('active');
     } else {
-      bb.textContent = '🔒 Freeze Bet';
+      const selectedTie = _tieBetWantedThisRound || ((lastState?.seats?.[mySeatIndex]?.tieBet || 0) > 0);
+      bb.textContent = selectedTie ? 'Freeze Bet + Tie' : 'Freeze Bet';
       bb.classList.remove('active');
     }
   }
@@ -1506,6 +1600,19 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     return;
   }
+
+  // Dashboard invite-accept path stores bj_table instead of URL params.
+  // Invited players always enter as guests in the host's lobby: no start,
+  // invite, table, or round controls; Cancel is the only lobby action.
+  try {
+    const table = JSON.parse(sessionStorage.getItem('bj_table') || '{}');
+    if (table?.isInvitedJoiner && table.roomId) {
+      _isInvitedJoiner = true;
+      _pendingRoomId = table.roomId;
+      _setupInvitedJoinerLobby(table.roomId, JSON.parse(sessionStorage.getItem('bj_user') || '{}'));
+      return;
+    }
+  } catch (_) {}
 
   _showStep('lobby-step-choose');
 });

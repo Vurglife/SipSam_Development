@@ -616,6 +616,24 @@ html, body {
 /* Highlight my seat — subtle gold ring so I can always find myself */
 .bj-seat-mine {
   filter: drop-shadow(0 0 14px rgba(201,168,76,0.45));
+  z-index: 20;
+}
+.bj-seat-mine .seat-hand {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: flex-end !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  width: max-content !important;
+  min-width: 172px !important;
+  max-width: none !important;
+  overflow: visible !important;
+  white-space: nowrap !important;
+  padding: 6px 8px;
+}
+.bj-seat-mine .split-hand-wrapper {
+  flex: 0 0 auto;
 }
 
 /* Mobile: keep cards proportional, push dealer cards slightly larger */
@@ -623,6 +641,10 @@ html, body {
   .bj-seat-mine .vl-card  { width: 72px; height: 104px; }
   .bj-seat-mine .vl-card .vl-rank { font-size: 38px; }
   .bj-seat-mine .vl-card .vl-suit { font-size: 42px; }
+  .bj-seat-mine .seat-hand {
+    min-width: 150px !important;
+    gap: 6px !important;
+  }
   .bj-dealer-zone .vl-card { width: 64px; height: 92px; }
   .bj-dealer-zone .vl-card .vl-rank { font-size: 32px; }
   .bj-dealer-zone .vl-card .vl-suit { font-size: 36px; }

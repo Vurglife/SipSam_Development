@@ -1486,7 +1486,18 @@ async function enterBJTable(minBet) {
   if (!t) return;
   const bank=getBank();
   if (bank<t.minBank) { toast('Insufficient Balance',`You need $${t.minBank.toLocaleString()} in your bank to enter this table.`); return; }
-  sessionStorage.removeItem('bj_table');
+  sessionStorage.setItem('bj_table', JSON.stringify({
+    minBet:t.minBet,
+    maxBet:t.maxBet,
+    walletSize:t.walletSize||t.wallet||2500,
+    wallet:t.wallet||t.walletSize||2500,
+    minBank:t.minBank,
+    tieBet:t.tieBet||100,
+    tieBetPayout:t.tieBetPayout||2000,
+    blackjackPayout:t.blackjackPayout||null,
+    label:(String(t.label||'standard').toLowerCase().includes('vip') ? 'vip' : 'standard'),
+    publicRoomId:`bj_public_${t.minBet}`
+  }));
   sessionStorage.setItem('bj_user', JSON.stringify({
     id: currentUser.id||currentUser.user_id||0,
     username: currentUser.username,
