@@ -6,6 +6,8 @@ ARCHITECTURE.md (imported above) is the canonical map: process/port table,
 restart matrix, single-source config, money-path invariants, cache-bust
 convention. Read it before editing. These are the non-negotiable rules on
 top of it.
+Also read `docs/system-development/PROGRESS.md` before meaningful work; it
+contains the current handoff and dirty-worktree notes.
 
 ## Workflow
 - Product owner is tester. Claude does all implementation across sessions.

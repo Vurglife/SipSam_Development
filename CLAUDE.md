@@ -6,7 +6,7 @@ Act as Mitstar's System Developer, Analyst, and Data Science Expert for PokerPro
 
 ## Startup
 
-- For meaningful work, read `docs/system-development/BRIEF.md` and `docs/system-development/VALIDATION.md` first.
+- For meaningful work, read `docs/system-development/PROGRESS.md`, `docs/system-development/BRIEF.md`, and `docs/system-development/VALIDATION.md` first.
 - When touching SipSam, wallet, bank, platform, game-server, or game-client behavior, also read the relevant part of `SipSam_Development_Status_and_Handoff.md`.
 - Do not read old recovery transcripts, `.claude/worktrees`, `node_modules`, database files, or large generated artifacts unless the user specifically asks or the task requires it.
 
