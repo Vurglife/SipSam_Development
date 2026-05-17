@@ -77,6 +77,7 @@ class SipSamRoom {
             pot:             0,
             timer:           0,
             tableMinBet:     0,
+            tableKey:        0,
             tableMaxBet:     0,
             tableIncrement:  0,
             tableWalletSize: 0,
@@ -130,6 +131,7 @@ class SipSamRoom {
 
         this.gameState.maxRounds       = roundCount;
         this.gameState.blitz           = data.blitz === true || roundCount === 5;
+        this.gameState.tableKey        = cfg.tableKey || cfg.minBet;
         this.gameState.tableMinBet     = cfg.minBet;
         this.gameState.tableMaxBet     = cfg.maxBet;
         this.gameState.tableIncrement  = cfg.increment;
@@ -159,11 +161,12 @@ class SipSamRoom {
         // here was missing the 10000 VIP tier, so VIP bets capped at
         // tMin*2 = $20,000 instead of the configured $50,000.
         const tMin  = this.gameState.tableMinBet;
+        const tStep = this.gameState.tableIncrement || tMin;
         const tMax  = this.gameState.tableMaxBet || (tMin * 2);
         let amount  = parseInt(data.amount) || tMin;
         // Cap bet to table max AND what player can afford
         amount = Math.max(tMin, Math.min(amount, tMax, player.chips));
-        amount = Math.round(amount / tMin) * tMin; // round to nearest minBet increment
+        amount = Math.round(amount / tStep) * tStep; // round to nearest table increment
         player.bet = amount;
         console.log(player.username, "bet:", amount, `(min:${tMin} max:${tMax})`);
         this.broadcastState();
@@ -1564,6 +1567,7 @@ class SipSamRoom {
         }
 
         const cfg = TABLE_CONFIG[minBet];
+        this.gameState.tableKey        = cfg.tableKey || minBet;
         this.gameState.tableMinBet     = cfg.minBet;
         this.gameState.tableMaxBet     = cfg.maxBet;
         this.gameState.tableIncrement  = cfg.increment;

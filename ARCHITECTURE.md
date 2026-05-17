@@ -81,10 +81,10 @@ if they drift):
 Update the two mirrors only when you want the dashboard label/preview to
 match a tier change. A drift here is cosmetic, never a money bug.
 
-Current SipSam tiers (minBet → bank / wallet / increment / maxBet):
+Current SipSam tiers (table key → bank / wallet / increment / maxBet):
 `100`→5K/3K/50/150 · `250`→15K/10K/50/500 · `500`→30K/20K/100/1K ·
 `1000`→60K/40K/500/2K · `10000`→2M/1M/10K/50K (VIP) ·
-`100000`→7M/5M/100K/500K (Elite) · `500000`→10M/7M/250K/1M (Celestial)
+`100000`→7M/5M/100K/500K (Elite) · `500000` key→10M/7M/100K/1M with 100K min bet (Celestial)
 
 ---
 

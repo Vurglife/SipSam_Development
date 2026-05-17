@@ -50,8 +50,12 @@ const TABLE_CONFIGS = {
     1000:   { minBet:1000,   increment:500,    maxBet:2000,   walletSize:40000,   bankRequired:60000   },
     10000:  { minBet:10000,  increment:10000,  maxBet:50000,   walletSize:1000000, bankRequired:2000000  },
     100000: { minBet:100000, increment:100000, maxBet:500000,  walletSize:5000000, bankRequired:7000000  },
-    500000: { minBet:500000, increment:250000, maxBet:1000000, walletSize:7000000, bankRequired:10000000 },
+    500000: { tableKey:500000, minBet:100000, increment:100000, maxBet:1000000, walletSize:7000000, bankRequired:10000000 },
 };
+function getTableConfig(keyOrMinBet) {
+    const n = Number(keyOrMinBet);
+    return TABLE_CONFIGS[n] || Object.values(TABLE_CONFIGS).find(c => Number(c.minBet) === n) || TABLE_CONFIGS[100];
+}
 let selectedRounds = 0;
 let selectedMinBet = 0;
 
@@ -911,7 +915,7 @@ function toggleFreezeBet() {
 function _maybeApplyFrozenBet(state, me) {
     if (!_betFrozen || !state || state.status !== 'betting') return;
     if (!me || me.isBanker) return;
-    const cfg = TABLE_CONFIGS[state.tableMinBet || tableMinBet] || TABLE_CONFIGS[100];
+    const cfg = getTableConfig(state.tableKey || state.tableMinBet || tableMinBet);
     const myChips = me.chips || 0;
     const effMax = myChips > 0 ? Math.min(cfg.maxBet, myChips) : cfg.maxBet;
     const amount = Math.max(cfg.minBet, Math.min(_betFrozenAmount, effMax));
@@ -922,7 +926,7 @@ function _maybeApplyFrozenBet(state, me) {
 
 function initBetControls(minBet, startingChips) {
     // Always derive config from TABLE_CONFIGS to prevent bad defaults
-    const cfg    = TABLE_CONFIGS[minBet] || TABLE_CONFIGS[100];
+    const cfg    = getTableConfig(minBet);
     tableMinBet  = cfg.minBet;
     // Effective max = table max OR what the player can afford (whichever is lower)
     const chips  = startingChips || 0;
@@ -943,7 +947,7 @@ function adjustBet(delta) {
     if (!me) return;
     const tableMaxBet = state.tableMaxBet || (tableMinBet * 3);
     // Use the table's actual increment from game state
-    const resolvedBetCfg = TABLE_CONFIGS[state?.tableMinBet || tableMinBet] || TABLE_CONFIGS[100];
+    const resolvedBetCfg = getTableConfig(state?.tableKey || state?.tableMinBet || tableMinBet);
     const step    = resolvedBetCfg.increment;
     const newBet  = currentBet + (delta > 0 ? step : -step);
     // Cap to what player can actually afford (chips), and table max
@@ -1136,11 +1140,11 @@ function updateGameUI(state) {
             || igmTableCfg?.minBet
             || (()=>{ try { return JSON.parse(sessionStorage.getItem('sipsam_table'))?.minBet; } catch(e){} return null; })()
             || 100; // absolute fallback — $100 table
-        initBetControls(resolvedMinBet, me?.chips || 1000);
+        initBetControls(state.tableKey || resolvedMinBet, me?.chips || 1000);
         document.getElementById('btn-bet-up').disabled   = false;
         document.getElementById('btn-bet-down').disabled = false;
         // Update button labels from TABLE_CONFIGS — single source of truth
-        const resolvedCfg  = TABLE_CONFIGS[resolvedMinBet] || TABLE_CONFIGS[100];
+        const resolvedCfg  = getTableConfig(state.tableKey || resolvedMinBet);
         const inc = resolvedCfg.increment;
         const upBtn   = document.getElementById('btn-bet-up');
         const downBtn = document.getElementById('btn-bet-down');
@@ -1670,11 +1674,11 @@ function playAgain() {
 
     // Build table config from multiple reliable sources
     const cfg = igmTableCfg || {};
-    const minBet = cfg.minBet || state?.tableMinBet;
+    const minBet = cfg.tableKey || state?.tableKey || cfg.minBet || state?.tableMinBet;
     if (!minBet) { window.location.replace('/'); return; }
 
     // TABLE_CONFIGS is defined in game.js — use it as authoritative source
-    const tableCfg = TABLE_CONFIGS[minBet] || {};
+    const tableCfg = getTableConfig(state?.tableKey || cfg.tableKey || minBet) || {};
     const walletSize = tableCfg.walletSize || cfg.walletSize || cfg.wallet || 0;
 
     sessionStorage.setItem('sipsam_user', JSON.stringify({
@@ -1751,7 +1755,7 @@ function updateLobbyUI(state) {
 
 // Apply a pre-selected table+rounds config to the lobby (called from auto-login)
 function applyLobbyPreselect(table, rounds) {
-    const cfg = TABLE_CONFIGS[table.minBet] || table;
+    const cfg = getTableConfig(table.tableKey || table.minBet) || table;
 
     // Show the config banner. Hide the entire manual selector — both table
     // and rounds are now chosen on the dashboard (one source of truth so
@@ -1806,7 +1810,7 @@ function applyLobbyPreselect(table, rounds) {
     // Populate banner values
     const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     const isBlitz = table.blitz === true;
-    setEl('lci-table',  fmtChips(cfg.minBet) + ' Table');
+    setEl('lci-table',  (cfg.tableKey === 500000 || table.minBet === 500000) ? 'Celestial Table' : fmtChips(cfg.minBet) + ' Table');
     setEl('lci-minbet', fmtChips(cfg.minBet));
     setEl('lci-rounds', isBlitz ? '⚡ BLITZ (5)' : rounds + ' rounds');
     setEl('lci-wallet', fmtChips(Number(cfg.walletSize || cfg.wallet || 0)));
@@ -1815,7 +1819,7 @@ function applyLobbyPreselect(table, rounds) {
     if (roundsEl) roundsEl.style.color = isBlitz ? '#ff9a3c' : '';
 
     // Programmatically set the selection variables
-    selectedMinBet = cfg.minBet;
+    selectedMinBet = table.tableKey || table.minBet || cfg.tableKey || cfg.minBet;
     selectedRounds = rounds;
 
     checkCanStart();

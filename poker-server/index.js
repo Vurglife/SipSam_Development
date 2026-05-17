@@ -61,7 +61,7 @@ function quickJoinForTier(requestedRoomId, wantedRounds) {
     for (const [rid, room] of Object.entries(rooms)) {
         const gs = room.gameState;
         if (!gs || gs.completed) continue;
-        if (Number(gs.tableMinBet) !== minBet) continue;
+        if (Number(gs.tableKey || gs.tableMinBet) !== minBet) continue;
         const players       = Object.values(gs.players || {});
         const humans        = players.filter(p => !p.isBot && !p.isGhostBot).length;
         const openSeats     = Math.max(0, 4 - players.length);

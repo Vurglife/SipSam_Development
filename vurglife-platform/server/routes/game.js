@@ -45,6 +45,166 @@ const ROULETTE_TABLE_CONFIG = {
 };
 
 // ── CHIP PACKAGES ─────────────────────────────────────────────────
+// Platform-wide wallet session guard. A wallet can only return to bank when
+// there is a matching wallet_draw, and each active wallet returns once.
+const walletActiveSessions = new Map(); // `${game}:${userId}` -> { walletSize, tableMinBet, at }
+const walletRecentCredits  = new Map(); // `${game}:${userId}` -> { at, amount }
+const walletExitLocks      = new Map();
+const WALLET_CREDIT_COOLDOWN_MS = 60000;
+
+function _walletKey(game, userId) {
+    return `${game || 'sipsam'}:${userId}`;
+}
+function _walletGetSession(game, userId) {
+    return walletActiveSessions.get(_walletKey(game, userId));
+}
+function _walletSetSession(game, userId, walletSize, tableMinBet) {
+    walletActiveSessions.set(_walletKey(game, userId), {
+        walletSize: Math.max(0, Math.floor(Number(walletSize) || 0)),
+        tableMinBet: Number(tableMinBet),
+        at: Date.now()
+    });
+}
+function _walletClearSession(game, userId) {
+    walletActiveSessions.delete(_walletKey(game, userId));
+}
+function _walletRecentCredit(game, userId) {
+    const key = _walletKey(game, userId);
+    const rec = walletRecentCredits.get(key);
+    if (!rec) return null;
+    if (Date.now() - rec.at >= WALLET_CREDIT_COOLDOWN_MS) {
+        walletRecentCredits.delete(key);
+        return null;
+    }
+    return rec;
+}
+function _walletMarkCredited(game, userId, amount) {
+    walletRecentCredits.set(_walletKey(game, userId), {
+        at: Date.now(),
+        amount: Math.max(0, Math.floor(Number(amount) || 0))
+    });
+}
+function _walletClearRecent(game, userId) {
+    walletRecentCredits.delete(_walletKey(game, userId));
+}
+async function _walletWithExitLock(game, userId, fn) {
+    const key = _walletKey(game, userId);
+    const previous = walletExitLocks.get(key) || Promise.resolve();
+    const run = previous.catch(() => {}).then(fn);
+    const cleanup = run.finally(() => {
+        if (walletExitLocks.get(key) === cleanup) walletExitLocks.delete(key);
+    });
+    walletExitLocks.set(key, cleanup);
+    return run;
+}
+async function _walletFindUnsettledDraw(game, userId) {
+    try {
+        let last = null;
+        if (TxnDB.lastByTypesAndRef) {
+            last = await TxnDB.lastByTypesAndRef(userId, ['wallet_draw','wallet_return'], game);
+        }
+        if (last && last.type === 'wallet_draw') return last;
+
+        // Legacy fallback for older transactions that did not store game in reference.
+        last = await TxnDB.lastByTypes(userId, ['wallet_draw','wallet_return']);
+        if (last && last.type === 'wallet_draw' && (!last.reference || last.reference === game)) return last;
+    } catch(e) {}
+    return null;
+}
+async function _walletEnter(game, userId, tableMinBet, cfg, description) {
+    const numericTable = Number(tableMinBet);
+    const existing = _walletGetSession(game, userId);
+    if (existing && existing.tableMinBet === numericTable) {
+        const user = await UserDB.findById(userId);
+        return {
+            ok: true,
+            walletSize: existing.walletSize,
+            tableConfig: cfg,
+            newBankBalance: user.bank_balance,
+            idempotent: true
+        };
+    }
+    if (existing) {
+        return { status:409, error:'You already have an active wallet session. Exit that table before entering another.' };
+    }
+
+    const user = await UserDB.findById(userId);
+    if (user.bank_balance < cfg.minBank) {
+        return { status:403, error:`Need at least $${cfg.minBank.toLocaleString()} in your bank for this table` };
+    }
+    if (user.bank_balance < cfg.walletSize) {
+        return { status:403, error:`Need at least $${cfg.walletSize.toLocaleString()} in your bank to fund wallet` };
+    }
+
+    await UserDB.adjustBank(userId, -cfg.walletSize);
+    await TxnDB.record(userId, 'wallet_draw', -cfg.walletSize, game, description);
+    _walletClearRecent(game, userId);
+    _walletSetSession(game, userId, cfg.walletSize, numericTable);
+
+    return {
+        ok: true,
+        walletSize: cfg.walletSize,
+        tableConfig: cfg,
+        newBankBalance: user.bank_balance - cfg.walletSize
+    };
+}
+async function _walletExit(game, userId, remainingWallet, tableMinBet, trusted, sourceLabel) {
+    const requested = Math.max(0, Math.floor(Number(remainingWallet) || 0));
+    const recent = _walletRecentCredit(game, userId);
+    if (recent) {
+        if (trusted && requested > recent.amount) {
+            const delta = requested - recent.amount;
+            await UserDB.adjustBank(userId, delta);
+            await TxnDB.record(userId, 'wallet_return', delta, game,
+                `${game} server wallet reconciliation at $${tableMinBet} table (${sourceLabel || 'server'})`);
+            _walletMarkCredited(game, userId, requested);
+            const user = await UserDB.findById(userId);
+            return { ok:true, reconciled:true, returned:delta, totalReturned:requested, newBankBalance:user.bank_balance };
+        }
+        const user = await UserDB.findById(userId);
+        return { ok:true, skipped:'recent-credit', credited:recent.amount, newBankBalance:user.bank_balance };
+    }
+
+    const session = _walletGetSession(game, userId);
+    _walletClearSession(game, userId);
+
+    let allowedCeiling = 0;
+    if (session) {
+        allowedCeiling = session.walletSize;
+    } else {
+        const unsettled = await _walletFindUnsettledDraw(game, userId);
+        if (!unsettled) {
+            console.warn(`[WALLET EXIT] ${game}:${userId} called exit with no session and no unsettled draw - refusing to credit`);
+            const user = await UserDB.findById(userId);
+            return { ok:true, skipped:'no-draw', newBankBalance:user.bank_balance };
+        }
+        allowedCeiling = Math.abs(unsettled.amount);
+    }
+
+    // Active sessions trust the game's current wallet value. Fallback exits
+    // after a restart are capped because no server state remains to verify
+    // winnings above the original wallet.
+    const credit = (session || trusted) ? requested : Math.min(requested, allowedCeiling);
+    if (!session && !trusted && credit !== requested) {
+        console.warn(`[WALLET EXIT] ${game}:${userId} claimed $${requested} but ceiling is $${allowedCeiling} - capping fallback credit`);
+    }
+
+    await UserDB.adjustBank(userId, credit);
+    await TxnDB.record(userId, 'wallet_return', credit, game,
+        `Exited ${game} $${tableMinBet} table${trusted ? ' (server settled)' : sourceLabel ? ' (' + sourceLabel + ')' : ''}`);
+    _walletMarkCredited(game, userId, credit);
+
+    const user = await UserDB.findById(userId);
+    return { ok:true, returned:credit, trusted, newBankBalance:user.bank_balance };
+}
+function _legacyExitGameFor(userId) {
+    if (_walletGetSession('sipsam', userId)) return 'sipsam';
+    for (const game of ['rhum32', 'roulette', 'blackjack', 'holdem']) {
+        if (_walletGetSession(game, userId)) return game;
+    }
+    return 'sipsam';
+}
+
 const CHIP_PACKAGES = [
     { id:'p1', chips:20000,   usd:1.99  },
     { id:'p2', chips:50000,   usd:3.99  },
@@ -107,33 +267,123 @@ router.post('/rhum32/enter', requireAuth, async (req, res) => {
     const cfg  = RHUM32_TABLE_CONFIG[tableMinBet];
     if (!cfg)  return res.status(400).json({ error: 'Invalid Rhum32 table' });
 
-    const user = await UserDB.findById(req.userId);
-    if (user.bank_balance < cfg.minBank)
-        return res.status(403).json({ error: `Need at least $${cfg.minBank.toLocaleString()} in your bank for this table` });
-    if (user.bank_balance < cfg.walletSize)
-        return res.status(403).json({ error: `Need at least $${cfg.walletSize.toLocaleString()} in your bank to fund wallet` });
+    const result = await _walletEnter('rhum32', req.userId, tableMinBet, cfg,
+        `Entered Rhum32 $${tableMinBet} table`);
+    if (!result.ok) return res.status(result.status || 400).json({ error: result.error || 'Entry failed' });
+    res.json(result);
+});
 
-    await UserDB.adjustBank(req.userId, -cfg.walletSize);
-    await TxnDB.record(req.userId, 'wallet_draw', -cfg.walletSize, null, `Entered Rhum32 $${tableMinBet} table`);
+// POST /api/game/rhum32/exit - return remaining Rhum32 wallet to bank
+router.post('/rhum32/exit', requireAuth, async (req, res) => {
+    const { remainingWallet, tableMinBet } = req.body;
+    if (!Number.isFinite(remainingWallet) || remainingWallet < 0)
+        return res.status(400).json({ error: 'Invalid wallet amount' });
 
-    res.json({
-        ok: true,
-        walletSize: cfg.walletSize,
-        tableConfig: cfg,
-        newBankBalance: user.bank_balance - cfg.walletSize
-    });
+    try {
+        const result = await _walletWithExitLock('rhum32', req.userId, () =>
+            _walletExit('rhum32', req.userId, remainingWallet, tableMinBet, false, req.body?.reason)
+        );
+        res.json(result);
+    } catch(e) {
+        console.error('[rhum32/exit] error:', e);
+        res.status(500).json({ error:'Exit settlement failed' });
+    }
+});
+
+router.post('/rhum32/exit-beacon', async (req, res) => {
+    try {
+        const token = req.query?.token;
+        if (!token) return res.status(401).end();
+        let userId;
+        try { userId = jwt.verify(token, JWT_SECRET).userId; }
+        catch { return res.status(401).end(); }
+
+        const { remainingWallet, tableMinBet } = req.body || {};
+        if (!Number.isFinite(remainingWallet) || remainingWallet < 0)
+            return res.status(400).end();
+
+        await _walletWithExitLock('rhum32', userId, () =>
+            _walletExit('rhum32', userId, remainingWallet, tableMinBet, false, 'beacon')
+        );
+        res.status(204).end();
+    } catch(e) {
+        console.error('[rhum32/exit-beacon] error:', e);
+        res.status(500).end();
+    }
 });
 
 // ── BJ wallet session guard ─────────────────────────────────────────────
 // In-memory map of active Blackjack wallet sessions: userId → { walletSize, tableMinBet, at }.
 // Enter inserts a session (and deducts bank). Exit ONLY credits back if a session
 // exists, preventing the "exit credits without a matching enter" bug.
+// GET /api/game/roulette/tables - Roulette tables
+router.get('/roulette/tables', requireAuth, async (req, res) => {
+    const user   = await UserDB.findById(req.userId);
+    const tables = Object.entries(ROULETTE_TABLE_CONFIG).map(([key, cfg]) => ({
+        ...cfg,
+        key,
+        eligible: user.bank_balance >= cfg.minBank
+    }));
+    res.json({ ok:true, tables });
+});
+
+// POST /api/game/roulette/enter - draw wallet from bank for Roulette table
+router.post('/roulette/enter', requireAuth, async (req, res) => {
+    const { tableMinBet } = req.body;
+    const cfg = ROULETTE_TABLE_CONFIG[tableMinBet];
+    if (!cfg) return res.status(400).json({ error:'Invalid Roulette table' });
+
+    const result = await _walletEnter('roulette', req.userId, tableMinBet, cfg,
+        `Entered Roulette $${tableMinBet} table`);
+    if (!result.ok) return res.status(result.status || 400).json({ error: result.error || 'Entry failed' });
+    res.json(result);
+});
+
+// POST /api/game/roulette/exit - return remaining Roulette wallet to bank
+router.post('/roulette/exit', requireAuth, async (req, res) => {
+    const { remainingWallet, tableMinBet } = req.body;
+    if (!Number.isFinite(remainingWallet) || remainingWallet < 0)
+        return res.status(400).json({ error:'Invalid wallet amount' });
+
+    try {
+        const result = await _walletWithExitLock('roulette', req.userId, () =>
+            _walletExit('roulette', req.userId, remainingWallet, tableMinBet, false, req.body?.reason)
+        );
+        res.json(result);
+    } catch(e) {
+        console.error('[roulette/exit] error:', e);
+        res.status(500).json({ error:'Exit settlement failed' });
+    }
+});
+
+router.post('/roulette/exit-beacon', async (req, res) => {
+    try {
+        const token = req.query?.token;
+        if (!token) return res.status(401).end();
+        let userId;
+        try { userId = jwt.verify(token, JWT_SECRET).userId; }
+        catch { return res.status(401).end(); }
+
+        const { remainingWallet, tableMinBet } = req.body || {};
+        if (!Number.isFinite(remainingWallet) || remainingWallet < 0)
+            return res.status(400).end();
+
+        await _walletWithExitLock('roulette', userId, () =>
+            _walletExit('roulette', userId, remainingWallet, tableMinBet, false, 'beacon')
+        );
+        res.status(204).end();
+    } catch(e) {
+        console.error('[roulette/exit-beacon] error:', e);
+        res.status(500).end();
+    }
+});
+
 const bjActiveSessions = new Map();
-function _bjGetSession(userId)   { return bjActiveSessions.get(userId); }
+function _bjGetSession(userId)   { return _walletGetSession('blackjack', userId); }
 function _bjSetSession(userId, walletSize, tableMinBet) {
-    bjActiveSessions.set(userId, { walletSize, tableMinBet, at: Date.now() });
+    _walletSetSession('blackjack', userId, walletSize, tableMinBet);
 }
-function _bjClearSession(userId) { bjActiveSessions.delete(userId); }
+function _bjClearSession(userId) { _walletClearSession('blackjack', userId); }
 
 // GET /api/game/bj/tables — Blackjack tables (standard + VIP)
 router.get('/bj/tables', requireAuth, async (req, res) => {
@@ -152,31 +402,10 @@ router.post('/bj/enter', requireAuth, async (req, res) => {
     const cfg  = BJ_TABLE_CONFIG[tableMinBet];
     if (!cfg)  return res.status(400).json({ error: 'Invalid Blackjack table' });
 
-    // Idempotent: if the user already has an active session for the same table,
-    // skip the deduction (protects against double-deduct on reconnect/invite flows).
-    const existing = _bjGetSession(req.userId);
-    if (existing && existing.tableMinBet === Number(tableMinBet)) {
-        const user = await UserDB.findById(req.userId);
-        return res.json({ ok:true, walletSize: existing.walletSize, tableConfig: cfg,
-            newBankBalance: user.bank_balance, reused: true });
-    }
-
-    const user = await UserDB.findById(req.userId);
-    if (user.bank_balance < cfg.minBank)
-        return res.status(403).json({ error: `Need at least $${cfg.minBank.toLocaleString()} in your bank for this table` });
-    if (user.bank_balance < cfg.walletSize)
-        return res.status(403).json({ error: `Need at least $${cfg.walletSize.toLocaleString()} in your bank to fund wallet` });
-
-    await UserDB.adjustBank(req.userId, -cfg.walletSize);
-    await TxnDB.record(req.userId, 'wallet_draw', -cfg.walletSize, null, `Entered Blackjack $${tableMinBet} table`);
-    _bjSetSession(req.userId, cfg.walletSize, Number(tableMinBet));
-
-    res.json({
-        ok: true,
-        walletSize: cfg.walletSize,
-        tableConfig: cfg,
-        newBankBalance: user.bank_balance - cfg.walletSize
-    });
+    const result = await _walletEnter('blackjack', req.userId, tableMinBet, cfg,
+        `Entered Blackjack $${tableMinBet} table`);
+    if (!result.ok) return res.status(result.status || 400).json({ error: result.error || 'Entry failed' });
+    res.json(result);
 });
 
 // POST /api/game/bj/exit — return remaining Blackjack wallet to bank
@@ -184,6 +413,17 @@ router.post('/bj/exit', requireAuth, async (req, res) => {
     const { remainingWallet, tableMinBet } = req.body;
     if (typeof remainingWallet !== 'number' || remainingWallet < 0)
         return res.status(400).json({ error: 'Invalid wallet amount' });
+
+    try {
+        const result = await _walletWithExitLock('blackjack', req.userId, () =>
+            _walletExit('blackjack', req.userId, remainingWallet, tableMinBet, false, req.body?.reason)
+        );
+        res.json(result);
+        return;
+    } catch(e) {
+        console.error('[bj/exit] error:', e);
+        return res.status(500).json({ error:'Exit settlement failed' });
+    }
 
     const session = _bjGetSession(req.userId);
     if (!session) {
@@ -214,6 +454,11 @@ router.post('/bj/exit-beacon', async (req, res) => {
         if (typeof remainingWallet !== 'number' || remainingWallet < 0)
             return res.status(400).end();
 
+        await _walletWithExitLock('blackjack', userId, () =>
+            _walletExit('blackjack', userId, remainingWallet, tableMinBet, false, 'beacon')
+        );
+        return res.status(204).end();
+
         const session = _bjGetSession(userId);
         if (!session) { return res.status(204).end(); }
 
@@ -241,11 +486,11 @@ const HOLDEM_TABLE_CONFIG = {
 
 // Hold'em wallet session guard — same pattern as BJ.
 const holdemActiveSessions = new Map();
-function _holdemGetSession(userId)   { return holdemActiveSessions.get(userId); }
+function _holdemGetSession(userId)   { return _walletGetSession('holdem', userId); }
 function _holdemSetSession(userId, walletSize, tableMinBet) {
-    holdemActiveSessions.set(userId, { walletSize, tableMinBet, at: Date.now() });
+    _walletSetSession('holdem', userId, walletSize, tableMinBet);
 }
-function _holdemClearSession(userId) { holdemActiveSessions.delete(userId); }
+function _holdemClearSession(userId) { _walletClearSession('holdem', userId); }
 
 // GET /api/game/holdem/tables — Hold'em tables with eligibility flag
 router.get('/holdem/tables', requireAuth, async (req, res) => {
@@ -264,31 +509,10 @@ router.post('/holdem/enter', requireAuth, async (req, res) => {
     const cfg  = HOLDEM_TABLE_CONFIG[tableMinBet];
     if (!cfg)  return res.status(400).json({ error: 'Invalid Hold\'em table' });
 
-    // Idempotent: if the user already has an active session for the same table,
-    // skip the deduction (protects against double-deduct on reconnect/invite flows).
-    const existing = _holdemGetSession(req.userId);
-    if (existing && existing.tableMinBet === Number(tableMinBet)) {
-        const user = await UserDB.findById(req.userId);
-        return res.json({ ok:true, walletSize: existing.walletSize, tableConfig: cfg,
-            newBankBalance: user.bank_balance, reused: true });
-    }
-
-    const user = await UserDB.findById(req.userId);
-    if (user.bank_balance < cfg.minBank)
-        return res.status(403).json({ error: `Need at least $${cfg.minBank.toLocaleString()} in your bank for this table` });
-    if (user.bank_balance < cfg.walletSize)
-        return res.status(403).json({ error: `Need at least $${cfg.walletSize.toLocaleString()} in your bank to fund wallet` });
-
-    await UserDB.adjustBank(req.userId, -cfg.walletSize);
-    await TxnDB.record(req.userId, 'wallet_draw', -cfg.walletSize, null, `Entered Hold'em $${tableMinBet} table`);
-    _holdemSetSession(req.userId, cfg.walletSize, Number(tableMinBet));
-
-    res.json({
-        ok: true,
-        walletSize: cfg.walletSize,
-        tableConfig: cfg,
-        newBankBalance: user.bank_balance - cfg.walletSize
-    });
+    const result = await _walletEnter('holdem', req.userId, tableMinBet, cfg,
+        `Entered Hold'em $${tableMinBet} table`);
+    if (!result.ok) return res.status(result.status || 400).json({ error: result.error || 'Entry failed' });
+    res.json(result);
 });
 
 // POST /api/game/holdem/exit — return remaining Hold'em wallet to bank
@@ -296,6 +520,17 @@ router.post('/holdem/exit', requireAuth, async (req, res) => {
     const { remainingWallet, tableMinBet } = req.body;
     if (typeof remainingWallet !== 'number' || remainingWallet < 0)
         return res.status(400).json({ error: 'Invalid wallet amount' });
+
+    try {
+        const result = await _walletWithExitLock('holdem', req.userId, () =>
+            _walletExit('holdem', req.userId, remainingWallet, tableMinBet, false, req.body?.reason)
+        );
+        res.json(result);
+        return;
+    } catch(e) {
+        console.error('[holdem/exit] error:', e);
+        return res.status(500).json({ error:'Exit settlement failed' });
+    }
 
     const session = _holdemGetSession(req.userId);
     if (!session) {
@@ -326,6 +561,11 @@ router.post('/holdem/exit-beacon', async (req, res) => {
         if (typeof remainingWallet !== 'number' || remainingWallet < 0)
             return res.status(400).end();
 
+        await _walletWithExitLock('holdem', userId, () =>
+            _walletExit('holdem', userId, remainingWallet, tableMinBet, false, 'beacon')
+        );
+        return res.status(204).end();
+
         const session = _holdemGetSession(userId);
         if (!session) { return res.status(204).end(); }
 
@@ -345,11 +585,11 @@ router.post('/holdem/exit-beacon', async (req, res) => {
 // returned multiple times when the client AND the game server AND the
 // beacon all call exit on the same session.
 const sipsamActiveSessions = new Map();
-function _ssGetSession(userId)    { return sipsamActiveSessions.get(userId); }
+function _ssGetSession(userId)    { return _walletGetSession('sipsam', userId); }
 function _ssSetSession(userId, walletSize, tableMinBet) {
-    sipsamActiveSessions.set(userId, { walletSize, tableMinBet, at: Date.now() });
+    _walletSetSession('sipsam', userId, walletSize, tableMinBet);
 }
-function _ssClearSession(userId)  { sipsamActiveSessions.delete(userId); }
+function _ssClearSession(userId)  { _walletClearSession('sipsam', userId); }
 
 // POST /api/game/enter — draw wallet from bank on entering a SipSam table
 router.post('/enter', requireAuth, async (req, res) => {
@@ -357,34 +597,10 @@ router.post('/enter', requireAuth, async (req, res) => {
     const cfg  = TABLE_CONFIG[tableMinBet];
     if (!cfg)  return res.status(400).json({ error: 'Invalid table' });
 
-    // Idempotent: re-entering the same table without exiting just returns OK.
-    const existing = _ssGetSession(req.userId);
-    if (existing && existing.tableMinBet === Number(tableMinBet)) {
-        const user = await UserDB.findById(req.userId);
-        return res.json({
-            ok: true, walletSize: existing.walletSize, tableConfig: cfg,
-            newBankBalance: user.bank_balance, idempotent: true
-        });
-    }
-
-    const user = await UserDB.findById(req.userId);
-    if (user.bank_balance < cfg.minBank)
-        return res.status(403).json({ error: `Need at least $${cfg.minBank.toLocaleString()} in your bank for this table` });
-    if (user.bank_balance < cfg.walletSize)
-        return res.status(403).json({ error: `Need at least $${cfg.walletSize.toLocaleString()} in your bank to fund wallet` });
-
-    // Deduct wallet from bank
-    await UserDB.adjustBank(req.userId, -cfg.walletSize);
-    await TxnDB.record(req.userId, 'wallet_draw', -cfg.walletSize, null, `Entered $${tableMinBet} table`);
-    _ssRecentCredits.delete(req.userId);
-    _ssSetSession(req.userId, cfg.walletSize, Number(tableMinBet));
-
-    res.json({
-        ok: true,
-        walletSize: cfg.walletSize,
-        tableConfig: cfg,
-        newBankBalance: user.bank_balance - cfg.walletSize
-    });
+    const result = await _walletEnter('sipsam', req.userId, tableMinBet, cfg,
+        `Entered SipSam $${tableMinBet} table`);
+    if (!result.ok) return res.status(result.status || 400).json({ error: result.error || 'Entry failed' });
+    res.json(result);
 });
 
 // Recent-credit guard: prevents double credits when explicit exit,
@@ -397,16 +613,10 @@ const _SS_COOLDOWN_MS = 60000;
 const _ssExitLocks = new Map();
 
 function _ssRecentCredit(userId) {
-    const rec = _ssRecentCredits.get(userId);
-    if (!rec) return null;
-    if (Date.now() - rec.at >= _SS_COOLDOWN_MS) {
-        _ssRecentCredits.delete(userId);
-        return null;
-    }
-    return rec;
+    return _walletRecentCredit('sipsam', userId);
 }
 function _ssMarkCredited(userId, amount) {
-    _ssRecentCredits.set(userId, { at: Date.now(), amount: Math.max(0, Number(amount) || 0) });
+    _walletMarkCredited('sipsam', userId, amount);
 }
 function _isTrustedGameServer(req) {
     return req.get('x-game-server-secret') === GAME_SERVER_SECRET;
@@ -425,12 +635,7 @@ async function _ssWithExitLock(userId, fn) {
 // in the transaction log. Used as a fallback when the in-memory session
 // map is empty (for example after a platform restart).
 async function _findUnsettledDraw(userId) {
-    try {
-        const last = await TxnDB.lastByTypes(userId,
-            ['wallet_draw','wallet_return']);
-        if (last && last.type === 'wallet_draw') return last;
-        return null;
-    } catch(e) { return null; }
+    return _walletFindUnsettledDraw('sipsam', userId);
 }
 
 async function _handleSipSamExit(userId, remainingWallet, tableMinBet, trusted, sourceLabel) {
@@ -440,7 +645,7 @@ async function _handleSipSamExit(userId, remainingWallet, tableMinBet, trusted, 
         if (trusted && requested > recent.amount) {
             const delta = requested - recent.amount;
             await UserDB.adjustBank(userId, delta);
-            await TxnDB.record(userId, 'wallet_return', delta, null,
+            await TxnDB.record(userId, 'wallet_return', delta, 'sipsam',
                 `SipSam server wallet reconciliation at $${tableMinBet} table (${sourceLabel || 'server'})`);
             _ssMarkCredited(userId, requested);
             const user = await UserDB.findById(userId);
@@ -472,7 +677,7 @@ async function _handleSipSamExit(userId, remainingWallet, tableMinBet, trusted, 
     }
 
     await UserDB.adjustBank(userId, credit);
-    await TxnDB.record(userId, 'wallet_return', credit, null,
+    await TxnDB.record(userId, 'wallet_return', credit, 'sipsam',
         `Exited $${tableMinBet} table${trusted ? ' (server settled)' : sourceLabel ? ' (' + sourceLabel + ')' : ''}`);
     _ssMarkCredited(userId, credit);
 
@@ -487,6 +692,13 @@ router.post('/exit', requireAuth, async (req, res) => {
         return res.status(400).json({ error: 'Invalid wallet amount' });
 
     try {
+        const legacyGame = _legacyExitGameFor(req.userId);
+        if (legacyGame !== 'sipsam') {
+            const result = await _walletWithExitLock(legacyGame, req.userId, () =>
+                _walletExit(legacyGame, req.userId, remainingWallet, tableMinBet, false, req.body?.reason || 'legacy_exit')
+            );
+            return res.json(result);
+        }
         const result = await _ssWithExitLock(req.userId, () =>
             _handleSipSamExit(req.userId, remainingWallet, tableMinBet, _isTrustedGameServer(req), req.body?.reason)
         );
@@ -512,6 +724,14 @@ router.post('/exit-beacon', async (req, res) => {
         const { remainingWallet, tableMinBet } = req.body || {};
         if (!Number.isFinite(remainingWallet) || remainingWallet < 0)
             return res.status(400).end();
+
+        const legacyGame = _legacyExitGameFor(userId);
+        if (legacyGame !== 'sipsam') {
+            await _walletWithExitLock(legacyGame, userId, () =>
+                _walletExit(legacyGame, userId, remainingWallet, tableMinBet, false, 'legacy_beacon')
+            );
+            return res.status(204).end();
+        }
 
         await _ssWithExitLock(userId, () =>
             _handleSipSamExit(userId, remainingWallet, tableMinBet, false, 'beacon')

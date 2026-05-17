@@ -12,8 +12,9 @@
 //             charged. If they drift, the game still bills correctly;
 //             only the dashboard text is cosmetically off.)
 //
-// Keyed by minBet. Canonical fields: minBet, increment, maxBet,
-// walletSize, minBank. To add/adjust a tier, edit ONLY this file
+// Keyed by table selector. Canonical fields: minBet, increment, maxBet,
+// walletSize, minBank. Celestial uses tableKey 500000 with minBet 100000.
+// To add/adjust a tier, edit ONLY this file
 // (plus the two display mirrors if you want the dashboard label to
 // match — see ARCHITECTURE.md §3).
 // ============================================================
@@ -29,6 +30,6 @@
         1000:   { minBet:1000,   increment:500,    maxBet:2000,    walletSize:40000,   minBank:60000    },
         10000:  { minBet:10000,  increment:10000,  maxBet:50000,   walletSize:1000000, minBank:2000000  },
         100000: { minBet:100000, increment:100000, maxBet:500000,  walletSize:5000000, minBank:7000000  },
-        500000: { minBet:500000, increment:250000, maxBet:1000000, walletSize:7000000, minBank:10000000 },
+        500000: { tableKey:500000, minBet:100000, increment:100000, maxBet:1000000, walletSize:7000000, minBank:10000000 },
     };
 });

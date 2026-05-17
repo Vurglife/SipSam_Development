@@ -1059,7 +1059,7 @@ const TABLES = {
   1000:  {minBet:1000,  inc:500,    maxBet:2000,   minBank:60000,   wallet:40000  },
   10000: {minBet:10000, inc:10000,  maxBet:50000,   minBank:2000000,  wallet:1000000},
   100000:{minBet:100000,inc:100000, maxBet:500000,  minBank:7000000,  wallet:5000000},
-  500000:{minBet:500000,inc:250000, maxBet:1000000, minBank:10000000, wallet:7000000}
+  500000:{minBet:500000,betMin:100000,inc:100000, maxBet:1000000, minBank:10000000, wallet:7000000}
 };
 
 const RHUM32_TABLES = {
@@ -1298,7 +1298,8 @@ function buildGrid(gridId) {
       <div>
         <div class="tc-row"><span class="tc-l">Min Bank Required</span><span class="tc-r">$${t.minBank.toLocaleString()}</span></div>
         <div class="tc-row"><span class="tc-l">Wallet Size</span><span class="tc-r gold">$${t.wallet.toLocaleString()}</span></div>
-        <div class="tc-row"><span class="tc-l">Bet Increment</span><span class="tc-r">$${t.inc}</span></div>
+        <div class="tc-row"><span class="tc-l">Min Bet</span><span class="tc-r">$${(t.betMin || t.minBet).toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Bet Increment</span><span class="tc-r">$${t.inc.toLocaleString()}</span></div>
         <div class="tc-row"><span class="tc-l">Max Bet</span><span class="tc-r">$${t.maxBet.toLocaleString()}</span></div>
       </div>
       <div style="margin-top:14px">
@@ -1550,6 +1551,31 @@ async function confirmEnter() {
   const gameType = pendingGameType || 'sipsam';
   const storagePrefix = gameType === 'rhum32' ? 'rhum32' : 'sipsam';
 
+  // The server wallet draw must succeed before entering any game.
+  const walletEnterEndpoint = gameType === 'rhum32' ? '/api/game/rhum32/enter' : '/api/game/enter';
+  let walletEnterResult = null;
+  try {
+    await apiPost('/api/game/media/watch', {adType:'pregame'});
+    walletEnterResult = await apiPost(walletEnterEndpoint, {tableMinBet: pendingTable.minBet});
+  } catch(e) {
+    console.warn('[VurgLife] Enter API call failed:', e);
+    toast('Entry Failed', 'Could not fund your wallet. Please try again.');
+    return;
+  }
+  if (!walletEnterResult || walletEnterResult.error || !walletEnterResult.ok) {
+    toast('Entry Failed', walletEnterResult?.error || 'Could not fund your wallet.');
+    return;
+  }
+  currentUser.bankBalance  = walletEnterResult.newBankBalance;
+  currentUser.bank_balance = walletEnterResult.newBankBalance;
+  pendingTable = {
+    ...pendingTable,
+    enterHandled: true,
+    wallet: walletEnterResult.walletSize,
+    walletSize: walletEnterResult.walletSize,
+    tableConfig: walletEnterResult.tableConfig || pendingTable.tableConfig
+  };
+
   // Set sessionStorage FIRST — before any API calls that might fail
   sessionStorage.setItem(storagePrefix+'_table',  JSON.stringify(pendingTable));
   sessionStorage.setItem(storagePrefix+'_wallet', String(pendingTable.wallet || pendingTable.walletSize || 0));
@@ -1560,8 +1586,8 @@ async function confirmEnter() {
   }));
 
   // Deduct wallet from bank locally so UI updates immediately
-  const walletAmt = pendingTable.wallet || pendingTable.walletSize || 0;
-  const newBank   = (currentUser.bankBalance || currentUser.bank_balance || 0) - walletAmt;
+  const walletAmt = pendingTable.enterHandled ? 0 : (pendingTable.wallet || pendingTable.walletSize || 0);
+  const newBank   = Number(currentUser.bankBalance ?? currentUser.bank_balance ?? 0) - walletAmt;
   currentUser.bankBalance   = newBank;
   currentUser.bank_balance  = newBank;
   refreshUI();

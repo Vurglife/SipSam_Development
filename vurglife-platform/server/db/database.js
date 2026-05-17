@@ -340,6 +340,16 @@ const TxnDB = {
              ORDER BY id DESC LIMIT 1`,
             [userId, ...types]
         );
+    },
+    async lastByTypesAndRef(userId, types, ref) {
+        await getDb();
+        if (!Array.isArray(types) || !types.length) return null;
+        const placeholders = types.map(() => '?').join(',');
+        return get(
+            `SELECT * FROM transactions WHERE user_id = ? AND type IN (${placeholders}) AND reference = ?
+             ORDER BY id DESC LIMIT 1`,
+            [userId, ...types, ref]
+        );
     }
 };
 
