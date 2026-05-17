@@ -271,6 +271,18 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
 .r-claimed{font-size:10px;color:var(--green);margin-top:2px;letter-spacing:1px}
 .r-pending{font-size:10px;color:var(--gold);margin-top:2px;letter-spacing:1px;cursor:pointer}
 .r-pending:hover{text-decoration:underline}
+.tier-note{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px}
+.tier-note-title{font-weight:800;font-size:14px;margin-bottom:4px;color:var(--text-hi)}
+.tier-note-copy{font-size:12px;color:var(--text-mid);line-height:1.55}
+.tier-info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:9px;margin-bottom:18px}
+.tier-info-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:13px;position:relative;overflow:hidden}
+.tier-info-card.current{border-color:var(--gold);box-shadow:0 0 0 1px rgba(201,168,76,.2)}
+.tier-info-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.tier-info-name{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:900;letter-spacing:1.3px;text-transform:uppercase}
+.tier-current-badge{font-size:9px;font-weight:900;letter-spacing:1px;color:#080f1e;background:var(--gold);border-radius:4px;padding:2px 6px;white-space:nowrap}
+.tier-info-row{display:flex;justify-content:space-between;gap:10px;font-size:12px;margin-top:4px}
+.tier-info-label{color:var(--text-dim)}
+.tier-info-value{color:var(--text-mid);font-weight:700;text-align:right}
 
 /* ── FRIENDS ── */
 .fcard{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
@@ -763,6 +775,12 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
       <div id="panel-rewards" class="panel">
         <div class="ptitle">Rewards & Milestones</div>
         <div class="psub">Earn chip rewards for reaching milestones</div>
+        <div class="sh">Player Tiers</div>
+        <div class="tier-note">
+          <div class="tier-note-title">Your tier is based on your current bank balance.</div>
+          <div class="tier-note-copy">Move up or down as your bank changes. Higher tiers unlock higher table access, larger daily bonuses, and larger watch-ad bonuses. Players below Bronze must use free chips, ads, or purchases before entering tables.</div>
+        </div>
+        <div id="tier-info-grid" class="tier-info-grid"></div>
         <div class="sh">Milestone Rewards</div>
         <div class="rcard"><div class="r-ico">🏅</div>
           <div class="r-body"><div class="r-title">First 50 Wins</div>
@@ -1244,6 +1262,25 @@ function computeTierClient(bank) {
   const b=Number(bank)||0;
   for (const t of PLATFORM_TIERS) if (b>=t.minBank) return t;
   return null;
+}
+function renderTierInfo() {
+  const grid=document.getElementById('tier-info-grid');
+  if (!grid) return;
+  const current=computeTierClient(getBank());
+  grid.innerHTML='';
+  PLATFORM_TIERS.slice().reverse().forEach(t=>{
+    const isCurrent=current && current.name===t.name;
+    const d=document.createElement('div');
+    d.className='tier-info-card'+(isCurrent?' current':'');
+    d.innerHTML=`<div class="tier-info-head">
+        <div class="tier-info-name" style="color:${t.color}">${t.emoji} ${t.name}</div>
+        ${isCurrent?'<div class="tier-current-badge">CURRENT</div>':''}
+      </div>
+      <div class="tier-info-row"><span class="tier-info-label">Minimum Bank</span><span class="tier-info-value">$${t.minBank.toLocaleString()}</span></div>
+      <div class="tier-info-row"><span class="tier-info-label">Daily Bonus</span><span class="tier-info-value">$${t.dailyBonus.toLocaleString()}</span></div>
+      <div class="tier-info-row"><span class="tier-info-label">Watch Ad Bonus</span><span class="tier-info-value">$${t.adBonus.toLocaleString()}</span></div>`;
+    grid.appendChild(d);
+  });
 }
 function getTierPerks() {
   const t=computeTierClient(getBank());
@@ -1795,6 +1832,7 @@ async function checkAdStatus() {
 // ── REWARDS ───────────────────────────────────────────
 function refreshRewards() {
   const u=currentUser; if (!u) return;
+  renderTierInfo();
   const wins=u.totalWins??u.total_wins??0;
   const m=u.milestones||{};
   document.getElementById('r50-p').textContent=Math.min(wins,50);

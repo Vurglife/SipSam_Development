@@ -4,8 +4,7 @@
 
 - Active repo: `G:\SipSam\PokerProject`
 - Active branch: `master`
-- Latest feature commit: `ce8146a Require manual daily bonus claims`
-- Previous key commit: `a6ea242 Fix Celestial table config and wallet session accounting`
+- Recent anchors: `c2ad147 Blackjack: horizontal player hand, freeze tie bets, guest lobby roles`; `119d815 Add current progress handoff for Claude sessions`; `ce8146a Require manual daily bonus claims`; `a6ea242 Fix Celestial table config and wallet session accounting`
 - Platform run command: `cd G:\SipSam\PokerProject\vurglife-platform && npm start`
 
 ## Completed Recently
@@ -16,6 +15,7 @@
 - Daily and watch-ad bonus values match the tier table:
   Bronze 500/300, Silver 700/500, Gold 1000/700, Platinum 1500/1000, VIP 2000/1300, Elite 5000/1700, Celestial 10000/2500.
 - Login no longer auto-credits the daily bonus. Players must open the platform and accept the bonus. Missed days do not accumulate.
+- Rewards & Milestones now opens with a Player Tiers section explaining minimum bank, daily bonus, and watch-ad bonus for each tier.
 - Celestial SipSam table fixed:
   10M min bank, 7M wallet, 100K min bet, 100K increments, 1M max bet.
 - Platform wallet/session guard added for server-side wallet draw/return consistency across VurgLife game routes.
