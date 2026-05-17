@@ -13,9 +13,10 @@
 const BJ_WS_URL = `ws://${location.hostname}:3002`;
 
 let BJ_TABLE = {
-  minBet: 100, maxBet: 500, walletSize: 2500,
+  minBet: 100, maxBet: 100, walletSize: 2500,
   tieBet: 100, tieBetPayout: 2000, blackjackPayout: null,
-  label: 'standard'
+  label: 'standard',
+  displayLabel: 'Standard'
 };
 
 let ws            = null;
@@ -41,12 +42,10 @@ let _multiInviteFriends = [];
 
 let _bettingHandled  = false;
 let _betPlaced       = false;
-let _frozenBet       = 0;       // 0 = no freeze (standard); else the locked amount
-let _frozenTie       = false;   // tie bet frozen (standard)
 let _tieBetWantedThisRound = false;
 
-let _tieDecision     = null;    // 'yes' | 'no' | null — VIP per-round choice
-let _tieFrozen       = false;   // VIP: skip prompt, apply _tieDecision every round
+let _tieDecision     = null;    // 'yes' | 'no' | null - per-round Tie Bet choice
+let _tieFrozen       = false;   // skip prompt, apply _tieDecision every round
 let _tiePromptTimer  = null;
 
 let _cdInterval      = null;
@@ -70,11 +69,49 @@ function fmtChips(n) {
   return '$' + n.toLocaleString();
 }
 
+function tableDisplayName() {
+  return BJ_TABLE.displayLabel || BJ_TABLE.name || ((BJ_TABLE.label === 'vip') ? 'VIP' : 'Standard');
+}
+
+function syncLobbyTableCopy() {
+  const fixedBet = BJ_TABLE.minBet || 100;
+  const tieBet   = BJ_TABLE.tieBet || 100;
+  const tieWin   = BJ_TABLE.tieBetPayout || 2000;
+  const wallet   = BJ_TABLE.walletSize || BJ_TABLE.wallet || 2500;
+  const sub = document.querySelector('.lobby-sub');
+  if (sub) sub.textContent = `${tableDisplayName()} Table - Fixed ${fmtChips(fixedBet)} main bet - ${fmtChips(tieBet)} Tie Bet optional`;
+
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  };
+  setText('lobby-tier-name', tableDisplayName());
+  setText('lobby-fixed-bet', fmtChips(fixedBet));
+  setText('lobby-tie-bet', fmtChips(tieBet));
+  setText('lobby-tie-payout', fmtChips(tieWin));
+  setText('lobby-wallet-size', fmtChips(wallet));
+}
+
+function cancelBlackjackTable() {
+  window._intentionalExit = true;
+  try {
+    sessionStorage.removeItem('bj_table');
+    sessionStorage.removeItem('bj_tier');
+  } catch (_) {}
+  window.location.href = '/#blackjack';
+}
+
 function showScreen(id) {
   ['screen-lobby', 'screen-game', 'screen-gameover'].forEach(s => {
     const el = document.getElementById(s);
     if (el) el.classList.toggle('active', s === id);
   });
+}
+
+function showGameScreen() {
+  showScreen('screen-game');
+  const menuBtn = document.getElementById('ingame-menu-btn');
+  if (menuBtn) menuBtn.style.display = 'flex';
 }
 
 function _showStep(id) {
@@ -540,9 +577,7 @@ async function enterTableNow() {
   }
 
   // Transition to game screen
-  showScreen('screen-game');
-  const menuBtn = document.getElementById('ingame-menu-btn');
-  if (menuBtn) menuBtn.style.display = 'flex';
+  showGameScreen();
 
   const roomId = _pendingRoomId || _multiRoomId || `bj_${BJ_TABLE.minBet || 100}_${Date.now()}`;
   connectWS(myUsername, token, roomId);
@@ -583,8 +618,14 @@ function connectWS(username, token, roomId) {
     try { handleMsg(JSON.parse(e.data)); }
     catch (err) { console.error('[BJ] msg parse error:', err); }
   };
-  ws.onclose = () => {
+  ws.onclose = (ev) => {
     console.log('[BJ] WS closed');
+    if (ev && (ev.code === 1008 || /table full/i.test(ev.reason || ''))) {
+      window._intentionalExit = true;
+      showIngameToast('Table Full', 'No open seats at this table.');
+      setTimeout(() => { window.location.replace('/#blackjack'); }, 1200);
+      return;
+    }
     if (!window._intentionalExit && !window._serverSettled) {
       setTimeout(() => reconnectWS(token, roomId), 3000);
     }
@@ -641,6 +682,11 @@ function applyState(state) {
   lastState = state;
   window._lastBJState = state;
 
+  if (state.phase && state.phase !== 'waiting') {
+    const lobby = document.getElementById('screen-lobby');
+    if (lobby && lobby.classList.contains('active')) showGameScreen();
+  }
+
   // Lobby sync: while in lobby-step-multi, show seats from server
   const lobbyStep = document.getElementById('lobby-step-multi');
   if (lobbyStep && lobbyStep.style.display !== 'none' && state.seats) {
@@ -689,16 +735,8 @@ function onPhaseChange(newPhase, oldPhase, state) {
     _hideTieBetPrompt();
     hideInsurancePrompt();
     document.getElementById('player-actions').style.display = 'none';
-    if (BJ_TABLE.label === 'vip') {
-      // VIP: hide bet overlay; ask Tie Bet decision via popup
-      hideBetOverlay();
-      _startVipBettingFlow();
-    } else if (_frozenBet > 0) {
-      hideBetOverlay();
-      _applyFreezeIfActive();
-    } else {
-      showBetOverlay(state);
-    }
+    hideBetOverlay();
+    _startFixedBettingFlow();
     startCountdown(10, false);
   } else if (newPhase === 'deal') {
     hideBetOverlay();
@@ -737,9 +775,7 @@ function handlePhase(msg) {
   if (msg.phase && msg.phase !== 'waiting') {
     const lobby = document.getElementById('screen-lobby');
     if (lobby && lobby.classList.contains('active')) {
-      showScreen('screen-game');
-      const menuBtn = document.getElementById('ingame-menu-btn');
-      if (menuBtn) menuBtn.style.display = 'flex';
+      showGameScreen();
     }
   }
 }
@@ -975,9 +1011,7 @@ function updateUI(state) {
   const hint = document.getElementById('bet-tiebet-hint');
   if (hint) {
     const payout = BJ_TABLE.tieBetPayout || 2000;
-    hint.innerHTML = (BJ_TABLE.label === 'vip')
-      ? `<strong style="color:#ffd700">${fmtChips(payout)} Bonus</strong><br>Wins if your total = dealer's total`
-      : `<strong style="color:#ffd700">$2,000 Bonus</strong> · $500 main bet: <strong style="color:#ffd700">$3,000 Bonus</strong><br>Wins if your total = dealer's total`;
+    hint.innerHTML = `<strong style="color:#ffd700">${fmtChips(payout)} Bonus</strong><br>Wins if your total = dealer's total`;
   }
 
   // Freeze button UI
@@ -987,7 +1021,7 @@ function updateUI(state) {
 function fmtPhase(p) {
   return {
     waiting:        'Waiting for players…',
-    betting:        'Place your bet (10s)',
+    betting:        'Tie Bet? Fixed main bet auto-places',
     deal:           'Dealing…',
     insurance:      'Insurance?',
     player_action:  'Your turn — Hit or Stand',
@@ -998,7 +1032,7 @@ function fmtPhase(p) {
 }
 
 // ─────────────────────────────────────────────────────
-// BET OVERLAY  (standard tier only)
+// BET OVERLAY  (legacy/manual fallback only; tables auto-place fixed main bets)
 // ─────────────────────────────────────────────────────
 function showBetOverlay(state) {
   const overlay = document.getElementById('bet-overlay');
@@ -1022,23 +1056,7 @@ function hideBetOverlay() {
 
 function addChip(amount) {
   if (_betPlaced) return;
-  if (BJ_TABLE.label === 'vip') return; // VIP: no chip selection
-  const seat = lastState?.seats?.[mySeatIndex];
-  const avail = seat?.wallet ?? myChips;
-  const newTotal = pendingBet + amount;
-  if (newTotal > avail) {
-    showIngameToast('Insufficient Chips', `Need ${fmtChips(newTotal)} to place this bet.`);
-    return;
-  }
-  if (newTotal > (BJ_TABLE.maxBet || 500)) {
-    showIngameToast('Bet Limit', `Maximum bet is ${fmtChips(BJ_TABLE.maxBet || 500)}.`);
-    return;
-  }
-  pendingBet = newTotal;
-  updateBetDisplay();
-  // Auto-place after a brief pause so player can stack chips
-  clearTimeout(window._betSendTimer);
-  window._betSendTimer = setTimeout(() => _sendBet(), 800);
+  showIngameToast('Fixed Table', `Main bet is fixed at ${fmtChips(BJ_TABLE.minBet || 100)}.`);
 }
 
 function updateBetDisplay() {
@@ -1060,7 +1078,6 @@ function placeBet() { _sendBet(); }
 
 function _autoPlaceFixedBet() {
   if (_betPlaced) return;
-  if (BJ_TABLE.label !== 'vip') return;
   const seat = lastState?.seats?.[mySeatIndex];
   const avail = seat?.wallet ?? myChips;
   const amt = BJ_TABLE.minBet || 0;
@@ -1070,20 +1087,20 @@ function _autoPlaceFixedBet() {
 }
 
 function placeTieBet() {
-  if (_betPlaced && BJ_TABLE.label !== 'vip') {
+  if (_betPlaced) {
     showIngameToast('Bet Already Placed', 'Tie bet must be placed before main bet.');
     return;
   }
+  _tieDecision = _tieDecision === 'yes' ? 'no' : 'yes';
   _tieBetWantedThisRound = !_tieBetWantedThisRound;
   sendMsg('place_tie');
   _updateFreezeUI();
 }
 
 // ─────────────────────────────────────────────────────
-// TIE BET PROMPT  (VIP only)
+// TIE BET PROMPT  (all fixed-bet tables)
 // ─────────────────────────────────────────────────────
-function _startVipBettingFlow() {
-  if (BJ_TABLE.label !== 'vip') return;
+function _startFixedBettingFlow() {
   _hideTieBetPrompt();
   if (_tieFrozen && _tieDecision) {
     if (_tieDecision === 'yes') sendMsg('place_tie');
@@ -1124,6 +1141,7 @@ function _hideTieBetPrompt() {
 
 function tieBetDecide(choice, auto) {
   _tieDecision = choice;
+  _tieBetWantedThisRound = choice === 'yes';
   _hideTieBetPrompt();
   if (choice === 'yes') sendMsg('place_tie');
   setTimeout(() => _autoPlaceFixedBet(), 300);
@@ -1146,96 +1164,33 @@ function takeInsurance(take) {
 }
 
 // ─────────────────────────────────────────────────────
-// FREEZE BET  (standard tier toggle, persists across rounds)
+// FREEZE TIE BET  (persists YES/NO tie decision across rounds)
 // ─────────────────────────────────────────────────────
 function toggleFreeze() {
-  if (BJ_TABLE.label === 'vip') {
-    // VIP: freeze the YES/NO tie decision.
-    if (_tieFrozen) {
-      _tieFrozen = false;
-      showIngameToast('Decision Unfrozen', 'You will be asked again next round.');
-    } else {
-      if (!_tieDecision) {
-        showIngameToast('No Decision to Freeze', 'Pick YES or NO on a tie bet first.');
-        return;
-      }
-      _tieFrozen = true;
-      const label = (_tieDecision === 'yes') ? 'ALWAYS PLACE TIE BET' : 'ALWAYS SKIP TIE BET';
-      showIngameToast('Decision Frozen', label);
-    }
-    _updateFreezeUI();
-    return;
-  }
-
-  // Standard tier: SipSam-style freeze. Lock the current amount and whether
-  // Tie Bet is selected, then auto-place both on future betting phases.
-  if (_frozenBet > 0) {
-    _frozenBet = 0;
-    _frozenTie = false;
-    showIngameToast('Freeze Removed', 'Bet is no longer frozen.');
+  if (_tieFrozen) {
+    _tieFrozen = false;
+    showIngameToast('Tie Freeze Removed', 'You will be asked again next round.');
   } else {
-    const seat = lastState?.seats?.[mySeatIndex];
-    const amt = pendingBet > 0 ? pendingBet : (seat?.bet || 0) || (BJ_TABLE.minBet || 100);
-    if (amt <= 0) {
-      showIngameToast('No Bet to Freeze', 'Place a bet first, then press freeze.');
+    if (!_tieDecision) {
+      showIngameToast('No Tie Decision', 'Choose Tie Bet YES or NO first.');
       return;
     }
-    _frozenBet = amt;
-    const tieAlreadyPlaced = (seat?.tieBet || 0) > 0;
-    _frozenTie = _tieBetWantedThisRound || tieAlreadyPlaced;
-    showIngameToast('Bet Frozen', `${fmtChips(amt)}${_frozenTie ? ' + Tie Bet' : ''} will auto-place every round.`);
-    if (lastState?.phase === 'betting' && !_betPlaced) {
-      pendingBet = amt;
-      if (_frozenTie && !tieAlreadyPlaced && !_tieBetWantedThisRound) sendMsg('place_tie');
-      setTimeout(() => _sendBet(), _frozenTie ? 200 : 0);
-    }
+    _tieFrozen = true;
+    const label = (_tieDecision === 'yes') ? 'Tie Bet YES' : 'Tie Bet NO';
+    showIngameToast('Tie Decision Frozen', label);
   }
   _updateFreezeUI();
-}
-
-function _applyFreezeIfActive() {
-  if (_betPlaced) return;
-  if (BJ_TABLE.label === 'vip') return;
-  if (_frozenBet <= 0) return;
-  const seat = lastState?.seats?.[mySeatIndex];
-  const avail = seat?.wallet ?? myChips;
-  if (_frozenBet + (_frozenTie ? (BJ_TABLE.tieBet || 100) : 0) > avail) {
-    _frozenBet = 0;
-    _frozenTie = false;
-    _updateFreezeUI();
-    showIngameToast('Freeze Removed', 'Insufficient chips for frozen bet.');
-    return;
-  }
-  pendingBet = _frozenBet;
-  if (_frozenTie) {
-    _tieBetWantedThisRound = true;
-    sendMsg('place_tie');
-    setTimeout(() => _sendBet(), 200);
-  } else {
-    _sendBet();
-  }
 }
 
 function _updateFreezeUI() {
   const bb = document.getElementById('btn-freeze-bar');
   if (!bb) return;
-  if (BJ_TABLE.label === 'vip') {
-    if (_tieFrozen && _tieDecision) {
-      bb.textContent = `Frozen - TIE: ${_tieDecision.toUpperCase()}`;
-      bb.classList.add('active');
-    } else {
-      bb.textContent = 'Freeze Tie Bet';
-      bb.classList.remove('active');
-    }
+  if (_tieFrozen && _tieDecision) {
+    bb.textContent = `Frozen - Tie: ${_tieDecision.toUpperCase()}`;
+    bb.classList.add('active');
   } else {
-    if (_frozenBet > 0) {
-      bb.textContent = `Frozen ${fmtChips(_frozenBet)}` + (_frozenTie ? ' + Tie' : '');
-      bb.classList.add('active');
-    } else {
-      const selectedTie = _tieBetWantedThisRound || ((lastState?.seats?.[mySeatIndex]?.tieBet || 0) > 0);
-      bb.textContent = selectedTie ? 'Freeze Bet + Tie' : 'Freeze Bet';
-      bb.classList.remove('active');
-    }
+    bb.textContent = 'Freeze Tie Bet';
+    bb.classList.remove('active');
   }
 }
 
@@ -1369,7 +1324,7 @@ async function igmExitTable() {
     }
   } catch (e) {}
   if (ws) { try { ws.send(JSON.stringify({ type: 'leave' })); ws.close(); } catch (e) {} }
-  setTimeout(() => { window.location.replace('/'); }, 400);
+  setTimeout(() => { window.location.replace('/#blackjack'); }, 400);
 }
 function exitToLobby() { igmExitTable(); }
 
@@ -1574,17 +1529,14 @@ window.addEventListener('DOMContentLoaded', () => {
       }
       const tier = sessionStorage.getItem('bj_tier');
       if (tier) BJ_TABLE.label = tier;
-      // Refresh the lobby header tier line
-      const sub = document.querySelector('.lobby-sub');
-      if (sub) {
-        sub.textContent = `Min ${fmtChips(BJ_TABLE.minBet || 100)} · Max ${fmtChips(BJ_TABLE.maxBet || 500)} per hand · ${fmtChips(BJ_TABLE.walletSize || 2500)} starting wallet`;
-      }
+      syncLobbyTableCopy();
     }
   } catch (e) {
     console.warn('[BJ] auto-login parse error:', e.message);
   }
 
   // URL has roomId → invited-joiner path
+  syncLobbyTableCopy();
   const urlParams = new URLSearchParams(window.location.search);
   const urlRoomId = urlParams.get('roomId');
   if (urlRoomId) {

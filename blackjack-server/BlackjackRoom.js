@@ -500,11 +500,7 @@ class BlackjackRoom {
           if (pTotal === dealerTotal && pTotal > 0) { tiedHandIdx = hi; break; }
         }
         if (tiedHandIdx !== -1) {
-          const isStandard = this.config.label === 'standard';
-          // Legacy standard-table rule: $3,000 bonus for a $500 main bet
-          const bonus = isStandard
-            ? (seat.bet >= 500 ? (this.config.tieBetPayoutVIP || 3000) : (this.config.tieBetPayout || 2000))
-            : (this.config.tieBetPayout || 2000);
+          const bonus = this.config.tieBetPayout || 2000;
           // Player receives: tie bet stake back + fixed bonus
           const tiePayout = seat.tieBet + bonus;
           delta += tiePayout;

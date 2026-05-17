@@ -1097,7 +1097,12 @@ const RHUM32_TABLES = {
 };
 
 const BJ_TABLES = {
-  100: { minBet:100, maxBet:500, wallet:2500, minBank:2500, label:'Standard' },
+  100:   { minBet:100,   maxBet:100,   wallet:2500,    walletSize:2500,    minBank:2500,    tieBet:100,  tieBetPayout:2000,   blackjackPayout:null,   label:'Standard',     tier:'standard' },
+  1000:  { minBet:1000,  maxBet:1000,  wallet:30000,   walletSize:30000,   minBank:50000,   tieBet:500,  tieBetPayout:10000,  blackjackPayout:5000,   label:'Bronze VIP',   tier:'vip' },
+  5000:  { minBet:5000,  maxBet:5000,  wallet:120000,  walletSize:120000,  minBank:150000,  tieBet:1000, tieBetPayout:30000,  blackjackPayout:15000,  label:'Silver VIP',   tier:'vip' },
+  10000: { minBet:10000, maxBet:10000, wallet:240000,  walletSize:240000,  minBank:300000,  tieBet:2000, tieBetPayout:75000,  blackjackPayout:30000,  label:'Gold VIP',     tier:'vip' },
+  20000: { minBet:20000, maxBet:20000, wallet:500000,  walletSize:500000,  minBank:750000,  tieBet:3000, tieBetPayout:125000, blackjackPayout:70000,  label:'Platinum VIP', tier:'vip' },
+  50000: { minBet:50000, maxBet:50000, wallet:1000000, walletSize:1000000, minBank:1500000, tieBet:5000, tieBetPayout:250000, blackjackPayout:170000, label:'Elite VIP',    tier:'vip' },
 };
 
 const HOLDEM_TABLES = {
@@ -1507,8 +1512,10 @@ function buildBJGrid(gridId) {
       <div>
         <div class="tc-row"><span class="tc-l">Min Bank Required</span><span class="tc-r">$${t.minBank.toLocaleString()}</span></div>
         <div class="tc-row"><span class="tc-l">Wallet Size</span><span class="tc-r gold">$${t.wallet.toLocaleString()}</span></div>
-        <div class="tc-row"><span class="tc-l">Min Bet</span><span class="tc-r">$${t.minBet.toLocaleString()}</span></div>
-        <div class="tc-row"><span class="tc-l">Max Bet</span><span class="tc-r">$${t.maxBet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Fixed Main Bet</span><span class="tc-r">$${t.minBet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Tie Bet Optional</span><span class="tc-r">$${t.tieBet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Tie Bonus</span><span class="tc-r gold">$${t.tieBetPayout.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Multiplayer Room</span><span class="tc-r">Global</span></div>
       </div>
       <div style="margin-top:14px">
         ${ok?`<button class="btn bp bsm bfull" onclick="enterBJTable(${t.minBet})">Enter Table →</button>`
@@ -1532,7 +1539,8 @@ async function enterBJTable(minBet) {
     tieBet:t.tieBet||100,
     tieBetPayout:t.tieBetPayout||2000,
     blackjackPayout:t.blackjackPayout||null,
-    label:(String(t.label||'standard').toLowerCase().includes('vip') ? 'vip' : 'standard'),
+    label:t.tier || (String(t.label||'standard').toLowerCase().includes('vip') ? 'vip' : 'standard'),
+    displayLabel:t.label,
     publicRoomId:`bj_public_${t.minBet}`
   }));
   sessionStorage.setItem('bj_user', JSON.stringify({

@@ -15,19 +15,18 @@ const BlackjackRoom = require('./BlackjackRoom');
 const PORT = process.env.BLACKJACK_WS_PORT || 3002;
 
 // ── Table Configuration ──────────────────────────────────────
-// Standard table: flexible min/max bets. Blackjack pays 3:2, fixed $100 tie bet,
-//                 fixed $2,000 tie bonus ($3,000 for $500 main bet — legacy rule).
+// Standard table: fixed $100 main bet. Blackjack pays 3:2, fixed $100 tie bet,
+//                 fixed $2,000 tie bonus.
 // VIP tables:     fixed main bet per tier, flat blackjack + tie payouts.
 const TABLE_CONFIGS = {
   // Standard
   100: {
     minBet:          100,
-    maxBet:          500,
+    maxBet:          100,
     walletSize:      2500,
     minBank:         2500,
     tieBet:          100,
-    tieBetPayout:    2000,    // payout for non-$500 main bets
-    tieBetPayoutVIP: 3000,    // legacy: $500 main-bet bonus
+    tieBetPayout:    2000,
     blackjackPayout: null,    // null → use standard 3:2 formula
     label:           'standard',
   },

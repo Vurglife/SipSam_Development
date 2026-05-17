@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#04080f"/>
 <title>Blackjack — VurgLife</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Rajdhani:wght@400;600;700&family=Bebas+Neue&family=Exo+2:wght@400;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="style.css?v=7"/>
+<link rel="stylesheet" href="style.css?v=8"/>
 <link rel="stylesheet" href="vl-card.css?v=3"/>
 </head>
 <body>
@@ -20,21 +20,32 @@
 
     <!-- ── STEP 1: Mode Selection (always shown first, never auto-skipped) ── -->
     <div id="lobby-step-choose" class="lobby-card">
+      <button class="lobby-cancel-btn" onclick="cancelBlackjackTable()" aria-label="Back to Blackjack Dashboard">Cancel</button>
       <div class="lobby-logo">Vurg<span>Life</span></div>
-      <div class="lobby-title">♠ BLACKJACK ♠</div>
-      <div class="lobby-sub">Min $100 · Max $500 per hand · $2,500 starting wallet</div>
+      <div class="lobby-title">&spades; BLACKJACK &spades;</div>
+      <div class="lobby-sub">Standard Table - Fixed $100 main bet - $100 Tie Bet optional</div>
+      <div class="lobby-tier-strip" aria-label="Selected Blackjack table">
+        <div class="tier-chip"><span>Tier</span><strong id="lobby-tier-name">Standard</strong></div>
+        <div class="tier-chip"><span>Main Bet</span><strong id="lobby-fixed-bet">$100</strong></div>
+        <div class="tier-chip"><span>Tie Bet</span><strong id="lobby-tie-bet">$100</strong></div>
+      </div>
+      <div class="tier-metric-grid">
+        <div class="tier-metric"><span>Tie Bonus</span><strong id="lobby-tie-payout">$2,000</strong></div>
+        <div class="tier-metric"><span>Wallet</span><strong id="lobby-wallet-size">$2,500</strong></div>
+        <div class="tier-metric"><span>Multiplayer</span><strong>Global Room</strong></div>
+      </div>
       <div class="lobby-modes">
         <div class="mode-card" onclick="chooseLobby('multi')">
-          <div class="mode-icon">👥</div>
+          <div class="mode-icon">MP</div>
           <div class="mode-name">Multiplayer</div>
-          <div class="mode-desc">Create a table, invite friends and wait for them to join. Up to 6 players. 5-minute invite window.</div>
-          <button class="mode-btn">PLAY MULTIPLAYER →</button>
+          <div class="mode-desc">Join the public global table for this tier. First seated player hosts; later players enter as guests while seats are open.</div>
+          <button class="mode-btn">PLAY MULTIPLAYER -></button>
         </div>
         <div class="mode-card" onclick="chooseLobby('single')">
-          <div class="mode-icon">🃏</div>
+          <div class="mode-icon">SP</div>
           <div class="mode-name">Single Player</div>
-          <div class="mode-desc">Your private table. Starts immediately. Add bots from empty seats.</div>
-          <button class="mode-btn secondary">PLAY SINGLE →</button>
+          <div class="mode-desc">Private fixed-bet table. Starts after the ad. Add bots from empty seats after you enter.</div>
+          <button class="mode-btn secondary">PLAY SINGLE PLAYER -></button>
         </div>
       </div>
     </div>
@@ -268,7 +279,7 @@
         </div>
       </div>
 
-      <!-- ── VIP TIE BET PROMPT — 5s YES/NO decision at start of each round ── -->
+      <!-- ── TIE BET PROMPT — 5s YES/NO decision at start of each round ── -->
       <div id="tie-bet-overlay" style="display:none;position:absolute;inset:0;z-index:55;background:rgba(2,8,16,.82);backdrop-filter:blur(3px);border-radius:inherit;flex-direction:column;align-items:center;justify-content:center;gap:12px">
         <div style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#7a9ac0">Round <span id="tie-round-label">—</span></div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,5vw,44px);letter-spacing:4px;color:#c9a84c;text-shadow:0 0 24px rgba(201,168,76,.55);line-height:1">Place Tie Bet?</div>
@@ -320,7 +331,7 @@
     </div>
     <!-- Freeze button — always visible, centred below all action panels -->
     <div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:6px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.04)">
-      <button id="btn-freeze-bar" class="freeze-btn-bar" onclick="toggleFreeze()">🔒 Freeze Bet</button>
+      <button id="btn-freeze-bar" class="freeze-btn-bar" onclick="toggleFreeze()">Freeze Tie Bet</button>
       <span id="seat-freeze-indicator" class="freeze-indicator" style="display:none"></span>
     </div>
   </div>
@@ -347,7 +358,7 @@
 </div>
 
 <script src="vl-card.js?v=3"></script>
-<script src="game.js?v=8"></script>
+<script src="game.js?v=9"></script>
 
 <!-- ═══════════ IGM BUTTON ═══════════ -->
 <button id="ingame-menu-btn" onclick="toggleIngameMenu()" style="display:none;position:fixed;top:8px;right:10px;z-index:500;background:rgba(8,15,30,.9);border:1px solid #1a2d50;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700;letter-spacing:1px;font-family:'Rajdhani',sans-serif;color:#f0f6ff;backdrop-filter:blur(6px);align-items:center;gap:7px;text-transform:uppercase;box-shadow:0 4px 16px rgba(0,0,0,.5)">☰ MENU</button>

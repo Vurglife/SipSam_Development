@@ -15,9 +15,9 @@ const GAME_SERVER_SECRET = process.env.GAME_SERVER_SECRET || 'vurglife_local_gam
 const TABLE_CONFIG = require('../../../shared/sipsam-tables.js');
 
 // ── BLACKJACK TABLE CONFIG ──────────────────────────────────────────────
-// Standard table: flexible bets. VIP tiers: fixed bets with flat payouts.
+// Blackjack tables use fixed main bets. Optional wager is Tie Bet only.
 const BJ_TABLE_CONFIG = {
-    100:   { minBet:100,   maxBet:500,   walletSize:2500,    minBank:2500,    tieBet:100,  tieBetPayout:2000,   blackjackPayout:null,   label:'standard' },
+    100:   { minBet:100,   maxBet:100,   walletSize:2500,    minBank:2500,    tieBet:100,  tieBetPayout:2000,   blackjackPayout:null,   label:'standard' },
     1000:  { minBet:1000,  maxBet:1000,  walletSize:30000,   minBank:50000,   tieBet:500,  tieBetPayout:10000,  blackjackPayout:5000,   label:'vip' },
     5000:  { minBet:5000,  maxBet:5000,  walletSize:120000,  minBank:150000,  tieBet:1000, tieBetPayout:30000,  blackjackPayout:15000,  label:'vip' },
     10000: { minBet:10000, maxBet:10000, walletSize:240000,  minBank:300000,  tieBet:2000, tieBetPayout:75000,  blackjackPayout:30000,  label:'vip' },
