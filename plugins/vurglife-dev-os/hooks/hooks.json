@@ -1,0 +1,19 @@
+{
+  "description": "VurgLife validation hooks for Claude Code.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/bin/ship-gate.js"
+            ],
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -52,6 +52,9 @@ npm start
   (this `cp` is allow-listed in `.claude/settings.json`).
 - The db file is deny-listed for Edit/Write — mutate only through the API/DB
   layer or sqlite, never by editing the file.
+- Read-only analysis MCP: `.mcp.json` registers `vurglife-sqlite-readonly`,
+  implemented at `.claude/mcp/sqlite-readonly-server.js`. It loads the DB
+  into memory with `sql.js`, caps results, and rejects write SQL.
 - Test accounts: `Vurg`, `Vurglife`.
 
 ---
@@ -130,6 +133,9 @@ changes, bump the query string in the client HTML so browsers refetch:
 
 ## 7. Specialized sub-agents (use proactively — they don't cost main-thread tokens)
 
+- Reusable plugin package: `.claude-plugin/marketplace.json` exposes
+  `plugins/vurglife-dev-os` for these agents/skills/hooks plus the read-only
+  SQLite MCP server.
 - `wallet-security-reviewer` — any bank/wallet/refund/session/txn change.
 - `game-rules-validator` — SipSam payouts, specials, banker logic, round flow.
 - `frontend-reviewer` — UI/layout/responsive/overlay/mobile.

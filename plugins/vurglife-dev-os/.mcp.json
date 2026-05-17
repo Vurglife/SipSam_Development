@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "vurglife-sqlite-readonly": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "node",
+        "${CLAUDE_PLUGIN_ROOT}/bin/sqlite-readonly-server.js"
+      ],
+      "env": {
+        "VURGLIFE_SQLITE_DB": "vurglife-platform/data/vurglife.db",
+        "SQLITE_MCP_ROW_LIMIT": "100"
+      }
+    }
+  }
+}

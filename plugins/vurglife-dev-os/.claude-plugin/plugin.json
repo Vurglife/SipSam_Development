@@ -1,0 +1,18 @@
+{
+  "name": "vurglife-dev-os",
+  "description": "VurgLife/PokerProject Claude Code operating system for validated game development, data analysis, project memory, and wallet-safe changes.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Mitstar"
+  },
+  "license": "UNLICENSED",
+  "keywords": [
+    "claude-code",
+    "vurg-life",
+    "games",
+    "sqlite",
+    "validation",
+    "project-memory",
+    "wallet-safety"
+  ]
+}

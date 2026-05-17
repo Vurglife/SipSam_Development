@@ -40,6 +40,8 @@ top of it.
   once, capped at table walletSize.
 - Never edit the SQLite db file directly (deny-listed). Mutate only via
   the DB layer / API. Snapshot before risky DB work (`/db-snapshot`).
+- For DB analysis, use the MCP server `vurglife-sqlite-readonly`; it loads
+  `vurglife.db` into memory and rejects write SQL.
 
 ## Token economy
 - Use subagents for exploration / review / analysis — their context is

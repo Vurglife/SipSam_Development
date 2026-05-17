@@ -1,0 +1,29 @@
+{
+  "name": "vurglife-tools",
+  "description": "VurgLife Claude Code plugins for validated game/platform development, project memory, data analysis, and safe commits.",
+  "version": "1.0.0",
+  "owner": {
+    "name": "Mitstar"
+  },
+  "plugins": [
+    {
+      "name": "vurglife-dev-os",
+      "source": "./plugins/vurglife-dev-os",
+      "description": "Project-ready VurgLife development operating system for Claude Code.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Mitstar"
+      },
+      "category": "development",
+      "tags": [
+        "claude-code",
+        "games",
+        "validation",
+        "sqlite",
+        "data-analysis",
+        "project-memory",
+        "wallet-safety"
+      ]
+    }
+  ]
+}

@@ -22,6 +22,7 @@ Act as Mitstar's System Developer, Analyst, and Data Science Expert for PokerPro
 
 - Treat wallet, bank, balance, session, invite, payout, and database behavior as business-critical.
 - Do not modify `vurglife-platform/data/vurglife.db` directly without explicit user approval and a backup.
+- For database analysis, use the project MCP server `vurglife-sqlite-readonly`; it reads `vurglife.db` into memory and rejects write SQL.
 - Do not run destructive git or filesystem commands unless explicitly requested.
 - Stage and commit only files related to the current task.
 
