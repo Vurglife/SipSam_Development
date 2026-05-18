@@ -55,32 +55,30 @@ function cleanupRoom(roomId) {
 function quickJoinForTier(requestedRoomId, wantedRounds) {
     const m = String(requestedRoomId || '').match(/^sipsam_(\d+)(?:_|$)/);
     if (!m) return requestedRoomId; // not a tier hint — pass through (invite flow)
-    const minBet  = Number(m[1]);
-    const rounds  = Number(wantedRounds) || 0;
+    const minBet = Number(m[1]);
+    const rounds = Number(wantedRounds) || 0;
     const candidates = [];
+
+    // Public quick-join is intentionally strict: players only enter an
+    // already-started table when tier and selected round count match exactly,
+    // and a bot seat can be replaced. Waiting lobbies remain invite/private
+    // flow territory; otherwise create a new public room for this selection.
     for (const [rid, room] of Object.entries(rooms)) {
         const gs = room.gameState;
         if (!gs || gs.completed) continue;
+        if (gs.status === 'waiting' || gs.status === 'gameOver') continue;
         if (Number(gs.tableKey || gs.tableMinBet) !== minBet) continue;
-        const players       = Object.values(gs.players || {});
-        const humans        = players.filter(p => !p.isBot && !p.isGhostBot).length;
-        const openSeats     = Math.max(0, 4 - players.length);
+        if (!rounds || Number(gs.maxRounds) !== rounds) continue;
+
+        // Don't allow joining on the final round; the game is effectively over.
+        if (Number(gs.round) >= rounds) continue;
+
+        const players = Object.values(gs.players || {});
+        const humans = players.filter(p => !p.isBot && !p.isGhostBot).length;
         const replaceableBot = players.some(p => p.isBot && !p.isGhostBot && !p.isBanker);
-        const roomRounds    = Number(gs.maxRounds) || 0;
-        const roundsMatch   = (!rounds || !roomRounds || roomRounds === rounds);
-        if (gs.status === 'waiting') {
-            if (gs.isPrivate) continue;          // invite-only lobby
-            if (openSeats <= 0) continue;
-            if (!roundsMatch) continue;
-            candidates.push({ rid, score: 100 + humans, kind: 'waiting' });
-        } else if (gs.status !== 'gameOver') {
-            // In-progress: betting / dealing / arranging / revealing / roundEnd / playing
-            if (!roundsMatch) continue;
-            if (!replaceableBot) continue;
-            // Don't allow joining on the FINAL round — game is essentially over.
-            if (gs.round && roomRounds && gs.round >= roomRounds) continue;
-            candidates.push({ rid, score: 50 + humans, kind: 'in-progress' });
-        }
+        if (!replaceableBot) continue;
+
+        candidates.push({ rid, score: (humans * 10) + (Number(gs.round) || 0), kind: 'in-progress' });
     }
     if (candidates.length) {
         candidates.sort((a,b) => b.score - a.score);

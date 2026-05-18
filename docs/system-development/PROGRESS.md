@@ -1,14 +1,16 @@
 # Progress
 
-## Current State - 2026-05-17
+## Current State - 2026-05-18
 
 - Active repo: `G:\SipSam\PokerProject`
 - Active branch: `master`
-- Recent anchors: `c2ad147 Blackjack: horizontal player hand, freeze tie bets, guest lobby roles`; `119d815 Add current progress handoff for Claude sessions`; `ce8146a Require manual daily bonus claims`; `a6ea242 Fix Celestial table config and wallet session accounting`
+- Recent anchors: `2a56050 Implement Blackjack fixed tier tables`; `6e0d252 Add tier explainer to rewards dashboard`; `119d815 Add current progress handoff for Claude sessions`; `ce8146a Require manual daily bonus claims`; `a6ea242 Fix Celestial table config and wallet session accounting`
 - Platform run command: `cd G:\SipSam\PokerProject\vurglife-platform && npm start`
 
 ## Completed Recently
 
+- SipSam public quick-join now matches active rooms only when table tier and selected round count match exactly and a non-banker bot can be replaced.
+- SipSam public quick-join no longer drops strangers into waiting lobbies; no matching active table with a replaceable bot creates a new room.
 - Added manual daily bonus claiming in `vurglife-platform/server/routes/auth.js`.
 - Dashboard now shows an `Accept Bonus` control in `vurglife-platform/client/public/index.html`.
 - Daily bonus message after claim: `Come back tomorrow so you do not miss your next Bonus.`
@@ -22,6 +24,8 @@
 
 ## Validation Already Run
 
+- `node --check poker-server/index.js`
+- Direct extracted `quickJoinForTier` checks for exact tier/round matching, wrong-round rejection, no-bot rejection, waiting-lobby rejection, and final-round rejection.
 - `node --check vurglife-platform/server/routes/auth.js`
 - `node --check` for changed wallet/Celestial JS files in the previous commit.
 - Dashboard HTML script parse via `vm.Script`.
