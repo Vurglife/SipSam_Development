@@ -24,7 +24,6 @@ let tableMinBet     = 100;
 let tableMaxBet     = 500;
 let tieBetMin       = 50;
 let tieBetMax       = 100;
-let selectedTransferTarget = null;
 let authToken = null;
 let tableConfig = null;
 let _lobbyFriends = null;
@@ -331,7 +330,8 @@ async function connectAndStart() {
             tableMinBet: selectedMinBet,
             maxRounds: selectedRounds,
             wallet: tableConfig?.wallet || 5000,
-            mode: gameMode
+            mode: gameMode,
+            token: rhumToken()   // server-authoritative wallet ops (replenish)
         });
         console.log('[Rhum32] WebSocket connected, sending startGame');
         showScreen('screen-game');
@@ -490,119 +490,301 @@ async function sendLobbyInvite() {
 // ============================================
 // IN-GAME MENU
 // ============================================
-function toggleGameMenu() {
-    const menu = document.getElementById('game-menu');
-    menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+// SipSam-style slide-in accordion. One section expanded at a time.
+let igmOpen = false, igmActiveSub = null, igmSelectedPlayer = null;
+let igmBank = 0, _igmFriends = [], _igmInvited = new Set();
+
+function _fmt(n) { return '$' + (Number(n) || 0).toLocaleString(); }
+function _igmWallet() {
+    const me = lastState && mySessionId ? lastState.players?.[mySessionId] : null;
+    return (me && typeof me.wallet === 'number') ? me.wallet : (Number(tableConfig?.wallet) || 0);
 }
 
-function showInviteOverlay() {
-    document.getElementById('game-menu').style.display = 'none';
-    document.getElementById('invite-overlay').style.display = 'flex';
-    loadFriendsList();
+function toggleIngameMenu() { igmOpen ? closeIngameMenu() : openIngameMenu(); }
+
+function openIngameMenu() {
+    igmOpen = true;
+    const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    set('igm-username', myUsername || '—');
+    set('igm-avatar', (myUsername || '?')[0].toUpperCase());
+    set('igm-table-label', '♣ Rhum32 — $' + ((selectedMinBet || tableMinBet) || 0).toLocaleString() + ' Table');
+    set('igm-send-desc', 'Max ' + _fmt(tableMaxBet || tableConfig?.maxBet || 0) + ' per transfer');
+    set('igm-rep-desc', 'Draw up to ' + _fmt(tableConfig?.wallet || 0) + ' from bank');
+    const token = rhumToken();
+    if (token) {
+        fetch('/api/game/balance', { headers: { 'Authorization': 'Bearer ' + token } })
+            .then(r => r.json())
+            .then(d => { if (d && d.ok && d.user) igmBank = d.user.bankBalance ?? d.user.bank_balance ?? igmBank; syncWalletDisplay(); })
+            .catch(() => syncWalletDisplay());
+    } else syncWalletDisplay();
+    document.getElementById('igm-panel').style.transform = 'translateX(0)';
+    document.getElementById('igm-overlay').style.display = 'block';
 }
 
-async function loadFriendsList() {
-    const container = document.getElementById('invite-friends-list');
-    if (!container) return;
-    container.innerHTML = '<div style="color:#7ac08a;font-size:12px;padding:8px">Loading...</div>';
-    const friends = await getLobbyFriends();
-    container.innerHTML = '';
-    if (!friends.length) {
-        container.innerHTML = '<div style="color:#666;font-size:12px;padding:8px">No friends yet.</div>';
+function closeIngameMenu() {
+    igmOpen = false;
+    igmBack();
+    document.getElementById('igm-panel').style.transform = 'translateX(100%)';
+    document.getElementById('igm-overlay').style.display = 'none';
+}
+
+function igmOverlayClick() { closeIngameMenu(); }
+
+function igmBack() {
+    document.querySelectorAll('.igm-sec.expanded').forEach(s => s.classList.remove('expanded'));
+    igmActiveSub = null; igmSelectedPlayer = null;
+}
+
+function syncWalletDisplay() {
+    const w = _igmWallet();
+    const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    set('igm-wallet', 'Wallet: ' + _fmt(w));
+    set('igm-bank', _fmt(igmBank));
+    set('rep-cur-wallet', _fmt(w));
+    set('rep-cur-bank', _fmt(igmBank));
+    const limit = Number(tableConfig?.wallet) || 0;
+    set('rep-limit', _fmt(limit));
+    set('rep-max', _fmt(Math.min(igmBank, Math.max(0, limit - w))));
+}
+
+// ── ACCORDION ──────────────────────────────────────────────
+function igmExpand(key) {
+    const sec = document.querySelector('.igm-sec[data-key="' + key + '"]');
+    if (!sec) return;
+    const wasOpen = sec.classList.contains('expanded');
+    document.querySelectorAll('.igm-sec.expanded').forEach(s => s.classList.remove('expanded'));
+    igmActiveSub = null; igmSelectedPlayer = null;
+    if (wasOpen) return;
+    sec.classList.add('expanded');
+    igmActiveSub = key;
+    if (key === 'invite')    _igmPopulateInvite();
+    if (key === 'replenish') syncWalletDisplay();
+    if (key === 'request')   _igmPopulateRequest();
+    if (key === 'send')      _igmPopulateSend();
+    setTimeout(() => sec.scrollIntoView({ block: 'start', behavior: 'smooth' }), 50);
+}
+
+// ── INVITE ─────────────────────────────────────────────────
+async function _igmLoadFriends() {
+    const token = rhumToken();
+    if (!token) { _igmFriends = []; return; }
+    try {
+        const r = await fetch('/api/friends', { headers: { 'Authorization': 'Bearer ' + token } });
+        const d = await r.json();
+        _igmFriends = (d && d.friends) || [];
+    } catch (e) { _igmFriends = []; }
+}
+function _igmSeated() {
+    const out = new Set();
+    Object.values(lastState?.players || {}).forEach(p => { if (p && p.username) out.add(String(p.username).toLowerCase()); });
+    return out;
+}
+function _igmPopulateInvite() {
+    const input = document.getElementById('igm-invite-input');
+    const msg = document.getElementById('igm-invite-msg');
+    if (input) input.value = '';
+    if (msg) msg.textContent = '';
+    _igmLoadFriends().then(() => igmInviteRender(''));
+    setTimeout(() => { if (input) input.focus(); }, 80);
+}
+function igmInviteOnFocus() { igmInviteRender(document.getElementById('igm-invite-input')?.value || ''); }
+function igmInviteOnInput(v) { igmInviteRender(v || ''); }
+function igmInviteEnter() {
+    const first = document.getElementById('igm-invite-list')?.querySelector('[data-friend]');
+    if (first) first.click();
+}
+function igmInviteRender(query) {
+    const list = document.getElementById('igm-invite-list');
+    if (!list) return;
+    const seated = _igmSeated();
+    const q = (query || '').trim().toLowerCase();
+    const cands = _igmFriends.filter(f => {
+        const n = String(f.username || '').toLowerCase();
+        if (!n || seated.has(n) || _igmInvited.has(n)) return false;
+        if (q && !n.includes(q)) return false;
+        return true;
+    });
+    if (!cands.length) {
+        list.innerHTML = '<div style="padding:14px;font-size:13px;color:#7ac08a;text-align:center">' +
+            (q ? 'No matching friends available.' : (_igmFriends.length ? 'No friends available to invite.' : 'No friends yet. Add some from the dashboard.')) + '</div>';
         return;
     }
-    friends.forEach(f => {
-        const div = document.createElement('div');
-        div.className = 'friend-invite-item';
-        div.innerHTML = `<span class="fi-name">${escapeHtml(f.username)}</span>
-            <button class="btn-sm" onclick="inviteFriendToGame('${escapeHtml(f.username)}')">Invite</button>`;
-        container.appendChild(div);
-    });
+    list.innerHTML = cands.map(f => {
+        const name = String(f.username || '');
+        const safe = escapeHtml(name);
+        const init = (name[0] || '?').toUpperCase();
+        return '<div data-friend="' + safe + '" onclick="igmDoInvite(\'' + safe.replace(/'/g, "\\'") + '\')" ' +
+            'style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;cursor:pointer" ' +
+            'onmouseover="this.style.background=\'rgba(76,175,80,.1)\'" onmouseout="this.style.background=\'\'">' +
+            '<div style="width:28px;height:28px;border-radius:50%;background:#0d2a18;border:1px solid #1a4a2e;display:flex;align-items:center;justify-content:center;color:#4caf50;font-weight:700;font-size:12px">' + init + '</div>' +
+            '<div style="flex:1;font-size:13px;color:#f0fff0;font-weight:600">' + safe + '</div>' +
+            '<span style="font-size:11px;color:#4caf50">Invite ›</span></div>';
+    }).join('');
 }
-
-async function inviteFriendToGame(username) {
+async function igmDoInvite(username) {
+    if (!username) return;
+    const msg = document.getElementById('igm-invite-msg');
+    if (msg) { msg.textContent = 'Sending invite to ' + username + '…'; msg.style.color = '#7ac08a'; }
+    const token = rhumToken();
+    if (!token) { if (msg) { msg.textContent = '⚠️ Not authenticated.'; msg.style.color = '#fca5a5'; } return; }
     try {
         const res = await fetch('/api/friends/invite', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + rhumToken() },
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
             body: JSON.stringify({
                 toUsername: username, game: 'rhum32', roomId: currentRoomId,
                 tableMinBet: selectedMinBet || tableMinBet,
-                tableConfig: { minBet: selectedMinBet, maxBet: tableMaxBet, wallet: tableConfig?.wallet || 0, roomId: currentRoomId }
+                tableConfig: {
+                    minBet: selectedMinBet || tableMinBet, maxBet: tableMaxBet,
+                    wallet: tableConfig?.wallet || 0, minBank: tableConfig?.minBank || 0,
+                    rounds: selectedRounds || 10, roomId: currentRoomId
+                }
             })
         });
         const data = await res.json();
-        if (data.ok || data.success) showSpeechBubble('system', 'System', 'Invite sent to ' + username, mySessionId);
-        else showSpeechBubble('system', 'System', data.error || 'Invite failed', mySessionId);
-    } catch(e) { showSpeechBubble('system', 'System', 'Could not send invite', mySessionId); }
-    document.getElementById('invite-overlay').style.display = 'none';
+        if (data.ok || data.success) {
+            _igmInvited.add(username.toLowerCase());
+            if (msg) { msg.textContent = '✅ Invite sent to ' + username + '.'; msg.style.color = '#4caf50'; }
+            igmInviteRender(document.getElementById('igm-invite-input')?.value || '');
+        } else {
+            if (msg) { msg.textContent = '❌ ' + (data.error || 'Failed to send invite.'); msg.style.color = '#fca5a5'; }
+        }
+    } catch (e) {
+        if (msg) { msg.textContent = '⚠️ Network error.'; msg.style.color = '#fca5a5'; }
+    }
 }
 
-function showChipTransfer() {
-    document.getElementById('game-menu').style.display = 'none';
-    document.getElementById('chip-transfer-overlay').style.display = 'flex';
-    renderTransferPlayers();
+// ── PLAYER LIST (request / send) ────────────────────────────
+function getActivePlayers() {
+    try {
+        const ps = lastState?.players;
+        if (!ps) return [];
+        const out = [];
+        Object.entries(ps).forEach(([sid, p]) => {
+            if (sid === mySessionId || p.disqualified) return;
+            out.push({ sid, name: p.username, wallet: p.wallet || 0 });
+        });
+        return out;
+    } catch (e) { return []; }
 }
-
-function renderTransferPlayers() {
-    const container = document.getElementById('transfer-players-list');
-    container.innerHTML = '';
-    if (!lastState || !lastState.players) return;
-    Object.entries(lastState.players).forEach(([sid, p]) => {
-        if (sid === mySessionId) return;
-        const div = document.createElement('div');
-        div.className = 'transfer-player-item' + (selectedTransferTarget === sid ? ' selected' : '');
-        div.textContent = p.username;
-        div.onclick = () => { selectedTransferTarget = sid; renderTransferPlayers(); };
-        container.appendChild(div);
-    });
-}
-
-function doSendChips() {
-    if (!selectedTransferTarget || !ws) return;
-    const amount = parseInt(document.getElementById('transfer-amount').value) || 0;
-    if (amount <= 0) return;
-    ws.send(JSON.stringify({ type: 'sendChips', targetSessionId: selectedTransferTarget, amount }));
-    document.getElementById('chip-transfer-overlay').style.display = 'none';
-}
-
-function doRequestChips() {
-    if (!selectedTransferTarget || !ws) return;
-    const amount = parseInt(document.getElementById('transfer-amount').value) || 0;
-    ws.send(JSON.stringify({ type: 'requestChips', targetSessionId: selectedTransferTarget, amount }));
-    document.getElementById('chip-transfer-overlay').style.display = 'none';
-}
-
-function replenishWallet() {
-    document.getElementById('game-menu').style.display = 'none';
-    const walletLimit = tableConfig?.wallet || 25000;
-    const me = lastState?.players?.[mySessionId];
-    const currentWallet = me?.wallet || 0;
-    const space = walletLimit - currentWallet;
-    if (space <= 0) {
-        showSpeechBubble('system', 'System', 'Wallet is already at the limit.', mySessionId);
+function populatePlayerList(containerId) {
+    const c = document.getElementById(containerId);
+    if (!c) return;
+    c.innerHTML = '';
+    const players = getActivePlayers();
+    if (!players.length) {
+        c.innerHTML = '<div style="color:#7ac08a;font-size:13px;text-align:center;padding:12px">No other players at this table.</div>';
         return;
     }
-    const amount = Math.min(space, walletLimit);
-    // Call platform API to draw from bank. game:'rhum32' so the server uses
-    // RHUM32_TABLE_CONFIG (without it the wallet limit is computed from the
-    // SipSam table config and the top-up is wrong).
-    fetch('/api/game/replenish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + rhumToken() },
-        body: JSON.stringify({ game: 'rhum32', tableMinBet: selectedMinBet, currentWallet, amount })
-    }).then(r => r.json()).then(data => {
-        if (data.ok) {
-            const added = data.topUp || amount;
-            // Tell game server to add chips
-            if (ws) ws.send(JSON.stringify({ type: 'replenishWallet', amount: added }));
-            showSpeechBubble('system', 'System', 'Wallet replenished: +$' + added.toLocaleString(), mySessionId);
-        } else {
-            showSpeechBubble('system', 'System', data.error || 'Replenish failed.', mySessionId);
-        }
-    }).catch(() => {
-        showSpeechBubble('system', 'System', 'Could not reach server.', mySessionId);
+    players.forEach(p => {
+        const b = document.createElement('div');
+        b.className = 'player-select-btn';
+        b.innerHTML = '<span style="font-size:18px">\u{1F464}</span>' +
+            '<div style="flex:1"><div style="font-weight:700;font-size:13px;color:#f0fff0">' + escapeHtml(p.name) + '</div>' +
+            '<div style="font-size:11px;color:#7ac08a">Player · $' + (p.wallet || 0).toLocaleString() + '</div></div>';
+        b.dataset.sid = p.sid;
+        b.dataset.username = p.name;
+        b.onclick = () => {
+            c.querySelectorAll('.player-select-btn').forEach(x => x.classList.remove('sel'));
+            b.classList.add('sel');
+            igmSelectedPlayer = p;
+        };
+        c.appendChild(b);
     });
+}
+function _igmPopulateRequest() {
+    igmSelectedPlayer = null;
+    populatePlayerList('req-players');
+    const mb = tableMaxBet || tableConfig?.maxBet || 0;
+    const l = document.getElementById('req-amount-label'); if (l) l.textContent = _fmt(mb);
+    const pe = document.getElementById('req-pending'); if (pe) pe.textContent = '';
+}
+function _igmPopulateSend() {
+    igmSelectedPlayer = null;
+    populatePlayerList('send-players');
+    const mb = tableMaxBet || tableConfig?.maxBet || 0;
+    const sl = document.getElementById('send-limit'); if (sl) sl.textContent = _fmt(mb);
+    const ai = document.getElementById('send-amount-input'); if (ai) ai.value = mb;
+    const notice = document.getElementById('req-notice');
+    const pr = window._pendingChipRequest;
+    if (pr && notice) {
+        notice.style.display = 'block';
+        notice.textContent = '\u{1F4AC} ' + pr.from + ' requested ' + _fmt(pr.amount) + ' — select them below to fulfil.';
+        setTimeout(() => {
+            document.querySelectorAll('#send-players .player-select-btn').forEach(btn => { if (btn.dataset.username === pr.from) btn.click(); });
+        }, 100);
+    } else if (notice) {
+        notice.style.display = 'none';
+    }
+}
+
+// ── REPLENISH (server-authoritative via WS) ─────────────────
+function igmFillMax() {
+    const limit = Number(tableConfig?.wallet) || 0;
+    const i = document.getElementById('rep-amount');
+    if (i) i.value = Math.min(igmBank, Math.max(0, limit - _igmWallet()));
+}
+function doReplenish() {
+    const amtEl = document.getElementById('rep-amount');
+    const errEl = document.getElementById('rep-err');
+    if (errEl) errEl.style.display = 'none';
+    const showErr = t => { if (errEl) { errEl.textContent = t; errEl.style.display = 'block'; } };
+    const amt = Number(amtEl?.value);
+    const limit = Number(tableConfig?.wallet) || 0;
+    const space = limit - _igmWallet();
+    if (!amt || amt <= 0) return showErr('Enter a valid amount.');
+    if (amt > igmBank)    return showErr('Insufficient bank balance (' + _fmt(igmBank) + ').');
+    if (space <= 0)       return showErr('Wallet is already at the limit (' + _fmt(limit) + ').');
+    if (amt > space)      return showErr('Max you can draw is ' + _fmt(space) + '.');
+    if (!ws)              return showErr('Not connected.');
+    ws.send(JSON.stringify({ type: 'replenishWallet', amount: amt }));
+    const btn = document.querySelector('.igm-sec[data-key="replenish"] .igm-action-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Processing...'; }
+}
+function onReplenishResult(msg) {
+    const errEl = document.getElementById('rep-err');
+    const btn = document.querySelector('.igm-sec[data-key="replenish"] .igm-action-btn');
+    if (btn) { btn.disabled = false; btn.innerHTML = '\u{1F4B0} Draw to Wallet'; }
+    if (!msg.ok) { if (errEl) { errEl.textContent = msg.error || 'Replenish failed.'; errEl.style.display = 'block'; } return; }
+    if (typeof msg.newBankBalance === 'number') igmBank = msg.newBankBalance;
+    syncWalletDisplay();
+    showSpeechBubble('system', 'System', 'Wallet replenished: +' + _fmt(msg.added || 0), mySessionId);
+    igmBack();
+}
+
+// ── REQUEST / SEND CHIPS ────────────────────────────────────
+function doRequestChips() {
+    if (!igmSelectedPlayer) { showSpeechBubble('system', 'System', 'Select a player from the list.', mySessionId); return; }
+    if (!ws) return;
+    const amount = tableMaxBet || tableConfig?.maxBet || 0;
+    ws.send(JSON.stringify({ type: 'requestChips', targetSessionId: igmSelectedPlayer.sid, amount }));
+    const pe = document.getElementById('req-pending');
+    if (pe) pe.textContent = '✅ Request sent to ' + igmSelectedPlayer.name + ' for ' + _fmt(amount);
+    igmSelectedPlayer = null;
+    document.querySelectorAll('#req-players .player-select-btn').forEach(b => b.classList.remove('sel'));
+}
+function doSendChips() {
+    const errEl = document.getElementById('send-err');
+    const amtEl = document.getElementById('send-amount-input');
+    if (errEl) errEl.style.display = 'none';
+    const showErr = t => { if (errEl) { errEl.textContent = t; errEl.style.display = 'block'; } };
+    if (!igmSelectedPlayer) { showSpeechBubble('system', 'System', 'Select a recipient first.', mySessionId); return; }
+    const maxBet = tableMaxBet || tableConfig?.maxBet || 0;
+    const amount = amtEl && Number(amtEl.value) > 0 ? Math.min(Number(amtEl.value), maxBet) : maxBet;
+    if (!amount || amount <= 0) return showErr('Enter a valid amount.');
+    if (_igmWallet() < amount)  return showErr('Insufficient wallet (' + _fmt(_igmWallet()) + ').');
+    if (!ws)                    return showErr('Not connected.');
+    ws.send(JSON.stringify({ type: 'sendChips', targetSessionId: igmSelectedPlayer.sid, amount }));
+    window._pendingChipRequest = null;
+    showSpeechBubble('system', 'System', 'Sent ' + _fmt(amount) + ' to ' + igmSelectedPlayer.name, mySessionId);
+    if (typeof SFX !== 'undefined' && SFX.confirm) SFX.confirm();
+    igmBack();
+}
+
+function igmExit() {
+    if (!confirm('Exit game? Your remaining wallet will be returned to your bank.')) return;
+    closeIngameMenu();
+    rhumSettleAndLeave();
 }
 
 async function exitGame() {
@@ -766,7 +948,12 @@ function handleServerMessage(msg) {
             showSpeechBubble('system', 'System', `${msg.from} sent $${msg.amount} to ${msg.to}`, mySessionId);
             break;
         case "chipRequest":
+            // Stash so the Send Chips section can pre-select the requester.
+            window._pendingChipRequest = { from: msg.from, amount: msg.amount };
             showSpeechBubble('system', 'System', `${msg.from} requests $${msg.amount} from you`, mySessionId);
+            break;
+        case "replenishResult":
+            onReplenishResult(msg);
             break;
         case "playerDisqualified":
             showSpeechBubble('system', 'System', `${msg.username}: ${msg.reason}`, mySessionId);

@@ -890,3 +890,57 @@ html, body {
   .mode-cards { flex-direction: column; align-items: center; }
   .mode-card { width: 90vw; }
 }
+
+/* ── IN-GAME MENU (SipSam-style accordion, Rhum32 green theme) ── */
+.igm-head{padding:18px 20px;border-bottom:1px solid #1a4a2e;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#04120a,#0a2e1a);flex-shrink:0}
+.igm-title-bar{font-family:'Cinzel Decorative',serif;font-size:18px;font-weight:800;letter-spacing:.14em;color:#f0fff0;text-transform:uppercase}
+.igm-table-tag{font-size:10px;letter-spacing:2px;color:#4a7a5a;margin-top:2px}
+.igm-close-btn{background:rgba(26,140,56,.1);border:1px solid #1a4a2e;border-radius:8px;padding:8px 13px;cursor:pointer;color:#7ac08a;font-size:18px;line-height:1}
+.igm-close-btn:hover{background:rgba(26,140,56,.2);color:#f0fff0}
+.igm-playerbar{padding:14px 20px;border-bottom:1px solid #1a4a2e;background:rgba(11,28,13,.7);display:flex;align-items:center;gap:12px;flex-shrink:0}
+.igm-avatar{width:40px;height:40px;border-radius:50%;background:#0d2a18;border:2px solid #1a7a3a;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.igm-username{font-weight:700;font-size:15px;color:#f0fff0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.igm-walletline{font-size:12px;color:#c9a84c;font-weight:600}
+.igm-bank-lbl{font-size:10px;color:#4a7a5a;letter-spacing:1px}
+.igm-bank-val{font-weight:700;font-size:14px;color:#e8c96a}
+.igm-list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.igm-sec{border-bottom:1px solid #1a4a2e}
+.igm-row{display:flex;align-items:center;gap:14px;padding:16px 20px;cursor:pointer;transition:background .14s;border-left:3px solid transparent;-webkit-tap-highlight-color:rgba(76,175,80,.15);user-select:none}
+.igm-row:hover{background:rgba(26,140,56,.07);border-left-color:#1a7a3a}
+.igm-row:active{background:rgba(26,140,56,.14)}
+.igm-sec.igm-danger .igm-row:hover{background:rgba(239,68,68,.07);border-left-color:#ef4444}
+.igm-ico{font-size:22px;width:32px;text-align:center;flex-shrink:0}
+.igm-body{flex:1;min-width:0}
+.igm-title{font-weight:700;font-size:14px;margin-bottom:2px;color:#f0fff0}
+.igm-desc{font-size:12px;color:#7ac08a;line-height:1.4}
+.igm-sec.igm-danger .igm-title{color:#fca5a5}
+.igm-chev{color:#4a7a5a;font-size:22px;flex-shrink:0;transition:transform .25s ease;display:inline-block;line-height:1}
+.igm-sec.expanded .igm-chev{transform:rotate(90deg);color:#4caf50}
+.igm-sec.expanded .igm-row{background:rgba(26,140,56,.10);border-left-color:#4caf50}
+.igm-pane{display:none;padding:14px 20px 18px;background:rgba(6,20,11,.5)}
+.igm-sec.expanded .igm-pane{display:block}
+.igm-input{width:100%;background:#0d2a18;border:1px solid #1a4a2e;border-radius:8px;padding:11px 13px;color:#f0fff0;font-family:inherit;font-size:14px;outline:none;box-sizing:border-box}
+.igm-input:focus{border-color:#4caf50}
+.igm-mini-btn{background:#0d2a18;border:1px solid #1a4a2e;border-radius:8px;padding:11px 14px;color:#7ac08a;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.igm-mini-btn:hover{background:#13442a;color:#a8e0b8}
+.igm-label{display:block;font-size:11px;font-weight:700;letter-spacing:2px;color:#7ac08a;text-transform:uppercase;margin-bottom:6px;margin-top:10px}
+.igm-info-card{background:#0d2a18;border:1px solid #1a4a2e;border-radius:10px;padding:14px;margin-bottom:14px}
+.igm-info-row{display:flex;justify-content:space-between;font-size:13px;color:#7ac08a;padding:3px 0}
+.igm-info-row span:last-child{font-weight:700}
+.igm-friends-list{margin-top:8px;max-height:220px;overflow-y:auto;border:1px solid #1a4a2e;border-radius:8px;background:#06140b;padding:4px}
+.igm-player-list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto}
+.igm-rule-h{font-size:11px;font-weight:700;letter-spacing:2px;color:#4caf50;text-transform:uppercase;margin:6px 0 8px}
+.igm-action-btn{width:100%;background:linear-gradient(135deg,#1a7a3a,#2aaa4a);border:none;border-radius:8px;padding:11px;color:#fff;font-family:inherit;font-size:14px;font-weight:700;letter-spacing:1.5px;cursor:pointer;text-transform:uppercase;transition:all .18s}
+.igm-action-btn:hover{background:linear-gradient(135deg,#1e8c45,#33c456);transform:translateY(-1px)}
+.player-select-btn{background:#0d2a18;border:1px solid #1a4a2e;border-radius:7px;padding:10px 13px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:border-color .15s;color:#f0fff0;font-size:13px}
+.player-select-btn:hover{border-color:#4caf50}
+.player-select-btn.sel{border-color:#4caf50;background:rgba(76,175,80,.1)}
+@media (max-width:600px){
+  .igm-row{padding:18px 18px}
+  .igm-title{font-size:15px}
+  .igm-desc{font-size:13px}
+  .igm-pane{padding:14px 18px 20px}
+  .igm-input{padding:13px 14px;font-size:15px}
+  .igm-mini-btn{padding:13px 16px;font-size:13px}
+  .igm-action-btn{padding:14px;font-size:15px}
+}

@@ -9,6 +9,8 @@
 
 ## Completed Recently
 
+- Rhum32 in-game menu ported to SipSam's slide-in accordion (`#igm-overlay`/`#igm-panel`): header + player/wallet/bank bar + sections Invite / Replenish / Request / Send / Payouts / Rules / Exit, recoloured to Rhum32 green/gold. Old 3-overlay menu removed. Payouts & Rules content is Rhum32-accurate (sourced from `rhum32-server/logic.js`: A–5 100:1/$75k … 18–31 Normal 1:1; 47–50 face specials; tie 20:1; zero rules). `game.js` gained the `igm*` family wired to Rhum32 `lastState`/`sessionId`/WS fields.
+- Rhum32 replenish is now server-authoritative (mirrors SipSam): client sends WS `replenishWallet`; `Rhum32Room._onReplenishWallet` calls the platform `/api/game/replenish` with the player's token (threaded client→matchmake→session→`player.token`) and credits `player.wallet += topUp`, replies `replenishResult`. `getPublicState` strips `player.token` so the JWT never broadcasts. Reviewed by `wallet-security-reviewer` — verdict safe (bank↔wallet conserved, no double-deduction, token server-only).
 - Rhum32 wallet→bank money path fixed end-to-end. Root cause: `enterRhum32Table()` in `vurglife-platform/client/public/index.html` bypassed the shared pregame-ad → `confirmEnter()` flow, so `/api/game/rhum32/enter` never ran — the bank was never drawn and no wallet session existed, so exit credited nothing. `enterRhum32Table` now mirrors SipSam's `enterTable` (sets `pendingTable`/`pendingGameType='rhum32'`, calls `runAd('pregame')`); `confirmEnter` already handled the rhum32 enter endpoint + redirect. Reviewed by `wallet-security-reviewer` (blocker identified there, then fixed).
 - Rhum32 exit now mirrors SipSam: `rhumSettleAndLeave()` always POSTs `/api/game/rhum32/exit` (dedicated endpoint, not generic), computes remaining wallet (live game wallet, or full walletSize pre-game so the lobby Back button doesn't burn the draw), then navigates to `/` (was `/#rhum32`, which caused the logout-to-landing bug). Added a `beforeunload` `sendBeacon` to `/api/game/rhum32/exit-beacon`.
 - Rhum32 friends list / invites / replenish now use one `rhumToken()` resolver (global authToken → sessionStorage fallback, like SipSam's `igmToken`); replenish now sends `game:'rhum32'` so the server uses `RHUM32_TABLE_CONFIG` and reads `data.topUp`.
@@ -42,6 +44,7 @@
 
 ## Not Yet Live-Tested
 
+- Rhum32 in-game menu in a live game: open/close slide panel, each accordion section, invite a friend, replenish (WS round-trip + bank/wallet update), send/request chips, exit. Snapshot DB first (replenish/send move money).
 - Rhum32 full money loop with a real account: enter ($X drawn from bank via pregame ad), play, exit (remaining returned); pre-game lobby Back returns full walletSize; tab-close beacon. Snapshot `vurglife-platform/data/vurglife.db` first.
 - Rhum32 exit returns to dashboard still logged in (no landing-page re-login).
 - Rhum32 friends list populates in lobby + in-game invite.
@@ -72,8 +75,8 @@ Known unrelated dirty examples observed on 2026-05-17:
 
 ## Next Suggested Work
 
-1. Port SipSam's in-game menu (`#igm-overlay`/`#igm-panel` accordion + `.igm-*` CSS + igm* JS) into Rhum32 with the green theme — currently a basic 4-button overlay (recovery-doc ask: "in-game menu should look like SipSam and function exactly the same"). Deferred from the money-path batch as a larger separate change.
-2. Live-test Rhum32 full money loop + round 2+ Push/Bet + layout (snapshot DB first).
+1. Live-test Rhum32 end-to-end (snapshot DB first): full money loop, round 2+ Push/Bet, seat/card layout at 375px + desktop, the new in-game menu (all sections, replenish WS round-trip, send/request, exit).
+2. Remaining recovery-doc Rhum32 items if still open after live test: exit-logout edge cases, friends list in production.
 3. Start platform and live-test manual daily bonus claim with a copied test DB or after a DB snapshot.
 4. Live-test Celestial table entry and exit math with a test account.
 

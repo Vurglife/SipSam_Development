@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rhum32 — VURGLife</title>
-  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 
@@ -172,44 +172,182 @@
         <span class="timer" id="game-timer">--</span>
       </div>
     </div>
-    <button class="btn-sm top-btn" onclick="toggleGameMenu()">Menu</button>
+    <button class="btn-sm top-btn" onclick="toggleIngameMenu()">Menu</button>
   </div>
   <div class="status-bar" id="table-message"></div>
 
-  <!-- IN-GAME MENU OVERLAY -->
-  <div id="game-menu" class="game-menu" style="display:none;">
-    <div class="gm-content">
-      <h3>Game Menu</h3>
-      <button class="btn-secondary gm-btn" onclick="showInviteOverlay()">Invite Friends</button>
-      <button class="btn-secondary gm-btn" onclick="showChipTransfer()">Send/Request Chips</button>
-      <button class="btn-secondary gm-btn" onclick="replenishWallet()">Replenish Wallet</button>
-      <button class="btn-danger gm-btn" onclick="exitGame()">Exit Game</button>
-      <button class="btn-sm" onclick="toggleGameMenu()" style="margin-top:4px">Close</button>
-    </div>
-  </div>
+  <!-- ═══ IN-GAME MENU — SipSam-style accordion (green theme) ═══ -->
+  <div id="igm-overlay" onclick="igmOverlayClick()" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(2,9,4,.6);backdrop-filter:blur(2px)"></div>
 
-  <!-- INVITE OVERLAY -->
-  <div id="invite-overlay" class="game-menu" style="display:none;">
-    <div class="gm-content">
-      <h3>Invite Friends</h3>
-      <div id="invite-friends-list" class="friends-invite-list"></div>
-      <button class="btn-sm" onclick="document.getElementById('invite-overlay').style.display='none'">Close</button>
-    </div>
-  </div>
+  <div id="igm-panel" style="position:fixed;top:0;right:0;bottom:0;width:min(360px,100vw);z-index:700;background:#06140b;border-left:1px solid #1a4a2e;transform:translateX(100%);transition:transform .3s ease;display:flex;flex-direction:column;overflow:hidden;box-shadow:-20px 0 60px rgba(0,0,0,.7)">
 
-  <!-- CHIP TRANSFER OVERLAY -->
-  <div id="chip-transfer-overlay" class="game-menu" style="display:none;">
-    <div class="gm-content">
-      <h3>Chip Transfer</h3>
-      <div id="transfer-players-list"></div>
-      <div class="transfer-row">
-        <input type="number" id="transfer-amount" placeholder="Amount" min="1" class="transfer-input">
-        <button class="btn-secondary" id="btn-send-chips" onclick="doSendChips()">Send</button>
-        <button class="btn-secondary" id="btn-req-chips" onclick="doRequestChips()">Request</button>
+    <div class="igm-head">
+      <div>
+        <div class="igm-title-bar">In-Game Menu</div>
+        <div class="igm-table-tag" id="igm-table-label">&#x2663; Rhum32</div>
       </div>
-      <button class="btn-sm" onclick="document.getElementById('chip-transfer-overlay').style.display='none'" style="margin-top:8px">Close</button>
+      <button onclick="closeIngameMenu()" class="igm-close-btn" aria-label="Close menu">&#x2715;</button>
     </div>
-  </div>
+
+    <div class="igm-playerbar">
+      <div class="igm-avatar" id="igm-avatar">&#x1F464;</div>
+      <div style="flex:1;min-width:0">
+        <div class="igm-username" id="igm-username">&mdash;</div>
+        <div class="igm-walletline" id="igm-wallet">Wallet: $&mdash;</div>
+      </div>
+      <div style="text-align:right">
+        <div class="igm-bank-lbl">BANK</div>
+        <div class="igm-bank-val" id="igm-bank">$&mdash;</div>
+      </div>
+    </div>
+
+    <div class="igm-list">
+
+      <!-- INVITE -->
+      <div class="igm-sec" data-key="invite">
+        <div class="igm-row" onclick="igmExpand('invite')">
+          <div class="igm-ico">&#x1F465;</div>
+          <div class="igm-body"><div class="igm-title">Invite Friend</div><div class="igm-desc">Invite a friend to an open seat</div></div>
+          <span class="igm-chev">&#x203A;</span>
+        </div>
+        <div class="igm-pane">
+          <div style="font-size:12px;color:#7ac08a;line-height:1.4;margin-bottom:8px">Type a friend's name. Friends already at the table are hidden.</div>
+          <input id="igm-invite-input" type="text" placeholder="Type a friend's name&hellip;"
+            oninput="igmInviteOnInput(this.value)" onfocus="igmInviteOnFocus()"
+            onkeydown="if(event.key==='Enter')igmInviteEnter()"
+            autocorrect="off" autocapitalize="none" spellcheck="false" autocomplete="off"
+            class="igm-input">
+          <div id="igm-invite-list" class="igm-friends-list"></div>
+          <div id="igm-invite-msg" style="font-size:12px;min-height:16px;text-align:center;margin-top:6px"></div>
+        </div>
+      </div>
+
+      <!-- REPLENISH -->
+      <div class="igm-sec" data-key="replenish">
+        <div class="igm-row" onclick="igmExpand('replenish')">
+          <div class="igm-ico">&#x1F4B0;</div>
+          <div class="igm-body"><div class="igm-title">Replenish Wallet</div><div class="igm-desc" id="igm-rep-desc">Draw chips from your bank into your wallet</div></div>
+          <span class="igm-chev">&#x203A;</span>
+        </div>
+        <div class="igm-pane">
+          <div class="igm-info-card">
+            <div class="igm-info-row"><span>Current Wallet</span><span id="rep-cur-wallet" style="color:#e8c96a">$&mdash;</span></div>
+            <div class="igm-info-row"><span>Bank Balance</span><span id="rep-cur-bank">$&mdash;</span></div>
+            <div class="igm-info-row"><span>Table Wallet Limit</span><span id="rep-limit" style="color:#7ac08a">$&mdash;</span></div>
+            <div class="igm-info-row" style="border-top:1px solid #1a4a2e;padding-top:8px;margin-top:6px"><span>Max Drawable</span><span id="rep-max" style="color:#4caf50">$&mdash;</span></div>
+          </div>
+          <label class="igm-label">Amount to Draw</label>
+          <div style="display:flex;gap:8px">
+            <input id="rep-amount" type="number" placeholder="Enter amount..." class="igm-input" style="flex:1">
+            <button onclick="igmFillMax()" class="igm-mini-btn">MAX</button>
+          </div>
+          <div id="rep-err" style="font-size:12px;color:#fca5a5;margin-top:6px;display:none"></div>
+          <button class="igm-action-btn" onclick="doReplenish()" style="margin-top:12px">&#x1F4B0; Draw to Wallet</button>
+        </div>
+      </div>
+
+      <!-- REQUEST CHIPS -->
+      <div class="igm-sec" data-key="request">
+        <div class="igm-row" onclick="igmExpand('request')">
+          <div class="igm-ico">&#x1F64F;</div>
+          <div class="igm-body"><div class="igm-title">Request Chips</div><div class="igm-desc">Ask another player to send you chips</div></div>
+          <span class="igm-chev">&#x203A;</span>
+        </div>
+        <div class="igm-pane">
+          <p style="font-size:13px;color:#7ac08a;line-height:1.5;margin:0 0 10px">Request <strong id="req-amount-label" style="color:#c9a84c">$&mdash;</strong> (table max bet) from another player. They get a notification and can choose to send.</p>
+          <div style="font-size:12px;color:#7ac08a;margin-bottom:6px">Select player to request from:</div>
+          <div id="req-players" class="igm-player-list"></div>
+          <div id="req-pending" style="font-size:12px;color:#c9a84c;min-height:16px;margin-top:8px"></div>
+          <button class="igm-action-btn" onclick="doRequestChips()" style="margin-top:8px">&#x1F64F; Send Request</button>
+        </div>
+      </div>
+
+      <!-- SEND CHIPS -->
+      <div class="igm-sec" data-key="send">
+        <div class="igm-row" onclick="igmExpand('send')">
+          <div class="igm-ico">&#x1F4E4;</div>
+          <div class="igm-body"><div class="igm-title">Send Chips</div><div class="igm-desc" id="igm-send-desc">Send up to the table max bet</div></div>
+          <span class="igm-chev">&#x203A;</span>
+        </div>
+        <div class="igm-pane">
+          <p style="font-size:13px;color:#7ac08a;line-height:1.5;margin:0 0 10px">Chips come from your <strong style="color:#f0fff0">wallet</strong>, not your bank.</p>
+          <div id="req-notice" style="font-size:12px;color:#c9a84c;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.2);border-radius:6px;padding:8px;display:none;margin-bottom:8px"></div>
+          <div style="font-size:12px;color:#7ac08a;margin-bottom:6px">Select recipient:</div>
+          <div id="send-players" class="igm-player-list"></div>
+          <label class="igm-label" style="margin-top:10px">Amount (max: <span id="send-limit">$&mdash;</span>)</label>
+          <input id="send-amount-input" type="number" placeholder="Enter amount..." class="igm-input">
+          <div id="send-err" style="font-size:12px;color:#ff6b6b;display:none;margin-top:6px"></div>
+          <button class="igm-action-btn" onclick="doSendChips()" style="margin-top:10px">&#x1F4E4; Send Chips</button>
+        </div>
+      </div>
+
+      <!-- PAYOUTS -->
+      <div class="igm-sec" data-key="payouts">
+        <div class="igm-row" onclick="igmExpand('payouts')">
+          <div class="igm-ico">$</div>
+          <div class="igm-body"><div class="igm-title">Payouts &amp; Specials</div><div class="igm-desc">Back-bet multipliers and bonuses</div></div>
+          <span class="igm-chev">&#x203A;</span>
+        </div>
+        <div class="igm-pane">
+          <div class="igm-rule-h">&#x1F4B0; Base</div>
+          <ul style="padding-left:18px;margin:0 0 12px;font-size:13px;line-height:1.6;color:#cfeccf">
+            <li>Front bet pays <span style="color:#4caf50">1:1</span> on any win</li>
+            <li>Dealer busts (&gt;32) &rarr; front <span style="color:#4caf50">1:1</span> (+ bonus, or 47&ndash;50 back)</li>
+            <li>Tie bet pays <span style="color:#4caf50">20:1</span> (must place it &amp; tie)</li>
+          </ul>
+          <div class="igm-rule-h">&#x2B50; Back-Bet Tiers (by hand value)</div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;color:#cfeccf">
+            <thead><tr style="color:#7ac08a;border-bottom:1px solid #1a4a2e"><th style="text-align:left;padding:5px 6px">HAND</th><th style="text-align:center;padding:5px 6px">BACK</th><th style="text-align:center;padding:5px 6px;color:#e8c96a">BONUS</th></tr></thead>
+            <tbody>
+              <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">A&ndash;5 same suit</td><td style="text-align:center;color:#4caf50">100:1</td><td style="text-align:center;color:#e8c96a">$75,000</td></tr>
+              <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">5-card straight flush</td><td style="text-align:center;color:#4caf50">50:1</td><td style="text-align:center;color:#e8c96a">$30,000</td></tr>
+              <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px">Value 1&ndash;5</td><td style="text-align:center;color:#4caf50">20:1</td><td style="text-align:center;color:#e8c96a">$5,000</td></tr>
+              <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px">Value 6&ndash;7</td><td style="text-align:center;color:#4caf50">4:1</td><td style="text-align:center;color:#e8c96a">$2,500</td></tr>
+              <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px">Value 8&ndash;11</td><td style="text-align:center;color:#4caf50">3:1</td><td style="text-align:center;color:#e8c96a">$1,000</td></tr>
+              <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px">Value 12&ndash;17</td><td style="text-align:center;color:#4caf50">2:1</td><td style="text-align:center">&mdash;</td></tr>
+              <tr><td style="padding:5px 6px">Value 18&ndash;31 (Normal)</td><td style="text-align:center;color:#4caf50">1:1</td><td style="text-align:center">&mdash;</td></tr>
+            </tbody>
+          </table>
+          <div class="igm-rule-h" style="margin-top:12px">&#x1F451; Face Specials (4&ndash;5 face cards, no zero combos)</div>
+          <ul style="padding-left:18px;margin:0;font-size:13px;line-height:1.6;color:#cfeccf">
+            <li>47 (4 face + 7) &rarr; back <span style="color:#4caf50">2:1</span></li>
+            <li>48 (4 face + 8) &rarr; back <span style="color:#4caf50">3:1</span></li>
+            <li>49 (4 face + 9) &rarr; back <span style="color:#4caf50">6:1</span></li>
+            <li>50 (5 face) &rarr; back <span style="color:#4caf50">7:1</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- RULES -->
+      <div class="igm-sec" data-key="rules">
+        <div class="igm-row" onclick="igmExpand('rules')">
+          <div class="igm-ico">&#x1F4D6;</div>
+          <div class="igm-body"><div class="igm-title">Game Rules</div><div class="igm-desc">Objective, card values, round flow</div></div>
+          <span class="igm-chev">&#x203A;</span>
+        </div>
+        <div class="igm-pane">
+          <div class="igm-rule-h">&#x1F3AF; Objective</div>
+          <p style="margin:0 0 12px;font-size:13px;line-height:1.6;color:#cfeccf">Beat the dealer with a hand sum <strong style="color:#f0fff0">lower</strong> than theirs. If the dealer's value crosses <strong>32</strong> they bust and all staying players win their front bet.</p>
+          <div class="igm-rule-h">&#x1F0CF; Card Values</div>
+          <ul style="padding-left:18px;margin:0 0 12px;font-size:13px;line-height:1.6;color:#cfeccf"><li>Ace = 1</li><li>2&ndash;9 = face value</li><li>10, J, Q, K = 10</li></ul>
+          <div class="igm-rule-h">0&#xFE0F;&#x20E3; Zero Rules (cards count as 0)</div>
+          <ul style="padding-left:18px;margin:0 0 12px;font-size:13px;line-height:1.6;color:#cfeccf"><li>3 of a kind</li><li>4 of a kind</li><li>Straight flush of 3+ same suit</li></ul>
+          <div class="igm-rule-h">&#x23F1;&#xFE0F; Round Flow</div>
+          <ul style="padding-left:18px;margin:0;font-size:13px;line-height:1.6;color:#cfeccf"><li>10s &mdash; Front Bet (+ optional Tie Bet)</li><li>4 cards dealt; dealer shows the 4th</li><li>10s &mdash; <strong>Push</strong> (fold, lose front) or <strong>Bet</strong> (back bet = 2&times; front)</li><li>5th card dealt; hands revealed</li></ul>
+        </div>
+      </div>
+
+      <!-- EXIT -->
+      <div class="igm-sec igm-danger" data-key="exit">
+        <div class="igm-row" onclick="igmExit()">
+          <div class="igm-ico">&#x1F6AA;</div>
+          <div class="igm-body"><div class="igm-title">Exit Game</div><div class="igm-desc">Your remaining wallet is returned to your bank</div></div>
+          <span class="igm-chev">&#x203A;</span>
+        </div>
+      </div>
+
+    </div><!-- /igm-list -->
+  </div><!-- /igm-panel -->
 
   <div class="game-body">
     <!-- DEALER at top -->
@@ -330,6 +468,6 @@
   </div>
 </div>
 
-<script src="game.js?v=14"></script>
+<script src="game.js?v=15"></script>
 </body>
 </html>
