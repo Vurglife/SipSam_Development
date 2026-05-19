@@ -6,6 +6,7 @@
 - Use project files for durable decisions, validation, lessons, and roadmap.
 - Validate end-to-end game and platform flows after meaningful changes.
 - Snapshot sensitive platform data before risky changes.
+- Per-round action buttons (Push/Bet, arrange, etc.) that get `disabled = true` on use MUST be re-enabled when the phase is re-entered, keyed on the status transition (`status !== prevStatus`), not on every state tick. Symptom of the bug: round 1 works, round 2+ buttons are dead, the timer expires, the player is auto-folded/DQ'd. SipSam re-enables explicitly at phase start (`poker-client/game.js` ~1144/1250); Rhum32 had the gap (fixed 2026-05-18). Check Blackjack for the same class ("countdown blocking bet options" in the recovery doc).
 
 ## Do Not Repeat
 

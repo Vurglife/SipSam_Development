@@ -2,13 +2,17 @@
 
 ## Current State - 2026-05-18
 
-- Active repo: `G:\SipSam\PokerProject`
+- Active repo: `G:\SipSam\PokerProject` (Rhum32 lives only here — untracked, not in any worktree)
 - Active branch: `master`
 - Recent anchors: `2a56050 Implement Blackjack fixed tier tables`; `6e0d252 Add tier explainer to rewards dashboard`; `119d815 Add current progress handoff for Claude sessions`; `ce8146a Require manual daily bonus claims`; `a6ea242 Fix Celestial table config and wallet session accounting`
 - Platform run command: `cd G:\SipSam\PokerProject\vurglife-platform && npm start`
 
 ## Completed Recently
 
+- Rhum32 round-flow blocker fixed: `rhum32-client/game.js` now re-enables `#decision-controls` Push/Bet on each transition into the `decision` phase. They were disabled by `makeDecision()` and never reset, so from round 2 on the buttons were dead, the 10s timer expired, and the player was auto-folded/DQ'd. Server round loop was already correct.
+- Rhum32 table cards shrunk and fanned (`.seat-hand .card` smaller + negative `margin-left`); 6 seats re-arced along the curved side with vertical stagger (`.bj-seat-0..5`) plus a flatter/wider mobile arc so 5-card hands no longer overlap.
+- Rhum32 card backs now use the shared VurgLife image: `backVurgLife.png` copied into `rhum32-client/`, `.card-back` switched to it, old gradient/♣ `::before`/`::after` neutralized. Matches SipSam/Blackjack.
+- Rhum32 cache-bust bumped: `style.css?v=8`, `game.js?v=13`.
 - SipSam public quick-join now matches active rooms only when table tier and selected round count match exactly and a non-banker bot can be replaced.
 - SipSam public quick-join no longer drops strangers into waiting lobbies; no matching active table with a replaceable bot creates a new room.
 - Added manual daily bonus claiming in `vurglife-platform/server/routes/auth.js`.
@@ -35,6 +39,8 @@
 
 ## Not Yet Live-Tested
 
+- Rhum32 round 2+ Push/Bet in a live game (platform + authed dashboard→Rhum32 flow required).
+- Rhum32 seat/card layout visually at 375px and on desktop (no felt overlap, card back renders).
 - Manual daily bonus claim in browser with a real account.
 - Celestial wallet enter/exit in browser with a real account.
 - Mid-round exit settlement with live game state after a platform restart.
@@ -60,9 +66,10 @@ Known unrelated dirty examples observed on 2026-05-17:
 
 ## Next Suggested Work
 
-1. Start platform and live-test manual daily bonus claim with a copied test DB or after a DB snapshot.
-2. Live-test Celestial table entry and exit math with a test account.
-3. Continue SipSam verification before shifting focus to Blackjack repair.
+1. Live-test Rhum32: play past round 1, confirm Push/Bet work every round, check seat/card layout at 375px and desktop, confirm VurgLife card back renders.
+2. Rhum32 wallet→bank accounting on exit (recovery doc issue, still open; not in this batch).
+3. Start platform and live-test manual daily bonus claim with a copied test DB or after a DB snapshot.
+4. Live-test Celestial table entry and exit math with a test account.
 
 ## New Chat Startup
 
