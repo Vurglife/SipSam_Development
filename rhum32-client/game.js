@@ -29,6 +29,47 @@ let authToken = null;
 let tableConfig = null;
 let _lobbyFriends = null;
 
+// Single token resolver used everywhere (friends, invite, replenish, exit) —
+// mirrors SipSam's igmToken pattern: prefer the captured global, fall back to
+// the handoff sessionStorage blob so a cleared/empty authToken never silently
+// breaks friends-list loading or wallet settlement.
+function rhumToken() {
+    if (authToken) return authToken;
+    try { return JSON.parse(sessionStorage.getItem('rhum32_user') || '{}').token || null; }
+    catch (e) { return null; }
+}
+
+// Remaining wallet to return to bank on exit. In-game: live game wallet.
+// Pre-game (mode/lobby, no round played yet): the full walletSize the
+// dashboard already drew from the bank — returning 0 here would burn it.
+function rhumRemainingWallet() {
+    const me = lastState && mySessionId ? lastState.players?.[mySessionId] : null;
+    if (me && typeof me.wallet === 'number') return me.wallet;
+    return Math.max(0, Number(tableConfig?.wallet) || 0);
+}
+
+// Fire wallet-return to bank then return to the dashboard (not the landing
+// page). Mirrors SipSam: always settle, navigate regardless of result.
+async function rhumSettleAndLeave() {
+    const token = rhumToken();
+    window._intentionalExit = true;
+    if (token) {
+        try {
+            await fetch('/api/game/rhum32/exit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({
+                    remainingWallet: rhumRemainingWallet(),
+                    tableMinBet: selectedMinBet || tableMinBet
+                })
+            });
+        } catch (e) { console.error('[Rhum32] exit settle error:', e); }
+    }
+    if (ws) { try { ws.close(); } catch (e) {} }
+    ws = null;
+    setTimeout(() => { window.location.href = '/'; }, 200);
+}
+
 // ============================================
 // SOUND SYSTEM — Web Audio API (SipSam-style)
 // ============================================
@@ -251,7 +292,9 @@ function backToModeSelect() {
 }
 
 function backToDashboard() {
-    window.location.href = '/#rhum32';
+    // Wallet was already drawn from the bank by the dashboard before this
+    // page loaded, so leaving the mode/lobby screen must settle it too.
+    rhumSettleAndLeave();
 }
 
 function selectRounds(rounds, btn) {
@@ -304,9 +347,10 @@ async function connectAndStart() {
 async function getLobbyFriends() {
     if (_lobbyFriends) return _lobbyFriends;
     try {
-        if (!authToken) return [];
+        const token = rhumToken();
+        if (!token) return [];
         const res = await fetch('/api/friends', {
-            headers: { 'Authorization': 'Bearer ' + authToken }
+            headers: { 'Authorization': 'Bearer ' + token }
         }).then(r => r.json());
         _lobbyFriends = res.friends || [];
         return _lobbyFriends;
@@ -315,13 +359,14 @@ async function getLobbyFriends() {
 
 async function searchAllPlayers(q) {
     try {
-        if (!authToken) return [];
+        const token = rhumToken();
+        if (!token) return [];
         const res = await fetch('/api/friends/search', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
             body: JSON.stringify({ query: q })
         }).then(r => r.json());
-        return res.results || res.users || [];
+        return res.users || res.results || [];
     } catch(e) { return []; }
 }
 
@@ -409,11 +454,12 @@ async function sendLobbyInvite() {
     statusEl.textContent = 'Sending invite...'; statusEl.style.color = '#7ac08a';
 
     try {
-        if (!authToken) { statusEl.textContent = 'Not authenticated.'; statusEl.style.color = '#fca5a5'; return; }
+        const token = rhumToken();
+        if (!token) { statusEl.textContent = 'Not authenticated.'; statusEl.style.color = '#fca5a5'; return; }
 
         const res = await fetch('/api/friends/invite', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
             body: JSON.stringify({
                 toUsername: username,
                 game: 'rhum32',
@@ -478,7 +524,7 @@ async function inviteFriendToGame(username) {
     try {
         const res = await fetch('/api/friends/invite', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + rhumToken() },
             body: JSON.stringify({
                 toUsername: username, game: 'rhum32', roomId: currentRoomId,
                 tableMinBet: selectedMinBet || tableMinBet,
@@ -538,16 +584,19 @@ function replenishWallet() {
         return;
     }
     const amount = Math.min(space, walletLimit);
-    // Call platform API to draw from bank
+    // Call platform API to draw from bank. game:'rhum32' so the server uses
+    // RHUM32_TABLE_CONFIG (without it the wallet limit is computed from the
+    // SipSam table config and the top-up is wrong).
     fetch('/api/game/replenish', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
-        body: JSON.stringify({ amount, tableMinBet: selectedMinBet })
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + rhumToken() },
+        body: JSON.stringify({ game: 'rhum32', tableMinBet: selectedMinBet, currentWallet, amount })
     }).then(r => r.json()).then(data => {
         if (data.ok) {
+            const added = data.topUp || amount;
             // Tell game server to add chips
-            if (ws) ws.send(JSON.stringify({ type: 'replenishWallet', amount: data.amount || amount }));
-            showSpeechBubble('system', 'System', 'Wallet replenished: +$' + (data.amount || amount).toLocaleString(), mySessionId);
+            if (ws) ws.send(JSON.stringify({ type: 'replenishWallet', amount: added }));
+            showSpeechBubble('system', 'System', 'Wallet replenished: +$' + added.toLocaleString(), mySessionId);
         } else {
             showSpeechBubble('system', 'System', data.error || 'Replenish failed.', mySessionId);
         }
@@ -557,21 +606,7 @@ function replenishWallet() {
 }
 
 async function exitGame() {
-    // Return wallet to bank
-    const me = lastState?.players?.[mySessionId];
-    const wallet = me?.wallet || 0;
-    if (wallet > 0 && authToken) {
-        try {
-            await fetch('/api/game/exit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
-                body: JSON.stringify({ remainingWallet: wallet, tableMinBet: selectedMinBet })
-            });
-        } catch(e) { console.error('[Rhum32] Exit settle error:', e); }
-    }
-    if (ws) ws.close();
-    ws = null;
-    window.location.href = '/#rhum32';
+    rhumSettleAndLeave();
 }
 
 // ============================================
@@ -985,3 +1020,22 @@ function showGameOver(state) {
         container.appendChild(div);
     });
 }
+
+// ============================================
+// UNLOAD SETTLEMENT (SipSam-style beacon)
+// sendBeacon survives page unload where fetch does not. Skipped when the
+// player used Exit (rhumSettleAndLeave already returned the wallet); the
+// server's exit lock makes a double-fire harmless regardless.
+// ============================================
+window.addEventListener('beforeunload', function() {
+    if (window._intentionalExit) return;
+    const token = rhumToken();
+    if (!token) return;
+    try {
+        const blob = new Blob([JSON.stringify({
+            remainingWallet: rhumRemainingWallet(),
+            tableMinBet: selectedMinBet || tableMinBet
+        })], { type: 'application/json' });
+        navigator.sendBeacon('/api/game/rhum32/exit-beacon?token=' + encodeURIComponent(token), blob);
+    } catch (e) {}
+});

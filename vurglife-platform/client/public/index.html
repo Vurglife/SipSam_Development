@@ -1085,7 +1085,7 @@ const TABLES = {
   1000:  {minBet:1000,  inc:500,    maxBet:2000,   minBank:60000,   wallet:40000  },
   10000: {minBet:10000, inc:10000,  maxBet:50000,   minBank:2000000,  wallet:1000000},
   100000:{minBet:100000,inc:100000, maxBet:500000,  minBank:7000000,  wallet:5000000},
-  500000:{minBet:500000,betMin:100000,inc:100000, maxBet:1000000, minBank:10000000, wallet:7000000}
+  500000:{minBet:500000,betMin:500000,inc:250000, maxBet:1000000, minBank:10000000, wallet:7000000}
 };
 
 const RHUM32_TABLES = {
@@ -1481,22 +1481,13 @@ function enterRhum32Table(minBet) {
   if (!t) { console.error('[Dashboard] No RHUM32 table for minBet:', minBet); return; }
   const bank=getBank();
   if (bank<t.minBank) { toast('Insufficient Balance',`You need $${t.minBank.toLocaleString()} in your bank to enter this table.`); return; }
-
-  const userData = {
-    id: currentUser.id||currentUser.user_id||0,
-    username: currentUser.username,
-    token: authToken||'',
-    bankBalance: currentUser.bankBalance||currentUser.bank_balance||0,
-  };
-  console.log('[Dashboard] Setting rhum32 session:', userData.username, 'table:', t.minBet);
-  sessionStorage.setItem('rhum32_table', JSON.stringify(t));
-  sessionStorage.setItem('rhum32_user', JSON.stringify(userData));
-
-  // Verify it was stored
-  const check = sessionStorage.getItem('rhum32_user');
-  console.log('[Dashboard] Verified rhum32_user in sessionStorage:', check ? 'YES' : 'NO');
-
-  window.location.href='/rhum32/';
+  // Route through the same pregame-ad → confirmEnter flow as SipSam so the
+  // server draws walletSize from the bank (/api/game/rhum32/enter) and a
+  // wallet session exists. The old direct redirect skipped the bank draw
+  // entirely, so wallet never left or returned to the bank.
+  pendingTable = { ...t };
+  pendingGameType = 'rhum32';
+  runAd('pregame',10,'⚡ Quick Ad Break','Watch a short ad to enter the table. Your seat is reserved.');
 }
 
 // ── BLACKJACK TABLE GRID ─────────────────────────────

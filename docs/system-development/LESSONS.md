@@ -7,6 +7,8 @@
 - Validate end-to-end game and platform flows after meaningful changes.
 - Snapshot sensitive platform data before risky changes.
 - Per-round action buttons (Push/Bet, arrange, etc.) that get `disabled = true` on use MUST be re-enabled when the phase is re-entered, keyed on the status transition (`status !== prevStatus`), not on every state tick. Symptom of the bug: round 1 works, round 2+ buttons are dead, the timer expires, the player is auto-folded/DQ'd. SipSam re-enables explicitly at phase start (`poker-client/game.js` ~1144/1250); Rhum32 had the gap (fixed 2026-05-18). Check Blackjack for the same class ("countdown blocking bet options" in the recovery doc).
+- A game's exit/refund fix is meaningless unless its ENTER path actually drew the bank. Verify enter and exit symmetrically and trace the real entry path end-to-end — Rhum32 had a second entry function (`enterRhum32Table`) that bypassed the shared `confirmEnter` ad/draw flow, so the bank was never charged and "wallet not returning" was actually "wallet never drawn." Each game should funnel through the one shared `runAd('pregame')→confirmEnter` path; per-game bespoke entry functions are a money-path smell.
+- Route every wallet/bank/refund change through `wallet-security-reviewer` before commit (ARCHITECTURE.md §6). It caught the missing-enter blocker above that static checks and the diff alone did not surface — the bug was in a *different* file than the change.
 
 ## Do Not Repeat
 

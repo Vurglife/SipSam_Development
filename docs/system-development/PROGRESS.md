@@ -9,6 +9,9 @@
 
 ## Completed Recently
 
+- Rhum32 wallet→bank money path fixed end-to-end. Root cause: `enterRhum32Table()` in `vurglife-platform/client/public/index.html` bypassed the shared pregame-ad → `confirmEnter()` flow, so `/api/game/rhum32/enter` never ran — the bank was never drawn and no wallet session existed, so exit credited nothing. `enterRhum32Table` now mirrors SipSam's `enterTable` (sets `pendingTable`/`pendingGameType='rhum32'`, calls `runAd('pregame')`); `confirmEnter` already handled the rhum32 enter endpoint + redirect. Reviewed by `wallet-security-reviewer` (blocker identified there, then fixed).
+- Rhum32 exit now mirrors SipSam: `rhumSettleAndLeave()` always POSTs `/api/game/rhum32/exit` (dedicated endpoint, not generic), computes remaining wallet (live game wallet, or full walletSize pre-game so the lobby Back button doesn't burn the draw), then navigates to `/` (was `/#rhum32`, which caused the logout-to-landing bug). Added a `beforeunload` `sendBeacon` to `/api/game/rhum32/exit-beacon`.
+- Rhum32 friends list / invites / replenish now use one `rhumToken()` resolver (global authToken → sessionStorage fallback, like SipSam's `igmToken`); replenish now sends `game:'rhum32'` so the server uses `RHUM32_TABLE_CONFIG` and reads `data.topUp`.
 - Rhum32 round-flow blocker fixed: `rhum32-client/game.js` now re-enables `#decision-controls` Push/Bet on each transition into the `decision` phase. They were disabled by `makeDecision()` and never reset, so from round 2 on the buttons were dead, the 10s timer expired, and the player was auto-folded/DQ'd. Server round loop was already correct.
 - Rhum32 table cards shrunk and fanned (`.seat-hand .card` smaller + negative `margin-left`); 6 seats re-arced along the curved side with vertical stagger (`.bj-seat-0..5`) plus a flatter/wider mobile arc so 5-card hands no longer overlap.
 - Rhum32 card backs now use the shared VurgLife image: `backVurgLife.png` copied into `rhum32-client/`, `.card-back` switched to it, old gradient/♣ `::before`/`::after` neutralized. Matches SipSam/Blackjack.
@@ -39,6 +42,9 @@
 
 ## Not Yet Live-Tested
 
+- Rhum32 full money loop with a real account: enter ($X drawn from bank via pregame ad), play, exit (remaining returned); pre-game lobby Back returns full walletSize; tab-close beacon. Snapshot `vurglife-platform/data/vurglife.db` first.
+- Rhum32 exit returns to dashboard still logged in (no landing-page re-login).
+- Rhum32 friends list populates in lobby + in-game invite.
 - Rhum32 round 2+ Push/Bet in a live game (platform + authed dashboard→Rhum32 flow required).
 - Rhum32 seat/card layout visually at 375px and on desktop (no felt overlap, card back renders).
 - Manual daily bonus claim in browser with a real account.
@@ -66,8 +72,8 @@ Known unrelated dirty examples observed on 2026-05-17:
 
 ## Next Suggested Work
 
-1. Live-test Rhum32: play past round 1, confirm Push/Bet work every round, check seat/card layout at 375px and desktop, confirm VurgLife card back renders.
-2. Rhum32 wallet→bank accounting on exit (recovery doc issue, still open; not in this batch).
+1. Port SipSam's in-game menu (`#igm-overlay`/`#igm-panel` accordion + `.igm-*` CSS + igm* JS) into Rhum32 with the green theme — currently a basic 4-button overlay (recovery-doc ask: "in-game menu should look like SipSam and function exactly the same"). Deferred from the money-path batch as a larger separate change.
+2. Live-test Rhum32 full money loop + round 2+ Push/Bet + layout (snapshot DB first).
 3. Start platform and live-test manual daily bonus claim with a copied test DB or after a DB snapshot.
 4. Live-test Celestial table entry and exit math with a test account.
 
