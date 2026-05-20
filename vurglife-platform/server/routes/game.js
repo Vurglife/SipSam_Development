@@ -18,10 +18,6 @@ const TABLE_CONFIG = require('../../../shared/sipsam-tables.js');
 // Blackjack tables use fixed main bets. Optional wager is Tie Bet only.
 const BJ_TABLE_CONFIG = {
     100:   { minBet:100,   maxBet:100,   walletSize:2500,    minBank:2500,    tieBet:100,  tieBetPayout:2000,   blackjackPayout:null,   label:'standard' },
-    1000:  { minBet:1000,  maxBet:1000,  walletSize:30000,   minBank:50000,   tieBet:500,  tieBetPayout:10000,  blackjackPayout:5000,   label:'vip' },
-    5000:  { minBet:5000,  maxBet:5000,  walletSize:120000,  minBank:150000,  tieBet:1000, tieBetPayout:30000,  blackjackPayout:15000,  label:'vip' },
-    10000: { minBet:10000, maxBet:10000, walletSize:240000,  minBank:300000,  tieBet:2000, tieBetPayout:75000,  blackjackPayout:30000,  label:'vip' },
-    20000: { minBet:20000, maxBet:20000, walletSize:500000,  minBank:750000,  tieBet:3000, tieBetPayout:125000, blackjackPayout:70000,  label:'vip' },
     50000: { minBet:50000, maxBet:50000, walletSize:1000000, minBank:1500000, tieBet:5000, tieBetPayout:250000, blackjackPayout:170000, label:'vip' },
     100000:{ minBet:100000,maxBet:100000,walletSize:5000000, minBank:7000000, tieBet:10000,tieBetPayout:500000, blackjackPayout:350000, label:'elite' },
     500000:{ minBet:500000,maxBet:500000,walletSize:7000000, minBank:10000000,tieBet:25000,tieBetPayout:1000000,blackjackPayout:1000000,label:'celestial' },

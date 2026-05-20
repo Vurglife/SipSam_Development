@@ -30,47 +30,7 @@ const TABLE_CONFIGS = {
     blackjackPayout: null,    // null → use standard 3:2 formula
     label:           'standard',
   },
-  // VIP tiers — fixed bets, flat payouts
-  1000: {
-    minBet:          1000,
-    maxBet:          1000,
-    walletSize:      30000,
-    minBank:         50000,
-    tieBet:          500,
-    tieBetPayout:    10000,
-    blackjackPayout: 5000,
-    label:           'vip',
-  },
-  5000: {
-    minBet:          5000,
-    maxBet:          5000,
-    walletSize:      120000,
-    minBank:         150000,
-    tieBet:          1000,
-    tieBetPayout:    30000,
-    blackjackPayout: 15000,
-    label:           'vip',
-  },
-  10000: {
-    minBet:          10000,
-    maxBet:          10000,
-    walletSize:      240000,
-    minBank:         300000,
-    tieBet:          2000,
-    tieBetPayout:    75000,
-    blackjackPayout: 30000,
-    label:           'vip',
-  },
-  20000: {
-    minBet:          20000,
-    maxBet:          20000,
-    walletSize:      500000,
-    minBank:         750000,
-    tieBet:          3000,
-    tieBetPayout:    125000,
-    blackjackPayout: 70000,
-    label:           'vip',
-  },
+  // One VIP table — fixed bet, flat blackjack + tie payouts
   50000: {
     minBet:          50000,
     maxBet:          50000,
