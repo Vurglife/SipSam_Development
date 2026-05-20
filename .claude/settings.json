@@ -67,6 +67,12 @@
             "command": "node .claude/scripts/ship-gate.js",
             "timeout": 60,
             "statusMessage": "Ship-gate: syntax/JSON validation"
+          },
+          {
+            "type": "command",
+            "command": "node .claude/scripts/export-chat-transcript.js",
+            "timeout": 15,
+            "statusMessage": "Export chat transcript to .claude/chats/"
           }
         ]
       }
