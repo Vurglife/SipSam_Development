@@ -161,6 +161,14 @@ window.addEventListener('DOMContentLoaded', function() {
         sessionStorage.removeItem('rhum32_table');
         sessionStorage.removeItem('rhum32_wallet');
 
+        // Invited joiner: skip mode-select and go straight to a stripped
+        // lobby that just waits for the host to start (mirrors SipSam).
+        // The invite payload already locked in tier + rounds.
+        if (table && table.isInvitedJoiner === true && table.roomId) {
+            enterAsInvitee(table);
+            return;
+        }
+
         // Go to mode selection
         showScreen('screen-mode');
         console.log('[Rhum32] Mode select screen shown');
@@ -308,6 +316,26 @@ function updateLobbyInfo() {
     if (selectedRounds) info.textContent = `$${selectedMinBet} table, ${selectedRounds} rounds`;
     else info.textContent = "Select rounds to begin.";
     document.getElementById('btn-start-game').disabled = !selectedRounds;
+    // Enforce: invite controls are dead until rounds are picked, so every
+    // invitee is directed to a room with a concrete tier + round count.
+    const inviteInput = document.getElementById('invite-username');
+    const inviteBtn   = document.querySelector('#invite-section .invite-btn');
+    const gateNote    = document.getElementById('invite-gate-note');
+    const dd          = document.getElementById('lobby-invite-dropdown');
+    const gate        = !selectedRounds;
+    if (inviteInput) {
+        inviteInput.disabled = gate;
+        inviteInput.placeholder = gate ? 'Select rounds first…' : 'Type name or pick from friends...';
+        inviteInput.style.opacity = gate ? '0.55' : '';
+        if (gate) inviteInput.value = '';
+    }
+    if (inviteBtn) {
+        inviteBtn.disabled = gate;
+        inviteBtn.style.opacity = gate ? '0.55' : '';
+        inviteBtn.style.cursor = gate ? 'not-allowed' : '';
+    }
+    if (gateNote) gateNote.style.display = gate ? 'block' : 'none';
+    if (gate && dd) dd.style.display = 'none';
 }
 
 function startGame() {
@@ -340,6 +368,71 @@ async function connectAndStart() {
         console.error('[Rhum32] connectAndStart error:', e);
         statusEl.textContent = "Failed: " + e.message;
         document.getElementById('btn-start-game').disabled = false;
+    }
+}
+
+// ── INVITEE FLOW (SipSam-style stripped lobby) ──────────────
+// Invitees skip mode-select entirely. The host's invite already chose tier
+// + rounds, so the invitee gets only "Waiting for host…" + Exit Lobby.
+function enterAsInvitee(table) {
+    gameMode       = 'multiplayer';
+    selectedMinBet = Number(table.minBet) || selectedMinBet;
+    selectedRounds = Number(table.rounds) || 10;
+    tableMinBet    = selectedMinBet;
+    if (table.maxBet) tableMaxBet = Number(table.maxBet);
+    const label = document.getElementById('lobby-mode-label');
+    if (label) label.textContent = 'MULTIPLAYER';
+    showScreen('screen-lobby');
+    applyInviteeLobby();
+    connectAsInvitee(table.roomId);
+}
+
+function applyInviteeLobby() {
+    const hide = id => { const e = document.getElementById(id); if (e) e.style.display = 'none'; };
+    hide('rounds-label');
+    hide('rounds-row');
+    hide('invite-section');
+    hide('btn-start-game');
+    const info = document.getElementById('lobby-selection-info');
+    if (info) {
+        info.textContent = `$${(selectedMinBet || 0).toLocaleString()} table · ${selectedRounds} rounds`;
+        info.style.color = '#7ac08a';
+    }
+    const back = document.getElementById('btn-back-lobby');
+    if (back) {
+        back.textContent = '✕ Exit Lobby';
+        back.onclick = () => rhumSettleAndLeave();
+    }
+    const status = document.getElementById('lobby-status');
+    if (status) {
+        status.textContent = '⏳ Waiting for the host to start the game…';
+        status.style.color = '#7ec8ff';
+        status.style.fontWeight = '700';
+    }
+}
+
+async function connectAsInvitee(roomId) {
+    const statusEl = document.getElementById('lobby-status');
+    try {
+        ws = await joinRoom(myUsername, {
+            tableMinBet: selectedMinBet,
+            maxRounds:   selectedRounds,
+            wallet:      tableConfig?.wallet || 5000,
+            mode:        'multiplayer',
+            roomId:      roomId,           // direct join to host's specific room
+            token:       rhumToken()
+        });
+        // Intentionally do NOT send startGame — only the host starts the
+        // round. The renderState 'waiting' → active transition will flip us
+        // to screen-game once the host starts (or immediately if the game is
+        // already in progress, supporting mid-game join).
+        console.log('[Rhum32] Invitee connected to room', roomId);
+    } catch (e) {
+        console.error('[Rhum32] Invitee connect error:', e);
+        if (statusEl) {
+            statusEl.textContent = 'Could not join host: ' + e.message;
+            statusEl.style.color = '#fca5a5';
+        }
     }
 }
 
@@ -448,6 +541,12 @@ async function sendLobbyInvite() {
     const input    = document.getElementById('invite-username');
     const statusEl = document.getElementById('invite-status');
     if (!input || !statusEl) return;
+    if (!selectedRounds) {
+        // Hard-gate: invites carry tier + rounds — never send without one.
+        statusEl.textContent = 'Pick rounds first so your invitee joins the right room.';
+        statusEl.style.color = '#fca5a5';
+        return;
+    }
     const username = input.value.trim();
     if (!username) { statusEl.textContent = 'Enter a username.'; statusEl.style.color = '#fca5a5'; return; }
 

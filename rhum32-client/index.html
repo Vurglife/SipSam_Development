@@ -109,8 +109,8 @@
     </div>
 
     <!-- Round selection -->
-    <p class="lobby-section-label">SELECT ROUNDS</p>
-    <div class="rounds-buttons">
+    <p class="lobby-section-label" id="rounds-label">SELECT ROUNDS</p>
+    <div class="rounds-buttons" id="rounds-row">
       <button class="btn-rounds" onclick="selectRounds(5,this)">
         <span class="rounds-num">5</span>
         <span class="rounds-label">Blitz</span>
@@ -147,13 +147,14 @@
         <div id="lobby-invite-dropdown" class="invite-dropdown"></div>
       </div>
       <div id="invite-status" class="invite-status"></div>
+      <div id="invite-gate-note" style="font-size:11px;color:#7ac08a;margin-top:6px;text-align:center;display:none">Select rounds first to enable invites.</div>
     </div>
 
     <button id="btn-start-game" class="btn-start" onclick="startGame()" disabled>
       <span class="btn-start-text">START GAME</span>
       <span class="btn-start-arrow">&#x25B6;</span>
     </button>
-    <button class="btn-back" onclick="backToModeSelect()">&#x2190; Back</button>
+    <button class="btn-back" id="btn-back-lobby" onclick="backToModeSelect()">&#x2190; Back</button>
   </div>
 </div>
 
@@ -468,6 +469,6 @@
   </div>
 </div>
 
-<script src="game.js?v=15"></script>
+<script src="game.js?v=16"></script>
 </body>
 </html>
