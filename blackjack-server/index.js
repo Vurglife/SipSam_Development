@@ -109,6 +109,7 @@ wss.on('connection', (ws, req) => {
   const sessionId = url.searchParams.get('sessionId');
   const minBet    = parseInt(url.searchParams.get('minBet'), 10);
   const token     = url.searchParams.get('token') || null;
+  const joinRole  = url.searchParams.get('joinRole') === 'guest' ? 'guest' : 'player';
 
   if (!roomId || !userId || !sessionId || !minBet) {
     ws.close(1008, 'Missing required query params');
@@ -117,8 +118,8 @@ wss.on('connection', (ws, req) => {
 
   try {
     const room = getOrCreateRoom(roomId, minBet);
-    room.addClient(ws, userId, sessionId, token);
-    console.log(`[BJ] User ${userId} joined room ${roomId}`);
+    room.addClient(ws, userId, sessionId, token, { joinRole });
+    console.log(`[BJ] User ${userId} joined room ${roomId} as ${joinRole}`);
   } catch (e) {
     console.error('[BJ] Connection error:', e.message);
     ws.close(1011, e.message);

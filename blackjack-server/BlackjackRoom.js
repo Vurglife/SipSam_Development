@@ -49,12 +49,17 @@ class BlackjackRoom {
     this.chatHistory  = [];
     this.createdAt    = Date.now();
   }
-  addClient(ws, userId, sessionId, token) {
-    let si = this._findSeatForSession(sessionId) ?? this._claimSeat(userId, sessionId);
+  addClient(ws, userId, sessionId, token, join = {}) {
+    const joinRole = join.joinRole === 'guest' ? 'guest' : 'player';
+    let si = this._findSeatForSession(sessionId) ?? this._claimSeat(userId, sessionId, joinRole);
     if (si === null) { ws.close(1008, 'Table full'); return; }
 
     // Store the JWT on the seat so server-side settle calls can authenticate
     if (token && this.seats[si]) this.seats[si].token = token;
+    if (this.seats[si] && joinRole === 'guest') {
+      this.seats[si].joinRole = 'guest';
+      this.seats[si].isInvitedGuest = true;
+    }
 
     this.clients.set(ws, { userId, sessionId, seatIndex: si });
     ws.on('message', raw => { try { this._handleMsg(ws, JSON.parse(raw)); } catch(e) {} });
@@ -71,7 +76,7 @@ class BlackjackRoom {
     return null;
   }
 
-  _claimSeat(userId, sessionId) {
+  _claimSeat(userId, sessionId, joinRole='player') {
     // Find all available seats
     const available = [];
     for (let i = 0; i < MAX_SEATS; i++) {
@@ -80,15 +85,17 @@ class BlackjackRoom {
     if (!available.length) return null;
     // Pick a random available seat — no sequential bias
     const i = available[Math.floor(Math.random() * available.length)];
-    this.seats[i] = this._newSeat(userId, sessionId, i);
+    this.seats[i] = this._newSeat(userId, sessionId, i, false, null, joinRole);
     return i;
   }
 
-  _newSeat(userId, sessionId, index, isBot=false, ownerIdx=null) {
+  _newSeat(userId, sessionId, index, isBot=false, ownerIdx=null, joinRole='player') {
     // Humans start with the configured walletSize; bots hold no chips.
     const initialWallet = isBot ? 0 : (this.config.walletSize || 0);
+    const normalizedRole = isBot ? 'bot' : (joinRole === 'guest' ? 'guest' : 'player');
     return {
       userId, sessionId, index, isBot, ownerIdx, token:null,
+      joinRole:normalizedRole, isInvitedGuest:normalizedRole==='guest', joinedAt:Date.now(),
       wallet:initialWallet, bet:0, insuranceBet:0, insuranceDeclined:false, tieBet:0, sideBet:null, sideBetAmt:0,
       hands:[[]], activeHandIdx:0,
       doubled:[false], stood:[false], busted:[false], splitAces:false,
@@ -133,6 +140,17 @@ class BlackjackRoom {
     this._broadcast({ type:'state', state:this._state() });
   }
 
+  _hostSeatIndex() {
+    const host = Object.entries(this.seats)
+      .filter(([, s]) => s && !s.isBot && s.joinRole !== 'guest' && !s.isInvitedGuest)
+      .sort((a, b) => ((a[1].joinedAt || 0) - (b[1].joinedAt || 0)) || ((+a[0]) - (+b[0])))[0];
+    return host ? Number(host[0]) : null;
+  }
+
+  _isHost(si) {
+    return this._hostSeatIndex() === si;
+  }
+
   // ── Message Router ───────────────────────────────────────────
 
   _handleMsg(ws, msg) {
@@ -167,7 +185,12 @@ class BlackjackRoom {
       case 'add_bot':     this._addBot(ws, si); break;
       case 'chatMessage': this._chat(info, msg.message); break;
       case 'leave':       this._leave(ws, userId, si); break;
-      case 'startGame':   if (this.phase === 'waiting') this._startBetting(); break;
+      case 'startGame':
+        if (this.phase === 'waiting') {
+          if (this._isHost(si)) this._startBetting();
+          else this._sendTo(ws, { type:'toast', title:'Host Only', message:'Only the host can start this table.' });
+        }
+        break;
     }
   }
 
@@ -823,6 +846,7 @@ class BlackjackRoom {
       seats[i] = {
         userId:s.userId, sessionId:s.sessionId, index:s.index,
         isBot:s.isBot, ownerIdx:s.ownerIdx,
+        joinRole:s.joinRole, isInvitedGuest:s.isInvitedGuest, joinedAt:s.joinedAt,
         wallet:s.wallet, bet:s.bet,
         insuranceBet:s.insuranceBet, insuranceDeclined:s.insuranceDeclined,
         tieBet:s.tieBet, sideBet:s.sideBet, sideBetAmt:s.sideBetAmt,
@@ -836,6 +860,7 @@ class BlackjackRoom {
 
     return {
       roomId:this.roomId, phase:this.phase, roundNum:this.roundNum, config:this.config,
+      hostSeatIndex:this._hostSeatIndex(),
       dealerCards:dealer,
       dealerTotal: (() => {
         if (['dealer','payout','round_end'].includes(this.phase)) {

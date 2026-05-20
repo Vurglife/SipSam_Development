@@ -2162,7 +2162,18 @@ function _showGameInviteModal(inv) {
       return;
     }
     // Set per-game session storage so the game client auto-logins to the right room.
-    const [userKey, tableKey] = _gameSession(r.game || inv.game);
+    const gameKey = r.game || inv.game;
+    if (gameKey === 'blackjack' && !r.roomId) {
+      body.innerHTML = baseInfo +
+        `<div style="margin-top:14px;padding:12px 14px;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.4);border-radius:10px;color:var(--red);font-size:13px;text-align:left;line-height:1.5">` +
+          `Invite is missing its Blackjack room. Ask the host to resend it.` +
+        `</div>`;
+      acceptBtn.style.display = 'none';
+      declineBtn.textContent = 'Close';
+      declineBtn.disabled = false;
+      return;
+    }
+    const [userKey, tableKey] = _gameSession(gameKey);
     sessionStorage.setItem(userKey, JSON.stringify({
       username: currentUser?.username, token: authToken, avatar: currentUser?.avatar_url || '',
       bankBalance: currentUser?.bank_balance, id: currentUser?.id
@@ -2172,7 +2183,10 @@ function _showGameInviteModal(inv) {
       isInvitedJoiner: true, roomId: r.roomId
     }));
     modal.style.display = 'none';
-    window.location.href = _gameDest(r.game || inv.game) + '/';
+    const dest = _gameDest(gameKey);
+    window.location.href = (gameKey === 'blackjack')
+      ? `${dest}/?roomId=${encodeURIComponent(r.roomId)}&invited=1`
+      : `${dest}/`;
   };
   declineBtn.onclick = () => { modal.style.display = 'none'; };
 }

@@ -58,6 +58,25 @@ function publicMultiRoomId() {
   return BJ_TABLE.publicRoomId || `bj_public_${BJ_TABLE.minBet || 100}`;
 }
 
+function _getStoredBjTable() {
+  try { return JSON.parse(sessionStorage.getItem('bj_table') || '{}'); }
+  catch (_) { return {}; }
+}
+
+function _isGuestSeat(seat) {
+  return !!seat && (seat.joinRole === 'guest' || seat.isInvitedGuest === true);
+}
+
+function _findHostEntry(entries, state = null) {
+  if (state && state.hostSeatIndex !== null && state.hostSeatIndex !== undefined) {
+    const explicit = entries.find(([idx]) => Number(idx) === Number(state.hostSeatIndex));
+    if (explicit) return explicit;
+  }
+  return entries
+    .filter(([, s]) => s && !s.isBot && !_isGuestSeat(s))
+    .sort((a, b) => ((a[1].joinedAt || 0) - (b[1].joinedAt || 0)) || ((+a[0]) - (+b[0])))[0] || null;
+}
+
 // ─────────────────────────────────────────────────────
 // UTILITIES
 // ─────────────────────────────────────────────────────
@@ -412,6 +431,7 @@ async function sendMultiInvite() {
   const username = (input?.value || '').trim();
   if (!username) { if (st) st.textContent = 'Enter a username first.'; return; }
   if (!_multiRoomId) _multiRoomId = `bj_${BJ_TABLE.minBet || 100}_${Date.now()}`;
+  window._bjRoomId = _multiRoomId;
   const user  = JSON.parse(sessionStorage.getItem('bj_user') || '{}');
   const token = user.token || sessionStorage.getItem('bj_token') || igmToken;
 
@@ -462,11 +482,16 @@ async function _setupInvitedJoinerLobby(roomId, user) {
   _isMultiplayerHost = false;
   _multiRoomId = roomId;
   _pendingRoomId = roomId;
+  window._bjRoomId = roomId;
+  try {
+    sessionStorage.setItem('bj_table', JSON.stringify(Object.assign({}, _getStoredBjTable(), {
+      isInvitedJoiner: true,
+      roomId
+    })));
+  } catch (_) {}
   _showStep('lobby-step-multi');
 
-  ['lobby-multi-timer-row', 'lobby-multi-invite-panel', 'lobby-multi-host-actions']
-    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
-  _ensureGuestCancelOnly();
+  _forceGuestLobbyControls();
 
   const seatsList = document.getElementById('lobby-seats-list');
   if (seatsList && !document.getElementById('invited-wait-msg')) {
@@ -514,16 +539,46 @@ function _ensureGuestCancelOnly() {
   if (btn) btn.style.display = 'block';
 }
 
+function _forceGuestLobbyControls() {
+  _isMultiplayerHost = false;
+  ['lobby-multi-timer-row', 'lobby-multi-invite-panel', 'lobby-multi-host-actions']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+
+  let msg = document.getElementById('invited-wait-msg');
+  if (!msg) {
+    const seatsList = document.getElementById('lobby-seats-list');
+    if (seatsList) {
+      msg = document.createElement('div');
+      msg.id = 'invited-wait-msg';
+      msg.style.cssText = 'text-align:center;margin:14px 0;color:#c9a84c;font-weight:700;font-size:15px';
+      seatsList.insertAdjacentElement('afterend', msg);
+    }
+  }
+  if (msg) {
+    msg.textContent = 'Guest seat joined. Waiting for host to start the game.';
+    msg.style.display = 'block';
+  }
+  _ensureGuestCancelOnly();
+}
+
 function _syncMultiLobbyRole(state, orderedEntries) {
   if (_isSinglePlayer) return;
   const lobbyStep = document.getElementById('lobby-step-multi');
   if (!lobbyStep || lobbyStep.style.display === 'none') return;
 
-  const ownIndex = orderedEntries.findIndex(([, s]) =>
+  const ownEntry = orderedEntries.find(([, s]) =>
     s.userId === myUsername || s.sessionId === mySessionId || s.isYou
   );
-  _isMultiplayerHost = !_isInvitedJoiner && ownIndex === 0;
+  const ownSeat = ownEntry?.[1] || null;
+  if (_isGuestSeat(ownSeat)) _isInvitedJoiner = true;
+  const hostEntry = _findHostEntry(orderedEntries, state);
+  _isMultiplayerHost = !!hostEntry && !!ownEntry && !_isInvitedJoiner && hostEntry[0] === ownEntry[0];
   const isGuest = !_isMultiplayerHost;
+
+  if (_isInvitedJoiner) {
+    _forceGuestLobbyControls();
+    return;
+  }
 
   const timer = document.getElementById('lobby-multi-timer-row');
   const invite = document.getElementById('lobby-multi-invite-panel');
@@ -612,10 +667,11 @@ function connectWS(username, token, roomId) {
 
   const tableMinBet = BJ_TABLE.minBet || 100;
   const tokParam    = token ? `&token=${encodeURIComponent(token)}` : '';
+  const roleParam   = _isInvitedJoiner ? '&joinRole=guest' : '';
   const url = `${BJ_WS_URL}/blackjack?roomId=${encodeURIComponent(roomId)}`
             + `&userId=${encodeURIComponent(username)}`
             + `&sessionId=${encodeURIComponent(mySessionId)}`
-            + `&minBet=${tableMinBet}${tokParam}`;
+            + `&minBet=${tableMinBet}${tokParam}${roleParam}`;
   console.log('[BJ] connecting:', url);
   ws = new WebSocket(url);
 
@@ -701,9 +757,10 @@ function applyState(state) {
   const lobbyStep = document.getElementById('lobby-step-multi');
   if (lobbyStep && lobbyStep.style.display !== 'none' && state.seats) {
     const entries = Object.entries(state.seats).sort((a, b) => (+a[0]) - (+b[0]));
-    const players = entries.map(([idx, s], i) => ({
+    const hostEntry = _findHostEntry(entries, state);
+    const players = entries.map(([idx, s]) => ({
       username: s.displayName || s.userId || 'Player',
-      isHost:   i === 0
+      isHost:   !!hostEntry && hostEntry[0] === idx
     }));
     _renderMultiSeats(players);
     _syncMultiLobbyRole(state, entries);
@@ -1535,6 +1592,9 @@ async function sendLobbyInvite() {
   const username = (inp?.value || '').trim();
   if (!username) { if (st) st.textContent = 'Enter a username first.'; return; }
   const roomId = window._bjRoomId || `bj_${BJ_TABLE.minBet || 100}_${Date.now()}`;
+  window._bjRoomId = roomId;
+  _multiRoomId = roomId;
+  _pendingRoomId = roomId;
   if (st) st.textContent = 'Sending invite…';
   try {
     const r = await fetch('/api/friends/invite', {
@@ -1683,7 +1743,9 @@ window.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
   const urlRoomId = urlParams.get('roomId');
   if (urlRoomId) {
-    _isInvitedJoiner = urlParams.get('invited') === '1';
+    const storedTable = _getStoredBjTable();
+    _isInvitedJoiner = urlParams.get('invited') === '1'
+      || (storedTable?.isInvitedJoiner && storedTable.roomId === urlRoomId);
     _pendingRoomId   = urlRoomId;
     const user = JSON.parse(sessionStorage.getItem('bj_user') || '{}');
     if (_isInvitedJoiner) {
