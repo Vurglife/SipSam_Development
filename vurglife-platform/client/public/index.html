@@ -1150,7 +1150,9 @@ const RHUM32_TABLES = {
 };
 
 const BJ_TABLES = {
-  100:   { minBet:100,   maxBet:100,   wallet:2500,    walletSize:2500,    minBank:2500,    tieBet:100,  tieBetPayout:2000,   blackjackPayout:null,   label:'Standard',     tier:'standard' },
+  100:   { minBet:100,   maxBet:100,   wallet:2500,    walletSize:2500,    minBank:2500,    tieBet:100,  tieBetPayout:2000,   blackjackPayout:null,   label:'Blackjack',    tier:'standard' },
+  500:   { minBet:500,   maxBet:500,   wallet:15000,   walletSize:15000,   minBank:15000,   tieBet:250,  tieBetPayout:5000,   blackjackPayout:null,   label:'Blackjack',    tier:'standard' },
+  1000:  { minBet:1000,  maxBet:1000,  wallet:30000,   walletSize:30000,   minBank:50000,   tieBet:500,  tieBetPayout:10000,  blackjackPayout:null,   label:'Blackjack',    tier:'standard' },
   50000: { minBet:50000, maxBet:50000, wallet:1000000, walletSize:1000000, minBank:1500000, tieBet:5000, tieBetPayout:250000, blackjackPayout:170000, label:'VIP',          tier:'vip' },
   100000:{ minBet:100000,maxBet:100000,wallet:5000000, walletSize:5000000, minBank:7000000, tieBet:10000,tieBetPayout:500000, blackjackPayout:350000, label:'Elite',        tier:'elite' },
   500000:{ minBet:500000,maxBet:500000,wallet:7000000, walletSize:7000000, minBank:10000000,tieBet:25000,tieBetPayout:1000000,blackjackPayout:1000000,label:'Celestial',    tier:'celestial' },
@@ -1550,15 +1552,15 @@ function buildBJGrid(gridId) {
     const tier=String(t.tier || 'standard').toLowerCase();
     const premium=['vip','elite','celestial'].includes(tier);
     const tierClass=premium ? ' tc-'+tier : '';
-    const tierLabel=tier==='celestial'?'Celestial':tier==='elite'?'Elite':tier==='vip'?'VIP':'Standard';
+    const tierLabel=tier==='celestial'?'Celestial':tier==='elite'?'Elite':tier==='vip'?'VIP':'';
     const tierIcon=tier==='celestial'?'&#10024;':tier==='elite'?'&#9670;':tier==='vip'?'&#9733;':'21';
-    const tableName=premium ? `${tierLabel} Table` : `${t.label} Table`;
+    const tableName=premium ? `${tierLabel} Table` : 'Blackjack Table';
     const faceClass=premium ? tier : 'standard';
     const d=document.createElement('div');
     d.className='tc'+(ok?'':' locked')+tierClass;
     d.innerHTML=`<div class="tc-tier-kicker">
-        <span>${premium ? tierLabel+' Access' : 'Open Table'}</span>
-        <span class="tc-tier-badge ${tier}">${tierIcon} ${tierLabel}</span>
+        <span>${premium ? tierLabel+' Access' : 'Fixed Bet'}</span>
+        ${premium ? `<span class="tc-tier-badge ${tier}">${tierIcon} ${tierLabel}</span>` : '<span></span>'}
       </div>
       <div class="tc-bj-hero">
         <div>
