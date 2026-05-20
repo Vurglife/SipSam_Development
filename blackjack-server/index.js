@@ -17,7 +17,7 @@ const PORT = process.env.BLACKJACK_WS_PORT || 3002;
 // ── Table Configuration ──────────────────────────────────────
 // Standard table: fixed $100 main bet. Blackjack pays 3:2, fixed $100 tie bet,
 //                 fixed $2,000 tie bonus.
-// VIP tables:     fixed main bet per tier, flat blackjack + tie payouts.
+// Premium tables: fixed main bet per tier, flat blackjack + tie payouts.
 const TABLE_CONFIGS = {
   // Standard
   100: {
@@ -80,6 +80,26 @@ const TABLE_CONFIGS = {
     tieBetPayout:    250000,
     blackjackPayout: 170000,
     label:           'vip',
+  },
+  100000: {
+    minBet:          100000,
+    maxBet:          100000,
+    walletSize:      5000000,
+    minBank:         7000000,
+    tieBet:          10000,
+    tieBetPayout:    500000,
+    blackjackPayout: 350000,
+    label:           'elite',
+  },
+  500000: {
+    minBet:          500000,
+    maxBet:          500000,
+    walletSize:      7000000,
+    minBank:         10000000,
+    tieBet:          25000,
+    tieBetPayout:    1000000,
+    blackjackPayout: 1000000,
+    label:           'celestial',
   },
 };
 

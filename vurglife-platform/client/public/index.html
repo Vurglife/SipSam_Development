@@ -204,6 +204,59 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
 .tc-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
 .tc-l{color:var(--text-dim)} .tc-r{color:var(--text-mid);font-weight:600} .tc-r.gold{color:var(--gold)}
 
+#panel-play-blackjack .tc{min-height:300px}
+#panel-play-blackjack .tc.tc-vip{
+  background:
+    radial-gradient(circle at 18% 10%, rgba(255,216,86,.16), transparent 34%),
+    linear-gradient(145deg, rgba(18,24,42,.96), rgba(9,16,31,.98));
+  border-color:rgba(201,168,76,.65)!important;
+  box-shadow:0 0 0 1px rgba(201,168,76,.25),0 0 30px rgba(201,168,76,.16);
+}
+#panel-play-blackjack .tc.tc-elite{
+  background:
+    radial-gradient(circle at 18% 10%, rgba(155,92,255,.22), transparent 36%),
+    linear-gradient(145deg, rgba(21,16,45,.97), rgba(9,16,31,.98));
+  border-color:rgba(155,92,255,.72)!important;
+  box-shadow:0 0 0 1px rgba(155,92,255,.35),0 0 36px rgba(155,92,255,.24);
+}
+#panel-play-blackjack .tc.tc-celestial{
+  background:
+    radial-gradient(circle at 16% 9%, rgba(126,200,255,.28), transparent 38%),
+    radial-gradient(circle at 88% 4%, rgba(255,232,122,.12), transparent 25%),
+    linear-gradient(145deg, rgba(8,30,56,.97), rgba(5,12,27,.98));
+  border-color:rgba(126,200,255,.78)!important;
+  box-shadow:0 0 0 1px rgba(126,200,255,.4),0 0 42px rgba(126,200,255,.28);
+}
+#panel-play-blackjack .tc-tier-kicker{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  min-height:24px;margin-bottom:10px;font-family:'Rajdhani',sans-serif;
+  font-size:10px;font-weight:900;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text-dim);
+}
+#panel-play-blackjack .tc-tier-badge{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;
+  border:1px solid var(--border);background:rgba(255,255,255,.04);white-space:nowrap;
+}
+#panel-play-blackjack .tc-tier-badge.vip{color:#f0d080;border-color:rgba(201,168,76,.45);background:rgba(201,168,76,.1)}
+#panel-play-blackjack .tc-tier-badge.elite{color:#c9a4ff;border-color:rgba(155,92,255,.5);background:rgba(155,92,255,.12)}
+#panel-play-blackjack .tc-tier-badge.celestial{color:#aaddff;border-color:rgba(126,200,255,.55);background:rgba(126,200,255,.13)}
+#panel-play-blackjack .tc-bj-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+#panel-play-blackjack .tc-bj-face{
+  width:38px;height:54px;flex:0 0 auto;border-radius:7px;background:#f7fbff;color:#0a1220;
+  border:1px solid rgba(255,255,255,.75);box-shadow:0 6px 18px rgba(0,0,0,.38);
+  display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;
+  font-size:24px;line-height:1;
+}
+#panel-play-blackjack .tc-bj-face.vip{color:#b8860b}
+#panel-play-blackjack .tc-bj-face.elite{color:#7b3fe4}
+#panel-play-blackjack .tc-bj-face.celestial{color:#1786d4}
+#panel-play-blackjack .tc.tc-vip .tc-bet{color:#f0d080;text-shadow:0 0 18px rgba(201,168,76,.38)}
+#panel-play-blackjack .tc.tc-elite .tc-bet{color:#d7baff;text-shadow:0 0 20px rgba(155,92,255,.48)}
+#panel-play-blackjack .tc.tc-celestial .tc-bet{color:#c7eaff;text-shadow:0 0 24px rgba(126,200,255,.55)}
+#panel-play-blackjack .tc.tc-vip .tc-name{color:#c9a84c}
+#panel-play-blackjack .tc.tc-elite .tc-name{color:#9b5cff}
+#panel-play-blackjack .tc.tc-celestial .tc-name{color:#7ec8ff}
+
 /* ── PROFILE ── */
 .prof-grid{display:grid;grid-template-columns:auto 1fr;gap:22px;margin-bottom:24px;align-items:start}
 .prof-av{width:90px;height:90px;border-radius:50%;background:var(--bg-panel);border:3px solid var(--blue-dim);
@@ -1102,7 +1155,9 @@ const BJ_TABLES = {
   5000:  { minBet:5000,  maxBet:5000,  wallet:120000,  walletSize:120000,  minBank:150000,  tieBet:1000, tieBetPayout:30000,  blackjackPayout:15000,  label:'Silver VIP',   tier:'vip' },
   10000: { minBet:10000, maxBet:10000, wallet:240000,  walletSize:240000,  minBank:300000,  tieBet:2000, tieBetPayout:75000,  blackjackPayout:30000,  label:'Gold VIP',     tier:'vip' },
   20000: { minBet:20000, maxBet:20000, wallet:500000,  walletSize:500000,  minBank:750000,  tieBet:3000, tieBetPayout:125000, blackjackPayout:70000,  label:'Platinum VIP', tier:'vip' },
-  50000: { minBet:50000, maxBet:50000, wallet:1000000, walletSize:1000000, minBank:1500000, tieBet:5000, tieBetPayout:250000, blackjackPayout:170000, label:'Elite VIP',    tier:'vip' },
+  50000: { minBet:50000, maxBet:50000, wallet:1000000, walletSize:1000000, minBank:1500000, tieBet:5000, tieBetPayout:250000, blackjackPayout:170000, label:'Diamond VIP',  tier:'vip' },
+  100000:{ minBet:100000,maxBet:100000,wallet:5000000, walletSize:5000000, minBank:7000000, tieBet:10000,tieBetPayout:500000, blackjackPayout:350000, label:'Elite',        tier:'elite' },
+  500000:{ minBet:500000,maxBet:500000,wallet:7000000, walletSize:7000000, minBank:10000000,tieBet:25000,tieBetPayout:1000000,blackjackPayout:1000000,label:'Celestial',    tier:'celestial' },
 };
 
 const HOLDEM_TABLES = {
@@ -1496,16 +1551,33 @@ function buildBJGrid(gridId) {
   const bank=getBank(); grid.innerHTML='';
   Object.values(BJ_TABLES).forEach(t => {
     const ok=bank>=t.minBank;
+    const tier=String(t.tier || 'standard').toLowerCase();
+    const premium=['vip','elite','celestial'].includes(tier);
+    const tierClass=premium ? ' tc-'+tier : '';
+    const tierLabel=tier==='celestial'?'Celestial':tier==='elite'?'Elite':tier==='vip'?'VIP':'Standard';
+    const tierIcon=tier==='celestial'?'&#10024;':tier==='elite'?'&#9670;':tier==='vip'?'&#9733;':'21';
+    const tableName=premium ? `${tierLabel} Table` : `${t.label} Table`;
+    const faceClass=premium ? tier : 'standard';
     const d=document.createElement('div');
-    d.className='tc'+(ok?'':' locked');
-    d.innerHTML=`<div class="tc-bet">$${t.minBet.toLocaleString()}</div>
-      <div class="tc-name">${t.label} Table</div>
+    d.className='tc'+(ok?'':' locked')+tierClass;
+    d.innerHTML=`<div class="tc-tier-kicker">
+        <span>${premium ? tierLabel+' Access' : 'Open Table'}</span>
+        <span class="tc-tier-badge ${tier}">${tierIcon} ${tierLabel}</span>
+      </div>
+      <div class="tc-bj-hero">
+        <div>
+          <div class="tc-bet">${premium ? tierIcon+' ' : ''}$${t.minBet.toLocaleString()}</div>
+          <div class="tc-name">${tableName}</div>
+        </div>
+        <div class="tc-bj-face ${faceClass}">A</div>
+      </div>
       <div>
         <div class="tc-row"><span class="tc-l">Min Bank Required</span><span class="tc-r">$${t.minBank.toLocaleString()}</span></div>
         <div class="tc-row"><span class="tc-l">Wallet Size</span><span class="tc-r gold">$${t.wallet.toLocaleString()}</span></div>
         <div class="tc-row"><span class="tc-l">Fixed Main Bet</span><span class="tc-r">$${t.minBet.toLocaleString()}</span></div>
         <div class="tc-row"><span class="tc-l">Tie Bet Optional</span><span class="tc-r">$${t.tieBet.toLocaleString()}</span></div>
         <div class="tc-row"><span class="tc-l">Tie Bonus</span><span class="tc-r gold">$${t.tieBetPayout.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Blackjack Bonus</span><span class="tc-r">${t.blackjackPayout ? '$'+t.blackjackPayout.toLocaleString() : '3:2'}</span></div>
         <div class="tc-row"><span class="tc-l">Multiplayer Room</span><span class="tc-r">Global</span></div>
       </div>
       <div style="margin-top:14px">
