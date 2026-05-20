@@ -677,13 +677,13 @@ html, body {
   height: 122px;
 }
 .bj-dealer-zone .vl-card .vl-rank,
-.bj-seat-mine .vl-card .vl-rank { font-size: 44px; }
+.bj-seat-mine .vl-card .vl-rank { font-size: 56px; }
 .bj-dealer-zone .vl-card .vl-suit,
-.bj-seat-mine .vl-card .vl-suit { font-size: 50px; }
+.bj-seat-mine .vl-card .vl-suit { font-size: 64px; }
 .bj-dealer-zone .vl-card .vl-pip,
 .bj-dealer-zone .vl-card .vl-pip-br,
 .bj-seat-mine   .vl-card .vl-pip,
-.bj-seat-mine   .vl-card .vl-pip-br { font-size: 14px; }
+.bj-seat-mine   .vl-card .vl-pip-br { font-size: 17px; }
 
 /* Highlight my seat — subtle gold ring so I can always find myself */
 .bj-seat-mine {
@@ -711,23 +711,28 @@ html, body {
 /* Mobile: keep cards proportional, push dealer cards slightly larger */
 @media (max-width: 480px) {
   .bj-seat-mine .vl-card  { width: 72px; height: 104px; }
-  .bj-seat-mine .vl-card .vl-rank { font-size: 38px; }
-  .bj-seat-mine .vl-card .vl-suit { font-size: 42px; }
+  .bj-seat-mine .vl-card .vl-rank { font-size: 46px; }
+  .bj-seat-mine .vl-card .vl-suit { font-size: 52px; }
   .bj-seat-mine .seat-hand {
     min-width: 150px !important;
     gap: 6px !important;
   }
   .bj-dealer-zone .vl-card { width: 64px; height: 92px; }
-  .bj-dealer-zone .vl-card .vl-rank { font-size: 32px; }
-  .bj-dealer-zone .vl-card .vl-suit { font-size: 36px; }
+  .bj-dealer-zone .vl-card .vl-rank { font-size: 40px; }
+  .bj-dealer-zone .vl-card .vl-suit { font-size: 46px; }
 }
 
 /* ── HANDS ── */
 .dealer-hand { display:flex; gap:6px; min-height:72px; align-items:flex-end;
-  filter:drop-shadow(0 4px 12px rgba(0,0,0,.7)); flex-wrap:wrap; justify-content:center; }
+  filter:drop-shadow(0 4px 12px rgba(0,0,0,.7)); flex-wrap:nowrap; justify-content:center; overflow:visible; }
 .seat-hand { display:flex; flex-direction:row; gap:4px; min-height:54px; align-items:flex-end;
   background:rgba(4,30,8,.5); border:1.5px solid rgba(201,168,76,.3); border-radius:8px;
-  padding:4px 6px; min-width:50px; flex-wrap:nowrap; }
+  padding:4px 6px; min-width:50px; flex-wrap:nowrap; justify-content:center; overflow:visible; white-space:nowrap; }
+.seat-hand .split-hand-wrapper,
+.split-hand-wrapper > div {
+  flex-wrap: nowrap !important;
+  white-space: nowrap;
+}
 .seat-hand:not(:has(.vl-card)) { opacity:0.3; }
 
 /* ── RESULT BADGES ── */
@@ -859,7 +864,6 @@ html, body {
    fixed positioning they float to the side of the table. Pinning them to
    bottom-center keeps the action area predictable and thumb-reachable
    on mobile. */
-#player-actions,
 #insurance-prompt {
   position: fixed !important;
   left: 50%;
@@ -899,6 +903,92 @@ html, body {
   padding: 10px 22px;
   backdrop-filter: blur(8px);
 }
+
+/* Active hand focus: duplicates my seat hand at readable play size. */
+.focus-hand-panel {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  transform: translate(-50%, -50%);
+  z-index: 36;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  width: min(92vw, 560px);
+}
+.focus-hand-meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 28px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(4, 10, 20, 0.78);
+  border: 1px solid rgba(201,168,76,0.34);
+  box-shadow: 0 5px 18px rgba(0,0,0,0.42);
+  font-family:'Rajdhani',sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+.focus-hand-meta span {
+  color: #86a9cf;
+  font-size: 11px;
+  font-weight: 700;
+}
+.focus-hand-meta strong {
+  color: var(--gold-lt);
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+}
+.focus-hand-meta strong.bust { color:#ff6b6b; }
+.focus-hand-meta strong.bj { color:#ffd700; }
+.focus-hand-cards {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 10px;
+  min-height: 166px;
+  padding: 0 10px 42px;
+  overflow: visible;
+  filter: drop-shadow(0 12px 24px rgba(0,0,0,0.62));
+}
+.focus-actions {
+  position: absolute !important;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+  z-index: 2;
+  pointer-events: auto;
+  width: min(94vw, 520px);
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(10,24,48,0.90), rgba(4,10,20,0.96));
+  border: 1px solid rgba(201,168,76,0.36);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.62), 0 0 20px rgba(74,171,255,0.12);
+  backdrop-filter: blur(10px);
+}
+.focus-action-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+}
+.focus-split-status {
+  font-size: 11px;
+  color: #7a9ac0;
+  text-align: center;
+  margin-top: 4px;
+  min-height: 13px;
+}
+
 .action-btn {
   background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
   border: 1px solid rgba(201,168,76,0.35);
@@ -1081,6 +1171,142 @@ html, body {
   border-color: var(--gold);
   transform: translateX(-3px);
 }
+.igm-item.igm-danger .igm-title { color:#fca5a5; }
+.igm-item.igm-danger:hover {
+  background: rgba(239,68,68,.08);
+  border-color: rgba(239,68,68,.55);
+}
+.igm-ico { font-size:20px; width:28px; text-align:center; flex-shrink:0; }
+.igm-body { flex:1; min-width:0; }
+.igm-title { font-weight:700; font-size:13px; margin-bottom:1px; color:#f0f6ff; }
+.igm-desc { font-size:11px; color:#7a9ac0; line-height:1.35; letter-spacing:.5px; text-transform:none; }
+.igm-arrow { color:#334d70; font-size:18px; flex-shrink:0; }
+.igm-sub {
+  position:absolute;
+  inset:0;
+  z-index:4;
+  display:flex;
+  flex-direction:column;
+  background:#080f1e;
+  transform:translateX(100%);
+  transition:transform .24s ease;
+  overflow-y:auto;
+  pointer-events:none;
+}
+.igm-sub.open {
+  transform:translateX(0);
+  pointer-events:auto;
+}
+.igm-sub-head {
+  padding:14px 18px;
+  border-bottom:1px solid #1a2d50;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:16px;
+  letter-spacing:2px;
+  color:#f0f6ff;
+  flex-shrink:0;
+}
+.igm-back-btn {
+  background:rgba(26,140,255,.1);
+  border:1px solid #1a2d50;
+  border-radius:6px;
+  padding:5px 11px;
+  cursor:pointer;
+  color:#4aabff;
+  font-size:12px;
+  font-family:'Rajdhani',sans-serif;
+  font-weight:700;
+  letter-spacing:1px;
+}
+.igm-action-btn {
+  width:100%;
+  background:linear-gradient(135deg,#1a5aaa,#1a8cff);
+  border:none;
+  border-radius:8px;
+  padding:11px;
+  color:#fff;
+  font-family:'Rajdhani',sans-serif;
+  font-size:14px;
+  font-weight:700;
+  letter-spacing:1.5px;
+  cursor:pointer;
+  text-transform:uppercase;
+  transition:all .18s;
+}
+.igm-action-btn:hover { filter:brightness(1.1); transform:translateY(-1px); }
+.igm-rule-sec { margin-bottom:16px; }
+.igm-rule-h {
+  font-family:'Rajdhani',sans-serif;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:2px;
+  color:#4aabff;
+  text-transform:uppercase;
+  margin-bottom:7px;
+}
+
+#chat-fab:hover { transform:scale(1.1); }
+#chat-popup { animation:chatPopIn .15s ease; }
+@keyframes chatPopIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+.chat-messages {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 8px 10px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-bottom: 1px solid rgba(26,58,92,.6);
+}
+.chat-message {
+  background: rgba(15,30,56,.74);
+  border: 1px solid rgba(74,171,255,.16);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  line-height: 1.25;
+  color: #dcecff;
+  overflow-wrap: anywhere;
+}
+.chat-message.mine {
+  background: rgba(201,168,76,.12);
+  border-color: rgba(201,168,76,.26);
+}
+.chat-message .chat-sender {
+  display:block;
+  margin-bottom:2px;
+  color:#4aabff;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.8px;
+  text-transform:uppercase;
+}
+.speech-bubble {
+  position:fixed;
+  background:rgba(6,18,42,.97);
+  border:1.5px solid #1a8cff;
+  border-radius:12px;
+  padding:8px 13px;
+  font-size:12px;
+  color:#e0eeff;
+  max-width:175px;
+  overflow-wrap:anywhere;
+  z-index:500;
+  pointer-events:none;
+  line-height:1.4;
+  box-shadow:0 4px 20px rgba(0,0,0,.7);
+  animation:sbIn .2s ease;
+}
+.sb-sender {
+  font-size:10px;
+  font-weight:700;
+  color:#4aabff;
+  margin-bottom:3px;
+  letter-spacing:.5px;
+}
+@keyframes sbIn { from{opacity:0;transform:scale(.85)} to{opacity:1;transform:scale(1)} }
 
 /* ── PHASE BANNER ANNOUNCE STATES ────────────────────────── */
 .phase-banner.betting  { color: var(--gold-lt); }
@@ -1115,6 +1341,18 @@ html, body {
   .chip-btn { width:56px; height:56px; font-size:13px; }
   .action-btn { font-size:12px; padding:8px 12px; min-width:72px; }
   .action-btn.large { font-size:13px; padding:10px 16px; min-width:88px; }
+  .focus-hand-panel { top: 57%; width: 98vw; gap: 4px; }
+  .focus-hand-meta { min-height: 22px; padding: 3px 9px; }
+  .focus-hand-meta span { font-size: 9px; }
+  .focus-hand-meta strong { font-size: 15px; }
+  .focus-hand-cards { gap: 7px; min-height: 116px; padding-bottom: 38px; }
+  .focus-hand-cards .vl-card.vl-xl { width: 78px; height: 112px; border-radius: 9px; }
+  .focus-hand-cards .vl-card.vl-xl .vl-rank { font-size: 48px; }
+  .focus-hand-cards .vl-card.vl-xl .vl-suit { font-size: 54px; }
+  .focus-hand-cards .vl-card.vl-xl .vl-pip,
+  .focus-hand-cards .vl-card.vl-xl .vl-pip-br { font-size: 14px; }
+  .focus-actions { width: min(96vw, 360px); padding: 7px 8px; bottom: 2px; }
+  .focus-action-row { gap: 5px; }
   .top-bar { font-size:11px; padding:6px 10px; }
   .game-body-bj {
     padding: 4px 2px 2px;

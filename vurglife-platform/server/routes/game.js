@@ -762,15 +762,19 @@ router.post('/debt-payment', requireAuth, async (req, res) => {
 
 // POST /api/game/replenish — top up wallet during game (SipSam, Rhum32, or Blackjack)
 router.post('/replenish', requireAuth, async (req, res) => {
-    const { tableMinBet, currentWallet, game } = req.body;
-    const configMap = game === 'rhum32' ? RHUM32_TABLE_CONFIG
-                    : game === 'blackjack' ? BJ_TABLE_CONFIG
+    const { tableMinBet, currentWallet, game, amount } = req.body;
+    const gameKey = game || req.body.gameType;
+    const configMap = gameKey === 'rhum32' ? RHUM32_TABLE_CONFIG
+                    : gameKey === 'blackjack' ? BJ_TABLE_CONFIG
                     : TABLE_CONFIG;
     const cfg = configMap[tableMinBet];
     if (!cfg)  return res.status(400).json({ error: 'Invalid table' });
 
     const user   = await UserDB.findById(req.userId);
-    const topUp  = cfg.walletSize - currentWallet;
+    const wallet = Math.max(0, Number(currentWallet) || 0);
+    const needed = cfg.walletSize - wallet;
+    const requested = Math.floor(Number(amount) || 0);
+    const topUp  = requested > 0 ? Math.min(requested, needed) : needed;
     if (topUp <= 0) return res.status(400).json({ error: 'Wallet already at maximum' });
     if (user.bank_balance < topUp)
         return res.status(400).json({ error: `Need $${topUp.toLocaleString()} in bank to replenish` });
@@ -779,7 +783,7 @@ router.post('/replenish', requireAuth, async (req, res) => {
     await TxnDB.record(req.userId, 'wallet_replenish', -topUp, null, `Replenished wallet at $${tableMinBet} table`);
 
     const updated = await UserDB.findById(req.userId);
-    res.json({ ok:true, topUp, newBankBalance: updated.bank_balance, newWallet: cfg.walletSize });
+    res.json({ ok:true, topUp, newBankBalance: updated.bank_balance, newWallet: wallet + topUp });
 });
 
 // ── ADS ────────────────────────────────────────────────────────────

@@ -69,6 +69,15 @@ function fmtChips(n) {
   return '$' + n.toLocaleString();
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function tableDisplayName() {
   return BJ_TABLE.displayLabel || BJ_TABLE.name || ((BJ_TABLE.label === 'vip') ? 'VIP' : 'Standard');
 }
@@ -164,7 +173,7 @@ function handTotal(hand) {
 }
 
 function makeVLCard(c, size) {
-  // size: 'sm' | 'lg' | undefined (default).  Used by renderSeats/renderDealer.
+  // size: 'sm' | 'lg' | 'xl' | undefined (default).
   let el;
   if (typeof window.vlCard === 'function')      el = window.vlCard(c);
   else if (typeof vlCard === 'function')        el = vlCard(c);
@@ -186,7 +195,8 @@ function makeVLCard(c, size) {
       el.textContent = c.rank + (c.suit || '');
     }
   }
-  if (size === 'lg') el.classList.add('vl-lg');
+  if (size === 'xl') el.classList.add('vl-xl');
+  else if (size === 'lg') el.classList.add('vl-lg');
   else if (size === 'sm') el.classList.add('vl-sm');
   return el;
 }
@@ -657,8 +667,8 @@ function handleMsg(msg) {
     case 'phase':       handlePhase(msg); break;
     case 'your_turn':   handleYourTurn(msg); break;
     case 'tie_win':     handleTieWin(msg); break;
-    case 'chatHistory': if (Array.isArray(msg.messages)) msg.messages.forEach(appendChat); break;
-    case 'chatMessage': appendChat(msg); break;
+    case 'chatHistory': if (Array.isArray(msg.messages)) msg.messages.forEach(m => appendChat(m, true)); break;
+    case 'chatMessage': appendChat(msg, false); break;
     case 'toast':       showIngameToast(msg.title, msg.message); break;
     case 'kicked':      handleKicked(msg); break;
     default:            console.log('[BJ] unknown msg:', msg.type);
@@ -717,6 +727,7 @@ function applyState(state) {
 
   renderDealer(state);
   renderSeats(state);
+  renderFocusHand(state);
   updateUI(state);
 
   // Phase transitions
@@ -879,7 +890,7 @@ function renderSeats(state) {
         cardsEl.innerHTML = '';
         cardsEl.style.cssText = isMe
           ? 'display:flex;flex-direction:row;gap:8px;flex-wrap:nowrap;justify-content:center;align-items:flex-end;width:max-content;max-width:none'
-          : 'display:flex;gap:6px;flex-wrap:wrap;justify-content:center';
+          : 'display:flex;flex-direction:row;gap:6px;flex-wrap:nowrap;justify-content:center;align-items:flex-end;overflow:visible;white-space:nowrap';
         hands.forEach((hand, hi) => {
           const wrap = document.createElement('div');
           wrap.className = 'split-hand-wrapper' + (hi === seat.activeHandIdx ? ' active' : '');
@@ -887,7 +898,7 @@ function renderSeats(state) {
           const box = document.createElement('div');
           box.style.cssText = isMe
             ? 'display:flex;flex-direction:row;gap:4px;flex-wrap:nowrap;align-items:flex-end'
-            : 'display:flex;gap:2px';
+            : 'display:flex;flex-direction:row;gap:2px;flex-wrap:nowrap;align-items:flex-end;white-space:nowrap';
           (hand || []).forEach(c => box.appendChild(makeVLCard(c, cardSize)));
           const ht = handTotal(hand || []);
           if (ht.total > 0) {
@@ -911,7 +922,7 @@ function renderSeats(state) {
         cardsEl.innerHTML = '';
         cardsEl.style.cssText = isMe
           ? 'display:flex;flex-direction:row;gap:8px;align-items:flex-end;flex-wrap:nowrap;width:max-content;max-width:none'
-          : 'display:flex;gap:3px;align-items:flex-end;flex-wrap:wrap';
+          : 'display:flex;flex-direction:row;gap:4px;align-items:flex-end;flex-wrap:nowrap;justify-content:center;overflow:visible;white-space:nowrap';
         const hand = hands[0] || [];
         hand.forEach(c => cardsEl.appendChild(makeVLCard(c, cardSize)));
         const ht = handTotal(hand);
@@ -958,6 +969,43 @@ function renderSeats(state) {
 // ─────────────────────────────────────────────────────
 // UPDATE UI — top bar, action buttons, tie bet
 // ─────────────────────────────────────────────────────
+function renderFocusHand(state) {
+  const panel = document.getElementById('focus-hand-panel');
+  const cardsEl = document.getElementById('focus-hand-cards');
+  const totalEl = document.getElementById('focus-hand-total');
+  const labelEl = document.getElementById('focus-hand-label');
+  if (!panel || !cardsEl) return;
+
+  const mySeat = (mySeatIndex !== null) ? state.seats?.[mySeatIndex] : null;
+  const hands = mySeat?.hands || [];
+  const activeHandIdx = mySeat?.activeHandIdx || 0;
+  const hand = hands[activeHandIdx] || hands[0] || [];
+  const hasCards = hand.length > 0;
+
+  if (!mySeat || !hasCards || state.phase === 'waiting' || state.phase === 'betting') {
+    panel.style.display = 'none';
+    cardsEl.innerHTML = '';
+    if (totalEl) totalEl.textContent = '--';
+    return;
+  }
+
+  panel.style.display = 'flex';
+  cardsEl.innerHTML = '';
+  hand.forEach(c => cardsEl.appendChild(makeVLCard(c, 'xl')));
+
+  const ht = handTotal(hand);
+  if (labelEl) {
+    labelEl.textContent = hands.length > 1
+      ? `Your Hand ${activeHandIdx + 1} of ${hands.length}`
+      : 'Your Hand';
+  }
+  if (totalEl) {
+    totalEl.textContent = ht.bj ? 'Blackjack' : (ht.bust ? `Bust ${ht.total}` : `Total ${ht.total}`);
+    totalEl.classList.toggle('bust', ht.bust);
+    totalEl.classList.toggle('bj', ht.bj);
+  }
+}
+
 function updateUI(state) {
   const roundEl  = document.getElementById('game-round');
   if (roundEl) roundEl.textContent = state.roundNum ? 'Round ' + state.roundNum : 'Round —';
@@ -1279,26 +1327,31 @@ function closeIngameMenu() {
   if (ov) ov.style.display = 'none';
   if (pn) { pn.style.transform = 'translateX(100%)'; pn.classList.remove('open'); }
   document.body.classList.remove('igm-open');
-  // Hide any open sub-panel
-  document.querySelectorAll('.igm-sub').forEach(s => s.style.display = 'none');
-  const m = document.getElementById('igm-main');
-  if (m) m.style.display = 'block';
+  document.querySelectorAll('.igm-sub').forEach(s => {
+    s.classList.remove('open');
+    s.style.display = '';
+  });
 }
 function igmShowSub(id) {
-  document.querySelectorAll('.igm-sub').forEach(s => s.style.display = 'none');
+  document.querySelectorAll('.igm-sub').forEach(s => {
+    s.classList.remove('open');
+    s.style.display = '';
+  });
   const sub = document.getElementById(id);
-  if (sub) sub.style.display = 'block';
-  const main = document.getElementById('igm-main');
-  if (main) main.style.display = 'none';
+  if (sub) {
+    sub.style.display = 'flex';
+    sub.classList.add('open');
+  }
 }
 function igmBack() {
-  document.querySelectorAll('.igm-sub').forEach(s => s.style.display = 'none');
-  const main = document.getElementById('igm-main');
-  if (main) main.style.display = 'block';
+  document.querySelectorAll('.igm-sub').forEach(s => {
+    s.classList.remove('open');
+    s.style.display = '';
+  });
 }
 function igmShowReplenish() { igmShowSub('igm-sub-replenish'); }
 function igmShowInvite()    { igmShowSub('igm-sub-invite'); }
-function igmShowPayouts()   { igmShowSub('igm-sub-payouts'); }
+function igmShowPayouts()   { _syncIgmPayoutInfo(); igmShowSub('igm-sub-payouts'); }
 function igmShowRules()     { igmShowSub('igm-sub-rules'); }
 
 function igmRefresh() {
@@ -1307,6 +1360,25 @@ function igmRefresh() {
   const b = document.getElementById('igm-bank-display');   if (b) b.textContent = fmtChips(igmBank);
   const rw = document.getElementById('rep-cur-wallet');    if (rw) rw.textContent = fmtChips(myChips);
   const rb = document.getElementById('rep-cur-bank');      if (rb) rb.textContent = fmtChips(igmBank);
+  const tl = document.getElementById('igm-table-label');
+  if (tl) tl.textContent = `Blackjack - ${tableDisplayName()} - ${fmtChips(BJ_TABLE.minBet || 100)} Table`;
+  _syncIgmPayoutInfo();
+}
+
+function _syncIgmPayoutInfo() {
+  const min = BJ_TABLE.minBet || 100;
+  const tie = BJ_TABLE.tieBetPayout || 2000;
+  const tier = document.getElementById('igm-payouts-tier');
+  if (tier) {
+    tier.style.background = 'rgba(26,140,255,.08)';
+    tier.style.border = '1px solid #1a2d50';
+    tier.style.color = '#7a9ac0';
+    tier.textContent = `${tableDisplayName()} table - ${fmtChips(min)} fixed main bet`;
+  }
+  const tie100 = document.getElementById('igm-bj-tie-100');
+  if (tie100) tie100.textContent = '+' + fmtChips(tie);
+  const tie500 = document.getElementById('igm-bj-tie-500');
+  if (tie500) tie500.textContent = _tieFrozen ? 'On' : 'Repeats Yes/No';
 }
 
 async function igmExitTable() {
@@ -1343,9 +1415,10 @@ function igmAddBot() {
 }
 
 function igmFillMax() {
-  // Fill the replenish input with the player's full bank balance
   const input = document.getElementById('rep-amount');
-  if (input) input.value = String(Math.max(0, igmBank | 0));
+  const walletCap = BJ_TABLE.walletSize || BJ_TABLE.wallet || 0;
+  const needed = walletCap ? Math.max(0, walletCap - myChips) : Math.max(0, igmBank | 0);
+  if (input) input.value = String(Math.max(0, Math.min(igmBank | 0, needed)));
 }
 
 async function doReplenish() {
@@ -1366,21 +1439,27 @@ async function doReplenish() {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + igmToken },
       credentials: 'include',
-      body: JSON.stringify({ amount: amt, gameType: 'blackjack', tableMinBet: BJ_TABLE.minBet || 100 })
+      body: JSON.stringify({
+        amount: amt,
+        game: 'blackjack',
+        tableMinBet: BJ_TABLE.minBet || 100,
+        currentWallet: myChips
+      })
     });
     const d = await res.json();
     if (!d?.ok) {
       if (err) { err.textContent = d?.error || 'Replenish failed.'; err.style.display = 'block'; }
       return;
     }
-    // Server already debited the bank — credit our local wallet via add_wallet
-    sendMsg('add_wallet', { amount: amt });
+    const credited = Math.floor(Number(d.topUp || d.amount || amt));
+    // Server debits the bank; BlackjackRoom credits the table wallet.
+    sendMsg('add_wallet', { amount: credited });
     if (typeof d.newBankBalance === 'number') igmBank = d.newBankBalance;
-    myChips += amt;
+    myChips += credited;
     igmWallet = myChips;
     igmRefresh();
     if (input) input.value = '';
-    showIngameToast('Replenished', `+${fmtChips(amt)} drawn to wallet.`);
+    showIngameToast('Replenished', `+${fmtChips(credited)} drawn to wallet.`);
     setTimeout(() => igmBack(), 600);
   } catch (e) {
     if (err) { err.textContent = 'Network error: ' + e.message; err.style.display = 'block'; }
@@ -1485,6 +1564,8 @@ async function sendLobbyInvite() {
 // ─────────────────────────────────────────────────────
 // CHAT
 // ─────────────────────────────────────────────────────
+const _chatBubbleTimers = {};
+
 function toggleChatPopup() {
   const p = document.getElementById('chat-popup');
   if (!p) return;
@@ -1499,9 +1580,71 @@ function chatBarSend() {
   sendMsg('chatMessage', { message: msg });
   inp.value = '';
 }
-function appendChat(msg) {
-  // Minimal chat sink — full popup logging can be added later
-  console.log('[chat]', msg.username || '?', ':', msg.message);
+function appendChat(msg, isHistory = false) {
+  if (!msg || !msg.message) return;
+  const username = msg.username || msg.displayName || 'Player';
+  const message = String(msg.message).slice(0, 160);
+  const mine = msg.sessionId === mySessionId || username === myUsername;
+  const log = document.getElementById('chat-messages');
+
+  if (log) {
+    const row = document.createElement('div');
+    row.className = 'chat-message' + (mine ? ' mine' : '');
+    row.innerHTML = `<span class="chat-sender">${escapeHtml(username)}</span>${escapeHtml(message)}`;
+    log.appendChild(row);
+    while (log.children.length > 60) log.removeChild(log.firstChild);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  if (!isHistory) showChatBubble(msg);
+  console.log('[chat]', username, ':', message);
+}
+
+function showChatBubble(msg) {
+  const username = msg.username || msg.displayName || 'Player';
+  const message = String(msg.message || '').slice(0, 120);
+  if (!message) return;
+
+  let seatIndex = Number.isInteger(msg.seatIndex) ? msg.seatIndex : null;
+  if (seatIndex === null && lastState?.seats) {
+    for (const [idx, seat] of Object.entries(lastState.seats)) {
+      if (seat.sessionId === msg.sessionId || seat.userId === username || seat.displayName === username) {
+        seatIndex = parseInt(idx, 10);
+        break;
+      }
+    }
+  }
+
+  const vz = Number.isInteger(seatIndex) ? getVisualZone(seatIndex) : -1;
+  const anchor = vz >= 0 ? document.getElementById(`bj-seat-${vz}`) : null;
+  if (!anchor) return;
+
+  const key = msg.sessionId || username || String(seatIndex);
+  const id = 'chat-bubble-' + String(key).replace(/[^a-z0-9_-]/gi, '');
+  const old = document.getElementById(id);
+  if (old) old.remove();
+  if (_chatBubbleTimers[id]) clearTimeout(_chatBubbleTimers[id]);
+
+  const rect = anchor.getBoundingClientRect();
+  const bubble = document.createElement('div');
+  bubble.id = id;
+  bubble.className = 'speech-bubble';
+  bubble.innerHTML = `<div class="sb-sender">${escapeHtml(username)}</div>${escapeHtml(message)}`;
+  const left = Math.max(88, Math.min(window.innerWidth - 88, rect.left + rect.width / 2));
+  bubble.style.left = left + 'px';
+  bubble.style.transform = 'translateX(-50%)';
+  if (rect.top > window.innerHeight * 0.35) {
+    bubble.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+  } else {
+    bubble.style.top = (rect.bottom + 8) + 'px';
+  }
+  document.body.appendChild(bubble);
+  _chatBubbleTimers[id] = setTimeout(() => {
+    bubble.style.opacity = '0';
+    bubble.style.transition = 'opacity .35s ease';
+    setTimeout(() => bubble.remove(), 360);
+    delete _chatBubbleTimers[id];
+  }, 5000);
 }
 
 // ─────────────────────────────────────────────────────

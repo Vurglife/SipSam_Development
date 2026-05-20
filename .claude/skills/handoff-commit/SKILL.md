@@ -11,7 +11,7 @@ Before commit or handoff:
 3. Confirm validation performed and remaining gaps.
 4. Update `docs/system-development/VALIDATION.md`, `DECISIONS.md`, `LESSONS.md`, or `ROADMAP.md` when needed.
 5. Stage only current-task files.
-6. Commit with a clear message. Claude Code is allowed and expected to commit current-task changes after validation.
+6. Commit with a clear message. Claude Code is allowed and expected to commit current-task changes after validation. Use one feature per commit and include full file paths in the commit body for changed files.
 7. Summarize commit hash, changed files, validation, unrelated changes left untouched, and residual risk.
 
 Do not stage unrelated files. Do not push or use destructive git commands unless Mitstar explicitly asks.
