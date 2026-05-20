@@ -642,9 +642,8 @@ class SipSamRoom {
         Object.values(this.gameState.players).forEach(p => {
             if (p === banker || p.isBanker || p.isGhostBot || p.disqualified || p.bet <= 0) return;
             const declared = p.declaredSpecial || null;
-            const actual   = this._actualSpecialFor(p);
-            const sp       = declared || actual;
-            const bonusSp  = actual || declared;
+            const sp       = declared;
+            const bonusSp  = declared;
             const bonus    = bonusSp ? Logic.getSpecialBonus(bonusSp.name, bonusTier) : 0;
             const fromBanker = (Number(p.bet) || 0) * 2;
             const refund     = fromBanker + bonus;
@@ -914,9 +913,8 @@ class SipSamRoom {
                 if (!p.isBanker && !p.disqualified && p.bet > 0) {
                     // Banker pays exactly 2x on DQ; house bonus remains separate.
                     const declared   = p.declaredSpecial || null;
-                    const actual     = this._actualSpecialFor(p);
-                    const sp         = declared || actual;
-                    const bonusSp    = actual || declared;
+                    const sp         = declared;
+                    const bonusSp    = declared;
                     const bonus      = bonusSp ? Logic.getSpecialBonus(bonusSp.name, bonusTier) : 0;
                     const fromBanker = p.bet * 2;
                     const prize      = fromBanker + bonus;
@@ -1009,8 +1007,8 @@ class SipSamRoom {
     }
 
     _specialBonusFor(player) {
-        const actual = this._actualSpecialFor(player);
-        return actual ? Logic.getSpecialBonus(actual.name, this.gameState.tableMinBet || 0) : 0;
+        const declared = player?.declaredSpecial || null;
+        return declared ? Logic.getSpecialBonus(declared.name, this.gameState.tableMinBet || 0) : 0;
     }
 
     // Verify if a disqualification request is valid
@@ -1049,9 +1047,8 @@ class SipSamRoom {
                 if (p.isBanker || p.disqualified || p.isGhostBot || p.bet <= 0) return;
                 // Banker forfeit/DQ pays exactly 2x; house bonus remains separate.
                 const declared = p.declaredSpecial || null;
-                const actual   = this._actualSpecialFor(p);
-                const sp       = declared || actual;
-                const bonusSp  = actual || declared;
+                const sp       = declared;
+                const bonusSp  = declared;
                 const bonus    = bonusSp ? Logic.getSpecialBonus(bonusSp.name, bonusTier) : 0;
                 const fromBanker = p.bet * 2;
                 const prize    = fromBanker + bonus;
@@ -1070,7 +1067,6 @@ class SipSamRoom {
 
         if (banker.disqualified || !banker.hand1?.length) return;
         const bankerHands = { hand1:banker.hand1, hand2:banker.hand2, hand3:banker.hand3 };
-        const bankerActualSpecial = this._actualSpecialFor(banker);
 
         // House bonus tracking.
         let roundBonusAwarded = false;
@@ -1078,7 +1074,7 @@ class SipSamRoom {
         let roundBonusWinner  = null; // 'player' or 'banker'
         let roundBonusPlayer  = null; // the player who won (if not banker)
         const specialAnnouncements = [];
-        const bankerSpecialForAnnouncement = banker.declaredSpecial || bankerActualSpecial || null;
+        const bankerSpecialForAnnouncement = banker.declaredSpecial || null;
         let bankerSpecialNet = 0;
         let bankerBonusForAnnouncement = bankerSpecialForAnnouncement
             ? Logic.getSpecialBonus(bankerSpecialForAnnouncement.name, this.gameState.tableMinBet || 0)
@@ -1110,10 +1106,8 @@ class SipSamRoom {
             //   • banker's bankerBonus is accumulated and paid ONCE after the loop.
             player.chips      += result.payout;
             player.lastPayout  = result.payout;
-            // Player bonus — prefer DECLARED special (what the player committed to).
-            // Falls back to actual highest only if no declaration was made.
-            const playerBonusSpecial =
-                player.declaredSpecial || this._actualSpecialFor(player) || null;
+            // Player house bonus is only paid for a declared special.
+            const playerBonusSpecial = player.declaredSpecial || null;
             const playerBonusOwn = playerBonusSpecial
                 ? Logic.getSpecialBonus(playerBonusSpecial.name, this.gameState.tableMinBet || 0)
                 : 0;
@@ -1139,7 +1133,7 @@ class SipSamRoom {
             }
 
             // Track banker bonus once per round (banker plays one hand, multiple players see it).
-            const bankerBonusOwn = bankerActualSpecial ? Logic.getSpecialBonus(bankerActualSpecial.name, this.gameState.tableMinBet || 0) : 0;
+            const bankerBonusOwn = banker.declaredSpecial ? Logic.getSpecialBonus(banker.declaredSpecial.name, this.gameState.tableMinBet || 0) : 0;
             if (bankerBonusOwn > 0 && !roundBonusAwarded) {
                 roundBonusAwarded = true;
                 roundBonusAmount  = bankerBonusOwn;
@@ -1186,7 +1180,7 @@ class SipSamRoom {
         this._broadcastSpecialAnnouncements(specialAnnouncements);
 
         // Store banker's special display
-        const bs = banker.declaredSpecial || bankerActualSpecial;
+        const bs = banker.declaredSpecial || null;
         banker.lastSpecial = bs ? `â­ ${bs.name} (${bs.multiplier}x)` : null;
 
         // Wallet debt: if a player's chips hit 0 or go negative after a round —
@@ -1495,9 +1489,8 @@ class SipSamRoom {
             Object.values(this.gameState.players).forEach(p => {
                 if (!p.isBanker && !p.disqualified && p.bet > 0) {
                     const declared = p.declaredSpecial || null;
-                    const actual   = this._actualSpecialFor(p);
-                    const sp       = declared || actual;
-                    const bonusSp  = actual || declared;
+                    const sp       = declared;
+                    const bonusSp  = declared;
                     const bonus    = bonusSp ? Logic.getSpecialBonus(bonusSp.name, this.gameState.tableMinBet || 0) : 0;
                     const fromBanker = p.bet * 2;
                     const refund   = fromBanker + bonus;

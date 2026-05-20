@@ -67,24 +67,24 @@ The server reads ONLY this — never an inline copy:
 - `poker-server/PokerRoom.js` → top-level `require('../shared/sipsam-tables.js')`,
   used by both `_onStartGame` and `_applyTableConfigFromRoomId`.
 
-**To add/adjust a tier: edit `shared/sipsam-tables.js` ONLY.** All server
-money paths pick it up on restart. No more 4-way edit; the Elite-increment
-and wallet-refund desync bug class is structurally eliminated.
+**To add/adjust a tier: edit `shared/sipsam-tables.js` first.** All server
+money paths pick it up on restart. Then update the two browser mirrors in the
+same change so dashboard selection, lobby preview, and bet controls all agree.
 
-**Two browser DISPLAY-ONLY mirrors remain** (cosmetic — they set dashboard/
-lobby labels, NOT what the player is charged; the server bills correctly even
-if they drift):
+**Two browser mirrors remain**:
 - `poker-client/game.js` → `TABLE_CONFIGS` (field name `bankRequired`)
 - `vurglife-platform/client/public/index.html` → `TABLES` (fields `inc`,
   `wallet`, `minBank`) + `buildGrid` tier-label branch logic
 
-Update the two mirrors only when you want the dashboard label/preview to
-match a tier change. A drift here is cosmetic, never a money bug.
+If these drift, the server still clamps money movement from `shared/sipsam-tables.js`,
+but the user can see the wrong controls or enter with the wrong table key.
+Always validate dashboard -> sessionStorage -> matchmake -> `PokerRoom.gameState`
+-> `/api/game/enter` for Elite/Celestial changes.
 
-Current SipSam tiers (table key → bank / wallet / increment / maxBet):
-`100`→5K/3K/50/150 · `250`→15K/10K/50/500 · `500`→30K/20K/100/1K ·
-`1000`→60K/40K/500/2K · `10000`→2M/1M/10K/50K (VIP) ·
-`100000`→7M/5M/100K/500K (Elite) · `500000` key→10M/7M/100K/1M with 100K min bet (Celestial)
+Current SipSam tiers (table key -> bank / wallet / minBet / increment / maxBet):
+`100` -> 5K/3K/100/50/150; `250` -> 15K/10K/250/50/500; `500` -> 30K/20K/500/100/1K;
+`1000` -> 60K/40K/1K/500/2K; `10000` -> 2M/1M/10K/10K/50K (VIP);
+`100000` -> 7M/5M/100K/100K/500K (Elite); `500000` -> 10M/7M/500K/250K/1M (Celestial)
 
 ---
 

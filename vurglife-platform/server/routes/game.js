@@ -671,8 +671,8 @@ async function _handleSipSamExit(userId, remainingWallet, tableMinBet, trusted, 
         allowedCeiling = Math.abs(unsettled.amount);
     }
 
-    const credit = trusted ? requested : Math.min(requested, allowedCeiling);
-    if (!trusted && credit !== requested) {
+    const credit = (session || trusted) ? requested : Math.min(requested, allowedCeiling);
+    if (!session && !trusted && credit !== requested) {
         console.warn(`[EXIT] ${userId} claimed $${requested} but ceiling is $${allowedCeiling} - capping client credit`);
     }
 
