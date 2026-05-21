@@ -37,11 +37,12 @@ app.post("/matchmake/joinOrCreate/rhum32_room", (req, res) => {
     const maxRounds    = req.body?.maxRounds     || 10;
     const mode         = req.body?.mode          || "multiplayer"; // 'multiplayer' | 'single'
     const targetRoomId = req.body?.roomId        || null;          // direct join via invite
+    const isHost       = req.body?.isHost === true;                // host eager-creates a private room
 
     let roomId, room, created;
 
     if (targetRoomId) {
-        // Direct join to specific room (invite flow)
+        // Direct join to specific room (invite flow / late-join)
         room = manager.getRoom(targetRoomId);
         if (!room) {
             return res.status(404).json({ error: "Room not found or expired" });
@@ -56,13 +57,19 @@ app.post("/matchmake/joinOrCreate/rhum32_room", (req, res) => {
         // Single player: always create new private room
         ({ roomId, room } = manager.createRoom(tableMinBet, maxRounds, "single"));
         created = true;
+    } else if (isHost) {
+        // Multiplayer host: always create a NEW room so invitees can join
+        // THIS host's table. Quick-join (joinOrCreate) is for strangers, not
+        // for a host setting up a private game.
+        ({ roomId, room } = manager.createRoom(tableMinBet, maxRounds, "multiplayer"));
+        created = true;
     } else {
-        // Multiplayer quick-join: find existing or create
+        // Multiplayer quick-join (strangers): find existing or create
         ({ roomId, room, created } = manager.joinOrCreate(tableMinBet, maxRounds));
     }
 
-    pendingSessions[sessionId] = { username, roomId, wallet, token };
-    console.log(`Matchmake: ${username} → ${sessionId} (room: ${roomId}, ${created ? "NEW" : "EXISTING"})`);
+    pendingSessions[sessionId] = { username, roomId, wallet, token, isHost };
+    console.log(`Matchmake: ${username} → ${sessionId} (room: ${roomId}, ${created ? "NEW" : "EXISTING"}${isHost ? ", HOST" : ""})`);
     res.json({ name: "rhum32_room", sessionId, roomId, processId: "local", created });
 });
 
@@ -121,7 +128,7 @@ wss.on("connection", (socket, req) => {
     };
 
     room.clients.push(client);
-    room.onJoin(client, { username: session.username, wallet: session.wallet, token: session.token });
+    room.onJoin(client, { username: session.username, wallet: session.wallet, token: session.token, isHost: session.isHost === true });
 
     socket.on("message", (rawData) => {
         try {

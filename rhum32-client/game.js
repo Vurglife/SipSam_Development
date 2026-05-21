@@ -309,6 +309,45 @@ function selectRounds(rounds, btn) {
     document.querySelectorAll('.btn-rounds').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
     updateLobbyInfo();
+    // Multiplayer hosts: create the room on the server NOW (not on Start) so
+    // the invite carries a real roomId and invitees join THIS lobby. Single
+    // player stays on the click-Start-to-create flow.
+    if (gameMode === 'multiplayer') ensureHostRoom();
+}
+
+// ── HOST ROOM (eager create) ─────────────────────────────────
+// Once the host picks rounds in Multiplayer mode, open the WS room
+// immediately. The invite is sent with the real roomId from this call.
+// Click-Start later just sends `startGame` on the already-open socket.
+let _ensuringHostRoom = null;
+async function ensureHostRoom() {
+    if (gameMode !== 'multiplayer') return;
+    if (currentRoomId && ws && ws.readyState === WebSocket.OPEN) return;
+    if (_ensuringHostRoom) return _ensuringHostRoom;
+    _ensuringHostRoom = (async () => {
+        try {
+            console.log('[Rhum32] Host eager-creating room…');
+            ws = await joinRoom(myUsername, {
+                tableMinBet: selectedMinBet,
+                maxRounds:   selectedRounds || 10,
+                wallet:      tableConfig?.wallet || 5000,
+                mode:        'multiplayer',
+                isHost:      true,                  // server creates a fresh room and marks us as host
+                token:       rhumToken()
+            });
+            console.log('[Rhum32] Host room ready:', currentRoomId);
+        } catch (e) {
+            console.error('[Rhum32] Host room create failed:', e);
+            const statusEl = document.getElementById('lobby-status');
+            if (statusEl) {
+                statusEl.textContent = 'Could not reserve a table: ' + e.message;
+                statusEl.style.color = '#fca5a5';
+            }
+        } finally {
+            _ensuringHostRoom = null;
+        }
+    })();
+    return _ensuringHostRoom;
 }
 
 function updateLobbyInfo() {
@@ -353,15 +392,24 @@ async function connectAndStart() {
     statusEl.textContent = "Connecting to table...";
     document.getElementById('btn-start-game').disabled = true;
     try {
-        console.log('[Rhum32] Calling joinRoom:', myUsername, gameMode, selectedMinBet, selectedRounds);
-        ws = await joinRoom(myUsername, {
-            tableMinBet: selectedMinBet,
-            maxRounds: selectedRounds,
-            wallet: tableConfig?.wallet || 5000,
-            mode: gameMode,
-            token: rhumToken()   // server-authoritative wallet ops (replenish)
-        });
-        console.log('[Rhum32] WebSocket connected, sending startGame');
+        // Multiplayer hosts already opened a room on rounds-pick — just kick
+        // off the round on the existing socket. Single-player still goes
+        // through the create-then-start flow in one shot.
+        if (gameMode === 'multiplayer') {
+            await ensureHostRoom();
+            if (!ws || ws.readyState !== WebSocket.OPEN) throw new Error('Host room not connected');
+        } else {
+            console.log('[Rhum32] Single-player joinRoom:', myUsername, selectedMinBet, selectedRounds);
+            ws = await joinRoom(myUsername, {
+                tableMinBet: selectedMinBet,
+                maxRounds:   selectedRounds,
+                wallet:      tableConfig?.wallet || 5000,
+                mode:        'single',
+                isHost:      true,
+                token:       rhumToken()
+            });
+        }
+        console.log('[Rhum32] Sending startGame on roomId', currentRoomId);
         showScreen('screen-game');
         ws.send(JSON.stringify({ type: "startGame", tableMinBet: selectedMinBet, rounds: selectedRounds }));
     } catch(e) {
@@ -374,7 +422,7 @@ async function connectAndStart() {
 // ── INVITEE FLOW (SipSam-style stripped lobby) ──────────────
 // Invitees skip mode-select entirely. The host's invite already chose tier
 // + rounds, so the invitee gets only "Waiting for host…" + Exit Lobby.
-function enterAsInvitee(table) {
+async function enterAsInvitee(table) {
     gameMode       = 'multiplayer';
     selectedMinBet = Number(table.minBet) || selectedMinBet;
     selectedRounds = Number(table.rounds) || 10;
@@ -384,6 +432,44 @@ function enterAsInvitee(table) {
     if (label) label.textContent = 'MULTIPLAYER';
     showScreen('screen-lobby');
     applyInviteeLobby();
+
+    // Draw bank → wallet via /api/game/rhum32/enter (mirrors the host's
+    // confirmEnter path). The platform already ran a HARD min-bank check at
+    // /invite/accept; this is the actual chip transfer. On failure (bank
+    // raced lower, network blip), surface a message and bounce to dashboard.
+    const statusEl = document.getElementById('lobby-status');
+    try {
+        const token = rhumToken();
+        const res = await fetch('/api/game/rhum32/enter', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ tableMinBet: selectedMinBet })
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || j.ok === false) {
+            if (statusEl) {
+                statusEl.textContent = '✕ Cannot enter: ' + (j.error || ('HTTP ' + res.status));
+                statusEl.style.color = '#fca5a5';
+            }
+            setTimeout(() => { window.location.href = '/'; }, 2200);
+            return;
+        }
+        // Sync wallet so the lobby + IGM bar show the post-draw amount.
+        if (typeof j.wallet === 'number') {
+            tableConfig = Object.assign({}, tableConfig || {}, { wallet: j.wallet });
+            const wEl = document.getElementById('lci-wallet');
+            if (wEl) wEl.textContent = '$' + j.wallet.toLocaleString();
+        }
+    } catch (e) {
+        console.error('[Rhum32] Invitee enter error:', e);
+        if (statusEl) {
+            statusEl.textContent = '✕ Network error entering table.';
+            statusEl.style.color = '#fca5a5';
+        }
+        setTimeout(() => { window.location.href = '/'; }, 2200);
+        return;
+    }
+
     connectAsInvitee(table.roomId);
 }
 
@@ -551,6 +637,16 @@ async function sendLobbyInvite() {
     if (!username) { statusEl.textContent = 'Enter a username.'; statusEl.style.color = '#fca5a5'; return; }
 
     statusEl.textContent = 'Sending invite...'; statusEl.style.color = '#7ac08a';
+
+    // Make sure the host's room exists on the server BEFORE issuing an invite,
+    // otherwise the invite carries a null roomId and the invitee's matchmake
+    // call falls through to joinOrCreate and lands in a different room.
+    await ensureHostRoom();
+    if (!currentRoomId) {
+        statusEl.textContent = 'Could not reserve a table — try again.';
+        statusEl.style.color = '#fca5a5';
+        return;
+    }
 
     try {
         const token = rhumToken();
@@ -1085,6 +1181,8 @@ function renderState(state) {
     if (state.status !== 'waiting' && document.getElementById('screen-lobby').classList.contains('active')) {
         showScreen('screen-game');
     }
+    // Lobby player list (status === 'waiting' + lobby visible).
+    renderLobbyPlayers(state);
     if (state.status === 'gameOver' && prevStatus !== 'gameOver') showGameOver(state);
 
     document.getElementById('game-round').textContent  = `Round ${state.round||'--'}/${state.maxRounds||'--'}`;
@@ -1293,6 +1391,37 @@ function renderMyArea(players, status) {
         } else rEl.textContent = '';
         dEl.textContent = me.description || '';
     }
+}
+
+// ── LOBBY PLAYER LIST ────────────────────────────────────────
+// Renders state.players into #lobby-players while status === 'waiting' so
+// both the host and invitees can see who has joined the same room before
+// the host starts the round. Hidden in any other status / screen.
+function renderLobbyPlayers(state) {
+    const wrap = document.getElementById('lobby-players-wrap');
+    const list = document.getElementById('lobby-players');
+    if (!wrap || !list) return;
+    const lobbyVisible = document.getElementById('screen-lobby')?.classList.contains('active');
+    if (!lobbyVisible || state.status !== 'waiting') {
+        wrap.style.display = 'none';
+        return;
+    }
+    const players = Object.values(state.players || {});
+    list.innerHTML = '';
+    players.sort((a, b) => (b.isHost ? 1 : 0) - (a.isHost ? 1 : 0) || (a.seat - b.seat));
+    players.forEach(p => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(20,80,40,0.18);border:1px solid rgba(122,192,138,0.25);border-radius:8px;font-size:13px';
+        const me = p.username === myUsername;
+        const tag = p.isHost ? '<span style="color:#c9a84c;font-size:10px;font-weight:800;letter-spacing:1px">HOST</span>' : '<span style="color:#7ac08a;font-size:10px;letter-spacing:1px">READY</span>';
+        row.innerHTML = `<span style="font-weight:600">${escapeHtml(p.username)}${me ? ' (you)' : ''}</span>${tag}`;
+        if (me) row.style.outline = '1px solid #c9a84c';
+        list.appendChild(row);
+    });
+    if (players.length === 0) {
+        list.innerHTML = '<div style="color:#888;font-size:12px;text-align:center;padding:8px">Just you so far…</div>';
+    }
+    wrap.style.display = 'block';
 }
 
 function showGameOver(state) {

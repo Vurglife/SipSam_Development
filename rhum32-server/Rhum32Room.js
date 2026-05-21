@@ -65,10 +65,11 @@ function callPlatformAPI(path, token, body) {
 class Rhum32Room {
 
     constructor() {
-        this.clients     = [];
-        this.betTimer    = null;
-        this.decTimer    = null;
-        this.revealTimer = null;
+        this.clients      = [];
+        this.betTimer     = null;
+        this.decTimer     = null;
+        this.revealTimer  = null;
+        this.hostUsername = null;   // host-only Start gate
 
         this.gameState = {
             status:      "waiting",
@@ -118,6 +119,14 @@ class Rhum32Room {
 
     _onStartGame(client, data) {
         if (this.gameState.status !== "waiting") return;
+        // Only the room's host can start the game. Invitees / late-joiners
+        // get ignored — their lobby UI hides the Start button anyway, but
+        // a malformed/forged client can't bypass it server-side.
+        const starter = this.gameState.players[client.sessionId];
+        if (!starter || !starter.isHost) {
+            console.log(`Non-host startGame ignored: ${starter ? starter.username : 'unknown'}`);
+            return;
+        }
         const roundCount = [5, 10, 20, 30].includes(data.rounds) ? data.rounds : 10;
         const minBet     = data.tableMinBet || 100;
         const cfg = Rhum32Room.TABLE_CONFIG[minBet] || Rhum32Room.TABLE_CONFIG[100];
@@ -294,6 +303,11 @@ class Rhum32Room {
         const username = options.username || ("Player_" + client.sessionId.substring(0, 4));
         const wallet   = options.wallet || 5000;
         const token    = options.token || null;
+        // Only the FIRST joiner that explicitly claims host actually becomes
+        // the host. Late-joiners / invitees never claim host.
+        const claimsHost = options.isHost === true;
+        const isHost     = claimsHost && !this.hostUsername;
+        if (isHost) this.hostUsername = username;
 
         // Assign random seat (1-6)
         const takenSeats = Object.values(this.gameState.players).map(p => p.seat);
@@ -306,6 +320,7 @@ class Rhum32Room {
             username,
             wallet,
             seat,
+            isHost,
             frontBet:    0,
             backBet:     0,
             tieBet:      0,
@@ -325,16 +340,30 @@ class Rhum32Room {
             token:       token
         };
 
-        console.log(`${username} joined Rhum32 (seat ${seat}). Total: ${Object.keys(this.gameState.players).length}`);
+        console.log(`${username} joined Rhum32 (seat ${seat}${isHost ? ', HOST' : ''}). Total: ${Object.keys(this.gameState.players).length}`);
         this.broadcastState();
     }
 
     onLeave(client) {
         const player = this.gameState.players[client.sessionId];
         if (!player) return;
-        console.log(`${player.username} left Rhum32.`);
+        const wasHost = player.isHost;
+        console.log(`${player.username} left Rhum32${wasHost ? ' (was host)' : ''}.`);
         // Return wallet to bank would happen via platform API
         delete this.gameState.players[client.sessionId];
+        // If the host bails before the game starts, promote the next remaining
+        // human so the table stays usable. After startGame, isHost becomes
+        // informational only (start gate already passed).
+        if (wasHost && this.gameState.status === 'waiting') {
+            const next = Object.values(this.gameState.players).find(p => !p.isBot);
+            if (next) {
+                next.isHost = true;
+                this.hostUsername = next.username;
+                console.log(`Host promoted to ${next.username}.`);
+            } else {
+                this.hostUsername = null;
+            }
+        }
         this.broadcastState();
     }
 
