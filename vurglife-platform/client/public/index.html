@@ -2163,10 +2163,11 @@ function _showGameInviteModal(inv) {
     }
     // Set per-game session storage so the game client auto-logins to the right room.
     const gameKey = r.game || inv.game;
-    if (gameKey === 'blackjack' && !r.roomId) {
+    const roomId = r.roomId || r.tableConfig?.roomId || inv.roomId || inv.tableConfig?.roomId || '';
+    if ((gameKey === 'sipsam' || gameKey === 'blackjack') && !roomId) {
       body.innerHTML = baseInfo +
         `<div style="margin-top:14px;padding:12px 14px;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.4);border-radius:10px;color:var(--red);font-size:13px;text-align:left;line-height:1.5">` +
-          `Invite is missing its Blackjack room. Ask the host to resend it.` +
+          `Invite is missing its game room. Ask the host to resend it.` +
         `</div>`;
       acceptBtn.style.display = 'none';
       declineBtn.textContent = 'Close';
@@ -2178,14 +2179,22 @@ function _showGameInviteModal(inv) {
       username: currentUser?.username, token: authToken, avatar: currentUser?.avatar_url || '',
       bankBalance: currentUser?.bank_balance, id: currentUser?.id
     }));
+    const cfg = r.tableConfig || {};
+    const minBet = Number(r.tableMinBet || cfg.minBet || cfg.tableKey || 0);
     sessionStorage.setItem(tableKey, JSON.stringify({
-      minBet: r.tableMinBet, ...(r.tableConfig || {}),
-      isInvitedJoiner: true, roomId: r.roomId
+      ...cfg,
+      minBet,
+      tableKey: cfg.tableKey || minBet,
+      rounds: Number(cfg.rounds || r.rounds || inv.rounds || inv.tableConfig?.rounds || 10),
+      blitz: cfg.blitz === true,
+      isInvitedJoiner: true,
+      isPrivate: true,
+      roomId
     }));
     modal.style.display = 'none';
     const dest = _gameDest(gameKey);
     window.location.href = (gameKey === 'blackjack')
-      ? `${dest}/?roomId=${encodeURIComponent(r.roomId)}&invited=1`
+      ? `${dest}/?roomId=${encodeURIComponent(roomId)}&invited=1`
       : `${dest}/`;
   };
   declineBtn.onclick = () => { modal.style.display = 'none'; };

@@ -9,6 +9,8 @@
 
 ## Completed Recently
 
+- SipSam Multiplayer invite accept now preserves the host's exact room and marks the invitee as private/invited. Root cause: dashboard accept stored `roomId` but not `isPrivate`, so SipSam matchmake treated `sipsam_<tier>_<timestamp>` as a public quick-join hint and created/joined a different room. Cache-bust `style.css?v=28`, `game.js?v=43`.
+
 - Rhum32 multiplayer invite gate + invitee waiting lobby (mirrors SipSam). Host: invite input + Invite button are disabled until rounds are picked, with a helper note ("Select rounds first to enable invites"); `sendLobbyInvite()` hard-rejects if `!selectedRounds` so every invite carries tier + rounds. Invitee: when `rhum32_table.isInvitedJoiner === true && roomId`, `enterAsInvitee()` skips mode-select, opens the lobby in invitee mode (`applyInviteeLobby` hides rounds row/label, invite section, Start; relabels Back → "✕ Exit Lobby" wired to `rhumSettleAndLeave`), shows "⏳ Waiting for the host to start the game…", and `connectAsInvitee(roomId)` joins the host's specific room without sending `startGame`. The existing `renderState` 'waiting' → active transition fast-forwards mid-game joins to `screen-game`. Cache-bust `game.js?v=16`.
 - Rhum32 in-game menu ported to SipSam's slide-in accordion (`#igm-overlay`/`#igm-panel`): header + player/wallet/bank bar + sections Invite / Replenish / Request / Send / Payouts / Rules / Exit, recoloured to Rhum32 green/gold. Old 3-overlay menu removed. Payouts & Rules content is Rhum32-accurate (sourced from `rhum32-server/logic.js`: A–5 100:1/$75k … 18–31 Normal 1:1; 47–50 face specials; tie 20:1; zero rules). `game.js` gained the `igm*` family wired to Rhum32 `lastState`/`sessionId`/WS fields.
 - Rhum32 replenish is now server-authoritative (mirrors SipSam): client sends WS `replenishWallet`; `Rhum32Room._onReplenishWallet` calls the platform `/api/game/replenish` with the player's token (threaded client→matchmake→session→`player.token`) and credits `player.wallet += topUp`, replies `replenishResult`. `getPublicState` strips `player.token` so the JWT never broadcasts. Reviewed by `wallet-security-reviewer` — verdict safe (bank↔wallet conserved, no double-deduction, token server-only).
@@ -38,6 +40,8 @@
 ## Validation Already Run
 
 - `node --check poker-server/index.js`
+- `node --check poker-client/game.js`
+- Dashboard HTML script parse via `vm.Script` with SipSam invite private-room assertions.
 - Direct extracted `quickJoinForTier` checks for exact tier/round matching, wrong-round rejection, no-bot rejection, waiting-lobby rejection, and final-round rejection.
 - `node --check vurglife-platform/server/routes/auth.js`
 - `node --check` for changed wallet/Celestial JS files in the previous commit.
@@ -48,6 +52,7 @@
 
 ## Not Yet Live-Tested
 
+- SipSam two-account invite acceptance: host and invited friend should see each other in the same waiting lobby, and the host's lobby timer/start should move both into the same game room.
 - Rhum32 host invite gate: invite controls disabled before rounds picked; enabled after; helper note shows/hides; `sendLobbyInvite` rejects with friendly error if no rounds.
 - Rhum32 invitee waiting lobby: friend accepts invite from dashboard, lands in stripped lobby (no rounds/invite/start), sees "Waiting for host…" + Exit Lobby, then transitions to game screen when host starts the round. Mid-game join (host already started) fast-forwards into the live game.
 - Rhum32 in-game menu in a live game: open/close slide panel, each accordion section, invite a friend, replenish (WS round-trip + bank/wallet update), send/request chips, exit. Snapshot DB first (replenish/send move money).

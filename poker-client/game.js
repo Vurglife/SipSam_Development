@@ -2626,7 +2626,8 @@ window.addEventListener('DOMContentLoaded', function() {
         const rawAvatar = user.avatar || '';
         window._myAvatar     = (rawAvatar === 'default' || rawAvatar === 'null') ? '' : rawAvatar;
         myAvatar             = window._myAvatar;
-        window._isPrivateRoom = table.isPrivate || false;
+        window._isInvitedJoiner = (table.isInvitedJoiner === true && !!table.roomId);
+        window._isPrivateRoom   = !!(table.isPrivate || window._isInvitedJoiner);
         // Default room is per-tier so different bet tiers don't collide in
         // a single 'sipsam_main' pool (which was bucketing all players into
         // the $100 default config). Invites still use their explicit roomId.
