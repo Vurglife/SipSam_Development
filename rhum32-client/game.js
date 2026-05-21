@@ -1449,25 +1449,47 @@ function showGameOver(state) {
     showScreen('screen-gameover');
     const container = document.getElementById('final-results');
     container.innerHTML = '';
-    const sorted = Object.values(state.players).sort((a,b) => (b.wallet||0) - (a.wallet||0));
+    // Sort by NET game change (wallet - startingWallet - replenishTotal) so
+    // standings reflect who actually made money this game, not who walked in
+    // with the most chips or replenished the deepest.
+    const netFor = p => (Number(p.wallet)||0) - (Number(p.startingWallet)||0) - (Number(p.replenishTotal)||0);
+    const sorted = Object.values(state.players).sort((a, b) => netFor(b) - netFor(a));
     sorted.forEach((p, i) => {
-        const div = document.createElement('div');
+        const div  = document.createElement('div');
         div.className = 'final-player';
         const isMe = p.username === myUsername;
+        const net  = netFor(p);
         const medal = i === 0 ? '\u{1F3C6} ' : i === 1 ? '\u{1F948} ' : i === 2 ? '\u{1F949} ' : `#${i+1} `;
-        div.innerHTML = `<span class="fp-name">${medal}${escapeHtml(p.username)}${isMe ? ' (you)' : ''}</span><span class="fp-wallet">$${(p.wallet||0).toLocaleString()}</span>`;
+        const netColor = net > 0 ? '#44ff88' : net < 0 ? '#ff7676' : '#c9a84c';
+        const netSign  = net > 0 ? '+' : net < 0 ? '−' : '';
+        const netStr   = '$' + Math.abs(net).toLocaleString();
+        div.innerHTML =
+            `<span class="fp-name">${medal}${escapeHtml(p.username)}${isMe ? ' (you)' : ''}</span>` +
+            `<span class="fp-wallet" style="display:flex;flex-direction:column;align-items:flex-end;line-height:1.2">` +
+                `<span style="color:${netColor};font-weight:800">${netSign}${netStr}</span>` +
+                `<span style="font-size:11px;color:#9ad3a8;opacity:.75">wallet $${(p.wallet||0).toLocaleString()}</span>` +
+            `</span>`;
         if (isMe) div.style.outline = '1px solid #c9a84c';
         container.appendChild(div);
     });
-    // Headline result for the local player (mirrors SipSam pattern).
+    // Headline result for the local player.
     const resEl = document.getElementById('gameover-result');
     if (resEl) {
-        const rank = sorted.findIndex(p => p.username === myUsername) + 1;
-        if (rank > 0) {
-            const me = sorted[rank - 1];
-            const place = rank === 1 ? 'YOU WIN!' : rank === 2 ? '2nd Place' : rank === 3 ? '3rd Place' : `Finished #${rank}`;
-            resEl.textContent = `${place} · Final Wallet $${(me.wallet||0).toLocaleString()}`;
-            resEl.style.color = rank === 1 ? '#44ff88' : '#c9a84c';
+        const meIdx = sorted.findIndex(p => p.username === myUsername);
+        if (meIdx >= 0) {
+            const me  = sorted[meIdx];
+            const net = netFor(me);
+            // "YOU WON" / "YOU LOST" / "YOU BROKE EVEN" — past tense, no `!`
+            // so the gold serif font doesn't render the bang as a capital I.
+            let headline, color;
+            if (net > 0)      { headline = 'YOU WON';        color = '#44ff88'; }
+            else if (net < 0) { headline = 'YOU LOST';       color = '#ff7676'; }
+            else              { headline = 'YOU BROKE EVEN'; color = '#c9a84c'; }
+            const netSign = net > 0 ? '+' : net < 0 ? '−' : '';
+            const netStr  = '$' + Math.abs(net).toLocaleString();
+            resEl.innerHTML = `${headline} <span style="color:${color}">${netSign}${netStr}</span> ` +
+                              `<span style="opacity:.65;font-weight:500">· finished #${meIdx + 1} of ${sorted.length} · wallet $${(me.wallet||0).toLocaleString()}</span>`;
+            resEl.style.color = color;
         } else {
             resEl.textContent = '';
         }

@@ -287,6 +287,9 @@ class Rhum32Room {
             if (res && res.ok) {
                 const added = Number(res.topUp) || 0;
                 player.wallet += added;
+                // Track replenishes so the game-over net win/loss subtracts
+                // every bank top-up rather than counting it as game winnings.
+                player.replenishTotal = (player.replenishTotal || 0) + added;
                 this.sendToClient(client, {
                     type: "replenishResult", ok: true,
                     added, newWallet: player.wallet, newBankBalance: res.newBankBalance
@@ -330,6 +333,12 @@ class Rhum32Room {
         this.gameState.players[client.sessionId] = {
             username,
             wallet,
+            // Net game-over win/loss = wallet - startingWallet - replenishTotal.
+            // startingWallet is the wallet at the moment the player joined the
+            // room; replenishTotal sums every top-up drawn from bank during
+            // play so the comparison stays honest.
+            startingWallet: wallet,
+            replenishTotal: 0,
             seat,
             isHost,
             frontBet:    0,
