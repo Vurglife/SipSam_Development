@@ -464,11 +464,14 @@
 <div id="screen-gameover" class="screen">
   <div class="gameover-card">
     <h2>Game Over</h2>
+    <div id="gameover-result" style="font-size:15px;font-weight:700;margin-bottom:12px;letter-spacing:1px"></div>
     <div id="final-results"></div>
-    <button class="btn-primary" onclick="location.reload()">Play Again</button>
+    <div style="margin-top:20px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <button class="btn-primary" onclick="rhumSettleAndLeave()" style="padding:12px 28px">&#x1F3E0; Return to Dashboard</button>
+    </div>
   </div>
 </div>
 
-<script src="game.js?v=16"></script>
+<script src="game.js?v=17"></script>
 </body>
 </html>

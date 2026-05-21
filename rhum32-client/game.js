@@ -1299,12 +1299,29 @@ function showGameOver(state) {
     showScreen('screen-gameover');
     const container = document.getElementById('final-results');
     container.innerHTML = '';
-    Object.values(state.players).sort((a,b) => b.wallet - a.wallet).forEach(p => {
+    const sorted = Object.values(state.players).sort((a,b) => (b.wallet||0) - (a.wallet||0));
+    sorted.forEach((p, i) => {
         const div = document.createElement('div');
         div.className = 'final-player';
-        div.innerHTML = `<span class="fp-name">${escapeHtml(p.username)}</span><span class="fp-wallet">$${(p.wallet||0).toLocaleString()}</span>`;
+        const isMe = p.username === myUsername;
+        const medal = i === 0 ? '\u{1F3C6} ' : i === 1 ? '\u{1F948} ' : i === 2 ? '\u{1F949} ' : `#${i+1} `;
+        div.innerHTML = `<span class="fp-name">${medal}${escapeHtml(p.username)}${isMe ? ' (you)' : ''}</span><span class="fp-wallet">$${(p.wallet||0).toLocaleString()}</span>`;
+        if (isMe) div.style.outline = '1px solid #c9a84c';
         container.appendChild(div);
     });
+    // Headline result for the local player (mirrors SipSam pattern).
+    const resEl = document.getElementById('gameover-result');
+    if (resEl) {
+        const rank = sorted.findIndex(p => p.username === myUsername) + 1;
+        if (rank > 0) {
+            const me = sorted[rank - 1];
+            const place = rank === 1 ? 'YOU WIN!' : rank === 2 ? '2nd Place' : rank === 3 ? '3rd Place' : `Finished #${rank}`;
+            resEl.textContent = `${place} · Final Wallet $${(me.wallet||0).toLocaleString()}`;
+            resEl.style.color = rank === 1 ? '#44ff88' : '#c9a84c';
+        } else {
+            resEl.textContent = '';
+        }
+    }
 }
 
 // ============================================
