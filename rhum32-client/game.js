@@ -1012,6 +1012,14 @@ function adjustBet(delta) {
 }
 
 function adjustTieBet(delta) {
+    // Hard-gate: only accept changes while the betting window is open.
+    // Without this, a click that lands ~ms after the server flips status to
+    // 'decision' is silently dropped — the UI shows the amount, but the
+    // server's stored tieBet stays 0 and the player loses out on a tie.
+    if (lastStatus && lastStatus !== 'betting') {
+        console.warn('[Rhum32] adjustTieBet ignored — betting closed (status=' + lastStatus + ')');
+        return;
+    }
     const newVal = currentTieBet + delta;
     currentTieBet = newVal <= 0 ? 0 : Math.max(tieBetMin, Math.min(tieBetMax, newVal));
     document.getElementById('tie-bet-display').textContent = currentTieBet > 0 ? '$' + currentTieBet.toLocaleString() : '$0';
@@ -1153,6 +1161,19 @@ function handleServerMessage(msg) {
         case "playerDisqualified":
             showSpeechBubble('system', 'System', `${msg.username}: ${msg.reason}`, mySessionId);
             break;
+        case "tieBetRejected": {
+            // Server refused the tie-bet placement (most often: betting
+            // window closed). Roll the on-screen displayed amount back to
+            // the value the server actually stored, so the player can SEE
+            // their bet wasn't accepted instead of waiting for a payout
+            // that won't come.
+            const stored = Number(msg.tieBet) || 0;
+            currentTieBet = stored;
+            const disp = document.getElementById('tie-bet-display');
+            if (disp) disp.textContent = stored > 0 ? '$' + stored.toLocaleString() : '$0';
+            showSpeechBubble('system', 'Tie Bet', msg.reason || 'Bet refused.', mySessionId);
+            break;
+        }
         case "playerTerminated":
             showSpeechBubble('system', 'System', `${msg.username} removed: ${msg.reason}`, mySessionId);
             break;

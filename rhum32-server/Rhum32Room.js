@@ -165,7 +165,17 @@ class Rhum32Room {
 
     _onPlaceTieBet(client, data) {
         const player = this.gameState.players[client.sessionId];
-        if (!player || this.gameState.status !== "betting") return;
+        if (!player) return;
+        if (this.gameState.status !== "betting") {
+            // Most common cause: client click landed ~ms after the betting
+            // timer expired and dealFourCards() flipped status to 'decision'.
+            // Tell the client so the UI can roll the displayed tie bet back
+            // to the actually-recorded value, instead of leaving the player
+            // believing the bet was placed.
+            console.log(`[Rhum32] placeTieBet rejected (status=${this.gameState.status}) for ${player.username}, amount=${data?.amount}`);
+            this.sendToClient(client, { type: "tieBetRejected", reason: "Betting window closed.", tieBet: player.tieBet || 0 });
+            return;
+        }
 
         let amount = parseInt(data.amount) || 0;
         if (amount === 0) { player.tieBet = 0; this.broadcastState(); return; }
@@ -173,6 +183,7 @@ class Rhum32Room {
         amount = Math.max(this.gameState.tieBetMin, Math.min(amount, this.gameState.tieBetMax));
         if (amount > player.wallet) {
             this.sendToClient(client, { type: "error", message: "Insufficient wallet for tie bet." });
+            this.sendToClient(client, { type: "tieBetRejected", reason: "Insufficient wallet.", tieBet: player.tieBet || 0 });
             return;
         }
         player.tieBet = amount;
@@ -531,13 +542,10 @@ class Rhum32Room {
 
             // Calculate net wallet change
             if (resolution.result === "dealer_bust") {
-                // Dealer bust: front 1:1, bonus for value specials, back for face specials (47-50)
-                p.wallet     += resolution.frontPayout + resolution.backPayout + resolution.bonus;
-                p.totalPayout = resolution.frontPayout + resolution.backPayout + resolution.bonus;
-                if (p.tieBet > 0) {
-                    p.wallet -= p.tieBet; // tie bet lost (not a tie)
-                    p.totalPayout -= p.tieBet;
-                }
+                // Dealer bust: front 1:1, bonus for value specials, back for face specials (47-50),
+                // AND tie bet pays 20:1 (player did not fold — stayed in to reach here).
+                p.wallet     += resolution.frontPayout + resolution.backPayout + resolution.bonus + resolution.tiePayout;
+                p.totalPayout = resolution.frontPayout + resolution.backPayout + resolution.bonus + resolution.tiePayout;
             } else if (resolution.result === "tie") {
                 // Tie: bets returned, only tie bet pays
                 p.totalPayout = resolution.tiePayout;

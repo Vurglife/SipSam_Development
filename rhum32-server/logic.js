@@ -239,10 +239,18 @@ function resolvePlayerVsDealer(playerHand, dealerHand, frontBet, backBet, tieBet
             bonus      = tier.bonus || 0;
         }
 
+        // Tie bet ALSO pays on dealer bust as long as the player did not
+        // fold. The fold path returns earlier (result='folded' before this
+        // function is called), so reaching here implies the player stayed in.
+        if (tieBet > 0) {
+            tiePayout = tieBet * 20;
+        }
+
         result      = 'dealer_bust';
         description = `Dealer busted with ${dealerValue}. You win front bet 1:1.`;
         if (faceSpecial) description += ` ${faceSpecial.name}: back bet ${faceSpecial.backMultiplier}:1!`;
         if (bonus > 0) description += ` ${tier.name} bonus: $${bonus}!`;
+        if (tiePayout > 0) description += ` Tie bet pays $${tiePayout}!`;
     } else if (playerValue === dealerValue) {
         // Tie — no normal payments
         frontPayout = 0;

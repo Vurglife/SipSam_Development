@@ -9,6 +9,10 @@
 
 ## Completed Recently
 
+- Rhum32 tie-bet payout fixes:
+  - **Dealer-bust now pays the tie bet 20:1** as long as the player stayed in (didn't fold). Previously the `dealerCrossed` branch in `logic.js` never computed `tiePayout`, and `Rhum32Room.resolveRound`'s dealer-bust branch *subtracted* `p.tieBet` — so a player with a tie bet got a double penalty on dealer bust. Folded players are already filtered out before resolution.
+  - **Race-condition fix for tie-bet placement.** `dealFourCards` flips status straight from `betting` → `decision`, and `_onPlaceTieBet`'s status guard silently dropped messages that arrived ~ms late. Now: server logs the rejection and sends a new `tieBetRejected` message with the actually-stored `tieBet` value; client rolls the on-screen tie-bet display back to that value and shows a "Bet refused" toast, so the player no longer waits for a payout that will never come. Client `adjustTieBet` also hard-gates on `lastStatus === 'betting'` so post-window clicks don't fire at all.
+  - Cache-bust `game.js?v=19`.
 - Rhum32 multiplayer lobby end-to-end fix: invitees now actually land in the host's lobby.
   - **Root cause:** the host's `currentRoomId` was null when `sendLobbyInvite()` fired because `connectAndStart()` did join + startGame in one shot. The invite carried no real roomId, so the invitee's matchmake call fell through to `joinOrCreate` and landed in a brand-new room.
   - **Server (`rhum32-server`):** matchmake now accepts `isHost: true` and routes hosts to `createRoom` (a fresh private room) instead of `joinOrCreate` (the strangers' quick-join path). `pendingSessions` propagates `isHost` through to `Rhum32Room.onJoin`, which sets `this.hostUsername` only on the first explicit-host joiner; the player object now carries `isHost`. `_onStartGame` rejects any non-host attempt. `onLeave` promotes the next remaining human to host if the host bails before the round starts.
