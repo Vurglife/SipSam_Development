@@ -24,6 +24,8 @@ let tableMinBet     = 100;
 let tableMaxBet     = 500;
 let tieBetMin       = 50;
 let tieBetMax       = 100;
+let frontInc        = 50;
+let tieInc          = 50;
 let authToken = null;
 let tableConfig = null;
 let _lobbyFriends = null;
@@ -137,14 +139,16 @@ window.addEventListener('DOMContentLoaded', function() {
         // Set globals
         myUsername = user.username;
         authToken = user.token || '';
-        tableConfig = table;
+        tableConfig = Object.assign({}, table?.tableConfig || {}, table || {});
 
-        if (table && table.minBet) {
-            selectedMinBet = table.minBet;
-            tableMinBet = table.minBet;
-            if (table.maxBet) tableMaxBet = table.maxBet;
-            if (table.tieBetMin !== undefined) tieBetMin = table.tieBetMin;
-            if (table.tieBetMax !== undefined) tieBetMax = table.tieBetMax;
+        if (tableConfig && tableConfig.minBet) {
+            selectedMinBet = tableConfig.minBet;
+            tableMinBet = tableConfig.minBet;
+            if (tableConfig.maxBet) tableMaxBet = tableConfig.maxBet;
+            if (tableConfig.tieBetMin !== undefined) tieBetMin = tableConfig.tieBetMin;
+            if (tableConfig.tieBetMax !== undefined) tieBetMax = tableConfig.tieBetMax;
+            if (tableConfig.frontInc !== undefined) frontInc = Number(tableConfig.frontInc) || frontInc;
+            if (tableConfig.tieInc !== undefined) tieInc = Number(tableConfig.tieInc) || tieInc;
         }
 
         console.log('[Rhum32] Auto-login as:', myUsername, '| table:', selectedMinBet);
@@ -427,7 +431,10 @@ async function enterAsInvitee(table) {
     selectedMinBet = Number(table.minBet) || selectedMinBet;
     selectedRounds = Number(table.rounds) || 10;
     tableMinBet    = selectedMinBet;
+    tableConfig     = Object.assign({}, table?.tableConfig || {}, tableConfig || {}, table || {});
     if (table.maxBet) tableMaxBet = Number(table.maxBet);
+    if (tableConfig.frontInc !== undefined) frontInc = Number(tableConfig.frontInc) || frontInc;
+    if (tableConfig.tieInc !== undefined) tieInc = Number(tableConfig.tieInc) || tieInc;
     const label = document.getElementById('lobby-mode-label');
     if (label) label.textContent = 'MULTIPLAYER';
     showScreen('screen-lobby');
@@ -455,10 +462,13 @@ async function enterAsInvitee(table) {
             return;
         }
         // Sync wallet so the lobby + IGM bar show the post-draw amount.
-        if (typeof j.wallet === 'number') {
-            tableConfig = Object.assign({}, tableConfig || {}, { wallet: j.wallet });
+        const wallet = Number(j.wallet ?? j.walletSize);
+        if (Number.isFinite(wallet)) {
+            tableConfig = Object.assign({}, tableConfig || {}, j.tableConfig || {}, { wallet, walletSize: wallet });
+            if (tableConfig.frontInc !== undefined) frontInc = Number(tableConfig.frontInc) || frontInc;
+            if (tableConfig.tieInc !== undefined) tieInc = Number(tableConfig.tieInc) || tieInc;
             const wEl = document.getElementById('lci-wallet');
-            if (wEl) wEl.textContent = '$' + j.wallet.toLocaleString();
+            if (wEl) wEl.textContent = '$' + wallet.toLocaleString();
         }
     } catch (e) {
         console.error('[Rhum32] Invitee enter error:', e);
@@ -663,6 +673,10 @@ async function sendLobbyInvite() {
                 tableConfig: {
                     minBet: selectedMinBet || tableMinBet,
                     maxBet: tableMaxBet,
+                    tieBetMin,
+                    tieBetMax,
+                    frontInc: getBetIncrement(),
+                    tieInc: getTieBetIncrement(),
                     wallet: tableConfig?.wallet || 0,
                     minBank: tableConfig?.minBank || 0,
                     rounds: selectedRounds || 10,
@@ -831,6 +845,8 @@ async function igmDoInvite(username) {
                 tableMinBet: selectedMinBet || tableMinBet,
                 tableConfig: {
                     minBet: selectedMinBet || tableMinBet, maxBet: tableMaxBet,
+                    tieBetMin, tieBetMax,
+                    frontInc: getBetIncrement(), tieInc: getTieBetIncrement(),
                     wallet: tableConfig?.wallet || 0, minBank: tableConfig?.minBank || 0,
                     rounds: selectedRounds || 10, roomId: currentRoomId
                 }
@@ -990,12 +1006,34 @@ async function exitGame() {
 // BETTING / DECISIONS
 // ============================================
 // Bet increment based on table tier
-function getBetIncrement() {
-    if (tableMinBet >= 10000) return 10000;
-    if (tableMinBet >= 5000)  return 1000;
-    if (tableMinBet >= 1000)  return 500;
-    if (tableMinBet >= 500)   return 100;
+function fallbackBetIncrement() {
+    if (tableMinBet >= 250000) return 500000;
+    if (tableMinBet >= 100000) return 100000;
+    if (tableMinBet >= 10000)  return 5000;
+    if (tableMinBet >= 1000)   return 1000;
+    if (tableMinBet >= 500)    return 500;
     return 50;
+}
+
+function getBetIncrement() {
+    return Number(frontInc || tableConfig?.frontInc) || fallbackBetIncrement();
+}
+
+function getTieBetIncrement() {
+    return Number(tieInc || tableConfig?.tieInc) || Math.max(50, Number(tieBetMin) || 50);
+}
+
+function updateBetStepLabels() {
+    const frontStep = getBetIncrement();
+    const tieStep = getTieBetIncrement();
+    const upBtn = document.querySelector('#bet-controls .btn-secondary:last-of-type');
+    const dnBtn = document.querySelector('#bet-controls .btn-secondary:first-of-type');
+    const tieUpBtn = document.querySelector('#bet-controls .tie-bet-row .btn-sm:last-of-type');
+    const tieDnBtn = document.querySelector('#bet-controls .tie-bet-row .btn-sm:first-of-type');
+    if (upBtn) upBtn.textContent = '+$' + frontStep.toLocaleString();
+    if (dnBtn) dnBtn.textContent = '-$' + frontStep.toLocaleString();
+    if (tieUpBtn) tieUpBtn.textContent = '+$' + tieStep.toLocaleString();
+    if (tieDnBtn) tieDnBtn.textContent = '-$' + tieStep.toLocaleString();
 }
 
 function adjustBet(delta) {
@@ -1003,11 +1041,7 @@ function adjustBet(delta) {
     const step = delta > 0 ? inc : -inc;
     currentFrontBet = Math.max(tableMinBet, Math.min(tableMaxBet, currentFrontBet + step));
     document.getElementById('bet-display').textContent = '$' + currentFrontBet.toLocaleString();
-    // Update button labels
-    const upBtn = document.querySelector('#bet-controls .btn-secondary:last-of-type');
-    const dnBtn = document.querySelector('#bet-controls .btn-secondary:first-of-type');
-    if (upBtn) upBtn.textContent = '+$' + inc.toLocaleString();
-    if (dnBtn) dnBtn.textContent = '-$' + inc.toLocaleString();
+    updateBetStepLabels();
     if (ws) ws.send(JSON.stringify({ type: "placeBet", amount: currentFrontBet }));
 }
 
@@ -1020,9 +1054,12 @@ function adjustTieBet(delta) {
         console.warn('[Rhum32] adjustTieBet ignored — betting closed (status=' + lastStatus + ')');
         return;
     }
-    const newVal = currentTieBet + delta;
+    const inc = getTieBetIncrement();
+    const step = delta > 0 ? inc : -inc;
+    const newVal = currentTieBet + step;
     currentTieBet = newVal <= 0 ? 0 : Math.max(tieBetMin, Math.min(tieBetMax, newVal));
     document.getElementById('tie-bet-display').textContent = currentTieBet > 0 ? '$' + currentTieBet.toLocaleString() : '$0';
+    updateBetStepLabels();
     if (ws) ws.send(JSON.stringify({ type: "placeTieBet", amount: currentTieBet }));
 }
 
@@ -1204,6 +1241,8 @@ function renderState(state) {
     tableMaxBet = state.tableMaxBet || 500;
     tieBetMin   = state.tieBetMin || 50;
     tieBetMax   = state.tieBetMax || 100;
+    frontInc    = Number(state.frontInc || tableConfig?.frontInc || frontInc) || 50;
+    tieInc      = Number(state.tieInc || tableConfig?.tieInc || tieInc) || 50;
 
     // Capture previous status BEFORE updating
     const prevStatus = lastStatus;
@@ -1257,11 +1296,7 @@ function renderState(state) {
             document.getElementById('bet-display').textContent = '$' + currentFrontBet.toLocaleString();
             const tDisp = document.getElementById('tie-bet-display');
             if (tDisp) tDisp.textContent = currentTieBet > 0 ? '$' + currentTieBet.toLocaleString() : '$0';
-            const inc = getBetIncrement();
-            const upBtn = document.querySelector('#bet-controls .btn-secondary:last-of-type');
-            const dnBtn = document.querySelector('#bet-controls .btn-secondary:first-of-type');
-            if (upBtn) upBtn.textContent = '+$' + inc.toLocaleString();
-            if (dnBtn) dnBtn.textContent = '-$' + inc.toLocaleString();
+            updateBetStepLabels();
             if (!isFrozen && ws) ws.send(JSON.stringify({ type: "placeBet", amount: currentFrontBet }));
             SFX.chip();
         }

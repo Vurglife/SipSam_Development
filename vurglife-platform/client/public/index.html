@@ -768,11 +768,12 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
             <th style="padding:8px">Table</th><th style="padding:8px">Max Front Bet</th><th style="padding:8px">Tie Bet Range</th><th style="padding:8px">Min Bank</th>
           </tr></thead>
           <tbody>
-            <tr><td style="padding:6px 8px">$100</td><td style="padding:6px 8px">$500</td><td style="padding:6px 8px">$50 – $100</td><td style="padding:6px 8px">$3,000</td></tr>
-            <tr><td style="padding:6px 8px">$500</td><td style="padding:6px 8px">$3,000</td><td style="padding:6px 8px">$100 – $500</td><td style="padding:6px 8px">$15,000</td></tr>
-            <tr><td style="padding:6px 8px">$1,000</td><td style="padding:6px 8px">$5,000</td><td style="padding:6px 8px">$500 – $1,000</td><td style="padding:6px 8px">$25,000</td></tr>
-            <tr><td style="padding:6px 8px">$5,000</td><td style="padding:6px 8px">$10,000</td><td style="padding:6px 8px">$1,000 – $5,000</td><td style="padding:6px 8px">$100,000</td></tr>
-            <tr><td style="padding:6px 8px">VIP $10,000</td><td style="padding:6px 8px">$100,000</td><td style="padding:6px 8px">No Limit</td><td style="padding:6px 8px">$1,000,000</td></tr>
+            <tr><td style="padding:6px 8px">$100</td><td style="padding:6px 8px">$500</td><td style="padding:6px 8px">$50 - $100</td><td style="padding:6px 8px">$3,000</td></tr>
+            <tr><td style="padding:6px 8px">$500</td><td style="padding:6px 8px">$3,000</td><td style="padding:6px 8px">$100 - $500</td><td style="padding:6px 8px">$15,000</td></tr>
+            <tr><td style="padding:6px 8px">$1,000</td><td style="padding:6px 8px">$5,000</td><td style="padding:6px 8px">$500 - $1,000</td><td style="padding:6px 8px">$25,000</td></tr>
+            <tr><td style="padding:6px 8px">VIP $10,000</td><td style="padding:6px 8px">$100,000</td><td style="padding:6px 8px">$5,000 - $10,000</td><td style="padding:6px 8px">$1,000,000</td></tr>
+            <tr><td style="padding:6px 8px">Elite $100,000</td><td style="padding:6px 8px">$500,000</td><td style="padding:6px 8px">$50,000 - $100,000</td><td style="padding:6px 8px">$7,000,000</td></tr>
+            <tr><td style="padding:6px 8px">Celestial $250,000</td><td style="padding:6px 8px">$1,000,000</td><td style="padding:6px 8px">$100,000 - $300,000</td><td style="padding:6px 8px">$10,000,000</td></tr>
           </tbody>
         </table>
       </div>
@@ -1164,11 +1165,12 @@ const TABLES = {
 };
 
 const RHUM32_TABLES = {
-  100:   {minBet:100,   maxBet:500,    tieBetMin:50,   tieBetMax:100,   minBank:3000,    wallet:3000  },
-  500:   {minBet:500,   maxBet:3000,   tieBetMin:100,  tieBetMax:500,   minBank:15000,   wallet:15000 },
-  1000:  {minBet:1000,  maxBet:5000,   tieBetMin:500,  tieBetMax:1000,  minBank:25000,   wallet:25000 },
-  5000:  {minBet:5000,  maxBet:10000,  tieBetMin:1000, tieBetMax:5000,  minBank:100000,  wallet:100000},
-  10000: {minBet:10000, maxBet:100000, tieBetMin:0,    tieBetMax:999999,minBank:1000000, wallet:500000}
+  100:    {minBet:100,    maxBet:500,     tieBetMin:50,     tieBetMax:100,    frontInc:50,     tieInc:50,    minBank:3000,     wallet:3000   },
+  500:    {minBet:500,    maxBet:3000,    tieBetMin:100,    tieBetMax:500,    frontInc:500,    tieInc:100,   minBank:15000,    wallet:15000  },
+  1000:   {minBet:1000,   maxBet:5000,    tieBetMin:500,    tieBetMax:1000,   frontInc:1000,   tieInc:100,   minBank:25000,    wallet:25000  },
+  10000:  {minBet:10000,  maxBet:100000,  tieBetMin:5000,   tieBetMax:10000,  frontInc:5000,   tieInc:1000,  minBank:1000000,  wallet:1000000, label:'VIP',       tier:'vip' },
+  100000: {minBet:100000, maxBet:500000,  tieBetMin:50000,  tieBetMax:100000, frontInc:100000, tieInc:10000, minBank:7000000,  wallet:5000000, label:'Elite',     tier:'elite' },
+  250000: {minBet:250000, maxBet:1000000, tieBetMin:100000, tieBetMax:300000, frontInc:500000, tieInc:50000, minBank:10000000, wallet:7000000, label:'Celestial', tier:'celestial' }
 };
 
 const BJ_TABLES = {
@@ -1524,16 +1526,20 @@ function buildRhum32Grid(gridId) {
   const bank=getBank(); grid.innerHTML='';
   Object.values(RHUM32_TABLES).forEach(t => {
     const ok=bank>=t.minBank;
-    const vipLabel = t.minBet===10000 ? 'VIP ' : '';
+    const tier = String(t.tier || '').toLowerCase();
+    const tierClass = tier ? ' tc-' + tier : '';
+    const tierLabel = t.label ? t.label + ' ' : '';
     const d=document.createElement('div');
-    d.className='tc'+(ok?'':' locked');
-    d.innerHTML=`<div class="tc-bet">${vipLabel}$${t.minBet.toLocaleString()}</div>
-      <div class="tc-name">Rhum32 Table</div>
+    d.className='tc'+(ok?'':' locked')+tierClass;
+    d.innerHTML=`<div class="tc-bet">${tierLabel}$${t.minBet.toLocaleString()}</div>
+      <div class="tc-name">${t.label ? t.label + ' Rhum32' : 'Rhum32'} Table</div>
       <div>
         <div class="tc-row"><span class="tc-l">Min Bank Required</span><span class="tc-r">$${t.minBank.toLocaleString()}</span></div>
         <div class="tc-row"><span class="tc-l">Wallet Size</span><span class="tc-r gold">$${t.wallet.toLocaleString()}</span></div>
         <div class="tc-row"><span class="tc-l">Max Front Bet</span><span class="tc-r">$${t.maxBet.toLocaleString()}</span></div>
-        <div class="tc-row"><span class="tc-l">Tie Bet</span><span class="tc-r">${t.tieBetMin===0?'No Limit':'$'+t.tieBetMin.toLocaleString()+' – $'+t.tieBetMax.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Front Step</span><span class="tc-r">$${t.frontInc.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Tie Bet</span><span class="tc-r">$${t.tieBetMin.toLocaleString()} – $${t.tieBetMax.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Tie Step</span><span class="tc-r">$${t.tieInc.toLocaleString()}</span></div>
       </div>
       <div style="margin-top:14px">
         ${ok?`<button class="btn bp bsm bfull" onclick="enterRhum32Table(${t.minBet})">Enter Table →</button>`
@@ -1821,15 +1827,6 @@ async function confirmEnter() {
   currentUser.bankBalance   = newBank;
   currentUser.bank_balance  = newBank;
   refreshUI();
-
-  // Try to record entry on server — but don't block redirect if it fails
-  const enterEndpoint = gameType === 'rhum32' ? '/api/game/rhum32/enter' : '/api/game/enter';
-  try {
-    await apiPost('/api/game/media/watch', {adType:'pregame'});
-    await apiPost(enterEndpoint, {tableMinBet: pendingTable.minBet});
-  } catch(e) {
-    console.warn('[VurgLife] Enter API call failed — continuing anyway:', e);
-  }
 
   // Redirect to game
   window.location.href = gameType === 'rhum32' ? '/rhum32' : '/sipsam';

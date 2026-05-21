@@ -26,12 +26,14 @@ const BJ_TABLE_CONFIG = {
 };
 
 // ── RHUM32 TABLE CONFIG ─────────────────────────────────────────────────
+// Six tiers per Table 1 (May 2026). VIP/Elite/Celestial are the fancy rooms.
 const RHUM32_TABLE_CONFIG = {
-    100:   { minBet:100,   maxBet:500,    tieBetMin:50,   tieBetMax:100,   minBank:3000,    walletSize:3000   },
-    500:   { minBet:500,   maxBet:3000,   tieBetMin:100,  tieBetMax:500,   minBank:15000,   walletSize:15000  },
-    1000:  { minBet:1000,  maxBet:5000,   tieBetMin:500,  tieBetMax:1000,  minBank:25000,   walletSize:25000  },
-    5000:  { minBet:5000,  maxBet:10000,  tieBetMin:1000, tieBetMax:5000,  minBank:100000,  walletSize:100000 },
-    10000: { minBet:10000, maxBet:100000, tieBetMin:0,    tieBetMax:999999,minBank:1000000, walletSize:500000 }
+    100:    { minBet:100,    maxBet:500,    tieBetMin:50,    tieBetMax:100,    frontInc:50,    tieInc:50,    minBank:3000,     walletSize:3000     },
+    500:    { minBet:500,    maxBet:3000,   tieBetMin:100,   tieBetMax:500,    frontInc:500,   tieInc:100,   minBank:15000,    walletSize:15000    },
+    1000:   { minBet:1000,   maxBet:5000,   tieBetMin:500,   tieBetMax:1000,   frontInc:1000,  tieInc:100,   minBank:25000,    walletSize:25000    },
+    10000:  { minBet:10000,  maxBet:100000, tieBetMin:5000,  tieBetMax:10000,  frontInc:5000,  tieInc:1000,  minBank:1000000,  walletSize:1000000  },
+    100000: { minBet:100000, maxBet:500000, tieBetMin:50000, tieBetMax:100000, frontInc:100000,tieInc:10000, minBank:7000000,  walletSize:5000000  },
+    250000: { minBet:250000, maxBet:1000000,tieBetMin:100000,tieBetMax:300000, frontInc:500000,tieInc:50000, minBank:10000000, walletSize:7000000  }
 };
 
 // ── ROULETTE TABLE CONFIG ──────────────────────────────────────────────

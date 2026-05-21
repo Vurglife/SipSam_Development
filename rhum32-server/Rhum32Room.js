@@ -80,6 +80,8 @@ class Rhum32Room {
             tableMaxBet: 500,
             tieBetMin:   50,
             tieBetMax:   100,
+            frontInc:    50,
+            tieInc:      50,
             players:     {},   // sessionId → player object
             dealer:      null, // { cards, shownCard, value }
             deck:        [],
@@ -89,14 +91,25 @@ class Rhum32Room {
         console.log("Rhum32 Room Created");
     }
 
-    // ── TABLE CONFIG (from doc) ────────────────────────────────────
+    // ── TABLE CONFIG (Table 1 — Minimum Table Bets, May 2026) ──────
+    // Six tiers. VIP / Elite / Celestial are the fancy rooms.
+    // frontInc / tieInc drive the bet-adjust step on the client per tier.
     static TABLE_CONFIG = {
-        100:   { minBet: 100,   maxBet: 500,    tieBetMin: 50,   tieBetMax: 100,   minBank: 3000 },
-        500:   { minBet: 500,   maxBet: 3000,   tieBetMin: 100,  tieBetMax: 500,   minBank: 15000 },
-        1000:  { minBet: 1000,  maxBet: 5000,   tieBetMin: 500,  tieBetMax: 1000,  minBank: 25000 },
-        5000:  { minBet: 5000,  maxBet: 10000,  tieBetMin: 1000, tieBetMax: 5000,  minBank: 100000 },
-        10000: { minBet: 10000, maxBet: 100000, tieBetMin: 0,    tieBetMax: 999999, minBank: 1000000 }
+        100:    { minBet:100,    maxBet:500,    tieBetMin:50,    tieBetMax:100,    frontInc:50,    tieInc:50,    minBank:3000     },
+        500:    { minBet:500,    maxBet:3000,   tieBetMin:100,   tieBetMax:500,    frontInc:500,   tieInc:100,   minBank:15000    },
+        1000:   { minBet:1000,   maxBet:5000,   tieBetMin:500,   tieBetMax:1000,   frontInc:1000,  tieInc:100,   minBank:25000    },
+        10000:  { minBet:10000,  maxBet:100000, tieBetMin:5000,  tieBetMax:10000,  frontInc:5000,  tieInc:1000,  minBank:1000000  },
+        100000: { minBet:100000, maxBet:500000, tieBetMin:50000, tieBetMax:100000, frontInc:100000,tieInc:10000, minBank:7000000  },
+        250000: { minBet:250000, maxBet:1000000,tieBetMin:100000,tieBetMax:300000, frontInc:500000,tieInc:50000, minBank:10000000 }
     };
+
+    _snapBetAmount(amount, min, max, inc) {
+        let value = Math.max(min, Math.min(Math.floor(Number(amount) || min), max));
+        if (value === max) return max;
+        const step = Math.floor(Number(inc) || 0);
+        if (step > 0) value = min + Math.floor((value - min) / step) * step;
+        return Math.max(min, Math.min(value, max));
+    }
 
     // Called by index.js for every incoming message
     _dispatchMessage(type, client, data) {
@@ -136,6 +149,8 @@ class Rhum32Room {
         this.gameState.tableMaxBet = cfg.maxBet;
         this.gameState.tieBetMin   = cfg.tieBetMin;
         this.gameState.tieBetMax   = cfg.tieBetMax;
+        this.gameState.frontInc    = cfg.frontInc;
+        this.gameState.tieInc      = cfg.tieInc;
 
         this.gameState.message = `Game starting! ${roundCount} rounds at $${cfg.minBet} table.`;
         this.broadcastState();
@@ -148,10 +163,20 @@ class Rhum32Room {
         if (player.frozen) return; // bet is frozen
 
         let amount = parseInt(data.amount) || this.gameState.tableMinBet;
-        amount = Math.max(this.gameState.tableMinBet, Math.min(amount, this.gameState.tableMaxBet));
+        amount = this._snapBetAmount(
+            amount,
+            this.gameState.tableMinBet,
+            this.gameState.tableMaxBet,
+            this.gameState.frontInc
+        );
         // Clamp to wallet
         amount = Math.min(amount, Math.floor(player.wallet / 3)); // need 3x (front + 2x back)
-        amount = Math.max(this.gameState.tableMinBet, amount);
+        amount = this._snapBetAmount(
+            amount,
+            this.gameState.tableMinBet,
+            this.gameState.tableMaxBet,
+            this.gameState.frontInc
+        );
 
         if (player.wallet < amount * 3) {
             this.sendToClient(client, { type: "error", message: "Insufficient wallet for this bet." });
@@ -180,7 +205,12 @@ class Rhum32Room {
         let amount = parseInt(data.amount) || 0;
         if (amount === 0) { player.tieBet = 0; this.broadcastState(); return; }
 
-        amount = Math.max(this.gameState.tieBetMin, Math.min(amount, this.gameState.tieBetMax));
+        amount = this._snapBetAmount(
+            amount,
+            this.gameState.tieBetMin,
+            this.gameState.tieBetMax,
+            this.gameState.tieInc
+        );
         if (amount > player.wallet) {
             this.sendToClient(client, { type: "error", message: "Insufficient wallet for tie bet." });
             this.sendToClient(client, { type: "tieBetRejected", reason: "Insufficient wallet.", tieBet: player.tieBet || 0 });
