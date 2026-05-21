@@ -3,7 +3,7 @@
 // ============================================
 const express = require('express');
 const router  = express.Router();
-const { UserDB, FriendDB, NotifDB } = require('../db/database');
+const { UserDB, FriendDB, FriendMessageDB, NotifDB } = require('../db/database');
 const { requireAuth }               = require('../middleware/auth');
 const gameRoutes = require('./game');
 const GAME_CONFIGS = {
@@ -110,6 +110,73 @@ router.post('/reject', requireAuth, async (req, res) => {
     await run('DELETE FROM friendships WHERE user_id = ? AND friend_id = ?', [targetUserId, req.userId]);
     await run('DELETE FROM friendships WHERE user_id = ? AND friend_id = ?', [req.userId, targetUserId]);
     res.json({ ok: true, message: 'Removed' });
+});
+
+// ── FRIEND MESSAGES ──────────────────────────────────────────────────
+
+// GET /api/friends/messages — inbox and sent messages for the current user
+router.get('/messages', requireAuth, async (req, res) => {
+    const [inbox, sent, unreadCount] = await Promise.all([
+        FriendMessageDB.inbox(req.userId),
+        FriendMessageDB.sent(req.userId),
+        FriendMessageDB.unreadCount(req.userId)
+    ]);
+    res.json({ ok: true, inbox, sent, unreadCount });
+});
+
+// GET /api/friends/messages/unread — small polling endpoint for the sidebar badge
+router.get('/messages/unread', requireAuth, async (req, res) => {
+    const count = await FriendMessageDB.unreadCount(req.userId);
+    res.json({ ok: true, count });
+});
+
+// GET /api/friends/notifications — unread platform notifications
+router.get('/notifications', requireAuth, async (req, res) => {
+    const notifications = await NotifDB.getUnread(req.userId);
+    res.json({ ok: true, notifications });
+});
+
+// POST /api/friends/messages — send a direct message to an accepted friend
+router.post('/messages', requireAuth, async (req, res) => {
+    const toUserId = Number(req.body.toUserId);
+    const body = String(req.body.body || '').trim();
+    if (!toUserId) return res.status(400).json({ error: 'Missing recipient' });
+    if (toUserId === Number(req.userId)) return res.status(400).json({ error: 'Cannot message yourself' });
+    if (!body) return res.status(400).json({ error: 'Message is required' });
+    if (body.length > 500) return res.status(400).json({ error: 'Message must be 500 characters or less' });
+
+    const target = await UserDB.findById(toUserId);
+    if (!target) return res.status(404).json({ error: 'User not found' });
+
+    const isFriend = await FriendDB.areFriends(req.userId, toUserId);
+    if (!isFriend) return res.status(403).json({ error: 'You can only message friends' });
+
+    const message = await FriendMessageDB.send(req.userId, toUserId, body);
+    const me = await UserDB.findById(req.userId);
+    await NotifDB.create(toUserId, 'friend_message', `${me.username} sent you a message.`, {
+        messageId: message.id,
+        fromUserId: req.userId
+    });
+    res.json({ ok: true, message });
+});
+
+// POST /api/friends/messages/read-all — clear the inbox unread count
+router.post('/messages/read-all', requireAuth, async (req, res) => {
+    await FriendMessageDB.markAllRead(req.userId);
+    res.json({ ok: true });
+});
+
+// POST /api/friends/messages/:id/read — mark one inbox message as read
+router.post('/messages/:id/read', requireAuth, async (req, res) => {
+    await FriendMessageDB.markRead(req.userId, Number(req.params.id));
+    res.json({ ok: true });
+});
+
+// DELETE /api/friends/messages/:id — delete from the current user's inbox/sent view
+router.delete('/messages/:id', requireAuth, async (req, res) => {
+    const ok = await FriendMessageDB.deleteForUser(req.userId, Number(req.params.id));
+    if (!ok) return res.status(404).json({ error: 'Message not found' });
+    res.json({ ok: true });
 });
 
 // ── GAME INVITES ──────────────────────────────────────────────────

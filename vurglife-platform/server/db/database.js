@@ -155,6 +155,17 @@ function initSchema() {
             created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
         );
 
+        CREATE TABLE IF NOT EXISTS friend_messages (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            from_id           INTEGER NOT NULL REFERENCES users(id),
+            to_id             INTEGER NOT NULL REFERENCES users(id),
+            body              TEXT NOT NULL,
+            is_read           INTEGER NOT NULL DEFAULT 0,
+            sender_deleted    INTEGER NOT NULL DEFAULT 0,
+            recipient_deleted INTEGER NOT NULL DEFAULT 0,
+            created_at        INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+        );
+
         CREATE TABLE IF NOT EXISTS notifications (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id    INTEGER NOT NULL,
@@ -191,6 +202,8 @@ function initSchema() {
         CREATE INDEX IF NOT EXISTS idx_friends_user   ON friendships(user_id);
         CREATE INDEX IF NOT EXISTS idx_txn_user       ON transactions(user_id);
         CREATE INDEX IF NOT EXISTS idx_msg_room       ON messages(room_id);
+        CREATE INDEX IF NOT EXISTS idx_friend_msg_to  ON friend_messages(to_id, is_read, recipient_deleted);
+        CREATE INDEX IF NOT EXISTS idx_friend_msg_from ON friend_messages(from_id, sender_deleted);
         CREATE INDEX IF NOT EXISTS idx_notif_user     ON notifications(user_id);
     `);
     persist();
@@ -317,6 +330,85 @@ const FriendDB = {
 };
 
 // ── TRANSACTION QUERIES ───────────────────────
+// Friend-to-friend inbox messages. Separate from the legacy room `messages` table.
+const FriendMessageDB = {
+    async send(fromId, toId, body) {
+        await getDb();
+        const clean = String(body || '').trim().slice(0, 500);
+        if (!clean) return null;
+        const result = insert(
+            'INSERT INTO friend_messages (from_id, to_id, body) VALUES (?,?,?)',
+            [fromId, toId, clean]
+        );
+        return this.findById(result.lastInsertRowid);
+    },
+    async findById(id) {
+        await getDb();
+        return get(
+            `SELECT m.*, fu.username as from_username, tu.username as to_username
+             FROM friend_messages m
+             JOIN users fu ON fu.id = m.from_id
+             JOIN users tu ON tu.id = m.to_id
+             WHERE m.id = ?`,
+            [id]
+        );
+    },
+    async inbox(userId, limit = 100) {
+        await getDb();
+        return all(
+            `SELECT m.*, u.username as from_username
+             FROM friend_messages m
+             JOIN users u ON u.id = m.from_id
+             WHERE m.to_id = ? AND m.recipient_deleted = 0
+             ORDER BY m.created_at DESC, m.id DESC
+             LIMIT ?`,
+            [userId, limit]
+        );
+    },
+    async sent(userId, limit = 100) {
+        await getDb();
+        return all(
+            `SELECT m.*, u.username as to_username
+             FROM friend_messages m
+             JOIN users u ON u.id = m.to_id
+             WHERE m.from_id = ? AND m.sender_deleted = 0
+             ORDER BY m.created_at DESC, m.id DESC
+             LIMIT ?`,
+            [userId, limit]
+        );
+    },
+    async unreadCount(userId) {
+        await getDb();
+        const row = get(
+            'SELECT COUNT(*) as count FROM friend_messages WHERE to_id = ? AND is_read = 0 AND recipient_deleted = 0',
+            [userId]
+        );
+        return Number(row?.count || 0);
+    },
+    async markAllRead(userId) {
+        await getDb();
+        run('UPDATE friend_messages SET is_read = 1 WHERE to_id = ? AND is_read = 0', [userId]);
+    },
+    async markRead(userId, id) {
+        await getDb();
+        run('UPDATE friend_messages SET is_read = 1 WHERE id = ? AND to_id = ?', [id, userId]);
+    },
+    async deleteForUser(userId, id) {
+        await getDb();
+        const msg = get('SELECT from_id, to_id FROM friend_messages WHERE id = ?', [id]);
+        if (!msg) return false;
+        if (Number(msg.to_id) === Number(userId)) {
+            run('UPDATE friend_messages SET recipient_deleted = 1 WHERE id = ?', [id]);
+            return true;
+        }
+        if (Number(msg.from_id) === Number(userId)) {
+            run('UPDATE friend_messages SET sender_deleted = 1 WHERE id = ?', [id]);
+            return true;
+        }
+        return false;
+    }
+};
+
 const TxnDB = {
     async record(userId, type, amount, ref = null, desc = null) {
         await getDb();
@@ -401,4 +493,4 @@ const TransferDB = {
     }
 };
 
-module.exports = { getDb, run, get, all, UserDB, FriendDB, TxnDB, NotifDB, TransferDB, PurchaseDB };
+module.exports = { getDb, run, get, all, UserDB, FriendDB, FriendMessageDB, TxnDB, NotifDB, TransferDB, PurchaseDB };

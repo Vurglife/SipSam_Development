@@ -277,6 +277,20 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
 .msg-reply{margin-top:9px;display:flex;gap:7px}
 .msg-reply input{flex:1;background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text-hi);font-size:13px;outline:none;font-family:'Exo 2',sans-serif}
 .msg-reply input:focus{border-color:var(--blue)}
+.msg-compose{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px}
+.msg-compose-row{display:grid;grid-template-columns:minmax(0,220px) 1fr auto;gap:8px;align-items:start}
+.msg-compose select,.msg-compose textarea{background:var(--bg-panel);border:1px solid var(--border);border-radius:7px;color:var(--text-hi);font-size:13px;outline:none;font-family:'Exo 2',sans-serif}
+.msg-compose select{height:39px;padding:0 10px}
+.msg-compose textarea{min-height:72px;resize:vertical;padding:10px;line-height:1.45}
+.msg-compose select:focus,.msg-compose textarea:focus{border-color:var(--blue)}
+.msg-status{font-size:11px;color:var(--text-dim);margin-top:8px;min-height:14px}
+.msg-tabs{display:flex;gap:8px;margin:12px 0 10px;flex-wrap:wrap}
+.msg-tab{background:var(--bg-card);border:1px solid var(--border);border-radius:7px;color:var(--text-mid);padding:8px 14px;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;cursor:pointer}
+.msg-tab.active{border-color:var(--gold);color:var(--gold-hi);background:rgba(212,175,55,.12)}
+.msg-card.unread{border-color:rgba(74,171,255,.7);background:rgba(74,171,255,.08)}
+.msg-actions{margin-top:10px;display:flex;gap:7px;flex-wrap:wrap}
+.msg-empty{color:var(--text-dim);font-size:13px;padding:12px 0}
+@media (max-width:620px){.msg-compose-row{grid-template-columns:1fr}.msg-compose-row .btn{width:100%}}
 
 /* ── BANK / HISTORY ── */
 .brow{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
@@ -643,14 +657,22 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
       <!-- MESSAGES -->
       <div id="panel-messages" class="panel">
         <div class="ptitle">Messages</div>
-        <div class="psub">Game notifications and friend messages</div>
-        <div class="sh">System Notifications</div>
-        <div id="sys-msgs">
-          <div class="msg-card"><div class="msg-head"><span class="msg-from">🎉 VurgLife</span><span class="msg-time">Now</span></div>
-            <div class="msg-body">Welcome to VurgLife! Your account has been created and 10,000 chips added to your bank.</div></div>
+        <div class="psub">Inbox, sent messages and platform alerts</div>
+        <div class="msg-compose">
+          <div class="msg-compose-row">
+            <select id="msg-to"></select>
+            <textarea id="msg-body-input" maxlength="500" placeholder="Write a message..."></textarea>
+            <button class="btn bp bsm" onclick="sendFriendMessage()">Send</button>
+          </div>
+          <div class="msg-status" id="msg-compose-status"></div>
         </div>
-        <div class="sh" style="margin-top:18px">Friend Messages</div>
-        <div id="friend-msgs"><div style="color:var(--text-dim);font-size:13px;padding:12px 0">No friend messages yet. Add friends to start chatting!</div></div>
+        <div class="sh">System Notifications</div>
+        <div id="sys-msgs"><div class="msg-empty">Loading notifications...</div></div>
+        <div class="msg-tabs">
+          <button id="msg-tab-inbox" class="msg-tab active" onclick="switchMessageTab('inbox')">Inbox</button>
+          <button id="msg-tab-sent" class="msg-tab" onclick="switchMessageTab('sent')">Sent</button>
+        </div>
+        <div id="friend-msgs"><div class="msg-empty">Loading messages...</div></div>
       </div>
 
       <!-- BANK -->
@@ -1193,6 +1215,12 @@ async function api(method, path, body) {
 }
 const apiGet  = p   => api('GET', p);
 const apiPost = (p,b) => api('POST', p, b);
+const apiDelete = p => api('DELETE', p);
+let _messagePollToken = null;
+let _lastUnreadMessages = 0;
+let _messageTab = 'inbox';
+let _messageCache = { inbox: [], sent: [], friends: [], notifications: [] };
+let _pendingMessageTo = null;
 
 // ── SCREENS & PANELS ──────────────────────────────────
 function showScreen(id) {
@@ -1228,6 +1256,7 @@ function showPanel(name) {
   if (name==='rewards')  refreshRewards();
   if (name==='history')  loadHistory();
   if (name==='friends')  loadFriends();
+  if (name==='messages') loadMessages();
 }
 
 // ── TOAST ─────────────────────────────────────────────
@@ -1274,6 +1303,9 @@ async function doLogin() {
 async function doLogout() {
   try { await apiPost('/api/auth/logout',{}); } catch(e) {}
   currentUser=null; authToken=null; localStorage.removeItem('vurglife_token');
+  if (_inviteToken) { clearInterval(_inviteToken); _inviteToken = null; }
+  if (_messagePollToken) { clearInterval(_messagePollToken); _messagePollToken = null; }
+  updateMessageBadge(0);
   showScreen('screen-landing');
 }
 
@@ -1298,6 +1330,8 @@ async function loadDashboard() {
   refreshRewards();
   checkAdStatus();
   showScreen('screen-dashboard');
+  startGameInvitePolling();
+  startMessagePolling();
   // Always land on Home after login. Hash-based deep-links (e.g. /#sipsam
   // from a game-exit redirect) take precedence and override this below in
   // the auto-login handler.
@@ -1996,7 +2030,10 @@ function friendCard(friend) {
     '<div class="f-av">'+friendAvatar(name)+'</div>' +
     '<div><div class="f-name">'+escHtml(name)+'</div>' +
       '<div class="f-status">Friend '+tierBadgeHtml(bank)+'</div></div>' +
-    '<div class="f-acts"><button class="btn bgh bsm" onclick="removeFriend('+id+')">Remove</button></div>' +
+    '<div class="f-acts">' +
+      '<button class="btn bp bsm" onclick="openFriendMessage('+id+')">Message</button>' +
+      '<button class="btn bgh bsm" onclick="removeFriend('+id+')">Remove</button>' +
+    '</div>' +
   '</div>';
 }
 
@@ -2065,6 +2102,160 @@ async function removeFriend(id) {
 // invite arrives. Without this, Vurg sending an invite to Vurglife was
 // invisible — the invite was stored on the server but the dashboard
 // never asked for it.
+// Direct friend messages
+function fmtMsgTime(ts) {
+  const n = Number(ts || 0);
+  const d = n > 1000000000000 ? new Date(n) : new Date(n * 1000);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+}
+
+function setMessageStatus(text, ok=false) {
+  const el = document.getElementById('msg-compose-status');
+  if (!el) return;
+  el.textContent = text || '';
+  el.style.color = ok ? 'var(--green)' : 'var(--text-dim)';
+}
+
+function renderMessageRecipients(friends) {
+  const sel = document.getElementById('msg-to');
+  if (!sel) return;
+  if (!friends.length) {
+    sel.innerHTML = '<option value="">No friends available</option>';
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
+  sel.innerHTML = friends.map(f => '<option value="'+Number(f.id)+'">'+escHtml(f.username||'Unknown')+'</option>').join('');
+  if (_pendingMessageTo && friends.some(f => String(f.id) === String(_pendingMessageTo))) {
+    sel.value = String(_pendingMessageTo);
+    _pendingMessageTo = null;
+  }
+}
+
+function renderSystemNotifications() {
+  const box = document.getElementById('sys-msgs');
+  if (!box) return;
+  const notes = (_messageCache.notifications || []).filter(n => n.type === 'friend_message' || n.type === 'friend_request' || n.type === 'friend_accepted');
+  if (!notes.length) {
+    box.innerHTML = '<div class="msg-empty">No new platform notifications.</div>';
+    return;
+  }
+  box.innerHTML = notes.slice(0, 8).map(n =>
+    '<div class="msg-card">' +
+      '<div class="msg-head"><span class="msg-from">VurgLife</span><span class="msg-time">'+fmtMsgTime(n.created_at)+'</span></div>' +
+      '<div class="msg-body">'+escHtml(n.content||'Notification')+'</div>' +
+    '</div>'
+  ).join('');
+}
+
+function renderMessages() {
+  document.getElementById('msg-tab-inbox')?.classList.toggle('active', _messageTab === 'inbox');
+  document.getElementById('msg-tab-sent')?.classList.toggle('active', _messageTab === 'sent');
+  const box = document.getElementById('friend-msgs');
+  if (!box) return;
+  const rows = _messageCache[_messageTab] || [];
+  if (!rows.length) {
+    box.innerHTML = '<div class="msg-empty">'+(_messageTab === 'inbox' ? 'Inbox is empty.' : 'No sent messages yet.')+'</div>';
+    return;
+  }
+  const inbox = _messageTab === 'inbox';
+  box.innerHTML = rows.map(m => {
+    const name = inbox ? (m.from_username || 'Unknown') : (m.to_username || 'Unknown');
+    const unread = inbox && !Number(m.is_read);
+    const reply = inbox ? '<button class="btn bp bsm" onclick="openFriendMessage('+Number(m.from_id)+')">Reply</button>' : '';
+    return '<div class="msg-card'+(unread?' unread':'')+'">' +
+      '<div class="msg-head"><span class="msg-from">'+(inbox ? 'From ' : 'To ')+escHtml(name)+'</span><span class="msg-time">'+fmtMsgTime(m.created_at)+'</span></div>' +
+      '<div class="msg-body">'+escHtml(m.body||'')+'</div>' +
+      '<div class="msg-actions">'+reply+'<button class="btn bgh bsm" onclick="deleteFriendMessage('+Number(m.id)+')">Delete</button></div>' +
+    '</div>';
+  }).join('');
+}
+
+async function loadMessages() {
+  const box = document.getElementById('friend-msgs');
+  if (box) box.innerHTML = '<div class="msg-empty">Loading messages...</div>';
+  const [messagesRes, friendsRes, notesRes] = await Promise.all([
+    apiGet('/api/friends/messages'),
+    apiGet('/api/friends'),
+    apiGet('/api/friends/notifications')
+  ]);
+  _messageCache.inbox = messagesRes.inbox || [];
+  _messageCache.sent = messagesRes.sent || [];
+  _messageCache.friends = friendsRes.friends || [];
+  _messageCache.notifications = notesRes.notifications || [];
+  renderMessageRecipients(_messageCache.friends);
+  renderSystemNotifications();
+  renderMessages();
+  if ((messagesRes.unreadCount || 0) > 0) {
+    await apiPost('/api/friends/messages/read-all', {});
+  }
+  _lastUnreadMessages = 0;
+  updateMessageBadge(0);
+}
+
+function switchMessageTab(tab) {
+  _messageTab = tab === 'sent' ? 'sent' : 'inbox';
+  renderMessages();
+}
+
+function openFriendMessage(friendId) {
+  _pendingMessageTo = String(friendId);
+  showPanel('messages');
+  setTimeout(() => document.getElementById('msg-body-input')?.focus(), 80);
+}
+
+async function sendFriendMessage() {
+  const sel = document.getElementById('msg-to');
+  const input = document.getElementById('msg-body-input');
+  const toUserId = Number(sel?.value || 0);
+  const body = (input?.value || '').trim();
+  if (!toUserId) { setMessageStatus('Select a friend.'); return; }
+  if (!body) { setMessageStatus('Message is empty.'); return; }
+  setMessageStatus('Sending...');
+  const res = await apiPost('/api/friends/messages', { toUserId, body });
+  if (!res.ok) { setMessageStatus(res.error || 'Unable to send message.'); return; }
+  if (input) input.value = '';
+  setMessageStatus('Message sent.', true);
+  _messageTab = 'sent';
+  await loadMessages();
+}
+
+async function deleteFriendMessage(id) {
+  if (!confirm('Delete this message?')) return;
+  const res = await apiDelete('/api/friends/messages/'+Number(id));
+  if (!res.ok) { toast('Delete Failed', res.error || 'Unable to delete message.'); return; }
+  toast('Deleted','Message removed.');
+  await loadMessages();
+}
+
+function updateMessageBadge(count) {
+  const badge = document.getElementById('msg-bdg');
+  const n = Number(count || 0);
+  if (!badge) return;
+  badge.textContent = n > 99 ? '99+' : String(n);
+  badge.style.display = n > 0 ? '' : 'none';
+}
+
+async function refreshMessageBadge(notify=false) {
+  if (!authToken) return;
+  const res = await apiGet('/api/friends/messages/unread');
+  if (!res?.ok) return;
+  const count = Number(res.count || 0);
+  updateMessageBadge(count);
+  const viewingMessages = document.getElementById('panel-messages')?.classList.contains('active');
+  if (notify && count > _lastUnreadMessages && !viewingMessages) {
+    toast('New Message', 'You have a new friend message.');
+  }
+  _lastUnreadMessages = count;
+}
+
+function startMessagePolling() {
+  if (_messagePollToken) return;
+  refreshMessageBadge(false);
+  _messagePollToken = setInterval(() => refreshMessageBadge(true), 10000);
+}
+
 const _seenInviteIds = new Set();
 let _inviteToken = null;
 async function pollGameInvites() {
