@@ -554,10 +554,14 @@ class Rhum32Room {
 
             // Calculate net wallet change
             if (resolution.result === "dealer_bust") {
-                // Dealer bust: front 1:1, bonus for value specials, back for face specials (47-50),
-                // AND tie bet pays 20:1 (player did not fold — stayed in to reach here).
-                p.wallet     += resolution.frontPayout + resolution.backPayout + resolution.bonus + resolution.tiePayout;
-                p.totalPayout = resolution.frontPayout + resolution.backPayout + resolution.bonus + resolution.tiePayout;
+                // Dealer bust with values differing — player wins front
+                // (+ back/bonus if special), tie bet LOST (no tie).
+                p.wallet     += resolution.frontPayout + resolution.backPayout + resolution.bonus;
+                p.totalPayout = resolution.frontPayout + resolution.backPayout + resolution.bonus;
+                if (p.tieBet > 0) {
+                    p.wallet -= p.tieBet;
+                    p.totalPayout -= p.tieBet;
+                }
             } else if (resolution.result === "tie") {
                 // Tie: bets returned, only tie bet pays
                 p.totalPayout = resolution.tiePayout;

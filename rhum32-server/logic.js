@@ -219,8 +219,24 @@ function resolvePlayerVsDealer(playerHand, dealerHand, frontBet, backBet, tieBet
     let description = '';
     let tier        = null;
 
-    if (dealerCrossed) {
-        // Dealer crosses 32 — loses
+    // Tie check FIRST. Tie bet pays iff playerValue === dealerValue,
+    // regardless of bust state. Double-bust at the same value (e.g.
+    // both 40) is still a tie and still pays. Dealer busting with
+    // values differing is NOT a tie — tie bet is lost in that branch.
+    if (playerValue === dealerValue) {
+        // Tie at any value (including double-bust at equal totals).
+        frontPayout = 0;
+        backPayout  = 0;
+        bonus       = 0;
+        result      = 'tie';
+        description = `Tie at ${playerValue}. Front and back bets returned.`;
+        if (tieBet > 0) {
+            tiePayout = tieBet * 20;
+            description += ` Tie bet pays $${tiePayout}!`;
+        }
+    } else if (dealerCrossed) {
+        // Dealer crosses 32 with a value that doesn't match the player —
+        // player wins the front bet. Tie bet is LOST (no tie).
         // Table 5: front bet always 1:1
         // Face card specials (47-50): back bet at multiplier, no bonus
         // Value-based specials (A-5, 0, 1-5, 4-7, 8-11): no back bet gain, bonus YES
@@ -239,30 +255,10 @@ function resolvePlayerVsDealer(playerHand, dealerHand, frontBet, backBet, tieBet
             bonus      = tier.bonus || 0;
         }
 
-        // Tie bet ALSO pays on dealer bust as long as the player did not
-        // fold. The fold path returns earlier (result='folded' before this
-        // function is called), so reaching here implies the player stayed in.
-        if (tieBet > 0) {
-            tiePayout = tieBet * 20;
-        }
-
         result      = 'dealer_bust';
         description = `Dealer busted with ${dealerValue}. You win front bet 1:1.`;
         if (faceSpecial) description += ` ${faceSpecial.name}: back bet ${faceSpecial.backMultiplier}:1!`;
         if (bonus > 0) description += ` ${tier.name} bonus: $${bonus}!`;
-        if (tiePayout > 0) description += ` Tie bet pays $${tiePayout}!`;
-    } else if (playerValue === dealerValue) {
-        // Tie — no normal payments
-        frontPayout = 0;
-        backPayout  = 0;
-        bonus       = 0;
-        result      = 'tie';
-        description = `Tie at ${playerValue}. No payment.`;
-        // Tie bet pays 20:1
-        if (tieBet > 0) {
-            tiePayout = tieBet * 20;
-            description += ` Tie bet pays $${tiePayout}!`;
-        }
     } else if (playerValue < dealerValue) {
         // Player wins (lower is better)
         tier = getPaymentTier(playerHand);
