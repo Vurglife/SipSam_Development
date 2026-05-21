@@ -419,9 +419,12 @@ class Rhum32Room {
 
         // Reset round state for all players
         Object.values(this.gameState.players).forEach(p => {
+            // Freeze applies to BOTH the round (front) bet and the tie bet —
+            // a frozen player wants the same wagers locked in across rounds.
+            // Non-frozen players get a fresh round (front=tableMinBet, tie=0).
             p.frontBet    = p.frozen ? p.frontBet : this.gameState.tableMinBet;
             p.backBet     = 0;
-            p.tieBet      = 0;
+            p.tieBet      = p.frozen ? (p.tieBet || 0) : 0;
             p.hasBet      = true; // all active players have a bet (frozen keeps previous, others get tableMinBet)
             p.folded      = false;
             p.decided     = false;

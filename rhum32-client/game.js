@@ -1235,16 +1235,24 @@ function renderState(state) {
             cdEl.textContent = t;
             cdEl.classList.toggle('urgent', t <= 5);
         }
-        // Auto-place default bet when betting phase starts (check PREVIOUS status)
+        // Auto-place default bet when betting phase starts (check PREVIOUS status).
+        // Frozen players carry their previous front + tie bets — the server
+        // preserves them in startRound, so sync the UI from state.players[me]
+        // instead of resetting to the table minimum.
         if (prevStatus !== 'betting') {
-            currentFrontBet = tableMinBet;
+            const me = state.players[mySessionId];
+            const isFrozen = !!(me && me.frozen);
+            currentFrontBet = isFrozen ? (Number(me.frontBet) || tableMinBet) : tableMinBet;
+            currentTieBet   = isFrozen ? (Number(me.tieBet)   || 0)           : 0;
             document.getElementById('bet-display').textContent = '$' + currentFrontBet.toLocaleString();
+            const tDisp = document.getElementById('tie-bet-display');
+            if (tDisp) tDisp.textContent = currentTieBet > 0 ? '$' + currentTieBet.toLocaleString() : '$0';
             const inc = getBetIncrement();
             const upBtn = document.querySelector('#bet-controls .btn-secondary:last-of-type');
             const dnBtn = document.querySelector('#bet-controls .btn-secondary:first-of-type');
             if (upBtn) upBtn.textContent = '+$' + inc.toLocaleString();
             if (dnBtn) dnBtn.textContent = '-$' + inc.toLocaleString();
-            if (ws) ws.send(JSON.stringify({ type: "placeBet", amount: currentFrontBet }));
+            if (!isFrozen && ws) ws.send(JSON.stringify({ type: "placeBet", amount: currentFrontBet }));
             SFX.chip();
         }
     } else if (state.status === 'decision') {

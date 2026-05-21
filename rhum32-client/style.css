@@ -451,15 +451,20 @@ html, body {
 }
 .felt-surface {
   position: absolute; inset: 0;
-  background: radial-gradient(ellipse at 50% 30%, var(--felt-lt) 0%, var(--felt) 40%, var(--felt-dk) 100%);
+  /* Premium felt: deeper centre, soft golden vignette around the rail */
+  background:
+    radial-gradient(ellipse at 50% 28%, rgba(255,235,140,.06) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 32%, var(--felt-lt) 0%, var(--felt) 42%, var(--felt-dk) 100%);
   border: 4px solid var(--gold-dk);
   border-top: 5px solid var(--gold);
   border-radius: 50% 50% 50% 50% / 20% 20% 80% 80%;
   box-shadow:
-    0 0 0 2px rgba(139,105,20,0.4),
-    0 12px 40px rgba(0,0,0,.5),
-    inset 0 2px 30px rgba(0,0,0,.3),
-    inset 0 0 60px rgba(0,0,0,.15);
+    0 0 0 2px rgba(139,105,20,0.45),
+    0 0 0 6px rgba(0,0,0,0.55),
+    0 14px 48px rgba(0,0,0,.55),
+    inset 0 2px 36px rgba(0,0,0,.32),
+    inset 0 0 80px rgba(0,0,0,.18),
+    inset 0 0 24px rgba(255,225,140,.05);
 }
 /* Subtle felt grid pattern */
 .felt-surface::before {
@@ -493,14 +498,16 @@ html, body {
   transition: opacity 0.3s;
 }
 /* Players spread along the curved (bottom) side of the D-shape, dealer
-   stays at top. Adjacent seats are staggered vertically so compact fanned
-   hands never collide. */
-.bj-seat-0 { left: 7%;  top: 22%; }
-.bj-seat-1 { left: 25%; top: 50%; }
-.bj-seat-2 { left: 41%; top: 66%; }
-.bj-seat-3 { left: 59%; top: 66%; }
-.bj-seat-4 { left: 75%; top: 50%; }
-.bj-seat-5 { left: 93%; top: 22%; }
+   stays at top. Wider arc matching Blackjack's geometry so 5-card fanned
+   hands never crowd a neighbour even on small viewports. Far seats sit
+   high on the rail (top:8%), mid seats at the curve (56%), front-centre
+   seats at the deep apex (86%) — three-tier vertical stagger. */
+.bj-seat-0 { left: 4%;    top: 8%;  }
+.bj-seat-1 { left: 12.8%; top: 56%; }
+.bj-seat-2 { left: 35.8%; top: 84%; }
+.bj-seat-3 { left: 64.2%; top: 84%; }
+.bj-seat-4 { left: 87.2%; top: 56%; }
+.bj-seat-5 { left: 96%;   top: 8%;  }
 
 .bj-seat.empty { opacity: 0.2; }
 .bj-seat.is-me .seat-nametag { background: linear-gradient(135deg, #1a7a2a, #2aaa3a); color: #fff; box-shadow: 0 0 10px rgba(42,170,58,0.3); }
@@ -535,13 +542,14 @@ html, body {
   box-shadow: inset 0 1px 6px rgba(0,0,0,0.3);
   transition: border-color 0.3s, box-shadow 0.3s;
 }
-/* Smaller, fanned cards keep a 5-card hand compact so neighbouring
-   seats never overlap. */
+/* Compact fanned cards with a clean spread. Wider seat arc (above) gives
+   each hand its own column, so neighbouring 5-card hands no longer kiss. */
 .seat-hand .card {
-  width: clamp(26px, 3.4vw, 34px);
-  height: clamp(37px, 5.6vh, 50px);
+  width: clamp(24px, 3.0vw, 31px);
+  height: clamp(34px, 5.1vh, 45px);
+  border-radius: 4px;
 }
-.seat-hand .card + .card { margin-left: -15px; }
+.seat-hand .card + .card { margin-left: -11px; }
 .seat-result {
   font-size: clamp(8px, 1vw, 11px); font-weight: 700;
   padding: 2px 10px; border-radius: 6px;
