@@ -471,8 +471,8 @@ html, body {
   flex-shrink:0;
 }
 .game-body-bj {
-  flex:1; display:flex; align-items:center; justify-content:center;
-  padding:10px 4px 4px; min-height:0; overflow:visible;
+  flex:1; display:flex; align-items:flex-start; justify-content:center;
+  padding:clamp(12px, 2.8vh, 34px) 4px 4px; min-height:0; overflow:visible;
 }
 
 /* ── PHASE BANNER (announces betting/dealing/etc.) ── */
@@ -491,8 +491,8 @@ html, body {
 /* ── D-SHAPE TABLE — Modern Dark Luxury Design ── */
 .oval-table {
   position: relative;
-  width:  min(94vw, 1020px);
-  height: min(76vh, 620px);
+  width:  min(92vw, 960px);
+  height: min(56vh, 500px);
   /* D-shape: flat top, semicircle bottom */
   border-radius: 0 0 700px 700px / 0 0 320px 320px;
   border: 0;
@@ -512,7 +512,7 @@ html, body {
     inset 0 0 100px rgba(0,10,30,.6);
   flex-shrink: 0;
   overflow: visible;
-  /* Local stacking context so .table-logo's z-index:-1 stays inside the table */
+  /* Local stacking context keeps the table watermark behind gameplay. */
   isolation: isolate;
 }
 
@@ -546,14 +546,13 @@ html, body {
    white shows through as a clean watermark on any dark background */
 .table-logo {
   position: absolute;
-  top: 46%; left: 50%;
+  top: 48%; left: 50%;
   transform: translate(-50%, -50%);
-  width: clamp(360px, 62%, 580px);
-  opacity: 0.22;
+  width: clamp(260px, 58%, 520px);
+  max-width: calc(100% - 48px);
+  opacity: 0.18;
   pointer-events: none;
-  /* z-index:-1 inside .oval-table's isolated stacking context puts the
-     watermark behind cards, placeholders, win/lose labels, etc. */
-  z-index: -1;
+  z-index: 1;
   user-select: none;
   mix-blend-mode: screen;   /* black = transparent, white = visible */
   filter: brightness(0.85);
@@ -664,26 +663,23 @@ html, body {
 }
 .seat-bot-btn:hover { border-color:#4aabff; color:#4aabff; background:rgba(74,171,255,.15); }
 
-/* ── CARD SIZE OVERRIDES — mobile-first, readability prioritised ──
-   - My own seat's cards: largest (vl-lg) so I can always see my hand
-   - Dealer cards: large (vl-lg) so the table read is clear
-   - Other seats: default size to keep the table layout tidy
-   The .bj-seat-mine class is toggled on the player's seat element by
-   renderSeats(); vl-lg is applied directly when the card is built. */
-.bj-dealer-zone .vl-card,
-.bj-seat-mine .vl-card {
-  /* vl-lg dimensions; rule override for our specific contexts */
-  width: 84px;
-  height: 122px;
+/* Table cards stay compact because the playable hand is duplicated in the bottom tray. */
+.bj-dealer-zone .vl-card {
+  width: 74px;
+  height: 108px;
 }
-.bj-dealer-zone .vl-card .vl-rank,
-.bj-seat-mine .vl-card .vl-rank { font-size: 56px; }
-.bj-dealer-zone .vl-card .vl-suit,
-.bj-seat-mine .vl-card .vl-suit { font-size: 64px; }
+.bj-seat-mine .vl-card {
+  width: 58px;
+  height: 84px;
+}
+.bj-dealer-zone .vl-card .vl-rank { font-size: 50px; }
+.bj-seat-mine .vl-card .vl-rank { font-size: 39px; }
+.bj-dealer-zone .vl-card .vl-suit { font-size: 57px; }
+.bj-seat-mine .vl-card .vl-suit { font-size: 44px; }
 .bj-dealer-zone .vl-card .vl-pip,
-.bj-dealer-zone .vl-card .vl-pip-br,
-.bj-seat-mine   .vl-card .vl-pip,
-.bj-seat-mine   .vl-card .vl-pip-br { font-size: 17px; }
+.bj-dealer-zone .vl-card .vl-pip-br { font-size: 16px; }
+.bj-seat-mine .vl-card .vl-pip,
+.bj-seat-mine .vl-card .vl-pip-br { font-size: 12px; }
 
 /* Highlight my seat — subtle gold ring so I can always find myself */
 .bj-seat-mine {
@@ -696,9 +692,9 @@ html, body {
   flex-wrap: nowrap !important;
   align-items: flex-end !important;
   justify-content: center !important;
-  gap: 8px !important;
+  gap: 5px !important;
   width: max-content !important;
-  min-width: 172px !important;
+  min-width: 0 !important;
   max-width: none !important;
   overflow: visible !important;
   white-space: nowrap !important;
@@ -710,16 +706,16 @@ html, body {
 
 /* Mobile: keep cards proportional, push dealer cards slightly larger */
 @media (max-width: 480px) {
-  .bj-seat-mine .vl-card  { width: 72px; height: 104px; }
-  .bj-seat-mine .vl-card .vl-rank { font-size: 46px; }
-  .bj-seat-mine .vl-card .vl-suit { font-size: 52px; }
+  .bj-seat-mine .vl-card  { width: 44px; height: 64px; }
+  .bj-seat-mine .vl-card .vl-rank { font-size: 29px; }
+  .bj-seat-mine .vl-card .vl-suit { font-size: 33px; }
   .bj-seat-mine .seat-hand {
-    min-width: 150px !important;
-    gap: 6px !important;
+    min-width: 0 !important;
+    gap: 3px !important;
   }
-  .bj-dealer-zone .vl-card { width: 64px; height: 92px; }
-  .bj-dealer-zone .vl-card .vl-rank { font-size: 40px; }
-  .bj-dealer-zone .vl-card .vl-suit { font-size: 46px; }
+  .bj-dealer-zone .vl-card { width: 54px; height: 78px; }
+  .bj-dealer-zone .vl-card .vl-rank { font-size: 35px; }
+  .bj-dealer-zone .vl-card .vl-suit { font-size: 40px; }
 }
 
 /* ── HANDS ── */
@@ -906,17 +902,17 @@ html, body {
 
 /* Active hand focus: duplicates my seat hand at readable play size. */
 .focus-hand-panel {
-  position: absolute;
+  position: fixed;
   left: 50%;
-  top: 58%;
-  transform: translate(-50%, -50%);
-  z-index: 36;
+  bottom: clamp(18px, 3vh, 34px);
+  transform: translateX(-50%);
+  z-index: 220;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   pointer-events: none;
-  width: min(92vw, 560px);
+  width: min(96vw, 680px);
 }
 .focus-hand-meta {
   display: inline-flex;
@@ -953,21 +949,72 @@ html, body {
   flex-wrap: nowrap;
   justify-content: center;
   align-items: flex-end;
-  gap: 10px;
-  min-height: 166px;
-  padding: 0 10px 42px;
+  gap: clamp(10px, 2vw, 18px);
+  min-height: 190px;
+  padding: 0 12px 58px;
   overflow: visible;
   filter: drop-shadow(0 12px 24px rgba(0,0,0,0.62));
 }
+.focus-hand-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  opacity: 0.78;
+  transform: translateY(6px) scale(0.92);
+  transform-origin: bottom center;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.focus-hand-group.active,
+.focus-hand-group:not(.split) {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.focus-hand-card-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: center;
+  flex-wrap: nowrap;
+}
+.focus-hand-card-row .vl-card + .vl-card {
+  margin-left: clamp(-10px, -1.4vw, -4px);
+}
+.focus-hand-cards .vl-card.vl-xl {
+  width: clamp(94px, 9vw, 122px);
+  height: clamp(136px, 13vw, 176px);
+  border-radius: 13px;
+}
+.focus-hand-cards .vl-card.vl-xl .vl-rank { font-size: clamp(62px, 6.2vw, 76px); }
+.focus-hand-cards .vl-card.vl-xl .vl-suit { font-size: clamp(70px, 7vw, 86px); }
+.focus-hand-cards .vl-card.vl-xl .vl-pip,
+.focus-hand-cards .vl-card.vl-xl .vl-pip-br { font-size: clamp(17px, 1.6vw, 22px); }
+.focus-hand-mini-total {
+  font-family:'Rajdhani',sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--gold-lt);
+  background: rgba(4,10,20,0.82);
+  border: 1px solid rgba(201,168,76,0.26);
+  border-radius: 999px;
+  padding: 5px 9px;
+  white-space: nowrap;
+}
+.focus-hand-mini-total.bust { color:#ff6b6b; }
+.focus-hand-mini-total.bj { color:#ffd700; }
 .focus-actions {
   position: absolute !important;
   left: 50%;
-  bottom: 4px;
+  bottom: 8px;
   transform: translateX(-50%);
-  z-index: 2;
+  z-index: 4;
   pointer-events: auto;
-  width: min(94vw, 520px);
-  padding: 9px 12px;
+  width: min(94vw, 540px);
+  padding: 10px 12px;
   border-radius: 12px;
   background: linear-gradient(180deg, rgba(10,24,48,0.90), rgba(4,10,20,0.96));
   border: 1px solid rgba(201,168,76,0.36);
@@ -1341,28 +1388,32 @@ html, body {
   .chip-btn { width:56px; height:56px; font-size:13px; }
   .action-btn { font-size:12px; padding:8px 12px; min-width:72px; }
   .action-btn.large { font-size:13px; padding:10px 16px; min-width:88px; }
-  .focus-hand-panel { top: 57%; width: 98vw; gap: 4px; }
+  .focus-hand-panel { bottom: 10px; width: 100vw; gap: 4px; }
   .focus-hand-meta { min-height: 22px; padding: 3px 9px; }
   .focus-hand-meta span { font-size: 9px; }
   .focus-hand-meta strong { font-size: 15px; }
-  .focus-hand-cards { gap: 7px; min-height: 116px; padding-bottom: 38px; }
-  .focus-hand-cards .vl-card.vl-xl { width: 78px; height: 112px; border-radius: 9px; }
-  .focus-hand-cards .vl-card.vl-xl .vl-rank { font-size: 48px; }
-  .focus-hand-cards .vl-card.vl-xl .vl-suit { font-size: 54px; }
+  .focus-hand-cards { gap: 4px; min-height: 152px; padding: 0 5px 66px; max-width: 100vw; }
+  .focus-hand-card-row .vl-card + .vl-card { margin-left: -14px; }
+  .focus-hand-group.split { transform: translateY(8px) scale(0.82); }
+  .focus-hand-group.split.active { transform: translateY(0) scale(0.9); }
+  .focus-hand-mini-total { font-size: 9px; padding: 4px 7px; }
+  .focus-hand-cards .vl-card.vl-xl { width: 82px; height: 118px; border-radius: 10px; }
+  .focus-hand-cards .vl-card.vl-xl .vl-rank { font-size: 54px; }
+  .focus-hand-cards .vl-card.vl-xl .vl-suit { font-size: 61px; }
   .focus-hand-cards .vl-card.vl-xl .vl-pip,
-  .focus-hand-cards .vl-card.vl-xl .vl-pip-br { font-size: 14px; }
-  .focus-actions { width: min(96vw, 360px); padding: 7px 8px; bottom: 2px; }
-  .focus-action-row { gap: 5px; }
+  .focus-hand-cards .vl-card.vl-xl .vl-pip-br { font-size: 15px; }
+  .focus-actions { width: min(98vw, 364px); padding: 7px 7px; bottom: 4px; }
+  .focus-action-row { gap: 4px; }
   .top-bar { font-size:11px; padding:6px 10px; }
   .game-body-bj {
-    padding: 4px 2px 2px;
+    padding: 6px 2px 2px;
     align-items: flex-start;
   }
 
   /* ── Table ── */
   .oval-table {
-    width: 99vw;
-    height: min(58vw, 380px);
+    width: 96vw;
+    height: min(50vw, 300px);
     border-radius: 0 0 400px 400px / 0 0 180px 180px;
   }
 

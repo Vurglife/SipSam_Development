@@ -193,9 +193,10 @@ function handTotal(hand) {
 
 function makeVLCard(c, size) {
   // size: 'sm' | 'lg' | 'xl' | undefined (default).
+  const opts = typeof size === 'string' ? { size } : (size || {});
+  const sizeName = opts.size || '';
   let el;
-  if (typeof window.vlCard === 'function')      el = window.vlCard(c);
-  else if (typeof vlCard === 'function')        el = vlCard(c);
+  if (typeof window.vlCard === 'function' && window.vlCard !== makeVLCard)      el = window.vlCard(c, opts);
   else {
     // Minimal fallback renderer
     el = document.createElement('div');
@@ -208,15 +209,20 @@ function makeVLCard(c, size) {
       el.style.border = '1px solid #c9a84c';
       el.textContent = '';
     } else if (c.rank) {
+      const fallbackRed = c.suit === 'h' || c.suit === 'H' || c.suit === 'hearts'
+        || c.suit === 'd' || c.suit === 'D' || c.suit === 'diamonds'
+        || c.suit === '\u2665' || c.suit === '\u2666';
       const isRed = c.suit === '♥' || c.suit === '♦';
       el.style.background = '#fff';
-      el.style.color = isRed ? '#cc1830' : '#000';
+      el.style.color = (fallbackRed || isRed) ? '#cc1830' : '#000';
       el.textContent = c.rank + (c.suit || '');
     }
   }
-  if (size === 'xl') el.classList.add('vl-xl');
-  else if (size === 'lg') el.classList.add('vl-lg');
-  else if (size === 'sm') el.classList.add('vl-sm');
+  if (sizeName === 'xl') el.classList.add('vl-xl');
+  else if (sizeName === 'lg') el.classList.add('vl-lg');
+  else if (sizeName === 'sm') el.classList.add('vl-sm');
+  if (opts.active) el.classList.add('vl-active');
+  if (opts.state) el.classList.add('vl-' + opts.state);
   return el;
 }
 
@@ -1036,8 +1042,9 @@ function renderFocusHand(state) {
   const mySeat = (mySeatIndex !== null) ? state.seats?.[mySeatIndex] : null;
   const hands = mySeat?.hands || [];
   const activeHandIdx = mySeat?.activeHandIdx || 0;
-  const hand = hands[activeHandIdx] || hands[0] || [];
-  const hasCards = hand.length > 0;
+  const visibleHands = hands.filter(hand => Array.isArray(hand) && hand.length > 0);
+  const activeHand = visibleHands[activeHandIdx] || visibleHands[0] || [];
+  const hasCards = activeHand.length > 0;
 
   if (!mySeat || !hasCards || state.phase === 'waiting' || state.phase === 'betting') {
     panel.style.display = 'none';
@@ -1048,12 +1055,33 @@ function renderFocusHand(state) {
 
   panel.style.display = 'flex';
   cardsEl.innerHTML = '';
-  hand.forEach(c => cardsEl.appendChild(makeVLCard(c, 'xl')));
 
-  const ht = handTotal(hand);
+  const safeActiveIdx = Math.max(0, visibleHands.indexOf(activeHand));
+  visibleHands.forEach((hand, hi) => {
+    const isActive = hi === safeActiveIdx;
+    const group = document.createElement('div');
+    group.className = 'focus-hand-group' + (isActive ? ' active' : '') + (visibleHands.length > 1 ? ' split' : '');
+
+    const row = document.createElement('div');
+    row.className = 'focus-hand-card-row';
+    hand.forEach(c => row.appendChild(makeVLCard(c, { size: 'xl', active: visibleHands.length > 1 && isActive })));
+    group.appendChild(row);
+
+    if (visibleHands.length > 1) {
+      const handMeta = document.createElement('div');
+      const splitTotal = handTotal(hand);
+      handMeta.className = 'focus-hand-mini-total' + (splitTotal.bust ? ' bust' : splitTotal.bj ? ' bj' : '');
+      handMeta.textContent = splitTotal.bj ? `Hand ${hi + 1}: Blackjack` : (splitTotal.bust ? `Hand ${hi + 1}: Bust ${splitTotal.total}` : `Hand ${hi + 1}: Total ${splitTotal.total}`);
+      group.appendChild(handMeta);
+    }
+
+    cardsEl.appendChild(group);
+  });
+
+  const ht = handTotal(activeHand);
   if (labelEl) {
-    labelEl.textContent = hands.length > 1
-      ? `Your Hand ${activeHandIdx + 1} of ${hands.length}`
+    labelEl.textContent = visibleHands.length > 1
+      ? `Your Hand ${safeActiveIdx + 1} of ${visibleHands.length}`
       : 'Your Hand';
   }
   if (totalEl) {

@@ -25,14 +25,27 @@ const VL_SUIT_CLASS = {
   hearts:'hearts',diamonds:'diamonds',clubs:'clubs',spades:'spades',
 };
 
+function normalizeVLOpts(opts = {}) {
+  if (typeof opts === 'string') return { size: opts };
+  return opts || {};
+}
+
+function vlSizeClass(size) {
+  if (size === 'sm') return 'vl-sm';
+  if (size === 'lg') return 'vl-lg';
+  if (size === 'xl') return 'vl-xl';
+  return '';
+}
+
 function makeVLCard(card, opts = {}) {
+  opts = normalizeVLOpts(opts);
   const el = document.createElement('div');
 
   // ── Face-down ──
   if (!card || card.faceDown || card.rank === '?' || card.rank === null) {
     el.className = [
       'vl-card face-down',
-      opts.size === 'sm' ? 'vl-sm' : opts.size === 'lg' ? 'vl-lg' : '',
+      vlSizeClass(opts.size),
     ].filter(Boolean).join(' ');
     return el;
   }
@@ -45,7 +58,7 @@ function makeVLCard(card, opts = {}) {
   el.className = [
     'vl-card',
     suitClass,
-    opts.size === 'sm' ? 'vl-sm' : opts.size === 'lg' ? 'vl-lg' : '',
+    vlSizeClass(opts.size),
     opts.active         ? 'vl-active' : '',
     opts.state === 'win'  ? 'vl-win'  : '',
     opts.state === 'lose' ? 'vl-lose' : '',
@@ -78,4 +91,8 @@ function renderVLHand(container, cards, opts = {}) {
 // Export for CommonJS / module environments
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { makeVLCard, renderVLHand };
+}
+if (typeof window !== 'undefined') {
+  window.vlCard = makeVLCard;
+  window.renderVLHand = renderVLHand;
 }
