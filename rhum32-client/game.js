@@ -1027,8 +1027,18 @@ function adjustTieBet(delta) {
 }
 
 function toggleFreeze() {
-    const frozen = document.getElementById('freeze-checkbox').checked;
-    if (ws) ws.send(JSON.stringify({ type: "freezeBet", freeze: frozen }));
+    // Premium toggle button (replaced the bare checkbox to match the
+    // Blackjack/SipSam visual language). Track frozen state on the button's
+    // .active class so the styling reflects it; flip on each click.
+    const btn = document.getElementById('btn-freeze-bar');
+    const ind = document.getElementById('freeze-indicator');
+    if (!btn) return;
+    const wasFrozen = btn.classList.contains('active');
+    const nowFrozen = !wasFrozen;
+    btn.classList.toggle('active', nowFrozen);
+    btn.textContent = nowFrozen ? '\u{1F512} Bets Frozen' : '\u{1F512} Freeze Bets';
+    if (ind) ind.style.display = nowFrozen ? 'inline' : 'none';
+    if (ws) ws.send(JSON.stringify({ type: "freezeBet", freeze: nowFrozen }));
 }
 
 function makeDecision(decision) {

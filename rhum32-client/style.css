@@ -7,9 +7,11 @@
   --gold:    #c9a84c;
   --gold-lt: #f0d080;
   --gold-dk: #8B6914;
-  --felt:    #0d6b38;
-  --felt-dk: #094d28;
-  --felt-lt: #12884a;
+  /* Deep burgundy / wine felt — classic baccarat-room palette, distinct
+     from SipSam's blue and Blackjack's navy. */
+  --felt:    #5a0c20;
+  --felt-dk: #3d0814;
+  --felt-lt: #7a162c;
   --bg:      #0a0a12;
   --bg-card: #0d1a12;
   --red:     #cc2200;
@@ -476,18 +478,20 @@ html, body {
     repeating-linear-gradient(0deg, transparent, transparent 20px, rgba(255,255,255,0.012) 20px, rgba(255,255,255,0.012) 21px),
     repeating-linear-gradient(90deg, transparent, transparent 20px, rgba(255,255,255,0.012) 20px, rgba(255,255,255,0.012) 21px);
 }
-/* RHUM32 watermark on felt */
-.felt-surface::after {
-  content: 'RHUM32';
+/* VurgLife logo watermark on the felt — mirrors SipSam's .table-logo
+   pattern. The image is centred over the oval-table and stays well below
+   the cards in the z-order. */
+.table-logo {
   position: absolute;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  font-family: 'Cinzel Decorative', serif;
-  font-size: clamp(28px, 5vw, 50px);
-  color: rgba(255,255,255,0.04);
-  letter-spacing: 8px;
+  width: clamp(220px, 46%, 460px);
+  max-width: calc(100% - 60px);
+  opacity: 0.18;
   pointer-events: none;
-  text-transform: uppercase;
+  z-index: 1;
+  user-select: none;
+  filter: drop-shadow(0 0 4px rgba(255,255,255,0.08));
 }
 
 /* ── SEATS (absolute, semicircle arc) ── */
@@ -705,10 +709,38 @@ html, body {
   margin-bottom: 8px; font-size: 0.85rem;
 }
 .freeze-row {
-  display: flex; align-items: center; gap: 6px; justify-content: center;
-  font-size: 0.8rem; color: #7a9a7a;
+  display: flex; align-items: center; gap: 10px; justify-content: center;
+  margin-top: 4px;
 }
-.freeze-row input[type="checkbox"] { accent-color: var(--gold); }
+/* Premium Freeze toggle — adapted from Blackjack's .freeze-btn-bar with
+   gold (instead of blue) so it sits with the Rhum32 burgundy palette.
+   Default: subtle gold-on-dark; hover: brighter; active: solid gold glow. */
+.freeze-btn-bar {
+  background: linear-gradient(135deg, rgba(201,168,76,0.10), rgba(201,168,76,0.03));
+  border: 1px solid rgba(201,168,76,0.4);
+  color: #d6b865;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 12px; font-weight: 700; letter-spacing: 1.5px;
+  padding: 7px 18px; border-radius: 8px;
+  cursor: pointer;
+  transition: all .2s ease;
+  text-transform: uppercase;
+}
+.freeze-btn-bar:hover {
+  background: linear-gradient(135deg, rgba(201,168,76,0.22), rgba(201,168,76,0.08));
+  border-color: var(--gold);
+  color: #ffeaa8;
+}
+.freeze-btn-bar.active {
+  background: linear-gradient(135deg, rgba(201,168,76,0.45), rgba(139,105,20,0.25));
+  border-color: var(--gold);
+  color: #fff8e0;
+  box-shadow: 0 0 14px rgba(201,168,76,0.45);
+}
+.freeze-indicator {
+  font-size: 11px; color: var(--gold); letter-spacing: 1px;
+  font-family: 'Rajdhani', sans-serif; font-weight: 700;
+}
 
 /* ── DECISION CONTROLS ── */
 .decision-row {

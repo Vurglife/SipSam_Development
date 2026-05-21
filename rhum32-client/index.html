@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rhum32 — VURGLife</title>
-  <link rel="stylesheet" href="style.css?v=10">
+  <link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
 
@@ -369,6 +369,8 @@
     <!-- FELT TABLE with semicircle seats -->
     <div class="oval-table" id="oval-table">
       <div class="felt-surface"></div>
+      <!-- VurgLife logo watermark — centred on table (mirrors SipSam) -->
+      <img src="VurgLife_logo_table.png" class="table-logo" alt="VurgLife" draggable="false">
       <div class="bj-seat bj-seat-0" id="seat-1"><div class="seat-nametag" id="seat-1-name">--</div><div class="seat-chips" id="seat-1-info"></div><div class="seat-hand" id="seat-1-cards"></div><div class="seat-result" id="seat-1-result"></div></div>
       <div class="bj-seat bj-seat-1" id="seat-2"><div class="seat-nametag" id="seat-2-name">--</div><div class="seat-chips" id="seat-2-info"></div><div class="seat-hand" id="seat-2-cards"></div><div class="seat-result" id="seat-2-result"></div></div>
       <div class="bj-seat bj-seat-2" id="seat-3"><div class="seat-nametag" id="seat-3-name">--</div><div class="seat-chips" id="seat-3-info"></div><div class="seat-hand" id="seat-3-cards"></div><div class="seat-result" id="seat-3-result"></div></div>
@@ -408,7 +410,8 @@
         <button class="btn-sm" onclick="adjustTieBet(50)">+</button>
       </div>
       <div class="freeze-row">
-        <label><input type="checkbox" id="freeze-checkbox" onchange="toggleFreeze()"> Freeze Bets</label>
+        <button id="btn-freeze-bar" class="freeze-btn-bar" onclick="toggleFreeze()">&#x1F512; Freeze Bets</button>
+        <span id="freeze-indicator" class="freeze-indicator" style="display:none">FROZEN</span>
       </div>
     </div>
 
@@ -480,6 +483,6 @@
   </div>
 </div>
 
-<script src="game.js?v=21"></script>
+<script src="game.js?v=22"></script>
 </body>
 </html>
