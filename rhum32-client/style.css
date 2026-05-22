@@ -1002,3 +1002,717 @@ html, body {
   .igm-mini-btn{padding:13px 16px;font-size:13px}
   .igm-action-btn{padding:14px;font-size:15px}
 }
+
+/* ============================================================
+   Casino contrast refresh
+   Higher text/graphic separation for mode, lobby, game table,
+   bottom controls, in-game menu, and chat surfaces.
+   ============================================================ */
+:root {
+  --gold: #d6ad3b;
+  --gold-lt: #ffe8a3;
+  --gold-dk: #8e6112;
+  --ivory: #fff6df;
+  --pearl: #f3e7c8;
+  --ember: #ff7a3d;
+  --ruby: #a91435;
+  --ruby-dk: #3b0614;
+  --emerald: #23d47b;
+  --emerald-dk: #083f29;
+  --ink: #040207;
+  --ink-2: #12070f;
+  --ink-3: #24111a;
+  --text: var(--ivory);
+  --text-soft: var(--pearl);
+  --text-mute: #bfae8a;
+  --slot-bg: rgba(5, 18, 13, 0.88);
+}
+
+html,
+body {
+  background:
+    radial-gradient(ellipse at 50% 20%, rgba(121, 17, 39, 0.34) 0%, transparent 42%),
+    linear-gradient(135deg, #040207 0%, #110610 42%, #030205 100%);
+  color: var(--ivory);
+}
+
+.bg-glow,
+.mode-card-glow {
+  display: none;
+}
+
+.bg-grid {
+  opacity: 0.85;
+  background:
+    linear-gradient(rgba(255, 232, 163, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 232, 163, 0.035) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse at center, black 0%, transparent 78%);
+}
+
+#screen-lobby.active,
+#screen-mode.active {
+  background:
+    radial-gradient(ellipse at 50% 24%, rgba(169, 20, 53, 0.28) 0%, transparent 44%),
+    linear-gradient(145deg, #050207 0%, #170912 52%, #030204 100%);
+}
+
+.glass-card,
+.login-card,
+.gameover-card {
+  background:
+    linear-gradient(160deg, rgba(46, 14, 26, 0.96), rgba(12, 5, 10, 0.98) 58%, rgba(4, 2, 5, 0.98)),
+    linear-gradient(90deg, rgba(255, 232, 163, 0.14), transparent 34%, rgba(35, 212, 123, 0.10));
+  border: 1px solid rgba(255, 232, 163, 0.34);
+  box-shadow:
+    0 0 0 1px rgba(255, 246, 223, 0.06),
+    0 26px 90px rgba(0, 0, 0, 0.72),
+    0 0 46px rgba(214, 173, 59, 0.12);
+}
+
+.card-accent {
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--emerald), var(--gold-lt), var(--ember), transparent);
+}
+
+.lobby-title,
+.login-card h1,
+.gameover-card h2 {
+  color: var(--ivory);
+  text-shadow: 0 2px 0 #000, 0 0 24px rgba(214, 173, 59, 0.42);
+}
+
+.lobby-title .gold,
+.lobby-title span[style] {
+  color: var(--gold-lt) !important;
+}
+
+.lobby-subtitle,
+.mode-card-desc,
+.selection-info,
+.subtitle,
+#login-status {
+  color: var(--pearl) !important;
+  opacity: 0.9;
+}
+
+.lobby-section-label,
+.invite-label {
+  color: var(--emerald);
+  opacity: 0.98;
+  text-shadow: 0 0 14px rgba(35, 212, 123, 0.28);
+}
+
+.lobby-config-banner {
+  background:
+    linear-gradient(180deg, rgba(255, 232, 163, 0.10), rgba(0, 0, 0, 0.58)),
+    linear-gradient(90deg, rgba(35, 212, 123, 0.10), transparent 48%, rgba(169, 20, 53, 0.12));
+  border-color: rgba(255, 232, 163, 0.42);
+}
+
+.lci-label {
+  color: var(--emerald);
+  opacity: 0.95;
+}
+
+.lci-value {
+  color: var(--gold-lt);
+  text-shadow: 0 0 14px rgba(214, 173, 59, 0.48);
+}
+
+.mode-card {
+  background:
+    linear-gradient(155deg, rgba(105, 13, 36, 0.94), rgba(24, 7, 16, 0.98) 54%, rgba(7, 3, 6, 0.98));
+  border-color: rgba(255, 232, 163, 0.34);
+}
+
+.mode-card:nth-child(2) {
+  background:
+    linear-gradient(155deg, rgba(9, 52, 35, 0.86), rgba(24, 7, 16, 0.96) 58%, rgba(7, 3, 6, 0.98));
+}
+
+.mode-card:hover {
+  border-color: var(--gold-lt);
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.62),
+    0 0 34px rgba(214, 173, 59, 0.26),
+    inset 0 1px 0 rgba(255, 246, 223, 0.12);
+}
+
+.mode-card-title {
+  color: var(--ivory);
+  text-shadow: 0 0 16px rgba(214, 173, 59, 0.38);
+}
+
+.mode-card-badge,
+.mode-tag {
+  background: linear-gradient(135deg, var(--gold-lt), var(--gold), var(--gold-dk));
+  color: #160b00;
+  border-color: rgba(255, 232, 163, 0.65);
+}
+
+.btn-primary,
+.btn-start {
+  background: linear-gradient(135deg, #fff1ad, #d6ad3b 42%, #9b6815);
+  color: #160b00;
+  box-shadow: 0 8px 22px rgba(214, 173, 59, 0.26);
+}
+
+.btn-secondary,
+.btn-sm,
+.btn-rounds {
+  background: rgba(5, 8, 9, 0.72);
+  color: var(--ivory);
+  border-color: rgba(255, 232, 163, 0.42);
+}
+
+.btn-secondary:hover,
+.btn-sm:hover,
+.btn-rounds:hover {
+  background: rgba(35, 212, 123, 0.12);
+  border-color: var(--emerald);
+}
+
+.btn-rounds.selected {
+  background:
+    linear-gradient(145deg, rgba(214, 173, 59, 0.34), rgba(35, 212, 123, 0.12)),
+    rgba(0, 0, 0, 0.72);
+  border-color: var(--gold-lt);
+}
+
+.rounds-num {
+  color: var(--gold-lt);
+}
+
+.rounds-label {
+  color: var(--pearl);
+}
+
+.invite-input,
+.transfer-input {
+  background: rgba(3, 4, 6, 0.72);
+  color: var(--ivory);
+  border-color: rgba(255, 232, 163, 0.32);
+}
+
+.invite-input::placeholder {
+  color: rgba(243, 231, 200, 0.68);
+}
+
+.invite-input:focus,
+.transfer-input:focus {
+  border-color: var(--emerald);
+  box-shadow: 0 0 0 3px rgba(35, 212, 123, 0.12);
+}
+
+.btn-back {
+  color: var(--pearl);
+}
+
+.btn-back:hover {
+  color: var(--gold-lt);
+}
+
+.top-bar {
+  background:
+    linear-gradient(90deg, #050406, #111b14 38%, #260816 70%, #050406);
+  border-bottom-color: rgba(255, 232, 163, 0.32);
+}
+
+.top-round {
+  color: var(--gold-lt);
+}
+
+.top-status,
+.bet-label,
+.decision-label,
+.area-label {
+  color: var(--emerald);
+  text-shadow: 0 0 10px rgba(35, 212, 123, 0.28);
+}
+
+.status-bar {
+  background: rgba(4, 2, 6, 0.76);
+  color: var(--gold-lt);
+  border-bottom: 1px solid rgba(255, 232, 163, 0.10);
+}
+
+.game-body {
+  background:
+    radial-gradient(ellipse at 50% 18%, rgba(169, 20, 53, 0.16), transparent 44%),
+    radial-gradient(ellipse at 50% 85%, rgba(35, 212, 123, 0.10), transparent 54%),
+    #050307;
+}
+
+.felt-surface {
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(255, 232, 163, 0.10) 0%, transparent 54%),
+    radial-gradient(ellipse at 50% 42%, #941a35 0%, #631024 44%, #290612 100%);
+  border-color: #7a4f11;
+  border-top-color: var(--gold-lt);
+  box-shadow:
+    0 0 0 2px rgba(255, 232, 163, 0.34),
+    0 0 0 7px rgba(0, 0, 0, 0.70),
+    0 18px 55px rgba(0, 0, 0, 0.72),
+    inset 0 2px 40px rgba(0, 0, 0, 0.36),
+    inset 0 -18px 60px rgba(0, 0, 0, 0.28);
+}
+
+.table-logo {
+  opacity: 0.24;
+  filter: drop-shadow(0 0 8px rgba(255, 246, 223, 0.12));
+}
+
+.dealer-tag,
+.seat-nametag {
+  background: linear-gradient(135deg, #fff1ad, #d6ad3b 55%, #8e6112);
+  color: #160b00;
+}
+
+.bj-seat.is-me .seat-nametag {
+  background: linear-gradient(135deg, var(--emerald), #0b8f57);
+  color: #03150d;
+  box-shadow: 0 0 16px rgba(35, 212, 123, 0.40);
+}
+
+.seat-chips {
+  color: var(--ivory);
+  background: rgba(2, 3, 5, 0.88);
+  border-color: rgba(255, 232, 163, 0.44);
+}
+
+.seat-hand {
+  background: rgba(4, 4, 7, 0.64);
+  border-color: rgba(255, 232, 163, 0.35);
+}
+
+.seat-result.win {
+  background: rgba(4, 42, 25, 0.95);
+  color: #7dffba;
+  border-color: rgba(35, 212, 123, 0.55);
+}
+
+.seat-result.lose {
+  background: rgba(70, 8, 20, 0.95);
+  color: #ff8aa3;
+  border-color: rgba(255, 90, 120, 0.55);
+}
+
+.card {
+  border-color: rgba(255, 232, 163, 0.82);
+}
+
+.card-front {
+  background: linear-gradient(145deg, #fffdf4, #f4ead3);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 246, 223, 0.85),
+    0 5px 14px rgba(0, 0, 0, 0.55);
+}
+
+.card-back {
+  background-color: #111018;
+  border-color: var(--gold);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 232, 163, 0.42),
+    0 0 12px rgba(214, 173, 59, 0.24),
+    0 5px 14px rgba(0, 0, 0, 0.55);
+}
+
+.my-area {
+  background:
+    linear-gradient(180deg, rgba(255, 232, 163, 0.08), transparent 10%),
+    linear-gradient(135deg, #050406, #0b1d13 48%, #210814);
+  border-top-color: rgba(255, 232, 163, 0.38);
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.52);
+}
+
+.my-info-bar {
+  background: rgba(2, 3, 5, 0.60);
+  border-color: rgba(255, 232, 163, 0.20);
+}
+
+#my-name {
+  color: var(--gold-lt);
+}
+
+#my-wallet,
+.final-player .fp-wallet {
+  color: var(--emerald);
+  text-shadow: 0 0 10px rgba(35, 212, 123, 0.32);
+}
+
+.bet-amount,
+.my-hand-value,
+.area-sublabel {
+  color: var(--gold-lt);
+}
+
+.tie-bet-row {
+  color: var(--pearl);
+}
+
+.freeze-btn-bar {
+  background: rgba(4, 4, 7, 0.64);
+  color: var(--ivory);
+  border-color: rgba(255, 232, 163, 0.45);
+}
+
+.freeze-btn-bar:hover {
+  background: rgba(35, 212, 123, 0.12);
+  border-color: var(--emerald);
+  color: var(--ivory);
+}
+
+.freeze-btn-bar.active {
+  background: linear-gradient(135deg, rgba(35, 212, 123, 0.38), rgba(214, 173, 59, 0.20));
+  border-color: var(--emerald);
+  color: var(--ivory);
+  box-shadow: 0 0 16px rgba(35, 212, 123, 0.36);
+}
+
+#igm-overlay {
+  background: rgba(3, 2, 5, 0.72) !important;
+}
+
+#igm-panel,
+#chat-popup {
+  background: linear-gradient(180deg, #10070d, #050406) !important;
+  border-color: rgba(255, 232, 163, 0.30) !important;
+}
+
+.igm-head {
+  background: linear-gradient(135deg, #250815, #070407) !important;
+  border-bottom-color: rgba(255, 232, 163, 0.24) !important;
+}
+
+.igm-title-bar,
+.igm-username,
+.igm-title {
+  color: var(--ivory) !important;
+}
+
+.igm-table-tag,
+.igm-desc,
+.igm-info-row,
+.igm-label,
+.igm-bank-lbl,
+.igm-mini-btn,
+.igm-chev {
+  color: var(--pearl) !important;
+}
+
+.igm-playerbar,
+.igm-pane,
+.igm-info-card,
+.igm-input,
+.igm-mini-btn,
+.igm-friends-list,
+.player-select-btn {
+  background: rgba(4, 4, 7, 0.74) !important;
+  border-color: rgba(255, 232, 163, 0.26) !important;
+}
+
+.igm-sec {
+  border-bottom-color: rgba(255, 232, 163, 0.16) !important;
+}
+
+.igm-row:hover,
+.igm-sec.expanded .igm-row {
+  background: rgba(214, 173, 59, 0.10) !important;
+  border-left-color: var(--gold-lt) !important;
+}
+
+.igm-rule-h {
+  color: var(--emerald) !important;
+}
+
+.igm-action-btn {
+  background: linear-gradient(135deg, var(--emerald), #0b8f57) !important;
+  color: #03150d !important;
+}
+
+.igm-close-btn {
+  background: rgba(255, 232, 163, 0.08) !important;
+  border-color: rgba(255, 232, 163, 0.26) !important;
+  color: var(--ivory) !important;
+}
+
+#igm-panel [style*="#7ac08a"],
+#igm-panel [style*="#cfeccf"] {
+  color: var(--pearl) !important;
+}
+
+#igm-panel [style*="#4caf50"] {
+  color: var(--emerald) !important;
+}
+
+#igm-panel [style*="#e8c96a"],
+#igm-panel [style*="#c9a84c"] {
+  color: var(--gold-lt) !important;
+}
+
+#igm-panel [style*="#f0fff0"] {
+  color: var(--ivory) !important;
+}
+
+#igm-panel [style*="#1a4a2e"] {
+  border-color: rgba(255, 232, 163, 0.24) !important;
+}
+
+.speech-bubble {
+  background: rgba(9, 5, 9, 0.97);
+  border-color: rgba(255, 232, 163, 0.52);
+  color: var(--ivory);
+}
+
+#chat-fab {
+  background: linear-gradient(135deg, var(--emerald), #0b8f57) !important;
+  border-color: var(--gold-lt) !important;
+  color: #03150d !important;
+}
+
+#chat-popup [style*="#5aaa6a"] {
+  color: var(--emerald) !important;
+}
+
+#chat-popup input {
+  color: var(--ivory) !important;
+  border-color: rgba(255, 232, 163, 0.28) !important;
+}
+
+@media (max-width: 540px) {
+  .glass-card {
+    border-radius: 16px;
+  }
+
+  .mode-card {
+    min-height: 210px;
+  }
+
+  .bet-row {
+    gap: 8px;
+  }
+
+  .bet-amount {
+    min-width: 78px;
+    font-size: 1.2rem;
+  }
+}
+
+@media (pointer: coarse) {
+  .btn-primary,
+  .btn-secondary,
+  .btn-sm,
+  .btn-rounds,
+  .btn-start,
+  .freeze-btn-bar,
+  .igm-action-btn,
+  .igm-mini-btn {
+    min-height: 44px;
+  }
+
+  .mode-card {
+    touch-action: manipulation;
+  }
+}
+
+@media (max-width: 720px) {
+  #screen-lobby.active,
+  #screen-mode.active {
+    justify-content: flex-start;
+    overflow-y: auto;
+    padding:
+      max(12px, env(safe-area-inset-top))
+      12px
+      max(16px, env(safe-area-inset-bottom));
+  }
+
+  .glass-card {
+    width: min(100%, 480px);
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 24px 16px;
+  }
+
+  .lobby-config-banner {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .lobby-config-item {
+    flex: 1 1 88px;
+    min-width: 88px;
+  }
+
+  .lobby-config-divider {
+    display: none;
+  }
+
+  .mode-cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .mode-card {
+    width: 100%;
+    min-width: 0;
+    min-height: 196px;
+    padding: 18px 10px 16px;
+  }
+
+  .mode-card-title {
+    overflow-wrap: anywhere;
+  }
+
+  .mode-card-desc {
+    line-height: 1.45;
+  }
+
+  .mode-card-badge {
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+  }
+
+  .rounds-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .btn-rounds {
+    width: 100%;
+    min-width: 0;
+    min-height: 62px;
+    padding: 10px 8px;
+  }
+
+  .invite-row {
+    flex-direction: column;
+  }
+
+  .invite-input,
+  .invite-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  #lobby-players-wrap [style*="#7ac08a"],
+  #invite-gate-note {
+    color: var(--emerald) !important;
+  }
+
+  .game-body {
+    min-height: 0;
+    justify-content: center;
+    padding: 6px 4px 0;
+  }
+
+  .oval-table {
+    width: min(99vw, 720px);
+    height: clamp(220px, 39dvh, 330px);
+    margin-top: 0;
+  }
+
+  .my-area {
+    max-height: 42dvh;
+    padding:
+      10px
+      max(10px, env(safe-area-inset-left))
+      max(12px, env(safe-area-inset-bottom));
+  }
+
+  .my-info-bar {
+    gap: 8px;
+    font-size: 0.9rem;
+  }
+
+  .my-info-bar span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .bet-row {
+    display: grid;
+    grid-template-columns: minmax(92px, 1fr) minmax(88px, auto) minmax(92px, 1fr);
+    gap: 8px;
+    width: 100%;
+  }
+
+  .bet-row .btn-secondary {
+    width: 100%;
+    padding: 10px 8px;
+    white-space: nowrap;
+  }
+
+  .tie-bet-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .tie-bet-row .btn-sm {
+    min-width: 64px;
+  }
+
+  .decision-row {
+    width: 100%;
+  }
+
+  .decision-row .btn-danger,
+  .decision-row .btn-primary {
+    width: 100%;
+    min-height: 46px;
+  }
+
+  #chat-popup {
+    width: min(320px, calc(100vw - 24px)) !important;
+    right: 12px !important;
+  }
+
+  #chat-fab {
+    width: 48px !important;
+    height: 48px !important;
+    right: 14px !important;
+    bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .mode-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .mode-card {
+    min-height: auto;
+  }
+
+  .bet-row {
+    grid-template-columns: 1fr;
+  }
+
+  .bet-amount {
+    order: -1;
+    justify-self: center;
+  }
+
+  .tie-bet-row {
+    font-size: 0.82rem;
+  }
+
+  .top-bar {
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .top-status {
+    max-width: 40vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
