@@ -25,9 +25,11 @@ class RoomManager {
         room.gameState.tableMaxBet = cfg.maxBet;
         room.gameState.tieBetMin   = cfg.tieBetMin;
         room.gameState.tieBetMax   = cfg.tieBetMax;
+        room.gameState.frontInc    = cfg.frontInc;
+        room.gameState.tieInc      = cfg.tieInc;
         room.gameState.maxRounds   = maxRounds || 10;
         room.gameState.mode        = mode || 'multiplayer'; // 'multiplayer' | 'single'
-        room.tableMinBet           = tableMinBet;
+        room.tableMinBet           = cfg.minBet;
 
         this.rooms.set(roomId, room);
         console.log(`[RoomManager] Created room ${roomId} ($${tableMinBet}, ${maxRounds} rounds, ${mode})`);

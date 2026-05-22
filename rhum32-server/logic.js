@@ -12,17 +12,14 @@
 // HAND VALUE = sum of non-zero cards
 //
 // SPECIALS (winning hand bonuses):
-//   A-5 Special (0): same suit A-5 straight flush → back 100:1, bonus $75000
-//   0 Special:       any 5-card straight flush     → back 50:1,  bonus $30000
-//   1-5 Special:     hand value 1-5                → back 20:1,  bonus $5000
-//   4-7 Special:     hand value 6-7 (4-5 covered by 1-5) → back 4:1, bonus $2500
-//   8-11 Special:    hand value 8-11               → back 3:1,   bonus $1000
+//   A-5 Special (0): same suit A-5 straight flush → back 100:1
+//   0 Special:       any 5-card straight flush     → back 50:1
+//   1-3 Special:     hand value 1-3                → back 20:1
+//   4-7 Special:     hand value 4-7                → back 4:1
+//   8-11 Special:    hand value 8-11               → back 3:1
 //   12-17 Special:   hand value 12-17              → back 2:1
 //   18-31 Normal:    hand value 18-31              → back 1:1
-//   47 Special:      4 face cards + 7              → back 2:1
-//   48 Special:      4 face cards + 8              → back 3:1
-//   49 Special:      4 face cards + 9              → back 6:1
-//   50 Special:      5 face cards                  → back 7:1
+//   47-50 Specials:  face-card specials use table-tier back multipliers
 //
 // DEALER RULES:
 //   - Dealer > 32 → auto-lose, pays front 1:1 + bonuses for specials + back for 47-50
@@ -67,6 +64,42 @@ const RANK_ORDER = {
 };
 
 function numericRank(card) { return RANK_ORDER[card[0]] || 0; }
+
+const TABLE_LEVELS = [
+    { minBet: 250000, key: 'celestial' },
+    { minBet: 100000, key: 'elite' },
+    { minBet: 10000,  key: 'vip' },
+    { minBet: 0,      key: 'normal' }
+];
+
+const SPECIAL_BONUS = {
+    'A-5 Special':   { normal: 500000, vip: 5000000, elite: 15000000, celestial: 25000000 },
+    '0 Special':     { normal: 100000, vip: 1000000, elite: 7000000,  celestial: 15000000 },
+    '1-3 Special':   { normal: 50000,  vip: 500000,  elite: 4000000,  celestial: 7000000  },
+    '4-7 Special':   { normal: 10000,  vip: 250000,  elite: 2000000,  celestial: 5000000  },
+    '8-11 Special':  { normal: 5000,   vip: 100000,  elite: 1000000,  celestial: 2000000  },
+    '12-17 Special': { normal: 0,      vip: 50000,   elite: 500000,   celestial: 1000000  }
+};
+
+const FACE_SPECIAL_MULTIPLIER = {
+    '47 Special': { normal: 2, vip: 3, elite: 4,  celestial: 7  },
+    '48 Special': { normal: 3, vip: 4, elite: 6,  celestial: 9  },
+    '49 Special': { normal: 6, vip: 7, elite: 9,  celestial: 12 },
+    '50 Special': { normal: 7, vip: 8, elite: 10, celestial: 13 }
+};
+
+function paymentLevel(tableMinBet) {
+    const table = Number(tableMinBet) || 0;
+    return TABLE_LEVELS.find(level => table >= level.minBet).key;
+}
+
+function bonusFor(name, tableMinBet) {
+    return SPECIAL_BONUS[name]?.[paymentLevel(tableMinBet)] || 0;
+}
+
+function faceMultiplierFor(name, tableMinBet) {
+    return FACE_SPECIAL_MULTIPLIER[name]?.[paymentLevel(tableMinBet)] || 0;
+}
 
 // ── ZERO-VALUE DETECTION ────────────────────────────────────────────
 // Returns an array of card indices (0-4) whose value should be zeroed out.
@@ -152,7 +185,7 @@ function isStraightFlush5(hand) {
 
 // Check 47/48/49/50 specials
 // Conditions: must NOT contain 3/4 of a kind, must NOT contain straight flush of 3+
-function checkFaceCardSpecial(hand) {
+function checkFaceCardSpecial(hand, tableMinBet = 100) {
     const faceCount = hand.filter(isFaceCard).length;
     const rawSum = hand.reduce((s, c) => s + cardValue(c), 0);
 
@@ -163,39 +196,41 @@ function checkFaceCardSpecial(hand) {
     const zeroed = findZeroCards(hand);
     if (zeroed.size > 0) return null;
 
-    if (faceCount === 5 && rawSum === 50) return { name: '50 Special', backMultiplier: 7 };
-    if (faceCount === 4 && rawSum === 49) return { name: '49 Special', backMultiplier: 6 };
-    if (faceCount === 4 && rawSum === 48) return { name: '48 Special', backMultiplier: 3 };
-    if (faceCount === 4 && rawSum === 47) return { name: '47 Special', backMultiplier: 2 };
+    let name = null;
+    if (faceCount === 5 && rawSum === 50) name = '50 Special';
+    if (faceCount === 4 && rawSum === 49) name = '49 Special';
+    if (faceCount === 4 && rawSum === 48) name = '48 Special';
+    if (faceCount === 4 && rawSum === 47) name = '47 Special';
+    if (name) return { name, backMultiplier: faceMultiplierFor(name, tableMinBet) };
 
     return null;
 }
 
 // Determine the payment tier for a winning hand
-function getPaymentTier(hand) {
+function getPaymentTier(hand, tableMinBet = 100) {
     const value = calculateHandValue(hand);
 
     // Check A-5 Special first (value would be 0, same suit A-5)
     if (isA5Special(hand)) {
-        return { name: 'A-5 Special', value: 0, backMultiplier: 100, bonus: 75000 };
+        return { name: 'A-5 Special', value: 0, backMultiplier: 100, bonus: bonusFor('A-5 Special', tableMinBet) };
     }
 
     // Check 0 Special (any 5-card straight flush)
     if (isStraightFlush5(hand) && value === 0) {
-        return { name: '0 Special', value: 0, backMultiplier: 50, bonus: 30000 };
+        return { name: '0 Special', value: 0, backMultiplier: 50, bonus: bonusFor('0 Special', tableMinBet) };
     }
 
     // Check face card specials (47-50)
-    const faceSpecial = checkFaceCardSpecial(hand);
+    const faceSpecial = checkFaceCardSpecial(hand, tableMinBet);
     if (faceSpecial) {
         return { ...faceSpecial, value: hand.reduce((s, c) => s + cardValue(c), 0), bonus: 0 };
     }
 
     // Value-based tiers (1-5 checked first — higher payout takes priority over 4-7 overlap)
-    if (value >= 1 && value <= 5)   return { name: '1-5 Special',  value, backMultiplier: 20, bonus: 5000 };
-    if (value >= 6 && value <= 7)   return { name: '4-7 Special',  value, backMultiplier: 4,  bonus: 2500 };
-    if (value >= 8 && value <= 11)  return { name: '8-11 Special', value, backMultiplier: 3,  bonus: 1000 };
-    if (value >= 12 && value <= 17) return { name: '12-17 Special',value, backMultiplier: 2,  bonus: 0 };
+    if (value >= 1 && value <= 3)   return { name: '1-3 Special',  value, backMultiplier: 20, bonus: bonusFor('1-3 Special', tableMinBet) };
+    if (value >= 4 && value <= 7)   return { name: '4-7 Special',  value, backMultiplier: 4,  bonus: bonusFor('4-7 Special', tableMinBet) };
+    if (value >= 8 && value <= 11)  return { name: '8-11 Special', value, backMultiplier: 3,  bonus: bonusFor('8-11 Special', tableMinBet) };
+    if (value >= 12 && value <= 17) return { name: '12-17 Special',value, backMultiplier: 2,  bonus: bonusFor('12-17 Special', tableMinBet) };
     if (value >= 18 && value <= 31) return { name: '18-31 Normal', value, backMultiplier: 1,  bonus: 0 };
 
     // Value of 32+ — cannot win normally (but still might win if dealer crosses 32)
@@ -206,7 +241,7 @@ function getPaymentTier(hand) {
 
 // Resolve a single player vs dealer
 // Returns { result, frontPayout, backPayout, bonus, tiePayout, description }
-function resolvePlayerVsDealer(playerHand, dealerHand, frontBet, backBet, tieBet) {
+function resolvePlayerVsDealer(playerHand, dealerHand, frontBet, backBet, tieBet, tableMinBet = 100) {
     const playerValue = calculateHandValue(playerHand);
     const dealerValue = calculateHandValue(dealerHand);
     const dealerCrossed = dealerValue > 32;
@@ -237,31 +272,20 @@ function resolvePlayerVsDealer(playerHand, dealerHand, frontBet, backBet, tieBet
     } else if (dealerCrossed) {
         // Dealer crosses 32 with a value that doesn't match the player —
         // player wins the front bet. Tie bet is LOST (no tie).
-        // Table 5: front bet always 1:1
-        // Face card specials (47-50): back bet at multiplier, no bonus
-        // Value-based specials (A-5, 0, 1-5, 4-7, 8-11): no back bet gain, bonus YES
-        // 12-17 and above: front 1:1 only
-        tier = getPaymentTier(playerHand);
+        // Dealer bust means every staying player wins the front bet.
+        // Specials still use Table 4 back multipliers and table-tier bonuses.
+        tier = getPaymentTier(playerHand, tableMinBet);
         frontPayout = frontBet;
-
-        const faceSpecial = checkFaceCardSpecial(playerHand);
-        if (faceSpecial) {
-            // 47-50 specials: back bet pays at multiplier, no bonus
-            backPayout = backBet * faceSpecial.backMultiplier;
-            bonus      = 0;
-        } else {
-            // Value-based: no back bet gain, but bonus still paid
-            backPayout = 0;
-            bonus      = tier.bonus || 0;
-        }
+        backPayout  = backBet * (tier.backMultiplier || 0);
+        bonus       = tier.bonus || 0;
 
         result      = 'dealer_bust';
         description = `Dealer busted with ${dealerValue}. You win front bet 1:1.`;
-        if (faceSpecial) description += ` ${faceSpecial.name}: back bet ${faceSpecial.backMultiplier}:1!`;
+        if (tier.backMultiplier > 0) description += ` ${tier.name}: back bet ${tier.backMultiplier}:1.`;
         if (bonus > 0) description += ` ${tier.name} bonus: $${bonus}!`;
     } else if (playerValue < dealerValue) {
         // Player wins (lower is better)
-        tier = getPaymentTier(playerHand);
+        tier = getPaymentTier(playerHand, tableMinBet);
         frontPayout = frontBet; // front always 1:1
         backPayout  = backBet * tier.backMultiplier;
         bonus       = tier.bonus || 0;
@@ -276,6 +300,10 @@ function resolvePlayerVsDealer(playerHand, dealerHand, frontBet, backBet, tieBet
         description = `Dealer wins with ${dealerValue} vs your ${playerValue}. You lose bets.`;
     }
 
+    const totalPayout = result === 'tie'
+        ? tiePayout
+        : frontPayout + backPayout + bonus - (tieBet > 0 ? tieBet : 0);
+
     return {
         result,
         playerValue,
@@ -286,7 +314,7 @@ function resolvePlayerVsDealer(playerHand, dealerHand, frontBet, backBet, tieBet
         bonus,
         tiePayout,
         tier,
-        totalPayout: frontPayout + backPayout + bonus + tiePayout,
+        totalPayout,
         description
     };
 }
@@ -319,6 +347,7 @@ module.exports = {
     isStraightFlush5,
     checkFaceCardSpecial,
     getPaymentTier,
+    paymentLevel,
     resolvePlayerVsDealer,
     dealCards,
     formatHand

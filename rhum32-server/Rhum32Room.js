@@ -117,14 +117,98 @@ class Rhum32Room {
             case "startGame":     this._onStartGame(client, data);     break;
             case "placeBet":      this._onPlaceBet(client, data);      break;
             case "placeTieBet":   this._onPlaceTieBet(client, data);   break;
-            case "playerDecision":this._onPlayerDecision(client, data); break;
+            case "playerDecision":this._onPlayerDecision(client, data).catch(e => console.error("[Rhum32] playerDecision failed:", e)); break;
             case "freezeBet":     this._onFreezeBet(client, data);     break;
             case "requestState":  this._onRequestState(client, data);  break;
             case "sendChips":     this._onSendChips(client, data);     break;
             case "requestChips":  this._onRequestChips(client, data);  break;
             case "replenishWallet": this._onReplenishWallet(client, data); break;
+            case "requestExit":    this._onRequestExit(client, data).catch(e => console.error("[Rhum32] requestExit failed:", e));  break;
             case "chat":          this._onChat(client, data);          break;
             default: console.log("Unknown message:", type);
+        }
+    }
+
+    _activeRoundStatus() {
+        return !["waiting", "roundEnd", "gameOver"].includes(this.gameState.status);
+    }
+
+    async _applyWalletDelta(player, delta, reason) {
+        const amount = Math.floor(Number(delta) || 0);
+        if (!amount) return { walletPaid: 0, bankPaid: 0 };
+        if (amount > 0) {
+            player.wallet += amount;
+            return { walletPaid: 0, bankPaid: 0 };
+        }
+
+        const owed = Math.abs(amount);
+        const fromWallet = Math.min(Math.max(0, player.wallet), owed);
+        player.wallet = Math.max(0, player.wallet - fromWallet);
+        const fromBank = owed - fromWallet;
+        if (fromBank > 0) {
+            player.bankDebtTotal = (player.bankDebtTotal || 0) + fromBank;
+            if (player.token) {
+                const res = await callPlatformAPI('/api/game/debt-payment', player.token, {
+                    game: 'rhum32',
+                    amount: fromBank,
+                    tableMinBet: this.gameState.tableMinBet,
+                    reason: reason || 'rhum32 round settlement'
+                });
+                if (!res || !res.ok) {
+                    player.bankDebtFailed = true;
+                    console.error(`[Rhum32 debt] ${player.username} owed $${fromBank}: ${res?.error || 'unknown error'}`);
+                }
+            } else if (!player.isBot) {
+                player.bankDebtFailed = true;
+            }
+        }
+        return { walletPaid: fromWallet, bankPaid: fromBank };
+    }
+
+    async _settlePlayerToBank(sessionId, player, reason, removeAfter) {
+        if (!player || player.isBot || player.bankSettled || !player.token) {
+            if (removeAfter) delete this.gameState.players[sessionId];
+            return;
+        }
+        const wallet = Math.max(0, Math.floor(Number(player.wallet) || 0));
+        const res = await callPlatformAPI('/api/game/rhum32/exit', player.token, {
+            remainingWallet: wallet,
+            tableMinBet: this.gameState.tableMinBet,
+            reason: reason || 'rhum32_server_settlement'
+        });
+        if (res && res.ok) {
+            player.bankSettled = true;
+            player.bankSettlement = res;
+        } else {
+            player.bankSettlementError = res?.error || 'Bank settlement failed';
+            console.error(`[Rhum32 settle] ${player.username}: ${player.bankSettlementError}`);
+        }
+        if (removeAfter && player.bankSettled) delete this.gameState.players[sessionId];
+    }
+
+    async _settlePendingExits() {
+        const exiting = Object.entries(this.gameState.players).filter(([, p]) => p.pendingExit);
+        for (const [sid, p] of exiting) {
+            await this._settlePlayerToBank(sid, p, 'rhum32_midgame_exit_after_round', true);
+            if (p.bankSettled) this.sendToClient(this.findClient(sid), { type: "exitComplete" });
+        }
+    }
+
+    async _settleAllPlayers(reason) {
+        for (const [sid, p] of Object.entries(this.gameState.players)) {
+            await this._settlePlayerToBank(sid, p, reason || 'rhum32_game_complete', false);
+        }
+    }
+
+    _promoteHostAfterLeave(wasHost) {
+        if (!wasHost || this.gameState.status !== 'waiting') return;
+        const next = Object.values(this.gameState.players).find(p => !p.isBot);
+        if (next) {
+            next.isHost = true;
+            this.hostUsername = next.username;
+            console.log(`Host promoted to ${next.username}.`);
+        } else {
+            this.hostUsername = null;
         }
     }
 
@@ -220,7 +304,7 @@ class Rhum32Room {
         this.broadcastState();
     }
 
-    _onPlayerDecision(client, data) {
+    async _onPlayerDecision(client, data) {
         const player = this.gameState.players[client.sessionId];
         if (!player || this.gameState.status !== "decision") return;
         if (player.folded || player.decided) return;
@@ -230,30 +314,17 @@ class Rhum32Room {
             player.folded  = true;
             player.decided = true;
             // Surrender front bet
-            player.wallet -= player.frontBet;
+            await this._applyWalletDelta(player, -player.frontBet, 'rhum32 fold front bet');
             player.totalPayout = -player.frontBet;
             player.result = "folded";
             player.description = "Folded. Front bet lost.";
             console.log(`${player.username} folds, loses front bet $${player.frontBet}`);
         } else if (decision === "bet") {
             const backBet = player.frontBet * 2;
-            if (player.wallet < player.frontBet + backBet + player.tieBet) {
-                // Cannot afford back bet — disqualify
-                player.disqualified = true;
-                player.decided = true;
-                player.wallet -= player.frontBet;
-                player.totalPayout = -player.frontBet;
-                player.result = "disqualified";
-                player.description = "Cannot afford back bet. Disqualified.";
-                player.observeRounds = 1;
-                console.log(`${player.username} can't afford back bet — DQ`);
-                this.broadcast({ type: "playerDisqualified", username: player.username, reason: "Wallet depleted — cannot pay back bet." });
-            } else {
-                player.backBet = backBet;
-                player.decided = true;
-                player.result  = "playing";
-                console.log(`${player.username} stays in, back bet $${backBet}`);
-            }
+            player.backBet = backBet;
+            player.decided = true;
+            player.result  = "playing";
+            console.log(`${player.username} stays in, back bet $${backBet}`);
         }
 
         this.broadcastState();
@@ -269,6 +340,32 @@ class Rhum32Room {
 
     _onRequestState(client) {
         this.sendToClient(client, { type: "stateUpdate", state: this.getPublicState(client.sessionId) });
+    }
+
+    async _onRequestExit(client) {
+        const player = this.gameState.players[client.sessionId];
+        if (!player) return;
+
+        player.pendingExit = true;
+        player.frozen = true;
+        player.description = player.description || "Exit requested. Settlement will happen after this round.";
+
+        if (!this._activeRoundStatus()) {
+            await this._settlePlayerToBank(client.sessionId, player, 'rhum32_exit_between_rounds', true);
+            if (player.bankSettled) {
+                this.sendToClient(client, { type: "exitComplete" });
+            } else {
+                this.sendToClient(client, { type: "error", message: "Exit settlement is still pending. Please try again." });
+            }
+            this.broadcastState();
+            return;
+        }
+
+        this.sendToClient(client, {
+            type: "exitPending",
+            message: "Exit queued. Your hand will settle after this round."
+        });
+        this.broadcastState();
     }
 
     _onSendChips(client, data) {
@@ -386,6 +483,9 @@ class Rhum32Room {
             description: "",
             tier:        null,
             playerValue: null,
+            pendingExit: false,
+            bankSettled: false,
+            bankDebtTotal: 0,
             isBot:       false,
             token:       token
         };
@@ -399,21 +499,28 @@ class Rhum32Room {
         if (!player) return;
         const wasHost = player.isHost;
         console.log(`${player.username} left Rhum32${wasHost ? ' (was host)' : ''}.`);
-        // Return wallet to bank would happen via platform API
+        if (this._activeRoundStatus() && !player.bankSettled) {
+            player.pendingExit = true;
+            player.disconnected = true;
+            player.frozen = true;
+            player.description = player.description || "Disconnected. Hand will settle after this round.";
+            this.broadcastState();
+            return;
+        }
+        if (!player.bankSettled && !player.isBot && player.token) {
+            this._settlePlayerToBank(client.sessionId, player, 'rhum32_disconnect_exit', true)
+                .then(() => {
+                    this._promoteHostAfterLeave(wasHost);
+                    this.broadcastState();
+                })
+                .catch(e => console.error("[Rhum32] disconnect settlement failed:", e));
+            return;
+        }
         delete this.gameState.players[client.sessionId];
         // If the host bails before the game starts, promote the next remaining
         // human so the table stays usable. After startGame, isHost becomes
         // informational only (start gate already passed).
-        if (wasHost && this.gameState.status === 'waiting') {
-            const next = Object.values(this.gameState.players).find(p => !p.isBot);
-            if (next) {
-                next.isHost = true;
-                this.hostUsername = next.username;
-                console.log(`Host promoted to ${next.username}.`);
-            } else {
-                this.hostUsername = null;
-            }
-        }
+        this._promoteHostAfterLeave(wasHost);
         this.broadcastState();
     }
 
@@ -449,6 +556,12 @@ class Rhum32Room {
 
         // Reset round state for all players
         Object.values(this.gameState.players).forEach(p => {
+            if (p.pendingExit || p.bankSettled) {
+                p.hasBet = false;
+                p.folded = true;
+                p.result = p.bankSettled ? "settled" : "settlement_pending";
+                return;
+            }
             // Freeze applies to BOTH the round (front) bet and the tie bet —
             // a frozen player wants the same wagers locked in across rounds.
             // Non-frozen players get a fresh round (front=tableMinBet, tie=0).
@@ -515,24 +628,26 @@ class Rhum32Room {
         this.gameState.message = `Dealer shows: ${this.formatCard(dealerCards[3])}. Stay or fold? (${this.gameState.timer}s)`;
         this.broadcastState();
 
-        this.startCountdown(10, "decision", () => this.autoDecide());
+        this.startCountdown(10, "decision", () => {
+            this.autoDecide().catch(e => console.error("[Rhum32] autoDecide failed:", e));
+        });
     }
 
-    autoDecide() {
+    async autoDecide() {
         if (this.decTimer) { clearInterval(this.decTimer); this.decTimer = null; }
 
         // Players who didn't decide: auto-fold
-        Object.values(this.gameState.players).forEach(p => {
+        for (const p of Object.values(this.gameState.players)) {
             if (!p.folded && !p.disqualified && !p.decided) {
                 p.folded  = true;
                 p.decided = true;
-                p.wallet -= p.frontBet;
+                await this._applyWalletDelta(p, -p.frontBet, 'rhum32 auto-fold front bet');
                 p.totalPayout = -p.frontBet;
                 p.result = "auto_fold";
                 p.description = "Auto-folded (no decision made).";
                 console.log(`${p.username} auto-folded`);
             }
-        });
+        }
 
         // Check if ALL players folded
         const remaining = Object.values(this.gameState.players).filter(
@@ -560,21 +675,23 @@ class Rhum32Room {
         this.gameState.dealer.value = Logic.calculateHandValue(this.gameState.dealer.cards);
 
         // Reveal and resolve
-        this.resolveRound();
+        this.resolveRound().catch(e => {
+            console.error("[Rhum32] resolveRound failed:", e);
+        });
     }
 
-    resolveRound() {
+    async resolveRound() {
         const dealer      = this.gameState.dealer;
         const dealerValue = dealer.value;
         const dealerCrossed = dealerValue > 32;
 
         console.log(`Dealer hand: ${Logic.formatHand(dealer.cards)} = ${dealerValue}${dealerCrossed ? ' (BUST)' : ''}`);
 
-        Object.values(this.gameState.players).forEach(p => {
-            if (p.folded || p.disqualified || p.result !== "playing") return;
+        for (const p of Object.values(this.gameState.players)) {
+            if (p.folded || p.disqualified || p.result !== "playing") continue;
 
             const resolution = Logic.resolvePlayerVsDealer(
-                p.cards, dealer.cards, p.frontBet, p.backBet, p.tieBet
+                p.cards, dealer.cards, p.frontBet, p.backBet, p.tieBet, this.gameState.tableMinBet
             );
 
             p.playerValue = resolution.playerValue;
@@ -583,44 +700,18 @@ class Rhum32Room {
             p.description = resolution.description;
 
             // Calculate net wallet change
-            if (resolution.result === "dealer_bust") {
-                // Dealer bust with values differing — player wins front
-                // (+ back/bonus if special), tie bet LOST (no tie).
-                p.wallet     += resolution.frontPayout + resolution.backPayout + resolution.bonus;
-                p.totalPayout = resolution.frontPayout + resolution.backPayout + resolution.bonus;
-                if (p.tieBet > 0) {
-                    p.wallet -= p.tieBet;
-                    p.totalPayout -= p.tieBet;
-                }
-            } else if (resolution.result === "tie") {
-                // Tie: bets returned, only tie bet pays
-                p.totalPayout = resolution.tiePayout;
-                p.wallet += resolution.tiePayout;
-                if (p.tieBet > 0 && resolution.tiePayout === 0) {
-                    p.wallet -= p.tieBet; // tie bet lost
-                    p.totalPayout -= p.tieBet;
-                }
-            } else if (resolution.result === "player_win") {
-                // Win: front 1:1 + back at multiplier + bonus
-                p.wallet     += resolution.frontPayout + resolution.backPayout + resolution.bonus;
-                p.totalPayout = resolution.frontPayout + resolution.backPayout + resolution.bonus;
-                if (p.tieBet > 0) {
-                    p.wallet -= p.tieBet; // tie bet lost (didn't tie)
-                    p.totalPayout -= p.tieBet;
-                }
-            } else if (resolution.result === "dealer_win") {
-                // Lose: lose front + back bets
-                p.wallet     += resolution.frontPayout + resolution.backPayout; // negative values
-                p.totalPayout = resolution.frontPayout + resolution.backPayout;
-                if (p.tieBet > 0) {
-                    p.wallet -= p.tieBet; // tie bet also lost
-                    p.totalPayout -= p.tieBet;
-                }
+            let net = resolution.frontPayout + resolution.backPayout + resolution.bonus;
+            if (resolution.result === "tie") {
+                net = resolution.tiePayout;
+            } else if (p.tieBet > 0) {
+                net -= p.tieBet;
             }
+            p.totalPayout = net;
+            await this._applyWalletDelta(p, net, `rhum32 ${resolution.result} settlement`);
 
             const sign = p.totalPayout >= 0 ? '+' : '';
             console.log(`${p.username} | Hand: ${p.playerValue} | ${p.result} | ${sign}$${p.totalPayout}`);
-        });
+        }
 
         this.gameState.status  = "revealing";
         this.gameState.timer   = 15;
@@ -633,11 +724,20 @@ class Rhum32Room {
             this.gameState.status  = "roundEnd";
             this.gameState.message = `Round ${this.gameState.round} complete.`;
             this.broadcastState();
-            setTimeout(() => this.startRound(), 3000);
+            this._settlePendingExits()
+                .then(() => {
+                    this.broadcastState();
+                    setTimeout(() => this.startRound(), 3000);
+                })
+                .catch(e => {
+                    console.error("[Rhum32] pending exit settlement failed:", e);
+                    setTimeout(() => this.startRound(), 3000);
+                });
         });
     }
 
     endGame() {
+        if (this.gameState.status === "gameOver") return;
         this.gameState.status  = "gameOver";
         this.gameState.message = "Game Over! Final wallets:";
         console.log("=== RHUM32 GAME OVER ===");
@@ -645,6 +745,9 @@ class Rhum32Room {
             console.log(`  ${p.username}: $${p.wallet}`);
         });
         this.broadcastState();
+        this._settleAllPlayers('rhum32_game_complete')
+            .then(() => this.broadcastState())
+            .catch(e => console.error("[Rhum32] game-over settlement failed:", e));
     }
 
     // ── HELPERS ──────────────────────────────────────────────────────
@@ -655,7 +758,7 @@ class Rhum32Room {
         );
         if (undecided.length === 0) {
             if (this.decTimer) { clearInterval(this.decTimer); this.decTimer = null; }
-            this.autoDecide();
+            this.autoDecide().catch(e => console.error("[Rhum32] autoDecide failed:", e));
         }
     }
 
@@ -686,6 +789,10 @@ class Rhum32Room {
         Object.entries(state.players).forEach(([sid, player]) => {
             // Never broadcast the platform JWT to any client.
             delete player.token;
+            delete player.bankSettlement;
+            delete player.bankSettlementError;
+            delete player.bankDebtTotal;
+            delete player.bankDebtFailed;
             // Hide other players' cards during betting/decision phases
             if (sid !== forSessionId) {
                 if (state.status === "betting" || state.status === "decision") {

@@ -154,7 +154,7 @@ async function _walletExit(game, userId, remainingWallet, tableMinBet, trusted, 
     const requested = Math.max(0, Math.floor(Number(remainingWallet) || 0));
     const recent = _walletRecentCredit(game, userId);
     if (recent) {
-        if (trusted && requested > recent.amount) {
+        if (trusted && requested !== recent.amount) {
             const delta = requested - recent.amount;
             await UserDB.adjustBank(userId, delta);
             await TxnDB.record(userId, 'wallet_return', delta, game,
@@ -283,7 +283,7 @@ router.post('/rhum32/exit', requireAuth, async (req, res) => {
 
     try {
         const result = await _walletWithExitLock('rhum32', req.userId, () =>
-            _walletExit('rhum32', req.userId, remainingWallet, tableMinBet, false, req.body?.reason)
+            _walletExit('rhum32', req.userId, remainingWallet, tableMinBet, _isTrustedGameServer(req), req.body?.reason)
         );
         res.json(result);
     } catch(e) {
@@ -750,13 +750,13 @@ router.post('/exit-beacon', async (req, res) => {
 // chips (forfeited round, owed payouts). The bank may go negative — players must
 // purchase chips or watch ads to recover.
 router.post('/debt-payment', requireAuth, async (req, res) => {
-    const { amount, tableMinBet, reason } = req.body;
+    const { amount, tableMinBet, reason, game } = req.body;
     if (typeof amount !== 'number' || amount <= 0)
         return res.status(400).json({ error: 'Invalid debt amount' });
 
     await UserDB.adjustBank(req.userId, -amount);
-    await TxnDB.record(req.userId, 'banker_debt_settle', -amount, null,
-        `Banker debt settled at $${tableMinBet} table (${reason || 'forfeit'})`);
+    await TxnDB.record(req.userId, 'banker_debt_settle', -amount, game || null,
+        `${game === 'rhum32' ? 'Rhum32' : 'Banker'} debt settled at $${tableMinBet} table (${reason || 'forfeit'})`);
 
     const user = await UserDB.findById(req.userId);
     res.json({ ok:true, debtPaid: amount, newBankBalance: user.bank_balance });

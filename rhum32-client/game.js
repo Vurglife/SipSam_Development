@@ -49,6 +49,10 @@ function rhumRemainingWallet() {
     return Math.max(0, Number(tableConfig?.wallet) || 0);
 }
 
+function rhumIsActiveRoundStatus(status) {
+    return ['betting', 'dealing4', 'decision', 'dealing5', 'revealing'].includes(status);
+}
+
 // Fire wallet-return to bank then return to the dashboard (not the landing
 // page). Mirrors SipSam: always settle, navigate regardless of result.
 async function rhumSettleAndLeave() {
@@ -69,6 +73,34 @@ async function rhumSettleAndLeave() {
     if (ws) { try { ws.close(); } catch (e) {} }
     ws = null;
     setTimeout(() => { window.location.href = '/'; }, 200);
+}
+
+function rhumRequestExitAfterRound() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        rhumSettleAndLeave();
+        return;
+    }
+    try {
+        ws.send(JSON.stringify({ type: 'requestExit' }));
+        showSpeechBubble('system', 'Exit', 'Exit queued. Your hand will settle after this round.', mySessionId);
+    } catch (e) {
+        rhumSettleAndLeave();
+        return;
+    }
+    setTimeout(() => {
+        window._intentionalExit = true;
+        if (ws) { try { ws.close(); } catch (e) {} }
+        ws = null;
+        window.location.href = '/';
+    }, 600);
+}
+
+function rhumLeaveGame() {
+    if (rhumIsActiveRoundStatus(lastStatus)) {
+        rhumRequestExitAfterRound();
+        return;
+    }
+    rhumSettleAndLeave();
 }
 
 // ============================================
@@ -993,13 +1025,16 @@ function doSendChips() {
 }
 
 function igmExit() {
-    if (!confirm('Exit game? Your remaining wallet will be returned to your bank.')) return;
+    const msg = rhumIsActiveRoundStatus(lastStatus)
+        ? 'Exit game? Your current hand will finish first, then your wallet will return to your bank.'
+        : 'Exit game? Your remaining wallet will be returned to your bank.';
+    if (!confirm(msg)) return;
     closeIngameMenu();
-    rhumSettleAndLeave();
+    rhumLeaveGame();
 }
 
 async function exitGame() {
-    rhumSettleAndLeave();
+    rhumLeaveGame();
 }
 
 // ============================================
@@ -1204,6 +1239,15 @@ function handleServerMessage(msg) {
             break;
         case "replenishResult":
             onReplenishResult(msg);
+            break;
+        case "exitPending":
+            showSpeechBubble('system', 'Exit', msg.message || 'Exit queued after this round.', mySessionId);
+            break;
+        case "exitComplete":
+            window._intentionalExit = true;
+            if (ws) { try { ws.close(); } catch (e) {} }
+            ws = null;
+            window.location.href = '/';
             break;
         case "playerDisqualified":
             showSpeechBubble('system', 'System', `${msg.username}: ${msg.reason}`, mySessionId);
