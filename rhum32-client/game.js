@@ -1042,9 +1042,9 @@ async function exitGame() {
 // ============================================
 // Bet increment based on table tier
 function fallbackBetIncrement() {
-    if (tableMinBet >= 250000) return 500000;
-    if (tableMinBet >= 100000) return 100000;
-    if (tableMinBet >= 10000)  return 5000;
+    if (tableMinBet >= 250000) return 150000;  // Celestial
+    if (tableMinBet >= 100000) return 50000;   // Elite
+    if (tableMinBet >= 10000)  return 10000;   // VIP
     if (tableMinBet >= 1000)   return 1000;
     if (tableMinBet >= 500)    return 500;
     return 50;
