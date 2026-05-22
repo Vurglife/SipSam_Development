@@ -254,55 +254,70 @@ function resolvePlayerVsDealer(playerHand, dealerHand, frontBet, backBet, tieBet
     let description = '';
     let tier        = null;
 
-    // Tie check FIRST. Tie bet pays iff playerValue === dealerValue,
-    // regardless of bust state. Double-bust at the same value (e.g.
-    // both 40) is still a tie and still pays. Dealer busting with
-    // values differing is NOT a tie — tie bet is lost in that branch.
-    if (playerValue === dealerValue) {
-        // Tie at any value (including double-bust at equal totals).
+    // Hand tier (bonus + back multiplier) and any 47-50 face special.
+    tier = getPaymentTier(playerHand, tableMinBet);
+    const faceSpecial = checkFaceCardSpecial(playerHand, tableMinBet);
+    const isTie       = playerValue === dealerValue;
+
+    // The special BONUS is paid whenever the hand earns one — win, lose,
+    // bust, OR tie. It never depends on the dealer's hand.
+    bonus = tier.bonus || 0;
+
+    // Tie bet pays 20:1 whenever the hand values match (any value, including
+    // a double-bust at equal totals). A placed tie bet on a non-tie is lost.
+    tiePayout = (tieBet > 0 && isTie) ? tieBet * 20 : 0;
+    const tieLost = (tieBet > 0 && !isTie) ? tieBet : 0;
+
+    if (faceSpecial) {
+        // 47-50 face specials are UNBEATABLE — always win front 1:1 + back ×
+        // face multiplier no matter what the dealer holds (higher dealer face
+        // special, dealer bust, anything). If the dealer matches the value,
+        // the tie bet ALSO pays (stacked on top).
+        frontPayout = frontBet;
+        backPayout  = backBet * (faceSpecial.backMultiplier || 0);
+        result      = 'face_special';
+        description = `${faceSpecial.name} — unbeatable! Front 1:1 + back ${faceSpecial.backMultiplier}:1.`;
+        if (tiePayout > 0) description += ` Tie bet pays $${tiePayout}!`;
+    } else if (isTie) {
+        // Tie: front + back returned (push). Bonus + tie bet still pay.
         frontPayout = 0;
         backPayout  = 0;
-        bonus       = 0;
         result      = 'tie';
-        description = `Tie at ${playerValue}. Front and back bets returned.`;
-        if (tieBet > 0) {
-            tiePayout = tieBet * 20;
-            description += ` Tie bet pays $${tiePayout}!`;
-        }
+        description = `Tie at ${playerValue}. Front and back returned.`;
+        if (bonus > 0)     description += ` ${tier.name} bonus: $${bonus}!`;
+        if (tiePayout > 0) description += ` Tie bet pays $${tiePayout}!`;
     } else if (dealerCrossed) {
-        // Dealer crosses 32 with a value that doesn't match the player —
-        // player wins the front bet. Tie bet is LOST (no tie).
-        // Dealer bust means every staying player wins the front bet.
-        // Specials still use Table 4 back multipliers and table-tier bonuses.
-        tier = getPaymentTier(playerHand, tableMinBet);
+        // Banker bust (values differ): front 1:1, back PUSHED (returned).
+        // Bonus paid. Placed tie bet lost.
         frontPayout = frontBet;
-        backPayout  = backBet * (tier.backMultiplier || 0);
-        bonus       = tier.bonus || 0;
-
+        backPayout  = 0;
         result      = 'dealer_bust';
-        description = `Dealer busted with ${dealerValue}. You win front bet 1:1.`;
-        if (tier.backMultiplier > 0) description += ` ${tier.name}: back bet ${tier.backMultiplier}:1.`;
+        description = `Dealer busted with ${dealerValue}. Front 1:1, back returned.`;
         if (bonus > 0) description += ` ${tier.name} bonus: $${bonus}!`;
     } else if (playerValue < dealerValue) {
-        // Player wins (lower is better)
-        tier = getPaymentTier(playerHand, tableMinBet);
-        frontPayout = frontBet; // front always 1:1
-        backPayout  = backBet * tier.backMultiplier;
-        bonus       = tier.bonus || 0;
+        // Player wins (lower is better): front 1:1 + back × tier multiplier.
+        frontPayout = frontBet;
+        backPayout  = backBet * (tier.backMultiplier || 0);
         result      = 'player_win';
         description = `You win with ${playerValue} vs dealer's ${dealerValue}. ${tier.name}.`;
+        if (bonus > 0) description += ` Bonus: $${bonus}!`;
     } else {
-        // Dealer wins (player value > dealer value, and dealer <= 32)
+        // Dealer wins (player value higher, dealer <= 32): front + back LOST.
+        // The special BONUS is STILL paid.
         frontPayout = -frontBet;
         backPayout  = -backBet;
-        bonus       = 0;
         result      = 'dealer_win';
-        description = `Dealer wins with ${dealerValue} vs your ${playerValue}. You lose bets.`;
+        description = bonus > 0
+            ? `Dealer wins ${dealerValue} vs ${playerValue}. Bets lost, but ${tier.name} bonus $${bonus} paid!`
+            : `Dealer wins with ${dealerValue} vs your ${playerValue}. You lose bets.`;
     }
 
-    const totalPayout = result === 'tie'
-        ? tiePayout
-        : frontPayout + backPayout + bonus - (tieBet > 0 ? tieBet : 0);
+    // Single authoritative net wallet delta — covers every branch:
+    //   face_special / player_win: +front +back +bonus +tiePayout
+    //   tie:                       +bonus +tiePayout (front/back pushed)
+    //   dealer_bust:               +front +bonus -tieLost (back pushed)
+    //   dealer_win:                -front -back +bonus -tieLost
+    const totalPayout = frontPayout + backPayout + bonus + tiePayout - tieLost;
 
     return {
         result,

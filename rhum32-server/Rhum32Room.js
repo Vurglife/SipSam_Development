@@ -699,13 +699,10 @@ class Rhum32Room {
             p.result      = resolution.result;
             p.description = resolution.description;
 
-            // Calculate net wallet change
-            let net = resolution.frontPayout + resolution.backPayout + resolution.bonus;
-            if (resolution.result === "tie") {
-                net = resolution.tiePayout;
-            } else if (p.tieBet > 0) {
-                net -= p.tieBet;
-            }
+            // logic.js returns the single authoritative net wallet delta
+            // (bonus-always, back-pushed-on-bust/tie, tie-bet stacking, and
+            // 47-50 unbeatable specials are all folded into totalPayout).
+            const net = resolution.totalPayout;
             p.totalPayout = net;
             await this._applyWalletDelta(p, net, `rhum32 ${resolution.result} settlement`);
 
