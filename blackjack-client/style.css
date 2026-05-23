@@ -46,6 +46,7 @@ html, body {
   align-items: center;
   justify-content: center;
   overflow-y: auto;
+  overflow-x: hidden;
   background:
     radial-gradient(ellipse 80% 50% at 50% 0%, rgba(26,140,255,0.18) 0%, transparent 60%),
     radial-gradient(ellipse 60% 40% at 80% 100%, rgba(201,168,76,0.15) 0%, transparent 65%),
@@ -89,7 +90,8 @@ html, body {
   border-radius: 22px;
   padding: 32px 26px 26px;
   text-align: center;
-  width: min(95vw, 500px);
+  width: min(100%, 500px);
+  max-width: calc(100vw - 24px);
   box-shadow:
     0 0 0 1px rgba(255,255,255,0.04) inset,
     0 4px 30px rgba(0,0,0,0.6),
@@ -415,10 +417,17 @@ html, body {
 }
 .btn-secondary:hover { background: rgba(201,168,76,0.25); transform: translateY(-1px); }
 
-/* Mobile: stack the two mode cards vertically below 380px */
-@media (max-width: 380px) {
-  .lobby-card { padding: 24px 18px 18px; }
+/* Mobile: stack table info and mode cards before they crowd the viewport. */
+@media (max-width: 560px) {
+  .lobby-bg { padding: 12px 8px; align-items: flex-start; }
+  .lobby-card {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    padding: 24px 16px 18px;
+    overflow: hidden;
+  }
   .lobby-modes { grid-template-columns: 1fr; gap: 10px; }
+  .mode-card { width: 100%; min-width: 0; }
   .lobby-tier-strip,
   .tier-metric-grid { grid-template-columns: 1fr; }
   .lobby-cancel-btn {
@@ -427,7 +436,10 @@ html, body {
     margin: 0 0 12px;
   }
   .mode-desc { min-height: 0; }
-  .lobby-title { letter-spacing: 5px; }
+  .lobby-sub,
+  .mode-desc { overflow-wrap: anywhere; }
+  .lobby-title { letter-spacing: 5px; font-size: 30px; }
+  .mode-btn { letter-spacing: 1.8px; white-space: normal; line-height: 1.1; }
 }
 
 /* Respect users who prefer reduced motion */
@@ -1383,6 +1395,56 @@ html, body {
 @keyframes ba-in {
   0%   { transform: translateY(-30px) scale(0.9); opacity: 0; }
   100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* Chip-flow payout animation, shared visual language with SipSam. */
+.chip-fly {
+  position: fixed;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2200;
+  transform: translate(-50%, -50%);
+  will-change: transform, opacity;
+  background:
+    radial-gradient(circle at 31% 26%, rgba(255,255,255,.92) 0 8%, rgba(147,213,255,.92) 9% 23%, transparent 24%),
+    radial-gradient(circle at 50% 54%, #7ed4ff 0%, #28a7ff 36%, #0a5fbd 66%, #07306f 100%);
+  border: 2px solid rgba(188,231,255,.78);
+  box-shadow:
+    0 0 18px rgba(56,189,248,.72),
+    0 8px 18px rgba(0,6,24,.55),
+    inset 0 0 0 3px rgba(255,255,255,.13),
+    inset 0 -5px 9px rgba(2,14,52,.42);
+}
+.chip-fly::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 2px dashed rgba(225,246,255,.75);
+}
+.chip-fly::after {
+  content: '';
+  position: absolute;
+  inset: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #d9f4ff 0%, #47b9ff 48%, #0c66c9 100%);
+  box-shadow: inset 0 0 5px rgba(255,255,255,.45);
+}
+.chip-fly-win {
+  filter: saturate(1.18) brightness(1.08);
+}
+.chip-fly-lose {
+  background:
+    radial-gradient(circle at 31% 26%, rgba(255,255,255,.82) 0 8%, rgba(125,211,252,.8) 9% 23%, transparent 24%),
+    radial-gradient(circle at 50% 54%, #4cc9ff 0%, #0877d7 42%, #053f93 72%, #031b45 100%);
+  border-color: rgba(145,216,255,.7);
+  box-shadow:
+    0 0 14px rgba(14,165,233,.58),
+    0 8px 18px rgba(0,6,24,.6),
+    inset 0 0 0 3px rgba(255,255,255,.10),
+    inset 0 -5px 9px rgba(1,9,36,.5);
 }
 
 /* ── MOBILE — under 480px adjustments ────────────────────── */

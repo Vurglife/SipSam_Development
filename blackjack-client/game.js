@@ -51,6 +51,7 @@ let _tiePromptTimer  = null;
 let _cdInterval      = null;
 let _autoStartTimer  = null;
 let _cardAnimationRound = null;
+let _lastBjChipFlowKey = '';
 const _cardSlotState = new Map();
 
 // Seat indices: server seat index = visual zone (direct mapping)
@@ -97,6 +98,137 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// SipSam-style lightweight WebAudio SFX. No audio files required.
+let _audioCtx = null;
+let soundEnabled = true;
+try { soundEnabled = JSON.parse(localStorage.getItem('vl_sound') ?? 'true'); } catch (_) { soundEnabled = true; }
+
+function getAudioCtx() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (_audioCtx.state === 'suspended') _audioCtx.resume();
+  return _audioCtx;
+}
+
+function playTone(freq, type = 'sine', duration = 0.15, vol = 0.18, delay = 0) {
+  if (!soundEnabled) return;
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = type;
+    osc.frequency.value = freq;
+    filter.type = 'lowpass';
+    filter.frequency.value = Math.max(420, Math.min(1800, freq * 2.2));
+    filter.Q.value = 0.7;
+    const t = ctx.currentTime + delay;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(vol, t + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+    osc.start(t);
+    osc.stop(t + duration + 0.04);
+  } catch (_) {}
+}
+
+function payoutChipCount(amount) {
+  const amt = Math.abs(Number(amount) || 0);
+  if (amt >= 1000000) return 34;
+  if (amt >= 500000)  return 30;
+  if (amt >= 100000)  return 26;
+  if (amt >= 50000)   return 22;
+  if (amt >= 10000)   return 18;
+  return Math.max(6, Math.min(16, Math.ceil(amt / 1200)));
+}
+
+const SFX = {
+  click: function(){ playTone(520, 'sine', 0.07, 0.07); },
+  deal: function(){ playTone(560, 'triangle', 0.07, 0.07); setTimeout(function(){ playTone(430, 'triangle', 0.08, 0.055); }, 65); },
+  chip: function(){ playTone(330, 'triangle', 0.09, 0.08); },
+  win: function(){ [330,392,494,587].forEach(function(f, i){ playTone(f, 'sine', 0.22, 0.085, i * 0.09); }); },
+  lose: function(){ [260,220,185].forEach(function(f, i){ playTone(f, 'triangle', 0.16, 0.06, i * 0.08); }); },
+  bj: function(){ [330,392,494,587,659].forEach(function(f, i){ playTone(f, 'sine', 0.28, 0.12, i * 0.08); }); },
+  timer: function(){ playTone(480, 'sine', 0.05, 0.045); },
+  chat: function(){ playTone(520, 'sine', 0.06, 0.055); setTimeout(function(){ playTone(640, 'sine', 0.06, 0.04); }, 90); },
+  confirm: function(){ playTone(360, 'triangle', 0.09, 0.07); setTimeout(function(){ playTone(470, 'triangle', 0.10, 0.055); }, 95); },
+  chipStack: function(count, amount) {
+    const n = Math.max(4, Math.min(18, count | 0 || 8));
+    const amt = Math.abs(Number(amount) || 0);
+    const spacing = amt >= 100000 ? 0.045 : 0.058;
+    for (let i = 0; i < n; i++) {
+      const freq = 250 + Math.random() * 190 + (i % 3) * 18;
+      const vol = 0.018 + Math.random() * 0.016;
+      playTone(freq, 'triangle', 0.075 + Math.random() * 0.04, vol, 0.04 + i * spacing);
+    }
+  }
+};
+
+function animateChipFlow(fromEl, toEl, isWin, amount) {
+  try {
+    if (!fromEl || !toEl) return;
+    const f = fromEl.getBoundingClientRect();
+    const t = toEl.getBoundingClientRect();
+    const fx = f.left + f.width / 2;
+    const fy = f.top + f.height / 2;
+    const tx = t.left + t.width / 2;
+    const ty = t.top + t.height / 2;
+    const amt = Math.abs(Number(amount) || 0);
+    const count = payoutChipCount(amt);
+    const spread = Math.min(96, 34 + count * 2.2);
+    const travelX = tx - fx;
+    const travelY = ty - fy;
+    const lift = Math.min(160, Math.max(46, Math.abs(travelY) * 0.24 + count * 1.7));
+
+    for (let i = 0; i < count; i++) {
+      const chip = document.createElement('div');
+      chip.className = 'chip-fly' + (isWin ? ' chip-fly-win' : ' chip-fly-lose');
+      const size = 18 + Math.min(10, Math.random() * 7 + (amt >= 100000 ? 2 : 0));
+      chip.style.width = size + 'px';
+      chip.style.height = size + 'px';
+      chip.style.left = fx + 'px';
+      chip.style.top = fy + 'px';
+      chip.style.opacity = '0';
+      document.body.appendChild(chip);
+
+      const lane = (i - (count - 1) / 2) / Math.max(1, count - 1);
+      const endJitterX = lane * spread + (Math.random() - 0.5) * 22;
+      const endJitterY = (Math.random() - 0.5) * 30;
+      const midX = travelX * (0.46 + Math.random() * 0.12) + lane * spread * 0.55;
+      const midY = travelY * (0.42 + Math.random() * 0.12) - lift - Math.random() * 42;
+      const endX = travelX + endJitterX;
+      const endY = travelY + endJitterY;
+      const rot = (isWin ? 1 : -1) * (160 + Math.random() * 260);
+      const delay = i * (amt >= 100000 ? 34 : 44);
+      const duration = 980 + Math.random() * 260 + Math.min(360, count * 12);
+
+      setTimeout(function() {
+        if (chip.animate) {
+          const anim = chip.animate([
+            { transform: 'translate(-50%, -50%) translate(0,0) rotate(0deg) scale(.74)', opacity: 0 },
+            { transform: `translate(-50%, -50%) translate(${(midX * 0.18).toFixed(1)}px,${(midY * 0.16).toFixed(1)}px) rotate(${(rot * 0.15).toFixed(1)}deg) scale(1)`, opacity: .98, offset: .12 },
+            { transform: `translate(-50%, -50%) translate(${midX.toFixed(1)}px,${midY.toFixed(1)}px) rotate(${(rot * 0.55).toFixed(1)}deg) scale(1.08)`, opacity: 1, offset: .58 },
+            { transform: `translate(-50%, -50%) translate(${endX.toFixed(1)}px,${endY.toFixed(1)}px) rotate(${rot.toFixed(1)}deg) scale(.82)`, opacity: .12 }
+          ], {
+            duration,
+            easing: 'cubic-bezier(.18,.84,.22,1)',
+            fill: 'forwards'
+          });
+          anim.onfinish = function(){ if (chip.parentNode) chip.remove(); };
+        } else {
+          chip.style.transition = 'transform 1.05s cubic-bezier(.18,.84,.22,1), opacity 1.05s ease-out';
+          chip.style.opacity = '.12';
+          chip.style.transform = `translate(-50%, -50%) translate(${endX}px,${endY}px) rotate(${rot}deg) scale(.82)`;
+          setTimeout(function(){ if (chip.parentNode) chip.remove(); }, 1150);
+        }
+      }, delay);
+    }
+
+    SFX.chipStack(count, amt);
+  } catch (e) { console.warn('[BJ CHIP-FLOW]', e.message); }
 }
 
 function tableDisplayName() {
@@ -856,6 +988,7 @@ function onPhaseChange(newPhase, oldPhase, state) {
     if (mySeat) {
       const r = (mySeat.result || []).find(x => x);
       if (r) flashTable(r);
+      triggerBlackjackChipFlow(state, mySeat);
     }
   } else if (newPhase === 'round_end') {
     hideBetOverlay();
@@ -1384,6 +1517,37 @@ function flashTable(result) {
 // ─────────────────────────────────────────────────────
 // COUNTDOWN
 // ─────────────────────────────────────────────────────
+function blackjackNetPayout(seat) {
+  if (!seat) return 0;
+  const credits = (seat.payout || []).reduce((sum, v) => sum + (Number(v) || 0), 0);
+  const handCount = Math.max(1, (seat.hands || []).length);
+  const mainStake = (Number(seat.bet) || 0) * handCount;
+  const sideStake = (Number(seat.tieBet) || 0) + (Number(seat.insuranceBet) || 0) + (Number(seat.sideBetAmt) || 0);
+  return credits - mainStake - sideStake;
+}
+
+function triggerBlackjackChipFlow(state, seat) {
+  const net = blackjackNetPayout(seat);
+  if (!net) return;
+  const resultKey = (seat.result || []).join('|');
+  const payoutKey = (seat.payout || []).join('|');
+  const key = `${state.roundNum ?? 'pending'}:${mySeatIndex}:${net}:${resultKey}:${payoutKey}`;
+  if (_lastBjChipFlowKey === key) return;
+  _lastBjChipFlowKey = key;
+
+  const vz = getVisualZone(mySeatIndex);
+  const playerEl =
+    document.getElementById(`seat${vz}-chips`) ||
+    document.getElementById('focus-hand-total') ||
+    document.getElementById(`bj-seat-${vz}`);
+  const dealerEl =
+    document.getElementById('dealer-total-display') ||
+    document.getElementById('dealer-cards') ||
+    document.querySelector('.bj-dealer-zone');
+  if (net > 0) animateChipFlow(dealerEl, playerEl, true, net);
+  else animateChipFlow(playerEl, dealerEl, false, Math.abs(net));
+}
+
 function startCountdown(secs, showOverlay) {
   stopCountdown();
   let t = Math.floor(secs);

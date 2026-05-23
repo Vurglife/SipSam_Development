@@ -16,6 +16,7 @@ let currentRoomId  = null;
 let gameMode       = "multiplayer";
 let lastStatus     = "";
 let lastRound      = 0;
+let _lastRhum32ChipFlowKey = "";
 let currentFrontBet = 100;
 let currentTieBet   = 0;
 let selectedRounds  = 0;
@@ -136,7 +137,86 @@ const SFX = {
     timer:   function(){ playTone(880,'square',0.05,0.08); },
     chat:    function(){ playTone(880,'sine',0.08,0.1); setTimeout(function(){playTone(1100,'sine',0.08,0.1);},100); },
     confirm: function(){ playTone(600,'sine',0.1,0.12); setTimeout(function(){playTone(800,'sine',0.1,0.12);},100); },
+    chipStack: function(count, amount){
+        const n = Math.max(4, Math.min(18, count|0 || 8));
+        const amt = Math.abs(Number(amount) || 0);
+        const spacing = amt >= 100000 ? 0.045 : 0.058;
+        for (let i = 0; i < n; i++) {
+            const freq = 250 + Math.random() * 190 + (i % 3) * 18;
+            const vol  = 0.018 + Math.random() * 0.016;
+            playTone(freq, 'triangle', 0.075 + Math.random()*0.04, vol, 0.04 + i * spacing);
+        }
+    },
 };
+
+function payoutChipCount(amount) {
+    const amt = Math.abs(Number(amount) || 0);
+    if (amt >= 1000000) return 34;
+    if (amt >= 500000)  return 30;
+    if (amt >= 100000)  return 26;
+    if (amt >= 50000)   return 22;
+    if (amt >= 10000)   return 18;
+    return Math.max(6, Math.min(16, Math.ceil(amt / 1200)));
+}
+
+function animateChipFlow(fromEl, toEl, isWin, amount) {
+    try {
+        if (!fromEl || !toEl) return;
+        const f = fromEl.getBoundingClientRect();
+        const t = toEl.getBoundingClientRect();
+        const fx = f.left + f.width / 2;
+        const fy = f.top + f.height / 2;
+        const tx = t.left + t.width / 2;
+        const ty = t.top + t.height / 2;
+        const amt = Math.abs(Number(amount) || 0);
+        const count = payoutChipCount(amt);
+        const spread = Math.min(96, 34 + count * 2.2);
+        const travelX = tx - fx;
+        const travelY = ty - fy;
+        const lift = Math.min(160, Math.max(46, Math.abs(travelY) * 0.24 + count * 1.7));
+
+        for (let i = 0; i < count; i++) {
+            const chip = document.createElement('div');
+            chip.className = 'chip-fly' + (isWin ? ' chip-fly-win' : ' chip-fly-lose');
+            const size = 18 + Math.min(10, Math.random() * 7 + (amt >= 100000 ? 2 : 0));
+            chip.style.width = size + 'px';
+            chip.style.height = size + 'px';
+            chip.style.left = fx + 'px';
+            chip.style.top = fy + 'px';
+            chip.style.opacity = '0';
+            document.body.appendChild(chip);
+
+            const lane = (i - (count - 1) / 2) / Math.max(1, count - 1);
+            const endJitterX = lane * spread + (Math.random() - 0.5) * 22;
+            const endJitterY = (Math.random() - 0.5) * 30;
+            const midX = travelX * (0.46 + Math.random() * 0.12) + lane * spread * 0.55;
+            const midY = travelY * (0.42 + Math.random() * 0.12) - lift - Math.random() * 42;
+            const endX = travelX + endJitterX;
+            const endY = travelY + endJitterY;
+            const rot = (isWin ? 1 : -1) * (160 + Math.random() * 260);
+            const delay = i * (amt >= 100000 ? 34 : 44);
+            const duration = 980 + Math.random() * 260 + Math.min(360, count * 12);
+
+            setTimeout(function(){
+                if (chip.animate) {
+                    const anim = chip.animate([
+                        { transform:'translate(-50%, -50%) translate(0,0) rotate(0deg) scale(.74)', opacity:0 },
+                        { transform:`translate(-50%, -50%) translate(${(midX*0.18).toFixed(1)}px,${(midY*0.16).toFixed(1)}px) rotate(${(rot*0.15).toFixed(1)}deg) scale(1)`, opacity:.98, offset:.12 },
+                        { transform:`translate(-50%, -50%) translate(${midX.toFixed(1)}px,${midY.toFixed(1)}px) rotate(${(rot*0.55).toFixed(1)}deg) scale(1.08)`, opacity:1, offset:.58 },
+                        { transform:`translate(-50%, -50%) translate(${endX.toFixed(1)}px,${endY.toFixed(1)}px) rotate(${rot.toFixed(1)}deg) scale(.82)`, opacity:.12 }
+                    ], { duration, easing:'cubic-bezier(.18,.84,.22,1)', fill:'forwards' });
+                    anim.onfinish = function(){ if (chip.parentNode) chip.remove(); };
+                } else {
+                    chip.style.transition = 'transform 1.05s cubic-bezier(.18,.84,.22,1), opacity 1.05s ease-out';
+                    chip.style.opacity = '.12';
+                    chip.style.transform = `translate(-50%, -50%) translate(${endX}px,${endY}px) rotate(${rot}deg) scale(.82)`;
+                    setTimeout(function(){ if (chip.parentNode) chip.remove(); }, 1150);
+                }
+            }, delay);
+        }
+        SFX.chipStack(count, amt);
+    } catch(e) { console.warn('[Rhum32 CHIP-FLOW]', e.message); }
+}
 
 // ============================================
 // VURGLIFE AUTO-LOGIN — read session from dashboard
@@ -1364,13 +1444,13 @@ function renderState(state) {
         if (state.status === 'revealing') SFX.deal();
     }
 
-    // Update AFTER all checks
-    lastStatus = state.status;
-    lastRound  = state.round;
-
     renderDealer(state.dealer, state.status);
     renderSeats(state.players, state.status);
-    renderMyArea(state.players, state.status);
+    renderMyArea(state.players, state.status, state.round);
+
+    // Update after rendering so renderers can compare against the previous phase.
+    lastStatus = state.status;
+    lastRound  = state.round;
 }
 
 function formatStatus(status) {
@@ -1465,7 +1545,7 @@ function renderSeats(players, status) {
     });
 }
 
-function renderMyArea(players, status) {
+function renderMyArea(players, status, roundNum) {
     if (!players || !mySessionId) return;
     const me = players[mySessionId];
     if (!me) return;
@@ -1508,7 +1588,22 @@ function renderMyArea(players, status) {
             rEl.textContent = 'FOLDED'; rEl.style.color = '#999';
         } else rEl.textContent = '';
         dEl.textContent = me.description || '';
+        triggerRhum32ChipFlow(me, status, roundNum);
     }
+}
+
+function triggerRhum32ChipFlow(me, status, roundNum) {
+    if (status !== 'revealing' && status !== 'roundEnd') return;
+    const net = Number(me?.totalPayout) || 0;
+    if (!net) return;
+    const key = `${roundNum || lastRound || 'pending'}:${me.result || ''}:${net}`;
+    if (_lastRhum32ChipFlowKey === key) return;
+    _lastRhum32ChipFlowKey = key;
+
+    const dealerEl = document.getElementById('dealer-value') || document.querySelector('.dealer-zone');
+    const playerEl = document.getElementById('my-wallet') || document.querySelector('.my-info-bar');
+    if (net > 0) animateChipFlow(dealerEl, playerEl, true, net);
+    else animateChipFlow(playerEl, dealerEl, false, Math.abs(net));
 }
 
 // ── LOBBY PLAYER LIST ────────────────────────────────────────

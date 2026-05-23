@@ -696,6 +696,56 @@ html, body {
 .payout-pos { color: #44ff88; text-shadow: 0 0 6px rgba(68,255,136,0.3); }
 .payout-neg { color: #ff5555; text-shadow: 0 0 6px rgba(255,85,85,0.3); }
 
+/* Chip-flow payout animation, aligned with SipSam and Blackjack. */
+.chip-fly {
+  position: fixed;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2200;
+  transform: translate(-50%, -50%);
+  will-change: transform, opacity;
+  background:
+    radial-gradient(circle at 31% 26%, rgba(255,255,255,.92) 0 8%, rgba(147,213,255,.92) 9% 23%, transparent 24%),
+    radial-gradient(circle at 50% 54%, #7ed4ff 0%, #28a7ff 36%, #0a5fbd 66%, #07306f 100%);
+  border: 2px solid rgba(188,231,255,.78);
+  box-shadow:
+    0 0 18px rgba(56,189,248,.72),
+    0 8px 18px rgba(0,6,24,.55),
+    inset 0 0 0 3px rgba(255,255,255,.13),
+    inset 0 -5px 9px rgba(2,14,52,.42);
+}
+.chip-fly::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 2px dashed rgba(225,246,255,.75);
+}
+.chip-fly::after {
+  content: '';
+  position: absolute;
+  inset: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #d9f4ff 0%, #47b9ff 48%, #0c66c9 100%);
+  box-shadow: inset 0 0 5px rgba(255,255,255,.45);
+}
+.chip-fly-win {
+  filter: saturate(1.18) brightness(1.08);
+}
+.chip-fly-lose {
+  background:
+    radial-gradient(circle at 31% 26%, rgba(255,255,255,.82) 0 8%, rgba(125,211,252,.8) 9% 23%, transparent 24%),
+    radial-gradient(circle at 50% 54%, #4cc9ff 0%, #0877d7 42%, #053f93 72%, #031b45 100%);
+  border-color: rgba(145,216,255,.7);
+  box-shadow:
+    0 0 14px rgba(14,165,233,.58),
+    0 8px 18px rgba(0,6,24,.6),
+    inset 0 0 0 3px rgba(255,255,255,.10),
+    inset 0 -5px 9px rgba(1,9,36,.5);
+}
+
 .my-cards-row {
   display: flex; gap: 8px; justify-content: center;
   margin: 8px 0;
