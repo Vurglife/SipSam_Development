@@ -1444,12 +1444,11 @@ function renderState(state) {
         if (state.status === 'revealing') SFX.deal();
     }
 
-    // Table announcement: trigger ONCE as we cross into 'revealing' for
-    // the local player's noteworthy outcomes (specials, tie-bet wins,
-    // dealer bust). prevStatus check ensures we only fire on the edge.
+    // Table announcement queue — fires ONCE as we cross into 'revealing'
+    // and scans EVERY player's outcome. Each special / tie-bet win is
+    // queued; the queue plays sequentially with a delay between calls.
     if (state.status === 'revealing' && prevStatus !== 'revealing') {
-        const me = state.players && state.players[mySessionId];
-        if (me) maybeShowTableAnnouncement(me);
+        maybeShowTableAnnouncement(state);
     }
 
     renderDealer(state.dealer, state.status);
@@ -1461,55 +1460,100 @@ function renderState(state) {
     lastRound  = state.round;
 }
 
-// ── TABLE ANNOUNCEMENT BANNER ─────────────────────────────────────
-// Fires on noteworthy reveal outcomes for the local player. Priority
-// order (highest first): face special, A-5, value special with bonus,
-// tie-bet win, banker bust on a normal hand. Plain dealer_win with
-// no special / no tie has no announcement (red row badge is enough).
-let _annTimer = null;
-function maybeShowTableAnnouncement(me) {
-    const tierName = me.tier && me.tier.name;
-    const tieWon   = (me.tieBet > 0) && (me.tiePayout > 0);
-    const bonus    = Number(me.bonus) || 0;
-    const isFace   = me.result === 'face_special';
-    const isTie    = me.result === 'tie';
-    const isBust   = me.result === 'dealer_bust';
+// ── TABLE ANNOUNCEMENT QUEUE ───────────────────────────────────
+// Scans every active player at the reveal-phase transition, builds a
+// list of noteworthy calls (face specials, value-special bonuses, tie
+// bet wins, special+tie stacks), and plays them centre-of-table in
+// sequence. Plain wins / plain losses get no banner (the per-seat
+// outcome chip is enough). Face specials sort first, then ties,
+// then value bonuses, then plain banker-bust (only if it's the local
+// player and no special won — keeps signal-to-noise high).
+let _annQueue = [];
+let _annPlaying = false;
+let _annVisibleTimer = null;
+let _annFadeTimer    = null;
+let _annGapTimer     = null;
 
-    let headline = null, sub = null;
-    if (isFace && tieWon) {
-        headline = (tierName || 'Face Special') + ' + TIE!';
-        sub = 'Unbeatable hand AND tie bet — payouts stacked.';
-    } else if (isFace) {
-        headline = (tierName || 'Face Special') + '!';
-        sub = 'Unbeatable hand — back bet pays at multiplier.';
-    } else if (isTie && bonus > 0 && tieWon) {
-        headline = (tierName || 'Special') + ' + TIE!';
-        sub = 'Bonus + tie payout (×20).';
-    } else if (isTie && tieWon) {
-        headline = 'TIE BET WIN!';
-        sub = '+$' + (me.tiePayout || 0).toLocaleString() + ' at 20:1.';
-    } else if (bonus > 0 && tierName) {
-        headline = tierName + '!';
-        sub = 'Bonus +$' + bonus.toLocaleString() + (isBust ? ' · Dealer bust.' : '');
-    } else if (isBust) {
-        headline = 'Banker Bust!';
-        sub = 'Front 1:1. Back returned.';
-    }
-    if (!headline) return;
+function maybeShowTableAnnouncement(state) {
+    // Reset any in-flight queue from a previous round.
+    _annQueue = [];
+    clearTimeout(_annVisibleTimer);
+    clearTimeout(_annFadeTimer);
+    clearTimeout(_annGapTimer);
+    _annPlaying = false;
+    const wrap = document.getElementById('table-announcement');
+    if (wrap) { wrap.classList.remove('visible'); wrap.setAttribute('aria-hidden', 'true'); }
 
+    const players = state.players || {};
+    const events = [];
+    Object.values(players).forEach(p => {
+        if (p.folded || p.disqualified) return;
+        const tierName = (p.tier && p.tier.name) || '';
+        const tieWon   = (Number(p.tieBet) > 0) && (Number(p.tiePayout) > 0);
+        const bonus    = Number(p.bonus) || 0;
+        const isFace   = p.result === 'face_special';
+        const isTie    = p.result === 'tie';
+        const np       = Number(p.totalPayout) || 0;
+        const who      = p.username || 'Player';
+        const fmt      = (n) => (n >= 0 ? '+' : '−') + '$' + Math.abs(Math.round(n)).toLocaleString();
+
+        let headline = null, sub = null, priority = 0;
+        if (isFace && tieWon) {
+            headline = (tierName || 'Face Special') + ' + TIE!';
+            sub = who + ' wins ' + fmt(np) + ' — unbeatable hand + tie stacked.';
+            priority = 5;
+        } else if (isFace) {
+            headline = (tierName || 'Face Special') + ' — UNBEATABLE';
+            sub = who + ' wins ' + fmt(np) + '.';
+            priority = 4;
+        } else if (isTie && bonus > 0) {
+            headline = (tierName || 'Special') + ' + TIE';
+            sub = who + ' wins ' + fmt(np) + ' (bonus + tie ×20).';
+            priority = 3;
+        } else if (isTie && tieWon) {
+            headline = 'TIE BET WIN';
+            sub = who + ' wins ' + fmt(np) + ' (20:1).';
+            priority = 2;
+        } else if (bonus > 0 && tierName) {
+            headline = tierName;
+            sub = who + ' bonus +$' + bonus.toLocaleString() + ' · total ' + fmt(np) + '.';
+            priority = 1;
+        }
+        if (headline) events.push({ headline, sub, priority });
+    });
+
+    // Highest-priority first; then by total payout desc so the biggest
+    // celebrations lead.
+    events.sort((a, b) => (b.priority - a.priority));
+    _annQueue = events;
+    _drainAnnouncementQueue();
+}
+
+function _drainAnnouncementQueue() {
+    if (_annPlaying) return;
+    const event = _annQueue.shift();
+    if (!event) return;
+    _annPlaying = true;
     const wrap = document.getElementById('table-announcement');
     const hEl  = document.getElementById('ta-headline');
     const sEl  = document.getElementById('ta-sub');
-    if (!wrap || !hEl || !sEl) return;
-    hEl.textContent = headline;
-    sEl.textContent = sub || '';
-    wrap.classList.add('visible');
-    wrap.setAttribute('aria-hidden', 'false');
-    if (_annTimer) clearTimeout(_annTimer);
-    _annTimer = setTimeout(() => {
+    if (!wrap || !hEl || !sEl) { _annPlaying = false; return; }
+    hEl.textContent = event.headline;
+    sEl.textContent = event.sub || '';
+    // Fade in.
+    requestAnimationFrame(() => {
+        wrap.classList.add('visible');
+        wrap.setAttribute('aria-hidden', 'false');
+    });
+    // Hold visible 2.2s → fade out 0.4s → 0.45s gap → next.
+    _annVisibleTimer = setTimeout(() => {
         wrap.classList.remove('visible');
         wrap.setAttribute('aria-hidden', 'true');
-    }, 2600);
+        _annFadeTimer = setTimeout(() => {
+            _annPlaying = false;
+            _annGapTimer = setTimeout(_drainAnnouncementQueue, 450);
+        }, 400);
+    }, 2200);
 }
 
 function formatStatus(status) {
@@ -1614,9 +1658,19 @@ function renderSeats(players, status) {
             cardsEl.parentElement.appendChild(valueEl);
         }
         if (p.playerValue != null) {
-            const crossed = p.playerValue > 32;
-            valueEl.textContent = `Value: ${p.playerValue}${crossed ? ' (BUST!)' : ''}`;
-            valueEl.style.color = crossed ? '#cc2200' : 'var(--gold-lt)';
+            // A hand value >32 is NOT a bust if it's a 47-50 face special —
+            // those are the unbeatable specials. Label them with the
+            // special name instead of "BUST!".
+            const crossed       = p.playerValue > 32;
+            const isFaceSpecial = p.result === 'face_special';
+            let suffix = '';
+            if (isFaceSpecial) {
+                suffix = ` (${(p.tier && p.tier.name) || 'SPECIAL'})`;
+            } else if (crossed) {
+                suffix = ' (BUST!)';
+            }
+            valueEl.textContent = `Value: ${p.playerValue}${suffix}`;
+            valueEl.style.color = (crossed && !isFaceSpecial) ? '#cc2200' : 'var(--gold-lt)';
         } else {
             valueEl.textContent = '';
         }

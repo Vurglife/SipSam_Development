@@ -1319,31 +1319,34 @@ body {
   filter: drop-shadow(0 0 8px rgba(255, 246, 223, 0.12));
 }
 
-/* ── TABLE ANNOUNCEMENT BANNER ─────────────────────────────────── */
+/* ── TABLE ANNOUNCEMENT BANNER ───────────────────────────────────
+   Centred on the felt (inside .oval-table) so multi-player calls
+   read like a referee shout: title across the heart of the table. */
 .table-announcement {
   position: absolute;
-  top: 12px; left: 50%;
-  transform: translate(-50%, -14px);
+  top: 50%; left: 50%;
+  transform: translate(-50%, calc(-50% + 12px));
   z-index: 80;
   pointer-events: none;
   opacity: 0;
-  background: linear-gradient(135deg, rgba(28,10,18,0.92), rgba(60,28,12,0.92));
+  background: linear-gradient(135deg, rgba(28,10,18,0.94), rgba(60,28,12,0.94));
   border: 1.5px solid var(--gold);
   border-radius: 14px;
-  padding: 12px 28px;
+  padding: 14px 32px;
   box-shadow:
-    0 0 0 1px rgba(255,235,140,0.18),
-    0 12px 36px rgba(0,0,0,0.55),
-    0 0 32px rgba(201,168,76,0.35);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+    0 0 0 1px rgba(255,235,140,0.20),
+    0 14px 40px rgba(0,0,0,0.62),
+    0 0 36px rgba(201,168,76,0.40);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   text-align: center;
   min-width: min(58vw, 460px);
-  transition: opacity 0.35s ease, transform 0.35s ease;
+  max-width: 80%;
+  transition: opacity 0.36s ease, transform 0.36s cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
 .table-announcement.visible {
   opacity: 1;
-  transform: translate(-50%, 0);
+  transform: translate(-50%, -50%);
 }
 .ta-headline {
   font-family: 'Cinzel Decorative', serif;
