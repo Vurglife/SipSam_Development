@@ -1642,7 +1642,7 @@ function igmBack() {
 function igmShowReplenish() { igmShowSub('igm-sub-replenish'); }
 function igmShowInvite()    { igmShowSub('igm-sub-invite'); }
 function igmShowPayouts()   { _syncIgmPayoutInfo(); igmShowSub('igm-sub-payouts'); }
-function igmShowRules()     { igmShowSub('igm-sub-rules'); }
+function igmShowRules()     { _syncIgmPayoutInfo(); igmShowSub('igm-sub-rules'); }
 
 function igmRefresh() {
   const u = document.getElementById('igm-username');     if (u) u.textContent = myUsername || '—';
@@ -1657,7 +1657,15 @@ function igmRefresh() {
 
 function _syncIgmPayoutInfo() {
   const min = BJ_TABLE.minBet || 100;
+  const bjBonus = (BJ_TABLE.blackjackPayout !== null && BJ_TABLE.blackjackPayout !== undefined)
+    ? Number(BJ_TABLE.blackjackPayout)
+    : Math.floor(min * 1.5);
+  const bjCredit = min + bjBonus;
+  const bjText = (BJ_TABLE.blackjackPayout !== null && BJ_TABLE.blackjackPayout !== undefined)
+    ? `${fmtChips(bjBonus)} bonus (${fmtChips(bjCredit)} credit)`
+    : `3:2 = ${fmtChips(bjBonus)} bonus (${fmtChips(bjCredit)} credit)`;
   const tie = BJ_TABLE.tieBetPayout || 2000;
+  const tieBet = BJ_TABLE.tieBet || 100;
   const tier = document.getElementById('igm-payouts-tier');
   if (tier) {
     tier.style.background = 'rgba(26,140,255,.08)';
@@ -1665,10 +1673,20 @@ function _syncIgmPayoutInfo() {
     tier.style.color = '#7a9ac0';
     tier.textContent = `${tableDisplayName()} table - ${fmtChips(min)} fixed main bet`;
   }
+  const bjPay = document.getElementById('igm-bj-blackjack-payout');
+  if (bjPay) bjPay.textContent = bjText;
+  const bjRule = document.getElementById('igm-rule-blackjack-payout');
+  if (bjRule) bjRule.textContent = bjText;
+  const bjRule2 = document.getElementById('igm-rule-blackjack-payout-2');
+  if (bjRule2) bjRule2.textContent = bjText;
   const tie100 = document.getElementById('igm-bj-tie-100');
   if (tie100) tie100.textContent = '+' + fmtChips(tie);
   const tie500 = document.getElementById('igm-bj-tie-500');
   if (tie500) tie500.textContent = _tieFrozen ? 'On' : 'Repeats Yes/No';
+  const tieRuleBet = document.getElementById('igm-rule-tie-bet');
+  if (tieRuleBet) tieRuleBet.textContent = fmtChips(tieBet);
+  const tieRuleBonus = document.getElementById('igm-rule-tie-bonus');
+  if (tieRuleBonus) tieRuleBonus.textContent = fmtChips(tie) + ' Bonus';
 }
 
 async function igmExitTable() {

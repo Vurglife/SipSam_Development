@@ -723,7 +723,7 @@ html, body {
   .bj-seat-mine .vl-card .vl-suit { font-size: 33px; }
   .bj-seat-mine .seat-hand {
     min-width: 0 !important;
-    gap: 3px !important;
+    gap: 5px !important;
   }
   .bj-dealer-zone .vl-card { width: 54px; height: 78px; }
   .bj-dealer-zone .vl-card .vl-rank { font-size: 35px; }
@@ -992,7 +992,7 @@ html, body {
   flex-wrap: nowrap;
 }
 .focus-hand-card-row .vl-card + .vl-card {
-  margin-left: clamp(-10px, -1.4vw, -4px);
+  margin-left: clamp(4px, .8vw, 10px);
 }
 .focus-hand-cards .vl-card.vl-xl {
   width: clamp(94px, 9vw, 122px);
@@ -1457,7 +1457,7 @@ html, body {
   .focus-hand-meta span { font-size: 9px; }
   .focus-hand-meta strong { font-size: 15px; }
   .focus-hand-cards { gap: 4px; min-height: 152px; padding: 0 5px 66px; max-width: 100vw; }
-  .focus-hand-card-row .vl-card + .vl-card { margin-left: -14px; }
+  .focus-hand-card-row .vl-card + .vl-card { margin-left: 4px; }
   .focus-hand-group.split { transform: translateY(8px) scale(0.82); }
   .focus-hand-group.split.active { transform: translateY(0) scale(0.9); }
   .focus-hand-mini-total { font-size: 9px; padding: 4px 7px; }

@@ -9,8 +9,8 @@
   <meta name="theme-color" content="#04080f"/>
 <title>Blackjack — VurgLife</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Rajdhani:wght@400;600;700&family=Bebas+Neue&family=Exo+2:wght@400;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="vl-card.css?v=6"/>
-<link rel="stylesheet" href="style.css?v=13"/>
+<link rel="stylesheet" href="vl-card.css?v=7"/>
+<link rel="stylesheet" href="style.css?v=14"/>
 </head>
 <body>
 
@@ -367,7 +367,7 @@
 </div>
 
 <script src="vl-card.js?v=5"></script>
-<script src="game.js?v=15"></script>
+<script src="game.js?v=16"></script>
 
 <!-- ═══════════ IGM BUTTON ═══════════ -->
 <button id="ingame-menu-btn" onclick="toggleIngameMenu()" style="display:none;position:fixed;top:8px;right:10px;z-index:500;background:rgba(8,15,30,.9);border:1px solid #1a2d50;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700;letter-spacing:1px;font-family:'Rajdhani',sans-serif;color:#f0f6ff;backdrop-filter:blur(6px);align-items:center;gap:7px;text-transform:uppercase;box-shadow:0 4px 16px rgba(0,0,0,.5)">☰ MENU</button>
@@ -423,9 +423,9 @@
     <div style="padding:16px;flex:1;display:flex;flex-direction:column;gap:10px">
       <div style="position:relative">
         <input id="invite-username" type="text" placeholder="Search username…" style="width:100%;padding:9px 12px;background:#0f1e38;border:1px solid #1a2d50;border-radius:8px;color:#f0f6ff;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;box-sizing:border-box" oninput="onLobbyInviteInput(this.value)" onfocus="onLobbyInviteFocus()" autocomplete="off"/>
-        <div id="lobby-invite-dropdown" style="display:none;position:absolute;bottom:100%;left:0;right:0;background:#06111f;border:1px solid #1a2d50;border-radius:8px;z-index:600;max-height:200px;overflow-y:auto;margin-bottom:4px;box-shadow:0 -8px 24px rgba(0,0,0,.5)"></div>
       </div>
       <button class="igm-action-btn" onclick="sendLobbyInvite()">📨 SEND INVITE</button>
+      <div id="lobby-invite-dropdown" style="display:none;background:#06111f;border:1px solid #1a2d50;border-radius:8px;z-index:600;max-height:240px;overflow-y:auto;margin-top:2px;box-shadow:0 8px 24px rgba(0,0,0,.5)"></div>
       <div id="invite-status" style="font-size:12px;color:#7a9ac0;min-height:16px;text-align:center"></div>
     </div>
   </div>
@@ -442,7 +442,7 @@
         <div class="igm-rule-h">💰 Main Bet Payouts</div>
         <table style="width:100%;border-collapse:collapse;font-size:11px">
           <tbody>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px">Blackjack (A + 10-value)</td><td style="text-align:right;padding:5px 6px;color:#ffd700;font-weight:700">3:2 (1.5×)</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px">Blackjack (A + 10-value)</td><td style="text-align:right;padding:5px 6px;color:#ffd700;font-weight:700" id="igm-bj-blackjack-payout">3:2 (1.5×)</td></tr>
             <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px">Win round</td><td style="text-align:right;padding:5px 6px;color:#22c55e;font-weight:700">1:1</td></tr>
             <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px">Push (tie value, no tie bet)</td><td style="text-align:right;padding:5px 6px;color:#7a9ac0;font-weight:700">bet returned</td></tr>
             <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px">Insurance (dealer Blackjack)</td><td style="text-align:right;padding:5px 6px;color:#22c55e;font-weight:700">2:1</td></tr>
@@ -478,16 +478,16 @@
     <div style="padding:16px;font-size:12px;line-height:1.6;color:#7a9ac0">
       <div class="igm-rule-sec"><div class="igm-rule-h">📋 Basic Rules</div><ul style="padding-left:16px;margin:0">
         <li>Beat dealer — get closer to 21 without going over</li>
-        <li>Blackjack (A + 10-value) pays <strong style="color:#ffd700">3:2</strong></li>
+        <li>Blackjack (A + 10-value) pays <strong style="color:#ffd700" id="igm-rule-blackjack-payout">3:2</strong></li>
         <li>Dealer stands on soft 17</li>
         <li>Double down on any first 2 cards</li>
         <li>Split matching pairs — play as 2 separate hands</li>
         <li>Split Aces: one card each, auto-stand</li>
         <li>Insurance: fixed $50 bet, pays 2:1 if dealer has Blackjack</li>
       </ul></div>
-      <div class="igm-rule-sec"><div class="igm-rule-h">🎯 Tie Bet</div><ul style="padding-left:16px;margin:0"><li>Place $100 during betting phase</li><li>Win <strong style="color:#ffd700">$2,000 Bonus</strong> if your total equals dealer's total</li><li>Works even if both player and dealer bust with same total</li><li>$500 main bet earns <strong style="color:#ffd700">$3,000 Bonus</strong> on a tie</li><li>Independent of round result — you can lose the round and still win the bonus</li></ul></div>
+      <div class="igm-rule-sec"><div class="igm-rule-h">🎯 Tie Bet</div><ul style="padding-left:16px;margin:0"><li>Place <strong style="color:#ffd700" id="igm-rule-tie-bet">$100</strong> during betting phase</li><li>Win <strong style="color:#ffd700" id="igm-rule-tie-bonus">$2,000 Bonus</strong> if your total equals dealer's total</li><li>Works even if both player and dealer bust with same total</li><li>If both player and dealer have Blackjack and Tie Bet is placed, current rules pay the Blackjack bonus plus the Tie Bet bonus.</li><li>Independent of round result — you can lose the round and still win the bonus</li></ul></div>
       <div class="igm-rule-sec"><div class="igm-rule-h">💰 Payouts</div><ul style="padding-left:16px;margin:0">
-        <li>Blackjack: <strong style="color:#ffd700">3:2</strong></li>
+        <li>Blackjack: <strong style="color:#ffd700" id="igm-rule-blackjack-payout-2">3:2</strong></li>
         <li>Win: 1:1</li>
         <li>Push: bet returned</li>
         <li>Insurance: 2:1</li>
