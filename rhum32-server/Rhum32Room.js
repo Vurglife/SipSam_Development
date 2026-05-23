@@ -244,7 +244,12 @@ class Rhum32Room {
     _onPlaceBet(client, data) {
         const player = this.gameState.players[client.sessionId];
         if (!player || this.gameState.status !== "betting") return;
-        if (player.frozen) return; // bet is frozen
+        // Frozen bets are NOT locked from adjustment — clicking +/- while
+        // frozen updates the bet AND becomes the new frozen value carried
+        // into the next round. (Old behaviour silently dropped the update,
+        // which made the UI show the new amount while the server kept the
+        // old → back-bet calc + fold settlement diverged from what the
+        // player saw.)
 
         let amount = parseInt(data.amount) || this.gameState.tableMinBet;
         amount = this._snapBetAmount(
@@ -313,12 +318,18 @@ class Rhum32Room {
         if (decision === "push") {
             player.folded  = true;
             player.decided = true;
-            // Surrender front bet
-            await this._applyWalletDelta(player, -player.frontBet, 'rhum32 fold front bet');
-            player.totalPayout = -player.frontBet;
+            // Surrender front bet AND any placed tie bet. A fold means the
+            // hand is dead — the player can't reach a value tie, so the tie
+            // bet is conceded along with the front bet.
+            const tieLoss = Number(player.tieBet) || 0;
+            const loss    = player.frontBet + tieLoss;
+            await this._applyWalletDelta(player, -loss, 'rhum32 fold (front + tie)');
+            player.totalPayout = -loss;
             player.result = "folded";
-            player.description = "Folded. Front bet lost.";
-            console.log(`${player.username} folds, loses front bet $${player.frontBet}`);
+            player.description = tieLoss > 0
+                ? `Folded. Lost front $${player.frontBet} + tie $${tieLoss}.`
+                : "Folded. Front bet lost.";
+            console.log(`${player.username} folds, loses front $${player.frontBet}${tieLoss>0?' + tie $'+tieLoss:''}`);
         } else if (decision === "bet") {
             const backBet = player.frontBet * 2;
             player.backBet = backBet;
@@ -636,16 +647,21 @@ class Rhum32Room {
     async autoDecide() {
         if (this.decTimer) { clearInterval(this.decTimer); this.decTimer = null; }
 
-        // Players who didn't decide: auto-fold
+        // Players who didn't decide: auto-fold. Same rule as a manual push —
+        // the front bet AND any placed tie bet are surrendered.
         for (const p of Object.values(this.gameState.players)) {
             if (!p.folded && !p.disqualified && !p.decided) {
                 p.folded  = true;
                 p.decided = true;
-                await this._applyWalletDelta(p, -p.frontBet, 'rhum32 auto-fold front bet');
-                p.totalPayout = -p.frontBet;
+                const tieLoss = Number(p.tieBet) || 0;
+                const loss    = p.frontBet + tieLoss;
+                await this._applyWalletDelta(p, -loss, 'rhum32 auto-fold (front + tie)');
+                p.totalPayout = -loss;
                 p.result = "auto_fold";
-                p.description = "Auto-folded (no decision made).";
-                console.log(`${p.username} auto-folded`);
+                p.description = tieLoss > 0
+                    ? `Auto-folded. Lost front $${p.frontBet} + tie $${tieLoss}.`
+                    : "Auto-folded (no decision made).";
+                console.log(`${p.username} auto-folded, loses $${loss}`);
             }
         }
 
