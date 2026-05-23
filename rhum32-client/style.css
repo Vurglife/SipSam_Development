@@ -1303,12 +1303,10 @@ body {
     radial-gradient(ellipse at 50% 42%, #941a35 0%, #631024 44%, #290612 100%);
   border-color: #7a4f11;
   border-top-color: var(--gold-lt);
-  /* Soft gold halo hugs the entire table perimeter, just outside the gold
-     rim. Two layers: a tighter, brighter ring + a wider faint aura — gives
-     a true "lit-from-around-the-edge" feel. */
+  /* Soft gold halo hugs the entire table perimeter. Inner champagne rim
+     transitions straight into the perimeter glow — no black collar. */
   box-shadow:
     0 0 0 2px rgba(255, 232, 163, 0.34),
-    0 0 0 7px rgba(0, 0, 0, 0.70),
     0 0 32px 6px rgba(201, 168, 76, 0.55),
     0 0 72px 10px rgba(255, 232, 163, 0.22),
     0 18px 55px rgba(0, 0, 0, 0.72),
