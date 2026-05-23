@@ -1444,6 +1444,14 @@ function renderState(state) {
         if (state.status === 'revealing') SFX.deal();
     }
 
+    // Table announcement: trigger ONCE as we cross into 'revealing' for
+    // the local player's noteworthy outcomes (specials, tie-bet wins,
+    // dealer bust). prevStatus check ensures we only fire on the edge.
+    if (state.status === 'revealing' && prevStatus !== 'revealing') {
+        const me = state.players && state.players[mySessionId];
+        if (me) maybeShowTableAnnouncement(me);
+    }
+
     renderDealer(state.dealer, state.status);
     renderSeats(state.players, state.status);
     renderMyArea(state.players, state.status, state.round);
@@ -1451,6 +1459,57 @@ function renderState(state) {
     // Update after rendering so renderers can compare against the previous phase.
     lastStatus = state.status;
     lastRound  = state.round;
+}
+
+// ── TABLE ANNOUNCEMENT BANNER ─────────────────────────────────────
+// Fires on noteworthy reveal outcomes for the local player. Priority
+// order (highest first): face special, A-5, value special with bonus,
+// tie-bet win, banker bust on a normal hand. Plain dealer_win with
+// no special / no tie has no announcement (red row badge is enough).
+let _annTimer = null;
+function maybeShowTableAnnouncement(me) {
+    const tierName = me.tier && me.tier.name;
+    const tieWon   = (me.tieBet > 0) && (me.tiePayout > 0);
+    const bonus    = Number(me.bonus) || 0;
+    const isFace   = me.result === 'face_special';
+    const isTie    = me.result === 'tie';
+    const isBust   = me.result === 'dealer_bust';
+
+    let headline = null, sub = null;
+    if (isFace && tieWon) {
+        headline = (tierName || 'Face Special') + ' + TIE!';
+        sub = 'Unbeatable hand AND tie bet — payouts stacked.';
+    } else if (isFace) {
+        headline = (tierName || 'Face Special') + '!';
+        sub = 'Unbeatable hand — back bet pays at multiplier.';
+    } else if (isTie && bonus > 0 && tieWon) {
+        headline = (tierName || 'Special') + ' + TIE!';
+        sub = 'Bonus + tie payout (×20).';
+    } else if (isTie && tieWon) {
+        headline = 'TIE BET WIN!';
+        sub = '+$' + (me.tiePayout || 0).toLocaleString() + ' at 20:1.';
+    } else if (bonus > 0 && tierName) {
+        headline = tierName + '!';
+        sub = 'Bonus +$' + bonus.toLocaleString() + (isBust ? ' · Dealer bust.' : '');
+    } else if (isBust) {
+        headline = 'Banker Bust!';
+        sub = 'Front 1:1. Back returned.';
+    }
+    if (!headline) return;
+
+    const wrap = document.getElementById('table-announcement');
+    const hEl  = document.getElementById('ta-headline');
+    const sEl  = document.getElementById('ta-sub');
+    if (!wrap || !hEl || !sEl) return;
+    hEl.textContent = headline;
+    sEl.textContent = sub || '';
+    wrap.classList.add('visible');
+    wrap.setAttribute('aria-hidden', 'false');
+    if (_annTimer) clearTimeout(_annTimer);
+    _annTimer = setTimeout(() => {
+        wrap.classList.remove('visible');
+        wrap.setAttribute('aria-hidden', 'true');
+    }, 2600);
 }
 
 function formatStatus(status) {
@@ -1502,16 +1561,49 @@ function renderSeats(players, status) {
         cardsEl.innerHTML = '';
         if (p.cards?.length) p.cards.forEach(c => cardsEl.appendChild(createCardEl(c)));
 
-        let info = `$${(p.wallet||0).toLocaleString()}`;
-        if (p.frontBet > 0) info += ` | Bet:$${p.frontBet}`;
-        if (p.tieBet > 0)   info += ` | Tie:$${p.tieBet}`;
-        if (p.folded) info = 'FOLDED';
-        if (p.disqualified) info = 'DQ';
-        if ((status==='revealing'||status==='roundEnd') && p.totalPayout) {
-            info += ` | ${p.totalPayout>0?'+':''}$${p.totalPayout}`;
-            if (p.tier) info += ` (${p.tier.name})`;
+        // Outcome line replaces the busy "$wallet | Bet:$X | Tie:$Y | +$net (tier)"
+        // strip. One-glance state: WIN +$X (gold) / LOSE −$X (red) / PUSH
+        // (champagne) / FOLDED (muted) / DQ. During play it shows the wallet.
+        const infoEl = document.getElementById(`seat-${n}-info`);
+        infoEl.className = 'seat-chips';
+        if (p.folded || p.result === 'folded' || p.result === 'auto_fold') {
+            infoEl.textContent = 'FOLDED';
+            infoEl.classList.add('outcome-folded');
+        } else if (p.disqualified) {
+            infoEl.textContent = 'DQ';
+            infoEl.classList.add('outcome-folded');
+        } else if ((status === 'revealing' || status === 'roundEnd') && p.totalPayout !== undefined) {
+            const np = Number(p.totalPayout) || 0;
+            if (np > 0) {
+                infoEl.textContent = 'WIN +$' + np.toLocaleString();
+                infoEl.classList.add('outcome-win');
+            } else if (np < 0) {
+                infoEl.textContent = 'LOSE −$' + Math.abs(np).toLocaleString();
+                infoEl.classList.add('outcome-loss');
+            } else {
+                infoEl.textContent = 'PUSH';
+                infoEl.classList.add('outcome-push');
+            }
+        } else {
+            infoEl.textContent = '$' + (p.wallet || 0).toLocaleString();
         }
-        document.getElementById(`seat-${n}-info`).textContent = info;
+
+        // Per-seat bet pills. CSS positions the .seat-bets container
+        // outward from table centre on a per-seat basis (above for top
+        // corners, sideways for mid seats, below for bottom seats).
+        let betsEl = document.getElementById(`seat-${n}-bets`);
+        if (!betsEl) {
+            betsEl = document.createElement('div');
+            betsEl.id = `seat-${n}-bets`;
+            betsEl.className = 'seat-bets';
+            el.appendChild(betsEl);
+        }
+        const pills = [];
+        if (p.frontBet > 0) pills.push(`<span class="bet-pill bp-front"><span class="bp-label">FRONT</span>$${Number(p.frontBet).toLocaleString()}</span>`);
+        if (p.backBet  > 0) pills.push(`<span class="bet-pill bp-back"><span class="bp-label">BACK</span>$${Number(p.backBet).toLocaleString()}</span>`);
+        if (p.tieBet   > 0) pills.push(`<span class="bet-pill bp-tie"><span class="bp-label">TIE</span>$${Number(p.tieBet).toLocaleString()}</span>`);
+        betsEl.innerHTML = pills.join('');
+        betsEl.style.display = pills.length ? '' : 'none';
 
         // Hand value display (like dealer's value)
         let valueEl = document.getElementById(`seat-${n}-value`);
@@ -1524,7 +1616,7 @@ function renderSeats(players, status) {
         if (p.playerValue != null) {
             const crossed = p.playerValue > 32;
             valueEl.textContent = `Value: ${p.playerValue}${crossed ? ' (BUST!)' : ''}`;
-            valueEl.style.color = crossed ? '#cc2200' : '#4caf50';
+            valueEl.style.color = crossed ? '#cc2200' : 'var(--gold-lt)';
         } else {
             valueEl.textContent = '';
         }

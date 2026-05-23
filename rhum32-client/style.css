@@ -1319,6 +1319,128 @@ body {
   filter: drop-shadow(0 0 8px rgba(255, 246, 223, 0.12));
 }
 
+/* ── TABLE ANNOUNCEMENT BANNER ─────────────────────────────────── */
+.table-announcement {
+  position: absolute;
+  top: 12px; left: 50%;
+  transform: translate(-50%, -14px);
+  z-index: 80;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(135deg, rgba(28,10,18,0.92), rgba(60,28,12,0.92));
+  border: 1.5px solid var(--gold);
+  border-radius: 14px;
+  padding: 12px 28px;
+  box-shadow:
+    0 0 0 1px rgba(255,235,140,0.18),
+    0 12px 36px rgba(0,0,0,0.55),
+    0 0 32px rgba(201,168,76,0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  text-align: center;
+  min-width: min(58vw, 460px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.table-announcement.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.ta-headline {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: clamp(18px, 2.4vw, 26px);
+  color: var(--gold-lt);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-shadow: 0 0 14px rgba(240,208,128,0.5);
+  line-height: 1.1;
+}
+.ta-sub {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(12px, 1.4vw, 15px);
+  color: var(--ivory);
+  letter-spacing: 1.5px;
+  margin-top: 4px;
+  opacity: 0.9;
+}
+
+/* ── PER-SEAT BET PILLS ─────────────────────────────────────────
+   Each seat carries a .seat-bets row of compact chips showing the
+   live FRONT / BACK / TIE wagers. CSS places the row in whichever
+   direction has open space relative to that seat's table position. */
+.seat-bets {
+  position: absolute;
+  display: flex;
+  gap: 4px;
+  z-index: 5;
+  pointer-events: none;
+}
+.bet-pill {
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(40,12,22,0.92), rgba(20,8,14,0.96));
+  border: 1px solid rgba(201,168,76,0.45);
+  color: var(--gold-lt);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(9px, 1vw, 11px);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 235, 140, 0.06);
+}
+.bp-label {
+  color: var(--text-mute);
+  font-size: 0.82em;
+  margin-right: 5px;
+  letter-spacing: 1.2px;
+  font-weight: 700;
+}
+.bet-pill.bp-back  { border-color: rgba(201,168,76,0.6); }
+.bet-pill.bp-tie   { border-color: rgba(232,212,168,0.55); color: #e8d4a8; }
+
+/* Per-seat placement — each row sits OUTWARD from table centre:
+   top corners (0, 5) → above the seat;
+   mid sides   (1, 4) → flanking left / right of the seat;
+   bottom-centre (2, 3) → below the seat into the dark area under the felt. */
+.bj-seat-0 .seat-bets,
+.bj-seat-5 .seat-bets {
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, -8px);
+  flex-direction: row;
+}
+.bj-seat-1 .seat-bets {
+  right: 100%;
+  top: 50%;
+  transform: translate(-8px, -50%);
+  flex-direction: column;
+  align-items: flex-end;
+}
+.bj-seat-4 .seat-bets {
+  left: 100%;
+  top: 50%;
+  transform: translate(8px, -50%);
+  flex-direction: column;
+  align-items: flex-start;
+}
+.bj-seat-2 .seat-bets,
+.bj-seat-3 .seat-bets {
+  top: 100%;
+  left: 50%;
+  transform: translate(-50%, 10px);
+  flex-direction: row;
+}
+
+/* ── SEAT OUTCOME LINE (replaces busy info strip) ───────────────
+   One word + value: WIN +$X / LOSE −$X / PUSH / FOLDED / DQ. */
+.seat-chips.outcome-win    { color: var(--gold-lt); background: rgba(60,42,12,0.85); border-color: rgba(240,208,128,0.45); text-shadow: 0 0 8px rgba(240,208,128,0.45); font-weight: 800; }
+.seat-chips.outcome-loss   { color: #ff7676;        background: rgba(60,12,18,0.85); border-color: rgba(255,118,118,0.45); font-weight: 800; }
+.seat-chips.outcome-push   { color: var(--emerald); background: rgba(40,28,12,0.85); border-color: rgba(232,212,168,0.4); font-weight: 700; }
+.seat-chips.outcome-folded { color: var(--text-mute); opacity: 0.75; font-style: italic; }
+
 .dealer-tag,
 .seat-nametag {
   background: linear-gradient(135deg, #fff1ad, #d6ad3b 55%, #8e6112);

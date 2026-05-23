@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rhum32 — VURGLife</title>
-  <link rel="stylesheet" href="style.css?v=18">
+  <link rel="stylesheet" href="style.css?v=19">
 </head>
 <body>
 
@@ -368,6 +368,13 @@
       <div class="dealer-value" id="dealer-value"></div>
     </div>
 
+    <!-- Table announcement banner — glassmorphic, top-centre. Fades in
+         for specials, tie-bet wins, dealer busts; auto-dismiss ~2.5s. -->
+    <div id="table-announcement" class="table-announcement" aria-hidden="true">
+      <div class="ta-headline" id="ta-headline"></div>
+      <div class="ta-sub" id="ta-sub"></div>
+    </div>
+
     <!-- FELT TABLE with semicircle seats -->
     <div class="oval-table" id="oval-table">
       <div class="felt-surface"></div>
@@ -485,6 +492,6 @@
   </div>
 </div>
 
-<script src="game.js?v=26"></script>
+<script src="game.js?v=27"></script>
 </body>
 </html>
