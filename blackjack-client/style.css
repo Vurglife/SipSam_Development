@@ -864,10 +864,11 @@ html, body {
   position: fixed !important;
   left: 50%;
   transform: translateX(-50%);
-  bottom: 78px;
-  z-index: 200;
-  width: auto;
-  max-width: min(96vw, 720px);
+  bottom: clamp(238px, 28vh, 320px);
+  z-index: 260;
+  width: min(94vw, 620px);
+  max-width: min(94vw, 620px);
+  pointer-events: auto;
   background: linear-gradient(180deg, rgba(10,24,48,0.92) 0%, rgba(8,15,30,0.96) 100%);
   border: 1px solid rgba(201,168,76,0.35);
   border-radius: 14px;
@@ -1080,13 +1081,14 @@ html, body {
 
 /* ── INSURANCE PROMPT ────────────────────────────────────── */
 #insurance-prompt {
-  display:none; align-items:center; gap:10px; padding:10px 14px;
+  display:none; align-items:center; justify-content:center; gap:10px; padding:10px 14px;
   background: linear-gradient(135deg, rgba(251,191,36,0.10), rgba(10,24,48,0.85));
   border: 1px solid rgba(251,191,36,0.35);
   border-radius: 10px;
-  margin: 6px 12px;
+  margin: 0;
 }
 #insurance-prompt.active { display:flex; }
+#insurance-prompt .action-btn { white-space: nowrap; }
 
 /* ── FREEZE BUTTON (bottom bar) ──────────────────────────── */
 .freeze-btn-bar {
@@ -1404,6 +1406,21 @@ html, body {
   .focus-hand-cards .vl-card.vl-xl .vl-pip-br { font-size: 15px; }
   .focus-actions { width: min(98vw, 364px); padding: 7px 7px; bottom: 4px; }
   .focus-action-row { gap: 4px; }
+  #insurance-prompt {
+    bottom: 228px;
+    width: calc(100vw - 18px);
+    max-width: calc(100vw - 18px);
+    flex-wrap: wrap;
+    gap: 7px;
+    padding: 8px 9px;
+  }
+  #insurance-prompt > div { flex: 1 1 100%; }
+  #insurance-prompt .action-btn {
+    flex: 1 1 calc(50% - 7px);
+    min-width: 0;
+    padding: 8px 6px;
+    font-size: 11px;
+  }
   .top-bar { font-size:11px; padding:6px 10px; }
   .game-body-bj {
     padding: 6px 2px 2px;

@@ -10,7 +10,7 @@
 <title>Blackjack — VurgLife</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Rajdhani:wght@400;600;700&family=Bebas+Neue&family=Exo+2:wght@400;600;700&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="vl-card.css?v=5"/>
-<link rel="stylesheet" href="style.css?v=10"/>
+<link rel="stylesheet" href="style.css?v=11"/>
 </head>
 <body>
 
@@ -324,7 +324,7 @@
       </div>
 
       <!-- INSURANCE PROMPT — only when dealer up-card is Ace -->
-      <div id="insurance-prompt" style="display:none;align-items:center;gap:10px;padding:10px 14px;background:linear-gradient(135deg,rgba(251,191,36,0.10),rgba(10,24,48,0.85));border:1px solid rgba(251,191,36,0.35);border-radius:10px;margin:6px 12px">
+      <div id="insurance-prompt">
         <div style="flex:1">
           <div style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#fbbf24;margin-bottom:3px">⚠️ DEALER SHOWS ACE</div>
           <div id="insurance-msg" style="font-size:12px;color:#7a9ac0">Take insurance for half your bet?</div>
@@ -367,7 +367,7 @@
 </div>
 
 <script src="vl-card.js?v=4"></script>
-<script src="game.js?v=12"></script>
+<script src="game.js?v=13"></script>
 
 <!-- ═══════════ IGM BUTTON ═══════════ -->
 <button id="ingame-menu-btn" onclick="toggleIngameMenu()" style="display:none;position:fixed;top:8px;right:10px;z-index:500;background:rgba(8,15,30,.9);border:1px solid #1a2d50;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700;letter-spacing:1px;font-family:'Rajdhani',sans-serif;color:#f0f6ff;backdrop-filter:blur(6px);align-items:center;gap:7px;text-transform:uppercase;box-shadow:0 4px 16px rgba(0,0,0,.5)">☰ MENU</button>
