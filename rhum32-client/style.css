@@ -532,9 +532,9 @@ html, body {
 .bj-seat-5 { left: 96%;   top: 8%;  }
 
 .bj-seat.empty { opacity: 0.2; }
-.bj-seat.is-me .seat-nametag { background: linear-gradient(135deg, #1a7a2a, #2aaa3a); color: #fff; box-shadow: 0 0 10px rgba(42,170,58,0.3); }
+.bj-seat.is-me .seat-nametag { background: linear-gradient(135deg, var(--gold-dk), var(--gold)); color: #1a1000; box-shadow: 0 0 10px rgba(201,168,76,0.35); }
 .bj-seat.folded { opacity: 0.3; filter: grayscale(0.5); }
-.bj-seat.winner .seat-hand { border-color: #44ff88; box-shadow: 0 0 14px rgba(68,255,136,0.5); }
+.bj-seat.winner .seat-hand { border-color: #f0d080; box-shadow: 0 0 14px rgba(240,208,128,0.55); }
 .bj-seat.loser .seat-hand  { border-color: #ff5555; box-shadow: 0 0 8px rgba(255,85,85,0.3); }
 
 .seat-nametag {
@@ -579,7 +579,7 @@ html, body {
   letter-spacing: 0.5px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.5);
 }
-.seat-result.win  { display: block; background: rgba(20,60,20,.95); color: #44ff88; border: 1px solid rgba(68,255,136,0.3); }
+.seat-result.win  { display: block; background: rgba(60,42,12,.95); color: #f0d080; border: 1px solid rgba(240,208,128,0.4); }
 .seat-result.lose { display: block; background: rgba(60,10,10,.95); color: #ff5555; border: 1px solid rgba(255,85,85,0.3); }
 .seat-result.fold { display: block; background: rgba(60,50,10,.9);  color: #cc9944; border: 1px solid rgba(204,153,68,0.3); }
 
@@ -691,9 +691,9 @@ html, body {
   border: 1px solid rgba(201,168,76,0.1);
 }
 #my-name { font-weight: 700; color: var(--gold); font-family: 'Cinzel Decorative', serif; font-size: 0.85rem; }
-#my-wallet { font-weight: 700; color: #4caf50; text-shadow: 0 0 6px rgba(76,175,80,0.3); }
+#my-wallet { font-weight: 700; color: #e8d4a8; text-shadow: 0 0 6px rgba(232,212,168,0.35); }
 #my-payout { font-weight: 700; }
-.payout-pos { color: #44ff88; text-shadow: 0 0 6px rgba(68,255,136,0.3); }
+.payout-pos { color: #f0d080; text-shadow: 0 0 6px rgba(240,208,128,0.4); }
 .payout-neg { color: #ff5555; text-shadow: 0 0 6px rgba(255,85,85,0.3); }
 
 /* Chip-flow payout animation, aligned with SipSam and Blackjack. */
@@ -1067,8 +1067,11 @@ html, body {
   --ember: #ff7a3d;
   --ruby: #a91435;
   --ruby-dk: #3b0614;
-  --emerald: #23d47b;
-  --emerald-dk: #083f29;
+  /* Option A palette: champagne replaces emerald for ready/positive cues.
+     The brighter gold (--gold-lt) is reserved for actual wins. The legacy
+     --emerald var name is kept so all the cascading rules below still bind. */
+  --emerald: #e8d4a8;
+  --emerald-dk: #7a6438;
   --ink: #040207;
   --ink-2: #12070f;
   --ink-3: #24111a;
@@ -1492,7 +1495,7 @@ body {
   color: var(--ivory) !important;
 }
 
-#igm-panel [style*="#7ac08a"],
+#igm-panel [style*="#e8d4a8"],
 #igm-panel [style*="#cfeccf"] {
   color: var(--pearl) !important;
 }
@@ -1510,7 +1513,7 @@ body {
   color: var(--ivory) !important;
 }
 
-#igm-panel [style*="#1a4a2e"] {
+#igm-panel [style*="#3a1a22"] {
   border-color: rgba(255, 232, 163, 0.24) !important;
 }
 
@@ -1655,7 +1658,7 @@ body {
     min-height: 44px;
   }
 
-  #lobby-players-wrap [style*="#7ac08a"],
+  #lobby-players-wrap [style*="#e8d4a8"],
   #invite-gate-note {
     color: var(--emerald) !important;
   }

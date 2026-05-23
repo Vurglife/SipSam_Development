@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rhum32 — VURGLife</title>
-  <link rel="stylesheet" href="style.css?v=15">
+  <link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
 
@@ -135,7 +135,7 @@
          status === 'waiting'. Visible to both host and invitees so
          everyone sees who is in the room before the host starts. -->
     <div id="lobby-players-wrap" style="display:none;margin:10px 0 14px">
-      <div style="font-size:11px;color:#7ac08a;letter-spacing:1.5px;margin-bottom:6px;font-weight:700;text-align:center">PLAYERS IN LOBBY</div>
+      <div style="font-size:11px;color:#e8d4a8;letter-spacing:1.5px;margin-bottom:6px;font-weight:700;text-align:center">PLAYERS IN LOBBY</div>
       <div id="lobby-players" style="display:flex;flex-direction:column;gap:6px"></div>
     </div>
 
@@ -155,7 +155,7 @@
         <div id="lobby-invite-dropdown" class="invite-dropdown"></div>
       </div>
       <div id="invite-status" class="invite-status"></div>
-      <div id="invite-gate-note" style="font-size:11px;color:#7ac08a;margin-top:6px;text-align:center;display:none">Select rounds first to enable invites.</div>
+      <div id="invite-gate-note" style="font-size:11px;color:#e8d4a8;margin-top:6px;text-align:center;display:none">Select rounds first to enable invites.</div>
     </div>
 
     <button id="btn-start-game" class="btn-start" onclick="startGame()" disabled>
@@ -188,7 +188,7 @@
   <!-- ═══ IN-GAME MENU — SipSam-style accordion (green theme) ═══ -->
   <div id="igm-overlay" onclick="igmOverlayClick()" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(2,9,4,.6);backdrop-filter:blur(2px)"></div>
 
-  <div id="igm-panel" style="position:fixed;top:0;right:0;bottom:0;width:min(360px,100vw);z-index:700;background:#06140b;border-left:1px solid #1a4a2e;transform:translateX(100%);transition:transform .3s ease;display:flex;flex-direction:column;overflow:hidden;box-shadow:-20px 0 60px rgba(0,0,0,.7)">
+  <div id="igm-panel" style="position:fixed;top:0;right:0;bottom:0;width:min(360px,100vw);z-index:700;background:#06140b;border-left:1px solid #3a1a22;transform:translateX(100%);transition:transform .3s ease;display:flex;flex-direction:column;overflow:hidden;box-shadow:-20px 0 60px rgba(0,0,0,.7)">
 
     <div class="igm-head">
       <div>
@@ -220,7 +220,7 @@
           <span class="igm-chev">&#x203A;</span>
         </div>
         <div class="igm-pane">
-          <div style="font-size:12px;color:#7ac08a;line-height:1.4;margin-bottom:8px">Type a friend's name. Friends already at the table are hidden.</div>
+          <div style="font-size:12px;color:#e8d4a8;line-height:1.4;margin-bottom:8px">Type a friend's name. Friends already at the table are hidden.</div>
           <input id="igm-invite-input" type="text" placeholder="Type a friend's name&hellip;"
             oninput="igmInviteOnInput(this.value)" onfocus="igmInviteOnFocus()"
             onkeydown="if(event.key==='Enter')igmInviteEnter()"
@@ -242,8 +242,8 @@
           <div class="igm-info-card">
             <div class="igm-info-row"><span>Current Wallet</span><span id="rep-cur-wallet" style="color:#e8c96a">$&mdash;</span></div>
             <div class="igm-info-row"><span>Bank Balance</span><span id="rep-cur-bank">$&mdash;</span></div>
-            <div class="igm-info-row"><span>Table Wallet Limit</span><span id="rep-limit" style="color:#7ac08a">$&mdash;</span></div>
-            <div class="igm-info-row" style="border-top:1px solid #1a4a2e;padding-top:8px;margin-top:6px"><span>Max Drawable</span><span id="rep-max" style="color:#4caf50">$&mdash;</span></div>
+            <div class="igm-info-row"><span>Table Wallet Limit</span><span id="rep-limit" style="color:#e8d4a8">$&mdash;</span></div>
+            <div class="igm-info-row" style="border-top:1px solid #3a1a22;padding-top:8px;margin-top:6px"><span>Max Drawable</span><span id="rep-max" style="color:#4caf50">$&mdash;</span></div>
           </div>
           <label class="igm-label">Amount to Draw</label>
           <div style="display:flex;gap:8px">
@@ -263,8 +263,8 @@
           <span class="igm-chev">&#x203A;</span>
         </div>
         <div class="igm-pane">
-          <p style="font-size:13px;color:#7ac08a;line-height:1.5;margin:0 0 10px">Request <strong id="req-amount-label" style="color:#c9a84c">$&mdash;</strong> (table max bet) from another player. They get a notification and can choose to send.</p>
-          <div style="font-size:12px;color:#7ac08a;margin-bottom:6px">Select player to request from:</div>
+          <p style="font-size:13px;color:#e8d4a8;line-height:1.5;margin:0 0 10px">Request <strong id="req-amount-label" style="color:#c9a84c">$&mdash;</strong> (table max bet) from another player. They get a notification and can choose to send.</p>
+          <div style="font-size:12px;color:#e8d4a8;margin-bottom:6px">Select player to request from:</div>
           <div id="req-players" class="igm-player-list"></div>
           <div id="req-pending" style="font-size:12px;color:#c9a84c;min-height:16px;margin-top:8px"></div>
           <button class="igm-action-btn" onclick="doRequestChips()" style="margin-top:8px">&#x1F64F; Send Request</button>
@@ -279,9 +279,9 @@
           <span class="igm-chev">&#x203A;</span>
         </div>
         <div class="igm-pane">
-          <p style="font-size:13px;color:#7ac08a;line-height:1.5;margin:0 0 10px">Chips come from your <strong style="color:#f0fff0">wallet</strong>, not your bank.</p>
+          <p style="font-size:13px;color:#e8d4a8;line-height:1.5;margin:0 0 10px">Chips come from your <strong style="color:#f0fff0">wallet</strong>, not your bank.</p>
           <div id="req-notice" style="font-size:12px;color:#c9a84c;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.2);border-radius:6px;padding:8px;display:none;margin-bottom:8px"></div>
-          <div style="font-size:12px;color:#7ac08a;margin-bottom:6px">Select recipient:</div>
+          <div style="font-size:12px;color:#e8d4a8;margin-bottom:6px">Select recipient:</div>
           <div id="send-players" class="igm-player-list"></div>
           <label class="igm-label" style="margin-top:10px">Amount (max: <span id="send-limit">$&mdash;</span>)</label>
           <input id="send-amount-input" type="number" placeholder="Enter amount..." class="igm-input">
@@ -307,7 +307,7 @@
           <div class="igm-rule-h">&#x2B50; Back-Bet Tiers (by hand value)</div>
           <div style="overflow-x:auto;margin-right:-4px">
           <table style="min-width:560px;width:100%;border-collapse:collapse;font-size:11px;color:#cfeccf">
-            <thead><tr style="color:#7ac08a;border-bottom:1px solid #1a4a2e"><th style="text-align:left;padding:5px 6px">HAND</th><th style="text-align:center;padding:5px 6px">BACK</th><th style="text-align:center;padding:5px 6px;color:#e8c96a">NORMAL</th><th style="text-align:center;padding:5px 6px;color:#e8c96a">VIP</th><th style="text-align:center;padding:5px 6px;color:#e8c96a">ELITE</th><th style="text-align:center;padding:5px 6px;color:#e8c96a">CELESTIAL</th></tr></thead>
+            <thead><tr style="color:#e8d4a8;border-bottom:1px solid #3a1a22"><th style="text-align:left;padding:5px 6px">HAND</th><th style="text-align:center;padding:5px 6px">BACK</th><th style="text-align:center;padding:5px 6px;color:#e8c96a">NORMAL</th><th style="text-align:center;padding:5px 6px;color:#e8c96a">VIP</th><th style="text-align:center;padding:5px 6px;color:#e8c96a">ELITE</th><th style="text-align:center;padding:5px 6px;color:#e8c96a">CELESTIAL</th></tr></thead>
             <tbody>
               <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">A&ndash;5 same suit</td><td style="text-align:center;color:#4caf50">100:1</td><td style="text-align:center;color:#e8c96a">$500K</td><td style="text-align:center;color:#e8c96a">$5M</td><td style="text-align:center;color:#e8c96a">$15M</td><td style="text-align:center;color:#e8c96a">$25M</td></tr>
               <tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:5px 6px;color:#e8c96a">5-card straight flush</td><td style="text-align:center;color:#4caf50">50:1</td><td style="text-align:center;color:#e8c96a">$100K</td><td style="text-align:center;color:#e8c96a">$1M</td><td style="text-align:center;color:#e8c96a">$7M</td><td style="text-align:center;color:#e8c96a">$15M</td></tr>
@@ -440,7 +440,7 @@
   <button id="chat-fab" onclick="toggleChatPopup()" style="
     position:fixed;bottom:18px;right:18px;
     width:44px;height:44px;border-radius:50%;
-    background:#1a4a2e;border:2px solid var(--gold-dk);
+    background:#3a1a22;border:2px solid var(--gold-dk);
     color:#fff;font-size:20px;cursor:pointer;
     display:flex;align-items:center;justify-content:center;
     box-shadow:0 4px 16px rgba(0,0,0,.5);
@@ -485,6 +485,6 @@
   </div>
 </div>
 
-<script src="game.js?v=25"></script>
+<script src="game.js?v=26"></script>
 </body>
 </html>

@@ -604,7 +604,7 @@ function applyInviteeLobby() {
     const info = document.getElementById('lobby-selection-info');
     if (info) {
         info.textContent = `$${(selectedMinBet || 0).toLocaleString()} table · ${selectedRounds} rounds`;
-        info.style.color = '#7ac08a';
+        info.style.color = '#e8d4a8';
     }
     const back = document.getElementById('btn-back-lobby');
     if (back) {
@@ -614,7 +614,7 @@ function applyInviteeLobby() {
     const status = document.getElementById('lobby-status');
     if (status) {
         status.textContent = '⏳ Waiting for the host to start the game…';
-        status.style.color = '#7ec8ff';
+        status.style.color = '#e8d4a8';
         status.style.fontWeight = '700';
     }
 }
@@ -699,8 +699,8 @@ function onLobbyInviteInput(val) {
 function renderLobbyDropdown(dd, friends, others, q) {
     if (!friends.length && !others.length) {
         dd.innerHTML = q
-            ? '<div style="padding:11px 14px;font-size:12px;color:#7ac08a">No matches. You can still type a full username to invite.</div>'
-            : '<div style="padding:11px 14px;font-size:12px;color:#7ac08a">No friends yet. Type any username to search all players.</div>';
+            ? '<div style="padding:11px 14px;font-size:12px;color:#e8d4a8">No matches. You can still type a full username to invite.</div>'
+            : '<div style="padding:11px 14px;font-size:12px;color:#e8d4a8">No friends yet. Type any username to search all players.</div>';
         dd.style.display = 'block';
         return;
     }
@@ -708,7 +708,7 @@ function renderLobbyDropdown(dd, friends, others, q) {
         <div onclick="selectLobbyInvitee('${escapeHtml(username)}')"
              style="padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(26,74,46,.5)"
              onmouseenter="this.style.background='rgba(26,140,56,.1)'" onmouseleave="this.style.background=''">
-          <span style="width:28px;height:28px;border-radius:50%;background:#1a4a2e;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;color:#c9a84c">${username[0].toUpperCase()}</span>
+          <span style="width:28px;height:28px;border-radius:50%;background:#3a1a22;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;color:#c9a84c">${username[0].toUpperCase()}</span>
           <span style="flex:1;font-size:13px;color:#f0fff0">${escapeHtml(username)}</span>
           <span style="font-size:10px;color:${col};letter-spacing:.5px">${label}</span>
         </div>`;
@@ -718,8 +718,8 @@ function renderLobbyDropdown(dd, friends, others, q) {
         html += friends.map(f => row(f.username, 'Friend', '#4aab5f')).join('');
     }
     if (others.length) {
-        html += '<div style="padding:5px 14px 3px;font-size:9px;font-weight:700;letter-spacing:2px;color:#7ac08a;text-transform:uppercase;border-top:1px solid #1a4a2e;margin-top:2px">Other Players</div>';
-        html += others.map(u => row(u.username, 'Player', '#7ac08a')).join('');
+        html += '<div style="padding:5px 14px 3px;font-size:9px;font-weight:700;letter-spacing:2px;color:#e8d4a8;text-transform:uppercase;border-top:1px solid #3a1a22;margin-top:2px">Other Players</div>';
+        html += others.map(u => row(u.username, 'Player', '#e8d4a8')).join('');
     }
     dd.innerHTML = html;
     dd.style.display = 'block';
@@ -758,7 +758,7 @@ async function sendLobbyInvite() {
     const username = input.value.trim();
     if (!username) { statusEl.textContent = 'Enter a username.'; statusEl.style.color = '#fca5a5'; return; }
 
-    statusEl.textContent = 'Sending invite...'; statusEl.style.color = '#7ac08a';
+    statusEl.textContent = 'Sending invite...'; statusEl.style.color = '#e8d4a8';
 
     // Make sure the host's room exists on the server BEFORE issuing an invite,
     // otherwise the invite carries a null roomId and the invitee's matchmake
@@ -926,7 +926,7 @@ function igmInviteRender(query) {
         return true;
     });
     if (!cands.length) {
-        list.innerHTML = '<div style="padding:14px;font-size:13px;color:#7ac08a;text-align:center">' +
+        list.innerHTML = '<div style="padding:14px;font-size:13px;color:#e8d4a8;text-align:center">' +
             (q ? 'No matching friends available.' : (_igmFriends.length ? 'No friends available to invite.' : 'No friends yet. Add some from the dashboard.')) + '</div>';
         return;
     }
@@ -937,7 +937,7 @@ function igmInviteRender(query) {
         return '<div data-friend="' + safe + '" onclick="igmDoInvite(\'' + safe.replace(/'/g, "\\'") + '\')" ' +
             'style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;cursor:pointer" ' +
             'onmouseover="this.style.background=\'rgba(76,175,80,.1)\'" onmouseout="this.style.background=\'\'">' +
-            '<div style="width:28px;height:28px;border-radius:50%;background:#0d2a18;border:1px solid #1a4a2e;display:flex;align-items:center;justify-content:center;color:#4caf50;font-weight:700;font-size:12px">' + init + '</div>' +
+            '<div style="width:28px;height:28px;border-radius:50%;background:#1f0c16;border:1px solid #3a1a22;display:flex;align-items:center;justify-content:center;color:#4caf50;font-weight:700;font-size:12px">' + init + '</div>' +
             '<div style="flex:1;font-size:13px;color:#f0fff0;font-weight:600">' + safe + '</div>' +
             '<span style="font-size:11px;color:#4caf50">Invite ›</span></div>';
     }).join('');
@@ -945,7 +945,7 @@ function igmInviteRender(query) {
 async function igmDoInvite(username) {
     if (!username) return;
     const msg = document.getElementById('igm-invite-msg');
-    if (msg) { msg.textContent = 'Sending invite to ' + username + '…'; msg.style.color = '#7ac08a'; }
+    if (msg) { msg.textContent = 'Sending invite to ' + username + '…'; msg.style.color = '#e8d4a8'; }
     const token = rhumToken();
     if (!token) { if (msg) { msg.textContent = '⚠️ Not authenticated.'; msg.style.color = '#fca5a5'; } return; }
     try {
@@ -996,7 +996,7 @@ function populatePlayerList(containerId) {
     c.innerHTML = '';
     const players = getActivePlayers();
     if (!players.length) {
-        c.innerHTML = '<div style="color:#7ac08a;font-size:13px;text-align:center;padding:12px">No other players at this table.</div>';
+        c.innerHTML = '<div style="color:#e8d4a8;font-size:13px;text-align:center;padding:12px">No other players at this table.</div>';
         return;
     }
     players.forEach(p => {
@@ -1004,7 +1004,7 @@ function populatePlayerList(containerId) {
         b.className = 'player-select-btn';
         b.innerHTML = '<span style="font-size:18px">\u{1F464}</span>' +
             '<div style="flex:1"><div style="font-weight:700;font-size:13px;color:#f0fff0">' + escapeHtml(p.name) + '</div>' +
-            '<div style="font-size:11px;color:#7ac08a">Player · $' + (p.wallet || 0).toLocaleString() + '</div></div>';
+            '<div style="font-size:11px;color:#e8d4a8">Player · $' + (p.wallet || 0).toLocaleString() + '</div></div>';
         b.dataset.sid = p.sid;
         b.dataset.username = p.name;
         b.onclick = () => {
@@ -1217,7 +1217,7 @@ function toggleChatPopup() {
     if (!popup) return;
     const open = popup.style.display === 'flex';
     popup.style.display = open ? 'none' : 'flex';
-    if (fab) fab.style.background = open ? '#1a4a2e' : '#0d3a1e';
+    if (fab) fab.style.background = open ? '#3a1a22' : '#28101a';
     if (!open) setTimeout(() => { const i = document.getElementById('chat-bar-input'); if (i) i.focus(); }, 50);
 }
 
@@ -1226,7 +1226,7 @@ document.addEventListener('click', function(e) {
     const fab = document.getElementById('chat-fab');
     if (popup && popup.style.display === 'flex' && !popup.contains(e.target) && e.target !== fab) {
         popup.style.display = 'none';
-        if (fab) fab.style.background = '#1a4a2e';
+        if (fab) fab.style.background = '#3a1a22';
     }
 });
 
@@ -1576,7 +1576,7 @@ function renderMyArea(players, status, roundNum) {
         const rEl = document.getElementById('reveal-result');
         const dEl = document.getElementById('reveal-description');
         if (me.result === 'player_win' || me.result === 'dealer_bust') {
-            rEl.textContent = 'YOU WIN!'; rEl.style.color = '#44ff88';
+            rEl.textContent = 'YOU WIN!'; rEl.style.color = '#f0d080';
             if (lastStatus !== 'revealing' && lastStatus !== 'roundEnd') SFX.win();
         } else if (me.result === 'dealer_win') {
             rEl.textContent = 'DEALER WINS'; rEl.style.color = '#ff5555';
@@ -1626,7 +1626,7 @@ function renderLobbyPlayers(state) {
         const row = document.createElement('div');
         row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(20,80,40,0.18);border:1px solid rgba(122,192,138,0.25);border-radius:8px;font-size:13px';
         const me = p.username === myUsername;
-        const tag = p.isHost ? '<span style="color:#c9a84c;font-size:10px;font-weight:800;letter-spacing:1px">HOST</span>' : '<span style="color:#7ac08a;font-size:10px;letter-spacing:1px">READY</span>';
+        const tag = p.isHost ? '<span style="color:#c9a84c;font-size:10px;font-weight:800;letter-spacing:1px">HOST</span>' : '<span style="color:#e8d4a8;font-size:10px;letter-spacing:1px">READY</span>';
         row.innerHTML = `<span style="font-weight:600">${escapeHtml(p.username)}${me ? ' (you)' : ''}</span>${tag}`;
         if (me) row.style.outline = '1px solid #c9a84c';
         list.appendChild(row);
@@ -1652,14 +1652,14 @@ function showGameOver(state) {
         const isMe = p.username === myUsername;
         const net  = netFor(p);
         const medal = i === 0 ? '\u{1F3C6} ' : i === 1 ? '\u{1F948} ' : i === 2 ? '\u{1F949} ' : `#${i+1} `;
-        const netColor = net > 0 ? '#44ff88' : net < 0 ? '#ff7676' : '#c9a84c';
+        const netColor = net > 0 ? '#f0d080' : net < 0 ? '#ff7676' : '#c9a84c';
         const netSign  = net > 0 ? '+' : net < 0 ? '−' : '';
         const netStr   = '$' + Math.abs(net).toLocaleString();
         div.innerHTML =
             `<span class="fp-name">${medal}${escapeHtml(p.username)}${isMe ? ' (you)' : ''}</span>` +
             `<span class="fp-wallet" style="display:flex;flex-direction:column;align-items:flex-end;line-height:1.2">` +
                 `<span style="color:${netColor};font-weight:800">${netSign}${netStr}</span>` +
-                `<span style="font-size:11px;color:#9ad3a8;opacity:.75">wallet $${(p.wallet||0).toLocaleString()}</span>` +
+                `<span style="font-size:11px;color:#d8c4a0;opacity:.75">wallet $${(p.wallet||0).toLocaleString()}</span>` +
             `</span>`;
         if (isMe) div.style.outline = '1px solid #c9a84c';
         container.appendChild(div);
@@ -1674,7 +1674,7 @@ function showGameOver(state) {
             // "YOU WON" / "YOU LOST" / "YOU BROKE EVEN" — past tense, no `!`
             // so the gold serif font doesn't render the bang as a capital I.
             let headline, color;
-            if (net > 0)      { headline = 'YOU WON';        color = '#44ff88'; }
+            if (net > 0)      { headline = 'YOU WON';        color = '#f0d080'; }
             else if (net < 0) { headline = 'YOU LOST';       color = '#ff7676'; }
             else              { headline = 'YOU BROKE EVEN'; color = '#c9a84c'; }
             const netSign = net > 0 ? '+' : net < 0 ? '−' : '';
