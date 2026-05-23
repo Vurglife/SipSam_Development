@@ -50,6 +50,8 @@ let _tiePromptTimer  = null;
 
 let _cdInterval      = null;
 let _autoStartTimer  = null;
+let _cardAnimationRound = null;
+const _cardSlotState = new Map();
 
 // Seat indices: server seat index = visual zone (direct mapping)
 function getVisualZone(idx) { return (idx >= 0 && idx < 6) ? idx : -1; }
@@ -191,6 +193,27 @@ function handTotal(hand) {
   };
 }
 
+function _syncCardAnimationRound(roundNum) {
+  const nextRound = roundNum ?? 'pending';
+  if (_cardAnimationRound !== nextRound) {
+    _cardAnimationRound = nextRound;
+    _cardSlotState.clear();
+  }
+}
+
+function _cardSignature(c) {
+  if (!c) return 'empty';
+  if (c.faceDown || c.rank === '?') return 'down';
+  return `${c.rank || ''}:${c.suit || ''}`;
+}
+
+function shouldAnimateCard(slotId, card) {
+  const sig = _cardSignature(card);
+  const prev = _cardSlotState.get(slotId);
+  _cardSlotState.set(slotId, sig);
+  return sig !== 'empty' && prev !== sig;
+}
+
 function makeVLCard(c, size) {
   // size: 'sm' | 'lg' | 'xl' | undefined (default).
   const opts = typeof size === 'string' ? { size } : (size || {});
@@ -223,6 +246,7 @@ function makeVLCard(c, size) {
   else if (sizeName === 'sm') el.classList.add('vl-sm');
   if (opts.active) el.classList.add('vl-active');
   if (opts.state) el.classList.add('vl-' + opts.state);
+  if (opts.animate) el.classList.add('vl-deal-in');
   return el;
 }
 
@@ -753,6 +777,7 @@ function applyState(state) {
   if (!state) return;
   lastState = state;
   window._lastBJState = state;
+  _syncCardAnimationRound(state.roundNum);
 
   if (state.phase && state.phase !== 'waiting') {
     const lobby = document.getElementById('screen-lobby');
@@ -898,7 +923,13 @@ function renderDealer(state) {
   const cardsEl = document.getElementById('dealer-cards');
   if (cardsEl) {
     cardsEl.innerHTML = '';
-    (state.dealerCards || []).forEach(c => cardsEl.appendChild(makeVLCard(c, 'lg')));
+    const roundKey = state.roundNum ?? 'pending';
+    (state.dealerCards || []).forEach((c, i) => {
+      cardsEl.appendChild(makeVLCard(c, {
+        size: 'lg',
+        animate: shouldAnimateCard(`dealer:${roundKey}:${i}`, c)
+      }));
+    });
   }
   const totalEl = document.getElementById('dealer-total-display');
   if (totalEl) {
@@ -962,7 +993,10 @@ function renderSeats(state) {
           box.style.cssText = isMe
             ? 'display:flex;flex-direction:row;gap:4px;flex-wrap:nowrap;align-items:flex-end'
             : 'display:flex;flex-direction:row;gap:2px;flex-wrap:nowrap;align-items:flex-end;white-space:nowrap';
-          (hand || []).forEach(c => box.appendChild(makeVLCard(c, cardSize)));
+          (hand || []).forEach((c, ci) => box.appendChild(makeVLCard(c, {
+            size: cardSize,
+            animate: shouldAnimateCard(`seat:${state.roundNum ?? 'pending'}:${seatIdx}:${hi}:${ci}`, c)
+          })));
           const ht = handTotal(hand || []);
           if (ht.total > 0) {
             const t = document.createElement('div');
@@ -987,7 +1021,10 @@ function renderSeats(state) {
           ? 'display:flex;flex-direction:row;gap:8px;align-items:flex-end;flex-wrap:nowrap;width:max-content;max-width:none'
           : 'display:flex;flex-direction:row;gap:4px;align-items:flex-end;flex-wrap:nowrap;justify-content:center;overflow:visible;white-space:nowrap';
         const hand = hands[0] || [];
-        hand.forEach(c => cardsEl.appendChild(makeVLCard(c, cardSize)));
+        hand.forEach((c, ci) => cardsEl.appendChild(makeVLCard(c, {
+          size: cardSize,
+          animate: shouldAnimateCard(`seat:${state.roundNum ?? 'pending'}:${seatIdx}:0:${ci}`, c)
+        })));
         const ht = handTotal(hand);
         if (ht.total > 0) {
           const t = document.createElement('div');
@@ -1064,7 +1101,11 @@ function renderFocusHand(state) {
 
     const row = document.createElement('div');
     row.className = 'focus-hand-card-row';
-    hand.forEach(c => row.appendChild(makeVLCard(c, { size: 'xl', active: visibleHands.length > 1 && isActive })));
+    hand.forEach((c, ci) => row.appendChild(makeVLCard(c, {
+      size: 'xl',
+      active: visibleHands.length > 1 && isActive,
+      animate: shouldAnimateCard(`focus:${state.roundNum ?? 'pending'}:${hi}:${ci}`, c)
+    })));
     group.appendChild(row);
 
     if (visibleHands.length > 1) {

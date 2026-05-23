@@ -46,6 +46,7 @@ function makeVLCard(card, opts = {}) {
     el.className = [
       'vl-card face-down',
       vlSizeClass(opts.size),
+      opts.animate ? 'vl-deal-in' : '',
     ].filter(Boolean).join(' ');
     return el;
   }
@@ -63,6 +64,7 @@ function makeVLCard(card, opts = {}) {
     opts.state === 'win'  ? 'vl-win'  : '',
     opts.state === 'lose' ? 'vl-lose' : '',
     opts.state === 'bj'   ? 'vl-bj'  : '',
+    opts.animate          ? 'vl-deal-in' : '',
   ].filter(Boolean).join(' ');
 
   // Top-left pip + centred rank/suit + bottom-right pip
