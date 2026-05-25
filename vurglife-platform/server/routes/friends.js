@@ -3,7 +3,7 @@
 // ============================================
 const express = require('express');
 const router  = express.Router();
-const { UserDB, FriendDB, FriendMessageDB, NotifDB } = require('../db/database');
+const { UserDB, FriendDB, FriendMessageDB, NotifDB, TransferDB } = require('../db/database');
 const { requireAuth }               = require('../middleware/auth');
 const gameRoutes = require('./game');
 const GAME_CONFIGS = {
@@ -158,6 +158,48 @@ router.post('/messages', requireAuth, async (req, res) => {
         fromUserId: req.userId
     });
     res.json({ ok: true, message });
+});
+
+// POST /api/friends/chips/send — send bank chips to an accepted friend
+router.post('/chips/send', requireAuth, async (req, res) => {
+    const toUserId = Number(req.body.toUserId);
+    const amount = Number(req.body.amount);
+
+    if (!toUserId) return res.status(400).json({ error: 'Missing recipient' });
+    if (toUserId === Number(req.userId)) return res.status(400).json({ error: 'Cannot send chips to yourself' });
+    if (!Number.isSafeInteger(amount) || amount <= 0) return res.status(400).json({ error: 'Enter a valid whole-chip amount' });
+
+    const target = await UserDB.findById(toUserId);
+    if (!target) return res.status(404).json({ error: 'User not found' });
+
+    const isFriend = await FriendDB.areFriends(req.userId, toUserId);
+    if (!isFriend) return res.status(403).json({ error: 'You can only send chips to friends' });
+
+    const me = await UserDB.findById(req.userId);
+    const result = await TransferDB.send(req.userId, toUserId, amount, 'dashboard_friend_send');
+    if (!result.ok) return res.status(400).json({ error: result.reason || 'Unable to send chips' });
+
+    const sentAmount = amount.toLocaleString();
+    const message = await FriendMessageDB.send(
+        req.userId,
+        toUserId,
+        `${me.username} sent you $${sentAmount} chips.`
+    );
+    await NotifDB.create(toUserId, 'chip_transfer', `${me.username} sent you $${sentAmount} chips.`, {
+        transferId: result.transferId,
+        messageId: message?.id || null,
+        fromUserId: req.userId,
+        amount
+    });
+
+    res.json({
+        ok: true,
+        transferId: result.transferId,
+        amount,
+        recipient: { id: target.id, username: target.username },
+        newBankBalance: result.newBankBalance,
+        message
+    });
 });
 
 // POST /api/friends/messages/read-all — clear the inbox unread count

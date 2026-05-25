@@ -483,13 +483,38 @@ const PurchaseDB = {
 const TransferDB = {
     async send(fromId, toId, amount, context = 'gift') {
         await getDb();
+        const amt = Number(amount);
+        if (!Number.isSafeInteger(amt) || amt <= 0) return { ok: false, reason: 'Invalid amount' };
+        if (Number(fromId) === Number(toId)) return { ok: false, reason: 'Cannot send chips to yourself' };
+
         const from = get('SELECT bank_balance FROM users WHERE id = ?', [fromId]);
-        if (!from || from.bank_balance < amount) return { ok: false, reason: 'Insufficient balance' };
-        run('UPDATE users SET bank_balance = bank_balance - ? WHERE id = ?', [amount, fromId]);
-        run('UPDATE users SET bank_balance = bank_balance + ? WHERE id = ?', [amount, toId]);
-        insert('INSERT INTO chip_transfers (from_id, to_id, amount, context) VALUES (?,?,?,?)',
-            [fromId, toId, amount, context]);
-        return { ok: true };
+        const to = get('SELECT bank_balance FROM users WHERE id = ?', [toId]);
+        if (!from) return { ok: false, reason: 'Sender not found' };
+        if (!to) return { ok: false, reason: 'Recipient not found' };
+        if (Number(from.bank_balance || 0) < amt) return { ok: false, reason: 'Insufficient balance' };
+
+        db.run('BEGIN TRANSACTION');
+        try {
+            db.run('UPDATE users SET bank_balance = bank_balance - ? WHERE id = ?', [amt, fromId]);
+            db.run('UPDATE users SET bank_balance = bank_balance + ? WHERE id = ?', [amt, toId]);
+            db.run('INSERT INTO chip_transfers (from_id, to_id, amount, context) VALUES (?,?,?,?)',
+                [fromId, toId, amt, context]);
+            const transferId = get('SELECT last_insert_rowid() as id')?.id;
+            const sender = get('SELECT bank_balance FROM users WHERE id = ?', [fromId]);
+            const recipient = get('SELECT bank_balance FROM users WHERE id = ?', [toId]);
+            db.run('COMMIT');
+            persist();
+            return {
+                ok: true,
+                transferId,
+                newBankBalance: Number(sender?.bank_balance || 0),
+                recipientBankBalance: Number(recipient?.bank_balance || 0)
+            };
+        } catch (e) {
+            try { db.run('ROLLBACK'); } catch (_) {}
+            persist();
+            throw e;
+        }
     }
 };
 

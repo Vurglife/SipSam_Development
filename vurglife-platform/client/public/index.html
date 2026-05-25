@@ -307,6 +307,17 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
 .hi-badge{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
 .hi-badge.win{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3)}
 .hi-badge.loss{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25)}
+.chip-send-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;margin:14px 0}
+.chip-send-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.chip-send-bank{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:800;color:var(--gold-hi)}
+.chip-send-friends{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:12px}
+.chip-send-friend{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:center;gap:10px;text-align:left;color:var(--text-hi);cursor:pointer;font-family:'Exo 2',sans-serif}
+.chip-send-friend:hover,.chip-send-friend.sel{border-color:var(--gold);background:rgba(201,168,76,.1)}
+.chip-send-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.chip-send-form input{background:var(--bg-panel);border:1px solid var(--border);border-radius:7px;color:var(--text-hi);font-size:14px;outline:none;font-family:'Exo 2',sans-serif;padding:10px 12px;min-height:40px}
+.chip-send-form input:focus{border-color:var(--blue)}
+.chip-send-status{font-size:12px;color:var(--text-dim);min-height:16px;margin-top:8px}
+@media(max-width:620px){.chip-send-form{grid-template-columns:1fr}.chip-send-form .btn{width:100%}.chip-send-friends{grid-template-columns:1fr}}
 
 /* ── GET CHIPS ── */
 .ctabs{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:18px;width:fit-content}
@@ -683,6 +694,22 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
           <div class="sc"><div class="sc-lbl">Current Balance</div><div class="sc-val gold" id="bank-bal">$0</div></div>
           <div class="sc"><div class="sc-lbl">Total Earned</div><div class="sc-val green" id="bank-earned">$0</div></div>
         </div>
+        <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:12px">
+          <button class="btn bg bsm" onclick="openChipSend()">Send Chips</button>
+          <button class="btn bp bsm" onclick="showPanel('getchips')">Get More Chips</button>
+        </div>
+        <div id="chip-send-card" class="chip-send-card" style="display:none">
+          <div class="chip-send-head">
+            <div class="sh" style="margin:0">Send Chips</div>
+            <div class="chip-send-bank" id="chip-send-bank">$0 available</div>
+          </div>
+          <div id="chip-send-friends" class="chip-send-friends"></div>
+          <div class="chip-send-form">
+            <input id="chip-send-amount" type="number" min="1" step="1" inputmode="numeric" placeholder="Amount" oninput="validateChipSendAmount()">
+            <button id="chip-send-submit" class="btn bp bsm" onclick="sendFriendChips()" disabled>Send</button>
+          </div>
+          <div id="chip-send-status" class="chip-send-status"></div>
+        </div>
         <div class="sh">Last 5 Games — Chip Balance</div>
         <div id="bank-hist"><div style="color:var(--text-dim);font-size:13px;padding:10px 0">No games played yet.</div></div>
         <div style="text-align:right;margin-top:14px">
@@ -892,6 +919,7 @@ html,body{height:100%;background:var(--bg-void);color:var(--text-hi);font-family
         <div style="display:flex;gap:9px;margin-bottom:18px;flex-wrap:wrap">
           <button class="btn bp bsm" onclick="toggleAddFriend()">➕ Add Friend</button>
           <button class="btn bgh bsm" onclick="showPanel('messages')">💬 Messages</button>
+          <button class="btn bg bsm" onclick="openChipSend()">Send Chips</button>
         </div>
         <div id="add-friend-box" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:16px">
           <div class="sh" style="margin-top:0">Search Players</div>
@@ -1223,6 +1251,8 @@ let _lastUnreadMessages = 0;
 let _messageTab = 'inbox';
 let _messageCache = { inbox: [], sent: [], friends: [], notifications: [] };
 let _pendingMessageTo = null;
+let _chipSendFriends = [];
+let _chipSendSelectedId = null;
 
 // ── SCREENS & PANELS ──────────────────────────────────
 function showScreen(id) {
@@ -1257,6 +1287,7 @@ function showPanel(name) {
   if (name==='getchips')       buildPkgs();
   if (name==='rewards')  refreshRewards();
   if (name==='history')  loadHistory();
+  if (name==='bank')     refreshChipSendState();
   if (name==='friends')  loadFriends();
   if (name==='messages') loadMessages();
 }
@@ -1471,6 +1502,7 @@ function refreshUI() {
   document.getElementById('home-games').textContent=games;
   document.getElementById('home-wr').textContent=wr;
   document.getElementById('bank-bal').textContent='$'+bank.toLocaleString();
+  refreshChipSendState();
   document.getElementById('ht-total').textContent=games;
   document.getElementById('ht-wins').textContent=wins;
   document.getElementById('ht-losses').textContent=games-wins;
@@ -2029,9 +2061,133 @@ function friendCard(friend) {
       '<div class="f-status">Friend '+tierBadgeHtml(bank)+'</div></div>' +
     '<div class="f-acts">' +
       '<button class="btn bp bsm" onclick="openFriendMessage('+id+')">Message</button>' +
+      '<button class="btn bg bsm" onclick="openChipSend('+id+')">Send Chips</button>' +
       '<button class="btn bgh bsm" onclick="removeFriend('+id+')">Remove</button>' +
     '</div>' +
   '</div>';
+}
+
+function chipSendStatus(text, ok=false) {
+  const el = document.getElementById('chip-send-status');
+  if (!el) return;
+  el.textContent = text || '';
+  el.style.color = ok ? 'var(--green)' : 'var(--text-dim)';
+}
+
+function selectedChipSendFriend() {
+  return _chipSendFriends.find(f => String(f.id || f.friend_id || f.user_id) === String(_chipSendSelectedId)) || null;
+}
+
+function chipSendAmount() {
+  const input = document.getElementById('chip-send-amount');
+  const raw = String(input?.value || '').trim();
+  if (!raw) return 0;
+  const amount = Number(raw);
+  return Number.isSafeInteger(amount) ? amount : NaN;
+}
+
+function refreshChipSendState() {
+  const bank = Number(getBank() || 0);
+  const bankEl = document.getElementById('chip-send-bank');
+  const input = document.getElementById('chip-send-amount');
+  if (bankEl) bankEl.textContent = '$' + bank.toLocaleString() + ' available';
+  if (input) input.max = String(Math.max(0, bank));
+  validateChipSendAmount(false);
+}
+
+function renderChipSendFriends() {
+  const box = document.getElementById('chip-send-friends');
+  if (!box) return;
+  if (!_chipSendFriends.length) {
+    box.innerHTML = friendEmpty('No friends available.');
+    return;
+  }
+  box.innerHTML = _chipSendFriends.map(f => {
+    const id = Number(f.id || f.friend_id || f.user_id);
+    const name = f.username || f.friend_username || 'Unknown';
+    const selected = String(id) === String(_chipSendSelectedId);
+    return '<button type="button" class="chip-send-friend'+(selected?' sel':'')+'" onclick="selectChipSendFriend('+id+')">' +
+      '<span class="f-av">'+friendAvatar(name)+'</span>' +
+      '<span><span class="f-name">'+escHtml(name)+'</span><br><span class="f-status">Friend</span></span>' +
+    '</button>';
+  }).join('');
+}
+
+async function loadChipSendFriends(preselectId=null) {
+  const box = document.getElementById('chip-send-friends');
+  if (box) box.innerHTML = friendEmpty('Loading friends...');
+  const res = await apiGet('/api/friends');
+  _chipSendFriends = res.friends || [];
+  if (preselectId != null) _chipSendSelectedId = String(preselectId);
+  if (_chipSendSelectedId && !_chipSendFriends.some(f => String(f.id || f.friend_id || f.user_id) === String(_chipSendSelectedId))) {
+    _chipSendSelectedId = null;
+  }
+  renderChipSendFriends();
+  validateChipSendAmount(false);
+}
+
+async function openChipSend(friendId=null) {
+  if (!document.getElementById('panel-bank')?.classList.contains('active')) showPanel('bank');
+  const card = document.getElementById('chip-send-card');
+  if (card) card.style.display = 'block';
+  if (friendId != null) _chipSendSelectedId = String(friendId);
+  const input = document.getElementById('chip-send-amount');
+  if (input) input.value = '';
+  chipSendStatus('');
+  await loadChipSendFriends(friendId);
+  setTimeout(() => {
+    if (_chipSendSelectedId) document.getElementById('chip-send-amount')?.focus();
+  }, 60);
+}
+
+function selectChipSendFriend(id) {
+  _chipSendSelectedId = String(id);
+  renderChipSendFriends();
+  validateChipSendAmount();
+  document.getElementById('chip-send-amount')?.focus();
+}
+
+function validateChipSendAmount(showStatus=true) {
+  const btn = document.getElementById('chip-send-submit');
+  const amount = chipSendAmount();
+  const bank = Number(getBank() || 0);
+  const friend = selectedChipSendFriend();
+  let msg = '';
+  let valid = true;
+  if (!friend) { msg = 'Select a friend.'; valid = false; }
+  else if (!Number.isSafeInteger(amount) || amount <= 0) { msg = 'Enter a whole-chip amount.'; valid = false; }
+  else if (amount > bank) { msg = 'Amount exceeds your bank balance.'; valid = false; }
+  if (btn) btn.disabled = !valid;
+  if (showStatus) chipSendStatus(valid ? '' : msg);
+  return valid;
+}
+
+async function sendFriendChips() {
+  if (!validateChipSendAmount(true)) return;
+  const friend = selectedChipSendFriend();
+  const amount = chipSendAmount();
+  const btn = document.getElementById('chip-send-submit');
+  if (btn) btn.disabled = true;
+  chipSendStatus('Sending...');
+  const res = await apiPost('/api/friends/chips/send', {
+    toUserId: Number(friend.id || friend.friend_id || friend.user_id),
+    amount
+  });
+  if (!res.ok) {
+    chipSendStatus(res.error || 'Unable to send chips.');
+    validateChipSendAmount(false);
+    return;
+  }
+  if (res.newBankBalance != null) {
+    currentUser.bankBalance = res.newBankBalance;
+    currentUser.bank_balance = res.newBankBalance;
+  }
+  const name = friend.username || friend.friend_username || res.recipient?.username || 'friend';
+  const input = document.getElementById('chip-send-amount');
+  if (input) input.value = '';
+  refreshUI();
+  chipSendStatus('Sent $' + amount.toLocaleString() + ' to ' + name + '.', true);
+  toast('Chips Sent', '$' + amount.toLocaleString() + ' sent to ' + name + '.');
 }
 
 async function loadFriends() {
@@ -2133,7 +2289,7 @@ function renderMessageRecipients(friends) {
 function renderSystemNotifications() {
   const box = document.getElementById('sys-msgs');
   if (!box) return;
-  const notes = (_messageCache.notifications || []).filter(n => n.type === 'friend_message' || n.type === 'friend_request' || n.type === 'friend_accepted');
+  const notes = (_messageCache.notifications || []).filter(n => n.type === 'friend_message' || n.type === 'chip_transfer' || n.type === 'friend_request' || n.type === 'friend_accepted');
   if (!notes.length) {
     box.innerHTML = '<div class="msg-empty">No new platform notifications.</div>';
     return;
