@@ -269,15 +269,19 @@ function resolvePlayerVsDealer(playerHand, dealerHand, frontBet, backBet, tieBet
     const tieLost = (tieBet > 0 && !isTie) ? tieBet : 0;
 
     if (faceSpecial) {
-        // 47-50 face specials are UNBEATABLE — always win front 1:1 + back ×
-        // face multiplier no matter what the dealer holds (higher dealer face
-        // special, dealer bust, anything). If the dealer matches the value,
-        // the tie bet ALSO pays (stacked on top).
-        frontPayout = frontBet;
+        // 47-50 face specials are UNBEATABLE — always win regardless of
+        // dealer state. Per product-owner spec, the front bet and the
+        // back-bet STAKE are returned to the player (no 1:1 front winnings,
+        // no back-stake winnings). The only winning credit is the
+        // "special payment" = back × tier multiplier. In our pledge-only
+        // accounting (stakes never deducted at placement), "returned" means
+        // frontPayout contributes 0 and backPayout = back × mult is the net
+        // win. If dealer matches the value, the tie bet ALSO pays, stacked.
+        frontPayout = 0;
         backPayout  = backBet * (faceSpecial.backMultiplier || 0);
         result      = 'face_special';
-        description = `${faceSpecial.name} — unbeatable! Front 1:1 + back ${faceSpecial.backMultiplier}:1.`;
-        if (tiePayout > 0) description += ` Tie bet pays $${tiePayout}!`;
+        description = `${faceSpecial.name} — unbeatable! Stakes returned + back × ${faceSpecial.backMultiplier} = $${backPayout.toLocaleString()}.`;
+        if (tiePayout > 0) description += ` Tie bet pays $${tiePayout.toLocaleString()}!`;
     } else if (isTie) {
         // Tie: front + back returned (push). Bonus + tie bet still pay.
         frontPayout = 0;
