@@ -96,7 +96,7 @@ class BlackjackRoom {
     return {
       userId, sessionId, index, isBot, ownerIdx, token:null,
       joinRole:normalizedRole, isInvitedGuest:normalizedRole==='guest', joinedAt:Date.now(),
-      wallet:initialWallet, bet:0, insuranceBet:0, insuranceDeclined:false, tieBet:0, sideBet:null, sideBetAmt:0,
+      wallet:initialWallet, bet:0, handBets:[0], insuranceBet:0, insuranceDeclined:false, tieBet:0, sideBet:null, sideBetAmt:0,
       hands:[[]], activeHandIdx:0,
       doubled:[false], stood:[false], busted:[false], splitAces:false,
       result:[null], payout:[0], sideBetResult:null,
@@ -104,6 +104,30 @@ class BlackjackRoom {
       displayName: isBot ? `Bot_${index+1}` : `Player ${index+1}`,
       avatar:'', streakWins:0,
     };
+  }
+
+  _baseBet(seat) {
+    return Math.max(0, Number(seat?.bet) || 0);
+  }
+
+  _ensureHandBets(seat) {
+    const hands = (Array.isArray(seat?.hands) && seat.hands.length) ? seat.hands : [[]];
+    const base = this._baseBet(seat);
+    if (!Array.isArray(seat.handBets)) seat.handBets = [];
+    for (let hi = 0; hi < hands.length; hi++) {
+      if (!(Number(seat.handBets[hi]) > 0)) seat.handBets[hi] = base;
+    }
+    seat.handBets.length = hands.length;
+    return seat.handBets;
+  }
+
+  _handBet(seat, hi) {
+    const bets = this._ensureHandBets(seat);
+    return Math.max(0, Number(bets[hi]) || this._baseBet(seat));
+  }
+
+  _mainStake(seat) {
+    return this._ensureHandBets(seat).reduce((sum, bet) => sum + (Number(bet) || 0), 0);
   }
 
   _onDisconnect(ws) {
@@ -252,6 +276,7 @@ class BlackjackRoom {
     if (owner.wallet < bet) return;
     owner.wallet -= bet;
     bot.bet    = bet;
+    bot.handBets = [bet];
     bot.wallet = 0; // bot wallet tracks only its current round chips, not owner's balance
     this._broadcast({ type:'state', state:this._state() });
   }
@@ -269,7 +294,7 @@ class BlackjackRoom {
 
     for (const s of Object.values(this.seats)) {
       Object.assign(s, {
-        bet:0, insuranceBet:0, insuranceDeclined:false, tieBet:0, sideBet:null, sideBetAmt:0,
+        bet:0, handBets:[0], insuranceBet:0, insuranceDeclined:false, tieBet:0, sideBet:null, sideBetAmt:0,
         hands:[[]], activeHandIdx:0, doubled:[false], stood:[false], busted:[false],
         splitAces:false, result:[null], payout:[0], sideBetResult:null, acted:false,
       });
@@ -296,6 +321,7 @@ class BlackjackRoom {
         const autoBet = this.config.minBet;
         if (s.wallet >= autoBet) {
           s.bet = autoBet;
+          s.handBets = [autoBet];
           s.wallet -= autoBet;
         } else {
           // Can't afford min bet — settle ($0) and remove completely
@@ -499,7 +525,8 @@ class BlackjackRoom {
         const result = resolveHand(seat.hands[hi], this.dealerCards, seat.busted[hi]);
         const ins    = hi===0 ? seat.insuranceBet : 0;
         // calcPayout returns total chips to credit back (0 for lose/bust)
-        const credit = calcPayout(result, seat.bet, ins, dealerBJ, this.config.blackjackPayout);
+        const handBet = this._handBet(seat, hi);
+        const credit = calcPayout(result, handBet, ins, dealerBJ, this.config.blackjackPayout);
         seat.result[hi]=result; seat.payout[hi]=credit; delta+=credit;
       }
 
@@ -534,7 +561,7 @@ class BlackjackRoom {
           // the blackjack bonus as well and relabel the hand 'blackjack'.
           const handBJ = isBlackjack(seat.hands[tiedHandIdx] || []);
           if (handBJ && dealerBJ && seat.result[tiedHandIdx] === 'push') {
-            const bjCredit = calcPayout('blackjack', seat.bet, 0, false, this.config.blackjackPayout);
+            const bjCredit = calcPayout('blackjack', this._handBet(seat, tiedHandIdx), 0, false, this.config.blackjackPayout);
             const oldCredit = seat.payout[tiedHandIdx] || 0;
             delta += (bjCredit - oldCredit);
             seat.payout[tiedHandIdx] = bjCredit;
@@ -576,7 +603,7 @@ class BlackjackRoom {
       if (won) {
         seat.streakWins++;
         if (seat.streakWins>=5) {
-          delta += seat.bet*2;
+          delta += this._baseBet(seat)*2;
           seat.sideBetResult = (seat.sideBetResult?seat.sideBetResult+' · ':'')+' Full Sweep Bonus!';
           seat.streakWins=0;
         }
@@ -643,10 +670,13 @@ class BlackjackRoom {
   _placeBet(si, amount) {
     if (this.phase!=='betting') return;
     const s=this.seats[si]; if (!s||s.isBot) return;
-    const bet=Math.max(this.config.minBet, Math.min(this.config.maxBet, amount));
-    if (bet>s.wallet) return;
-    if (s.bet>0) s.wallet+=s.bet;
-    s.bet=bet; s.wallet-=bet;
+    const priorBet = this._baseBet(s);
+    const priorStake = priorBet > 0 ? (this._mainStake(s) || priorBet) : 0;
+    const available = s.wallet + priorStake;
+    const bet=Math.max(this.config.minBet, Math.min(this.config.maxBet, Number(amount)||0));
+    if (bet>available) return;
+    if (priorStake>0) s.wallet+=priorStake;
+    s.bet=bet; s.handBets=[bet]; s.wallet-=bet;
     this._broadcast({ type:'state', state:this._state() });
 
     // Deal immediately if ALL human players have now placed bets — no need to wait.
@@ -725,8 +755,10 @@ class BlackjackRoom {
     if (this.phase!=='player_action') return;
     const s=this.seats[si]; if (!s) return;
     const hi=s.activeHandIdx;
-    if (s.hands[hi].length!==2||s.wallet<s.bet) return;
-    s.wallet-=s.bet; s.bet*=2; s.doubled[hi]=true;
+    const hand = s.hands[hi] || [];
+    const handBet = this._handBet(s, hi);
+    if (hand.length!==2 || s.stood[hi] || s.busted[hi] || s.splitAces || s.wallet<handBet) return;
+    s.wallet-=handBet; s.handBets[hi]=handBet*2; s.doubled[hi]=true;
     s.hands[hi].push(this._drawCard());
     if (calcHandFull(s.hands[hi]).isBust) s.busted[hi]=true;
     s.stood[hi]=true; s.acted=true;
@@ -737,10 +769,11 @@ class BlackjackRoom {
     if (this.phase!=='player_action') return;
     const s=this.seats[si]; if (!s) return;
     const hi=s.activeHandIdx;
+    const handBet = this._handBet(s, hi);
     // Allow up to 4 hands from splitting
-    if (!isTenValuePair(s.hands[hi]) || s.hands.length >= 4 || s.wallet < s.bet) return;
+    if (!isTenValuePair(s.hands[hi]) || s.hands.length >= 4 || s.wallet < handBet) return;
     const aces = isAcePair(s.hands[hi]);
-    s.wallet -= s.bet; // second bet for the split hand
+    s.wallet -= handBet; // second bet for the split hand
 
     // Take second card from current hand, start new hand
     const c2 = s.hands[hi].pop();
@@ -757,6 +790,7 @@ class BlackjackRoom {
     s.busted.push(false);
     s.result.push(null);
     s.payout.push(0);
+    s.handBets.push(handBet);
 
     // Split aces: only one card each, auto-stand
     if (aces) {
@@ -847,7 +881,7 @@ class BlackjackRoom {
         userId:s.userId, sessionId:s.sessionId, index:s.index,
         isBot:s.isBot, ownerIdx:s.ownerIdx,
         joinRole:s.joinRole, isInvitedGuest:s.isInvitedGuest, joinedAt:s.joinedAt,
-        wallet:s.wallet, bet:s.bet,
+        wallet:s.wallet, bet:s.bet, handBets:this._ensureHandBets(s),
         insuranceBet:s.insuranceBet, insuranceDeclined:s.insuranceDeclined,
         tieBet:s.tieBet, sideBet:s.sideBet, sideBetAmt:s.sideBetAmt,
         hands:s.hands, activeHandIdx:s.activeHandIdx,

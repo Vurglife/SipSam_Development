@@ -325,6 +325,23 @@ function handTotal(hand) {
   };
 }
 
+function seatHandBets(seat) {
+  const hands = (Array.isArray(seat?.hands) && seat.hands.length) ? seat.hands : [[]];
+  const base = Math.max(0, Number(seat?.bet) || 0);
+  const raw = Array.isArray(seat?.handBets) ? seat.handBets : [];
+  return hands.map((_, hi) => Math.max(0, Number(raw[hi]) || base));
+}
+
+function activeHandBet(seat) {
+  const hi = Math.max(0, Number(seat?.activeHandIdx) || 0);
+  const bets = seatHandBets(seat);
+  return bets[hi] || Math.max(0, Number(seat?.bet) || 0);
+}
+
+function seatMainStake(seat) {
+  return seatHandBets(seat).reduce((sum, bet) => sum + (Number(bet) || 0), 0);
+}
+
 function _syncCardAnimationRound(roundNum) {
   const nextRound = roundNum ?? 'pending';
   if (_cardAnimationRound !== nextRound) {
@@ -1105,7 +1122,8 @@ function renderSeats(state) {
     const chipsEl = document.getElementById(`seat${vz}-chips`);
     if (chipsEl) chipsEl.textContent = (seat.wallet > 0) ? fmtChips(seat.wallet) : '';
     const betEl = document.getElementById(`seat${vz}-bet`);
-    if (betEl)   betEl.textContent   = (seat.bet > 0)    ? fmtChips(seat.bet)    : '';
+    const mainStake = seatMainStake(seat);
+    if (betEl)   betEl.textContent   = (mainStake > 0) ? fmtChips(mainStake) : '';
 
     const cardsEl = document.getElementById(`seat${vz}-cards`);
     if (cardsEl) {
@@ -1281,21 +1299,29 @@ function updateUI(state) {
     const hi   = mySeat.activeHandIdx || 0;
     const hand = (mySeat.hands || [[]])[hi] || [];
     const w    = mySeat.wallet || 0;
-    const b    = mySeat.bet    || 0;
+    const b    = activeHandBet(mySeat);
     const ht   = handTotal(hand);
+    const stood = !!mySeat.stood?.[hi];
+    const busted = !!mySeat.busted?.[hi] || ht.bust;
+    const canDouble = hand.length === 2 && !stood && !busted && !mySeat.splitAces && w >= b;
+    const canSplit = hand.length === 2 && !stood && !busted && !mySeat.splitAces
+                  && hand[0] && hand[1]
+                  && cardVal(hand[0]) === cardVal(hand[1])
+                  && (mySeat.hands || []).length < 4 && w >= b;
     const dbl  = document.getElementById('btn-double');
     const spl  = document.getElementById('btn-split');
     const hit  = document.getElementById('btn-hit');
     const stnd = document.getElementById('btn-stand');
-    if (hit)  hit.disabled  = ht.bust || mySeat.splitAces;
-    if (stnd) stnd.disabled = false;
-    if (dbl)  dbl.disabled  = hand.length !== 2 || w < b;
-    if (spl)  spl.disabled  = hand.length !== 2 || !hand[0] || !hand[1]
-                           || cardVal(hand[0]) !== cardVal(hand[1])
-                           || (mySeat.hands || []).length >= 4 || w < b;
+    if (hit)  hit.disabled  = busted || stood || mySeat.splitAces;
+    if (stnd) stnd.disabled = busted || stood;
+    if (dbl)  dbl.disabled  = !canDouble;
+    if (spl)  spl.disabled  = !canSplit;
     const ss = document.getElementById('split-status');
-    if (ss) ss.textContent = (mySeat.hands?.length > 1)
-      ? `Playing Hand ${hi + 1} of ${mySeat.hands.length}` : '';
+    if (ss) {
+      ss.textContent = (mySeat.hands?.length > 1)
+        ? `Playing Hand ${hi + 1} of ${mySeat.hands.length} - Stake ${fmtChips(b)}`
+        : (canDouble ? `Double adds ${fmtChips(b)}` : '');
+    }
   }
 
   // Wallet display
@@ -1520,8 +1546,7 @@ function flashTable(result) {
 function blackjackNetPayout(seat) {
   if (!seat) return 0;
   const credits = (seat.payout || []).reduce((sum, v) => sum + (Number(v) || 0), 0);
-  const handCount = Math.max(1, (seat.hands || []).length);
-  const mainStake = (Number(seat.bet) || 0) * handCount;
+  const mainStake = seatMainStake(seat);
   const sideStake = (Number(seat.tieBet) || 0) + (Number(seat.insuranceBet) || 0) + (Number(seat.sideBetAmt) || 0);
   return credits - mainStake - sideStake;
 }
