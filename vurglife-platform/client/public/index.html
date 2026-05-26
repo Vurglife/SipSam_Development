@@ -1773,6 +1773,15 @@ async function enterRouletteTable(minBet) {
   // Deduct wallet from bank on the platform
   try {
     const res = await apiPost('/api/game/roulette/enter', { tableMinBet: minBet });
+    if (res.code === 'active_wallet_session' && res.activeSession?.game === 'roulette') {
+      const active = res.activeSession;
+      const activeTable = ROULETTE_TABLES[Number(active.tableMinBet)];
+      if (activeTable) {
+        toast('Active Roulette Session', `Opening your active $${Number(active.tableMinBet).toLocaleString()} Roulette table. Exit it before switching tables.`);
+        openRouletteTable(activeTable, Number(active.walletSize || activeTable.wallet));
+        return;
+      }
+    }
     if (res.error) { toast('⚠️ Error', res.error); return; }
     if (res.newBankBalance != null) {
       currentUser.bankBalance  = res.newBankBalance;
@@ -1798,6 +1807,26 @@ async function enterRouletteTable(minBet) {
   const params = new URLSearchParams({
     minBet:   String(t.minBet),
     wallet:   String(t.wallet),
+    username: currentUser.username,
+    userId:   String(currentUser.id||currentUser.user_id||0),
+  });
+  window.location.href='/roulette/?' + params.toString();
+}
+
+function openRouletteTable(t, walletSize) {
+  const wallet = Math.max(0, Math.floor(Number(walletSize) || Number(t.wallet) || 0));
+  sessionStorage.setItem('roulette_table', JSON.stringify({...t, minBet:t.minBet, wallet}));
+  sessionStorage.setItem('roulette_user', JSON.stringify({
+    id: currentUser.id||currentUser.user_id||0,
+    username: currentUser.username,
+    token: authToken||'',
+    avatar: currentUser.avatarPreset||currentUser.avatar_preset||'',
+    bankBalance: currentUser.bankBalance||currentUser.bank_balance||0,
+  }));
+
+  const params = new URLSearchParams({
+    minBet:   String(t.minBet),
+    wallet:   String(wallet),
     username: currentUser.username,
     userId:   String(currentUser.id||currentUser.user_id||0),
   });

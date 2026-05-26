@@ -127,7 +127,17 @@ async function _walletEnter(game, userId, tableMinBet, cfg, description) {
         };
     }
     if (existing) {
-        return { status:409, error:'You already have an active wallet session. Exit that table before entering another.' };
+        return {
+            status: 409,
+            code: 'active_wallet_session',
+            error: 'You already have an active wallet session. Exit that table before entering another.',
+            activeSession: {
+                game,
+                tableMinBet: existing.tableMinBet,
+                walletSize: existing.walletSize,
+                startedAt: existing.at
+            }
+        };
     }
 
     const user = await UserDB.findById(userId);
