@@ -4,11 +4,14 @@
 // Works with plain WebSocket server in index.js
 // ============================================
 
-const Logic = require("./logic.js");
-const http  = require("http");
+const Logic    = require("./logic.js");
+const http     = require("http");
 // Canonical SipSam table tiers — single source of truth.
 // See shared/sipsam-tables.js + ARCHITECTURE.md §3.
 const SIPSAM_TABLES = require("../shared/sipsam-tables.js");
+// Side bets — schema/state only at this commit; behaviour lands in
+// subsequent commits per docs/system-development/sidebets-spec.md.
+const SideBets = require("./sideBets.js");
 
 // â”€â”€ PLATFORM API CALLER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Calls the VurgLife platform (localhost:3000) to settle bank transactions
@@ -85,7 +88,8 @@ class SipSamRoom {
             players:         {},
             message:         "",
             lobbyCountdown:  0,
-            isPrivate:       false
+            isPrivate:       false,
+            sideBets:        SideBets.emptyState()
         };
 
         console.log("SipSam Room Created");
@@ -744,7 +748,8 @@ class SipSamRoom {
             tableWalletSize: 0,
             bankerSessionId: '',
             players:         {},
-            message:         ''
+            message:         '',
+            sideBets:        SideBets.emptyState()
         };
         this._settled = false;
         console.log('[ROOM] Room reset complete — ready for new game.');
