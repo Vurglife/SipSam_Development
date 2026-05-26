@@ -30,6 +30,54 @@ const EUROPEAN_WHEEL = [
   5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
 ];
 
+const PARTNER_ODDS_WEIGHTS = Object.freeze({
+  first:  0.05,
+  second: 0.04,
+  third:  0.035,
+  fourth: 0.03,
+});
+
+const PARTNER_ODDS_TIERS = Object.freeze({
+  1:  { first: [21, 27], second: [17, 34], third: [16, 22, 2], fourth: [31, 24, 15, 10, 19, 28] },
+  2:  { first: [28], second: [31, 24, 15], third: [22, 5, 32, 1], fourth: ['00', 33, 11, 20, 29] },
+  3:  { first: [26], second: [33, 9], third: [5, 4], fourth: [34, 12, 21, 30] },
+  4:  { first: [28, 9], second: [2, 20, 0], third: [8, 3, 26], fourth: [13, 22, 31] },
+  5:  { first: [9], second: [33, 26, 31], third: [6, 2], fourth: [3, 32, 14, 23] },
+  6:  { first: [26, 9], second: [31, 2, 24, 15, 10, 8], third: [5], fourth: [33, 35, 17] },
+  7:  { first: ['00', 14, 21], second: [30, 11, 1, 27, 20], third: [8, 2, 0], fourth: [34, 25, 16] },
+  8:  { first: [6, 30, 2, 20], second: [], third: [4, 16, 32, 7], fourth: [17, 26, 25, 33, 24, 15] },
+  9:  { first: [4, 5, 6], second: [23, 16, 20, 17], third: [10], fourth: [18, 27, 36] },
+  10: { first: [1, 32, 13], second: [6, 12], third: [9], fourth: [28, 19] },
+  11: { first: [7, 17, 26], second: [25], third: ['00', 22, 33, 12], fourth: [2, 29, 20] },
+  12: { first: [32, 24], second: [21, 1, 23], third: [11], fourth: [3, 30] },
+  13: { first: [26, 31], second: [10], third: [14], fourth: [4, 22] },
+  14: { first: [21, 30, 7], second: [23, 33, 6], third: [13], fourth: [5, 32] },
+  15: { first: [30, 13, 6], second: [26], third: [16, 17], fourth: [24, 33, 8, 35] },
+  16: { first: [0, 19, 23], second: [32, 1, 8, 28, 2], third: [15, 18], fourth: [7, 34, 25, 31, 24, 26] },
+  17: { first: [1, 34, 26], second: ['00', 13, 22, 15], third: [18, 6], fourth: [8, 35, 33] },
+  18: { first: [0, 28, 32], second: [2, 3, 36], third: [17, 25, 16], fourth: [9, 27] },
+  19: { first: [1, 23, 16, 3], second: [], third: [20, 34], fourth: [28, 10] },
+  20: { first: [4, 8, 28], second: [2, 14], third: [19, 23, 30], fourth: [11, 29, 0, '00'] },
+  21: { first: ['00', 27, 1, 14, 12], second: [5], third: [22, 35, 16], fourth: [3, 30] },
+  22: { first: [34, 3, 2, 30], second: [23, 8], third: [21, 14, 24], fourth: [4, 31, 13] },
+  23: { first: [24, 25, 30, 12, 14], second: [26, 17, 32], third: [3, 36, 10, 29], fourth: [5, 11] },
+  24: { first: [23, 12, 1], second: [32, 2, 4, 35], third: [26, 17, 8], fourth: [15, 31, 6, 33] },
+  25: { first: [26, 23, 30], second: [11, 9, 4, 33], third: [], fourth: [7, 27, 16] },
+  26: { first: [3, 25, 6, 13], second: [5, 17, 15, 24, 29], third: [10, 21], fourth: [8, 35] },
+  27: { first: [35, '00', 1, 21, 12], second: [13, 6, 19], third: [28], fourth: [9, 18, 36, 33] },
+  28: { first: [4, 32, 8, 12], second: [16, 2, 20], third: [27, 26, 30], fourth: [1, 19, 10] },
+  29: { first: [24, 26], second: [23, 30, 11], third: [3, 36, 9], fourth: [2, 20] },
+  30: { first: [8, 14, 25, 23, 15], second: [12, 19, 20, 10, 3], third: [29, 36], fourth: [21, 0, '00'] },
+  31: { first: [13, 15, 33], second: [26, 2, 22], third: [32, 5], fourth: [4] },
+  32: { first: [23, 12, 28, 1, 16], second: [18, 8, 19, 20, 34], third: [31, 5], fourth: [14, 26, 17] },
+  33: { first: [35, 31, 5], second: [22, 14], third: [34, 17, 26], fourth: ['00', 2, 6, 15, 24, 8] },
+  34: { first: [17, 1, 23], second: [22, 19, 32], third: [33], fourth: [7, 25, 16] },
+  35: { first: [12, 27, 33], second: [26, 28, 19], third: [36, 17, 4, 30], fourth: [8, 1] },
+  36: { first: [1, 21, 14], second: [13, 18], third: [35, 26, 6, 34], fourth: ['00', 33, 9, 27, 32] },
+  '00': { first: [21, 8, 7], second: [33, 11, 23, 26, 17], third: [0, 19, 6, 28, 2], fourth: [10, 20, 30, 12] },
+  0:  { first: [16, 17], second: [18, '00', 4, 33, 26], third: [21, 1, 20, 5], fourth: [11, 30, 10] },
+});
+
 function colorOf(n) {
   if (n === 0 || n === '00') return 'green';
   if (RED_NUMBERS.has(n)) return 'red';
@@ -47,11 +95,66 @@ function pocketsFor(variant) {
     : [0, ...Array.from({ length: 36 }, (_, i) => i + 1)];
 }
 
-// Cryptographically random spin. Returns a pocket value (0, '00', or 1-36).
-function spin(variant) {
-  const wheel = wheelFor(variant);
-  const idx = crypto.randomInt(0, wheel.length);
-  return wheel[idx];
+// Cryptographically random spin. American mode uses the disclosed partner-odds
+// chart after the first round; other cases fall back to uniform wheel odds.
+function spin(variant, previousPocket) {
+  const distribution = spinDistribution(variant, previousPocket);
+  const roll = crypto.randomInt(0, 1_000_000) / 1_000_000;
+  let cumulative = 0;
+  for (const entry of distribution) {
+    cumulative += entry.probability;
+    if (roll < cumulative) return entry.pocket;
+  }
+  return distribution[distribution.length - 1].pocket;
+}
+
+function spinDistribution(variant, previousPocket) {
+  const pockets = pocketsFor(variant);
+  const tierMap = partnerTierMap(previousPocket);
+  if (variant !== 'american' || tierMap.size === 0) {
+    const probability = 1 / pockets.length;
+    return pockets.map((pocket) => ({ pocket, probability, tier: null }));
+  }
+
+  const boosted = new Map();
+  let boostedTotal = 0;
+  for (const pocket of pockets) {
+    const tier = tierMap.get(pocketKey(pocket));
+    if (!tier) continue;
+    const probability = PARTNER_ODDS_WEIGHTS[tier];
+    boosted.set(pocketKey(pocket), { probability, tier });
+    boostedTotal += probability;
+  }
+
+  const unboostedCount = pockets.length - boosted.size;
+  const remainder = Math.max(0, 1 - boostedTotal);
+  const normalProbability = unboostedCount > 0 ? remainder / unboostedCount : 0;
+
+  return pockets.map((pocket) => {
+    const boost = boosted.get(pocketKey(pocket));
+    return {
+      pocket,
+      probability: boost ? boost.probability : normalProbability,
+      tier: boost ? boost.tier : null,
+    };
+  });
+}
+
+function partnerTierMap(previousPocket) {
+  const tiers = PARTNER_ODDS_TIERS[pocketKey(previousPocket)];
+  const out = new Map();
+  if (!tiers) return out;
+  for (const tier of ['first', 'second', 'third', 'fourth']) {
+    for (const pocket of tiers[tier] || []) {
+      const key = pocketKey(pocket);
+      if (!out.has(key)) out.set(key, tier);
+    }
+  }
+  return out;
+}
+
+function pocketKey(n) {
+  return n === '00' ? '00' : String(Number(n));
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -381,10 +484,10 @@ function validateBets(bets, cfg) {
 module.exports = {
   // constants
   RED_NUMBERS, BLACK_NUMBERS, AMERICAN_WHEEL, EUROPEAN_WHEEL,
-  BET_PAYOUTS, BET_LABEL, COLUMNS, DOZENS,
+  BET_PAYOUTS, BET_LABEL, COLUMNS, DOZENS, PARTNER_ODDS_TIERS, PARTNER_ODDS_WEIGHTS,
   // helpers
   colorOf, wheelFor, pocketsFor, isValidPocket, isEvenMoney,
   isValidSplitTargets, isValidStreetTargets, isValidTrioTargets, isValidCornerTargets, isValidLineTargets,
   // core
-  spin, normalizeBet, resolveBets, validateBets,
+  spin, spinDistribution, normalizeBet, resolveBets, validateBets,
 };

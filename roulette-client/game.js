@@ -114,6 +114,54 @@ const ZERO_AREA_BETS = [
   { label: '0-00-2-3', type: 'corner', targets: [0, '00', 2, 3] },
 ];
 
+const PARTNER_ODDS_RATES = {
+  first: '5%',
+  second: '4%',
+  third: '3.5%',
+  fourth: '3%',
+};
+
+const PARTNER_ODDS_CHART = [
+  ['1',  '21, 27', '17, 34', '16, 22, 2', '31, 24, 15, 10, 19, 28'],
+  ['2',  '28', '31, 24, 15', '22, 5, 32, 1', '00, 33, 11, 20, 29'],
+  ['3',  '26', '33, 9', '5, 4', '34, 12, 21, 30'],
+  ['4',  '28, 9', '2, 20, 0', '8, 3, 26', '13, 22, 31'],
+  ['5',  '9', '33, 26, 31', '6, 2', '3, 32, 14, 23'],
+  ['6',  '26, 9', '31, 2, 24, 15, 10, 8', '5', '33, 35, 17'],
+  ['7',  '00, 14, 21', '30, 11, 1, 27, 20', '8, 2, 0', '34, 25, 16'],
+  ['8',  '6, 30, 2, 20', '', '4, 16, 32, 7', '17, 26, 25, 33, 24, 15'],
+  ['9',  '4, 5, 6', '23, 16, 20, 17', '10', '18, 27, 36'],
+  ['10', '1, 32, 13', '6, 12', '9', '28, 19'],
+  ['11', '7, 17, 26', '25', '00, 22, 33, 12', '2, 29, 20'],
+  ['12', '32, 24', '21, 1, 23', '11', '3, 30'],
+  ['13', '26, 31', '10', '14', '4, 22'],
+  ['14', '21, 30, 7', '23, 33, 6', '13', '5, 32'],
+  ['15', '30, 13, 6', '26', '16, 17', '24, 33, 8, 35'],
+  ['16', '0, 19, 23', '32, 1, 8, 28, 2', '15, 18', '7, 34, 25, 31, 24, 26'],
+  ['17', '1, 34, 26', '00, 13, 22, 15', '18, 6', '8, 35, 33'],
+  ['18', '0, 28, 32', '2, 3, 36', '17, 25, 16', '9, 27'],
+  ['19', '1, 23, 16, 3', '', '20, 34', '28, 10'],
+  ['20', '4, 8, 28', '2, 14', '19, 23, 30', '11, 29, 0, 00'],
+  ['21', '00, 27, 1, 14, 12', '5', '22, 35, 16', '3, 30'],
+  ['22', '34, 3, 2, 30', '23, 8', '21, 14, 24', '4, 31, 13'],
+  ['23', '24, 25, 30, 12, 14', '26, 17, 32', '3, 36, 10, 29', '5, 11'],
+  ['24', '23, 12, 1', '32, 2, 4, 35', '26, 17, 8', '15, 31, 6, 33'],
+  ['25', '26, 23, 30', '11, 9, 4, 33', '', '7, 27, 16'],
+  ['26', '3, 25, 6, 13', '5, 17, 15, 24, 29', '10, 21', '8, 35'],
+  ['27', '35, 00, 1, 21, 12', '13, 6, 19', '28', '9, 18, 36, 33'],
+  ['28', '4, 32, 8, 12', '16, 2, 20', '27, 26, 30', '1, 19, 10'],
+  ['29', '24, 26', '23, 30, 11', '3, 36, 9', '2, 20'],
+  ['30', '8, 14, 25, 23, 15', '12, 19, 20, 10, 3', '29, 36', '21, 0, 00'],
+  ['31', '13, 15, 33', '26, 2, 22', '32, 5', '4'],
+  ['32', '23, 12, 28, 1, 16', '18, 8, 19, 20, 34', '31, 5', '14, 26, 17'],
+  ['33', '35, 31, 5', '22, 14', '34, 17, 26', '00, 2, 6, 15, 24, 8'],
+  ['34', '17, 1, 23', '22, 19, 32', '33', '7, 25, 16'],
+  ['35', '12, 27, 33', '26, 28, 19', '36, 17, 4, 30', '8, 1'],
+  ['36', '1, 21, 14', '13, 18', '35, 26, 6, 34', '00, 33, 9, 27, 32'],
+  ['00', '21, 8, 7', '33, 11, 23, 26, 17', '0, 19, 6, 28, 2', '10, 20, 30, 12'],
+  ['0',  '16, 17', '18, 00, 4, 33, 26', '21, 1, 20, 5', '11, 30, 10'],
+];
+
 // ── URL params + sessionStorage handoff ────────────────────
 function readHandoff() {
   const p = new URLSearchParams(location.search);
@@ -1693,6 +1741,13 @@ window.showPayouts = function () {
     </table>
     ${basketNote}
     <p class="payouts-note"><strong>Zero-area bets:</strong> split supports 0-00, 0-1, 0-2, 00-2, and 00-3; trio supports 0-00-2, 0-1-2, and 00-2-3; corner supports 0-00-1-2 and 0-00-2-3.</p>
+    <p class="payouts-note"><strong>Partner odds:</strong> after a winning number, listed partner pockets are weighted for the next spin. First tier is ${PARTNER_ODDS_RATES.first} each, second tier ${PARTNER_ODDS_RATES.second} each, third tier ${PARTNER_ODDS_RATES.third} each, and fourth tier ${PARTNER_ODDS_RATES.fourth} each. Unlisted pockets share the remaining chance evenly.</p>
+    <div class="partner-chart-wrap">
+      <table class="partner-chart">
+        <tr><th>Number</th><th>1st</th><th>2nd</th><th>3rd</th><th>4th</th></tr>
+        ${partnerOddsRowsHtml()}
+      </table>
+    </div>
     <p class="payouts-note"><strong>Table limits:</strong>
        min $${(cfg?.minBet || 0).toLocaleString()},
        max $${(cfg?.maxBet || 0).toLocaleString()} per bet.</p>
@@ -1700,6 +1755,18 @@ window.showPayouts = function () {
   document.getElementById('payouts-overlay').style.display = 'flex';
   document.getElementById('game-menu').style.display = 'none';
 };
+
+function partnerOddsRowsHtml() {
+  return PARTNER_ODDS_CHART.map((row) => `
+    <tr>
+      <td>${row[0]}</td>
+      <td>${row[1] || '-'}</td>
+      <td>${row[2] || '-'}</td>
+      <td>${row[3] || '-'}</td>
+      <td>${row[4] || '-'}</td>
+    </tr>
+  `).join('');
+}
 
 // ── Small UX helpers ──────────────────────────────────────
 function flashMessage(txt) {

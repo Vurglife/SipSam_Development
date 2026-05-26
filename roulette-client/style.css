@@ -1085,7 +1085,7 @@ button {
   letter-spacing: 2px;
 }
 .gm-btn { padding: 10px; text-align: left; }
-.payouts-content { max-width: 380px; max-height: 82vh; overflow-y: auto; }
+.payouts-content { max-width: min(920px, 94vw); max-height: 82vh; overflow-y: auto; }
 
 .payouts-table {
   width: 100%;
@@ -1108,6 +1108,43 @@ button {
   padding: 6px 0; line-height: 1.4;
 }
 .payouts-note strong { color: var(--gold-lt); }
+.partner-chart-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid rgba(201,168,76,0.18);
+  border-radius: 8px;
+  margin: 6px 0 10px;
+}
+.partner-chart {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+}
+.partner-chart th,
+.partner-chart td {
+  padding: 5px 7px;
+  border-bottom: 1px solid rgba(201,168,76,0.12);
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.25;
+}
+.partner-chart th {
+  position: sticky;
+  top: 0;
+  background: #0b1c0d;
+  color: var(--gold-lt);
+  z-index: 1;
+}
+.partner-chart tr:nth-child(even) td {
+  background: rgba(255,255,255,0.035);
+}
+.partner-chart td:first-child,
+.partner-chart th:first-child {
+  color: var(--gold-lt);
+  font-weight: 900;
+  width: 58px;
+}
 
 .big-announce {
   position: fixed; top: 20%; left: 50%;

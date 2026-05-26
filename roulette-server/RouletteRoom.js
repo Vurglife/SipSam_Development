@@ -181,7 +181,8 @@ class RouletteRoom {
       return;
     }
     this.phase    = 'spinning';
-    this.winning  = engine.spin(this.variant);
+    const previousPocket = this.history[0]?.pocket;
+    this.winning  = engine.spin(this.variant, previousPocket);
     this.phaseEnd = Date.now() + SPINNING_SECONDS * 1000;
     // Show animation client-side. Winning number is already chosen.
     this.broadcast({
