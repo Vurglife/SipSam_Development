@@ -101,7 +101,7 @@ async function joinRoom(username, _authToken, _roomId) {
                 // Quick-join needs this server-side to match on tier + rounds.
                 let preRounds = 0, preBlitz = false;
                 try {
-                    const t = JSON.parse(sessionStorage.getItem('sipsam_table') || '{}');
+                    const t = window._pendingSipSamTable || JSON.parse(sessionStorage.getItem('sipsam_table') || '{}');
                     preRounds = Number(t.rounds) || 0;
                     preBlitz  = t.blitz === true;
                 } catch(e) {}
@@ -2575,6 +2575,10 @@ window.addEventListener('DOMContentLoaded', function() {
             window.location.replace('/');
             return;
         }
+
+        // Preserve the dashboard table choice for matchmake. sessionStorage is
+        // cleared before connect(), so joinRoom cannot read it there.
+        window._pendingSipSamTable = table;
 
         // Clear session storage immediately
         sessionStorage.removeItem('sipsam_user');
