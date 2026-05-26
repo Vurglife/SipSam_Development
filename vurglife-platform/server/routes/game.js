@@ -772,6 +772,29 @@ router.post('/debt-payment', requireAuth, async (req, res) => {
     res.json({ ok:true, debtPaid: amount, newBankBalance: user.bank_balance });
 });
 
+// POST /api/game/side-bet-transaction - wallet-only side-bet ledger entry.
+// The game server already moved chips inside the in-game wallet; this records
+// the audit trail without touching bank_balance.
+router.post('/side-bet-transaction', requireAuth, async (req, res) => {
+    if (!_isTrustedGameServer(req)) return res.status(403).json({ error: 'Game server only' });
+    const { type, amount, reference, description } = req.body || {};
+    const allowed = new Set(['side_bet_buy_in', 'side_bet_payout', 'side_bet_refund']);
+    const signed = Math.trunc(Number(amount) || 0);
+    if (!allowed.has(type)) return res.status(400).json({ error: 'Invalid side-bet transaction type' });
+    if (!signed) return res.status(400).json({ error: 'Invalid side-bet amount' });
+    if (type === 'side_bet_buy_in' && signed >= 0) return res.status(400).json({ error: 'Buy-in must be negative' });
+    if (type !== 'side_bet_buy_in' && signed <= 0) return res.status(400).json({ error: 'Payout/refund must be positive' });
+
+    await TxnDB.record(
+        req.userId,
+        type,
+        signed,
+        reference || 'sipsam',
+        description || 'SipSam side-bet wallet movement'
+    );
+    res.json({ ok:true });
+});
+
 // POST /api/game/replenish — top up wallet during game (SipSam, Rhum32, or Blackjack)
 router.post('/replenish', requireAuth, async (req, res) => {
     const { tableMinBet, currentWallet, game, amount } = req.body;

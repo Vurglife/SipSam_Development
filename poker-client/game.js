@@ -1358,7 +1358,7 @@ function updateOpponentSeats(state, revealed) {
 }
 
 function formatStatus(s) {
-    const m = { waiting:'Waiting...', betting:'Place Bets (10s)', arranging:'Arrange Cards (65s)', revealing:'Revealing Hands (30s)', roundEnd:'Round Complete', gameOver:'Game Over' };
+    const m = { waiting:'Waiting...', betting:'Place Bets (10s)', arranging:'Arrange Cards (65s)', revealing:'Revealing Hands (30s)', sideBetPhase:'Side Bets (7s)', roundEnd:'Round Complete', gameOver:'Game Over' };
     return m[s] || s;
 }
 
@@ -2694,6 +2694,8 @@ window.addEventListener('DOMContentLoaded', function() {
 // ═══════════════════════════════════════════════════════════════════════
 
 let _sbInitiatePending = null;   // { type, target?, value? } pending Confirm
+let _sbOfferPromptKey = '';
+let _sbOfferDismissedKey = '';
 
 function _sbEsc(s) {
     return String(s || '').replace(/[&<>"']/g, ch => (
@@ -2703,6 +2705,159 @@ function _sbEsc(s) {
         ch === '"' ? '&quot;' :
         '&#39;'
     ));
+}
+
+function _sbMoney(amount) {
+    const n = Math.floor(Number(amount) || 0);
+    return '$' + n.toLocaleString();
+}
+
+function _sbPlayerName(state, sid) {
+    const p = state && state.players && state.players[sid];
+    return (p && p.username) || '?';
+}
+
+function _sbCollectSideBetOffers(state) {
+    const sb = state && state.sideBets;
+    const phase = sb && sb.phaseActive;
+    const me = state && state.players && state.players[mySessionId];
+    if (!state || state.status !== 'sideBetPhase' || !sb || !phase || !me || me.isBot || me.pendingExit) {
+        return [];
+    }
+
+    const stake = _sbMoney(state.tableMinBet);
+    const offers = [];
+    if (phase === 'firstSpecial' && sb.firstSpecial && sb.firstSpecial.status === 'pending_accept') {
+        const already = sb.firstSpecial.participants && sb.firstSpecial.participants.find(x => x.sid === mySessionId);
+        if (!already) {
+            offers.push({
+                type: phase,
+                id: sb.firstSpecial.id,
+                title: 'First Special',
+                label: 'Accept First Special - ' + stake + ' stake',
+                detail: 'Join the table-wide First Special pot.'
+            });
+        }
+    }
+    if (phase === 'beatHand' && sb.beatHand) {
+        sb.beatHand.forEach(p => {
+            if (p.status === 'pending_accept' && p.targetSid === mySessionId) {
+                const chal = _sbPlayerName(state, p.challengerSid);
+                offers.push({
+                    type: phase,
+                    id: p.id,
+                    title: 'Beat Hand',
+                    label: 'Accept Beat Hand vs ' + chal + ' - ' + stake,
+                    detail: chal + ' challenged you to a best-of-3 hand side bet.'
+                });
+            }
+        });
+    }
+    if (phase === 'bestCard' && sb.bestCard) {
+        sb.bestCard.forEach(p => {
+            const already = p.participants && p.participants.find(x => x.sid === mySessionId);
+            if (p.status === 'pending_accept' && !already) {
+                const init = _sbPlayerName(state, p.initiatorSid);
+                offers.push({
+                    type: phase,
+                    id: p.id,
+                    title: 'Best Card',
+                    label: 'Accept Best Card (' + p.value + ') from ' + init + ' - ' + stake,
+                    detail: 'Highest suit of ' + p.value + ' wins this pot.'
+                });
+            }
+        });
+    }
+    return offers;
+}
+
+function _sbOfferKey(state, offers) {
+    const sb = state && state.sideBets;
+    const phase = (sb && sb.phaseActive) || '';
+    return phase + ':' + offers.map(o => o.type + ':' + o.id).sort().join('|');
+}
+
+function _sbEnsureOfferModal() {
+    let modal = document.getElementById('sb-offer-modal');
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = 'sb-offer-modal';
+    modal.className = 'sb-modal sb-offer-modal';
+    modal.style.display = 'none';
+    modal.innerHTML =
+        '<div class="sb-modal-card sb-offer-card">' +
+            '<div class="sb-modal-title">Side Bet Offer</div>' +
+            '<div id="sb-offer-list" class="sb-offer-list"></div>' +
+            '<div class="sb-modal-actions">' +
+                '<button id="sb-offer-ignore" class="sb-btn-cancel" type="button">Ignore</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(modal);
+    const ignore = document.getElementById('sb-offer-ignore');
+    if (ignore) ignore.onclick = sbIgnoreOffer;
+    return modal;
+}
+
+function _sbRenderOfferPrompt(state, offers) {
+    const modal = _sbEnsureOfferModal();
+    const list = document.getElementById('sb-offer-list');
+    if (!modal || !list) return;
+
+    if (!offers || !offers.length) {
+        modal.style.display = 'none';
+        _sbOfferPromptKey = '';
+        return;
+    }
+
+    const key = _sbOfferKey(state, offers);
+    _sbOfferPromptKey = key;
+    if (_sbOfferDismissedKey === key && modal.style.display !== 'flex') return;
+
+    list.innerHTML = '';
+    offers.forEach(o => {
+        const item = document.createElement('div');
+        item.className = 'sb-offer-item';
+        const text = document.createElement('div');
+        text.className = 'sb-offer-copy';
+        text.innerHTML =
+            '<strong>' + _sbEsc(o.title) + '</strong>' +
+            '<span>' + _sbEsc(o.detail) + '</span>';
+
+        const actions = document.createElement('div');
+        actions.className = 'sb-offer-actions';
+        const accept = document.createElement('button');
+        accept.className = 'sb-btn sb-btn-accept';
+        accept.type = 'button';
+        accept.textContent = o.label;
+        accept.onclick = () => {
+            _sbOfferDismissedKey = _sbOfferPromptKey;
+            modal.style.display = 'none';
+            sbAccept(o.type, o.id);
+        };
+        const decline = document.createElement('button');
+        decline.className = 'sb-btn sb-btn-decline';
+        decline.type = 'button';
+        decline.textContent = 'Decline';
+        decline.onclick = () => {
+            _sbOfferDismissedKey = _sbOfferPromptKey;
+            modal.style.display = 'none';
+            sbDecline(o.type, o.id);
+        };
+        actions.appendChild(accept);
+        actions.appendChild(decline);
+        item.appendChild(text);
+        item.appendChild(actions);
+        list.appendChild(item);
+    });
+
+    modal.style.display = 'flex';
+}
+
+function sbIgnoreOffer() {
+    _sbOfferDismissedKey = _sbOfferPromptKey;
+    const modal = document.getElementById('sb-offer-modal');
+    if (modal) modal.style.display = 'none';
 }
 
 function renderSideBets(state) {
@@ -2722,6 +2877,7 @@ function renderSideBets(state) {
 
     if (!inReveal && !inPhase && !hasAnyPot) {
         panel.style.display = 'none';
+        _sbRenderOfferPrompt(state, []);
         return;
     }
     panel.style.display = 'block';
@@ -2825,6 +2981,7 @@ function renderSideBets(state) {
             acceptRow.style.display = 'none';
         }
     }
+    _sbRenderOfferPrompt(state, _sbCollectSideBetOffers(state));
 }
 
 function sbOpenInitiate(type) {

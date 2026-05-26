@@ -1,5 +1,5 @@
 // ============================================================
-// SIPSAM SIDE BETS — Best Card implemented (step 3)
+// SIPSAM SIDE BETS
 // ============================================================
 // Source of truth for behaviour: docs/system-development/sidebets-spec.md
 //
@@ -8,11 +8,12 @@
 //   reveal-phase initiate -> 7s side-bet phase(s) accept ->
 //   round-end resolve. Final round + Blitz disable side bets.
 //
-// THIS COMMIT (step 3): Best Card behaviour — fresh-round only.
-// If no participant holds the chosen value at reveal-end, the pot
-// is refunded equally (carry-over deferred to step 3b; documented).
-// First Special + Beat Hand remain stubs ('not-implemented') until
-// steps 4 and 5 respectively.
+// Implemented bets:
+//   First Special: table-wide multi-round pot, ranked declaration wins.
+//   Beat Hand: targeted player-vs-player best-of-3 challenge.
+//   Best Card: chosen value, suit tiebreak H>S>D>C, fresh-round only.
+// If no participant holds the chosen Best Card value at reveal-end, the
+// pot is refunded equally; carry-over remains deferred.
 // ============================================================
 
 'use strict';
@@ -62,18 +63,30 @@ function _findPlayerSid(room, player) {
     return null;
 }
 
-function _deductWallet(player, amount) {
+function _recordWalletTxn(room, player, type, amount, ref, desc) {
+    if (room && typeof room.recordSideBetTransaction === 'function') {
+        room.recordSideBetTransaction(player, type, amount, ref, desc);
+    }
+}
+
+function _deductWallet(player, amount, room, ref, desc) {
     if (!player) return false;
     const a = Math.max(0, Math.floor(Number(amount) || 0));
     if ((player.chips || 0) < a) return false;
     player.chips = (player.chips || 0) - a;
+    _recordWalletTxn(room, player, 'side_bet_buy_in', -a, ref, desc);
     return true;
 }
 
-function _creditWallet(player, amount) {
+function _creditWallet(player, amount, room, type, ref, desc) {
     if (!player) return;
     const a = Math.max(0, Math.floor(Number(amount) || 0));
     player.chips = (player.chips || 0) + a;
+    _recordWalletTxn(room, player, type || 'side_bet_payout', a, ref, desc);
+}
+
+function _refundWallet(player, amount, room, ref, desc) {
+    _creditWallet(player, amount, room, 'side_bet_refund', ref, desc);
 }
 
 // ── State factory ────────────────────────────────────────────
@@ -142,12 +155,13 @@ function _initiateBestCard(room, player, opts) {
 
     const stake = Number(room.gameState.tableMinBet) || 0;
     if (stake <= 0) return { ok: false, error: 'Table min bet not set.' };
-    if (!_deductWallet(player, stake)) {
+    const potId = _genPotId('bc');
+    if (!_deductWallet(player, stake, room, `bestCard:${potId}`, `Best Card ${value} buy-in`)) {
         return { ok: false, error: `Insufficient wallet — need $${stake}.` };
     }
 
     const pot = {
-        id:             _genPotId('bc'),
+        id:             potId,
         type:           'bestCard',
         initiatorSid:   sid,
         value,
@@ -178,7 +192,7 @@ function _acceptBestCard(room, player, potId) {
     if (pot.participants.find(p => p.sid === sid)) return { ok: false, error: 'Already in this pot.' };
 
     const stake = Number(room.gameState.tableMinBet) || 0;
-    if (!_deductWallet(player, stake)) {
+    if (!_deductWallet(player, stake, room, `bestCard:${pot.id}`, `Best Card ${pot.value} accept`)) {
         return { ok: false, error: `Insufficient wallet — need $${stake}.` };
     }
     pot.participants.push({ sid, contributedTotal: stake });
@@ -201,7 +215,7 @@ function _finalizeBestCardPhase(room) {
         if (pot.status !== 'pending_accept') continue;
         if (pot.participants.length < 2) {
             const init = room.gameState.players[pot.initiatorSid];
-            _creditWallet(init, pot.pot);
+            _refundWallet(init, pot.pot, room, `bestCard:${pot.id}`, 'Best Card refund - no accepters');
             pot.status = 'refunded';
             console.log(`[SIDEBET][BC] pot ${pot.id} refunded (no accepters) — $${pot.pot} back to ${init && init.username}`);
             sb.bestCard.splice(i, 1);
@@ -240,7 +254,7 @@ function _resolveBestCardAtRoundEnd(room) {
 
         if (bestSid) {
             const winner = room.gameState.players[bestSid];
-            _creditWallet(winner, pot.pot);
+            _creditWallet(winner, pot.pot, room, 'side_bet_payout', `bestCard:${pot.id}`, `Best Card ${pot.value} payout`);
             pot.status     = 'resolved';
             pot.winnerSid  = bestSid;
             console.log(`[SIDEBET][BC] pot ${pot.id} resolved — winner=${winner && winner.username} +$${pot.pot}`);
@@ -254,7 +268,7 @@ function _resolveBestCardAtRoundEnd(room) {
             const remainder = pot.pot - (each * n);
             pot.participants.forEach((part, idx) => {
                 const p = room.gameState.players[part.sid];
-                _creditWallet(p, each + (idx === 0 ? remainder : 0));
+                _refundWallet(p, each + (idx === 0 ? remainder : 0), room, `bestCard:${pot.id}`, 'Best Card refund - no matching card');
             });
             pot.status = 'refunded';
             console.log(`[SIDEBET][BC] pot ${pot.id} no winner (value=${pot.value}) — refunded $${pot.pot} across ${n}`);
@@ -276,7 +290,7 @@ function _refundBestCardAtGameEnd(room) {
         const remainder = pot.pot - (each * n);
         pot.participants.forEach((part, idx) => {
             const p = room.gameState.players[part.sid];
-            _creditWallet(p, each + (idx === 0 ? remainder : 0));
+            _refundWallet(p, each + (idx === 0 ? remainder : 0), room, `bestCard:${pot.id}`, 'Best Card game-end refund');
         });
         pot.status = 'refunded';
         console.log(`[SIDEBET][BC] game-end refund pot ${pot.id} — $${pot.pot} across ${n}`);
@@ -303,11 +317,12 @@ function _initiateFirstSpecial(room, player /*, opts */) {
     }
     const stake = Number(room.gameState.tableMinBet) || 0;
     if (stake <= 0) return { ok: false, error: 'Table min bet not set.' };
-    if (!_deductWallet(player, stake)) {
+    const potId = _genPotId('fs');
+    if (!_deductWallet(player, stake, room, `firstSpecial:${potId}`, 'First Special buy-in')) {
         return { ok: false, error: `Insufficient wallet — need $${stake}.` };
     }
     sb.firstSpecial = {
-        id:                       _genPotId('fs'),
+        id:                       potId,
         type:                     'firstSpecial',
         initiatorSid:             sid,
         participants:             [{ sid, contributedTotal: stake }],
@@ -334,7 +349,7 @@ function _acceptFirstSpecial(room, player /*, potId */) {
     if (pot.participants.find(p => p.sid === sid)) return { ok: false, error: 'Already in this pot.' };
 
     const stake = Number(room.gameState.tableMinBet) || 0;
-    if (!_deductWallet(player, stake)) {
+    if (!_deductWallet(player, stake, room, `firstSpecial:${pot.id}`, 'First Special accept')) {
         return { ok: false, error: `Insufficient wallet — need $${stake}.` };
     }
     pot.participants.push({ sid, contributedTotal: stake });
@@ -351,7 +366,7 @@ function _finalizeFirstSpecialPhase(room) {
     if (!pot || pot.status !== 'pending_accept') return;
     if (pot.participants.length < 2) {
         const init = room.gameState.players[pot.initiatorSid];
-        _creditWallet(init, pot.pot);
+        _refundWallet(init, pot.pot, room, `firstSpecial:${pot.id}`, 'First Special refund - no accepters');
         pot.status = 'refunded';
         sb.firstSpecial = null;
         console.log(`[SIDEBET][FS] pot ${pot.id} refunded (no accepters) — $${pot.pot} back to ${init && init.username}`);
@@ -382,7 +397,7 @@ function _topupFirstSpecialAtRoundStart(room) {
         const p = room.gameState.players[part.sid];
         if (!p) { forfeited.push(part.sid); return false; }
         if (p.isGhostBot || p.pendingExit) { forfeited.push(part.sid); return false; }
-        if (!_deductWallet(p, stake)) {
+        if (!_deductWallet(p, stake, room, `firstSpecial:${pot.id}`, `First Special round ${round} top-up`)) {
             forfeited.push(part.sid);
             return false;     // contribution forfeit-to-pot per spec; pot.pot already holds their prior stakes
         }
@@ -434,7 +449,7 @@ function _resolveFirstSpecialAtRoundEnd(room) {
     const remainder = pot.pot - (each * winners.length);
     winners.forEach((w, idx) => {
         const p = room.gameState.players[w.sid];
-        _creditWallet(p, each + (idx === 0 ? remainder : 0));
+        _creditWallet(p, each + (idx === 0 ? remainder : 0), room, 'side_bet_payout', `firstSpecial:${pot.id}`, `First Special payout (${w.specialName})`);
         console.log(`[SIDEBET][FS] winner ${p && p.username} (${w.specialName} rank ${w.rank}) +$${each + (idx === 0 ? remainder : 0)}`);
     });
     pot.status = 'resolved';
@@ -453,7 +468,7 @@ function _refundFirstSpecialAtGameEnd(room) {
     const remainder = pot.pot - (each * n);
     pot.participants.forEach((part, idx) => {
         const p = room.gameState.players[part.sid];
-        _creditWallet(p, each + (idx === 0 ? remainder : 0));
+        _refundWallet(p, each + (idx === 0 ? remainder : 0), room, `firstSpecial:${pot.id}`, 'First Special game-end refund');
     });
     pot.status = 'refunded';
     sb.firstSpecial = null;
@@ -503,12 +518,13 @@ function _initiateBeatHand(room, player, opts) {
 
     const stake = Number(room.gameState.tableMinBet) || 0;
     if (stake <= 0) return { ok: false, error: 'Table min bet not set.' };
-    if (!_deductWallet(player, stake)) {
+    const potId = _genPotId('bh');
+    if (!_deductWallet(player, stake, room, `beatHand:${potId}`, `Beat Hand challenge vs ${target.username}`)) {
         return { ok: false, error: `Insufficient wallet — need $${stake}.` };
     }
 
     const pot = {
-        id:             _genPotId('bh'),
+        id:             potId,
         type:           'beatHand',
         challengerSid,
         targetSid,                 // the player invited to accept
@@ -538,7 +554,7 @@ function _acceptBeatHand(room, player, potId) {
         return { ok: false, error: 'This Beat Hand challenge was not addressed to you.' };
 
     const stake = Number(room.gameState.tableMinBet) || 0;
-    if (!_deductWallet(player, stake)) {
+    if (!_deductWallet(player, stake, room, `beatHand:${pot.id}`, 'Beat Hand accept')) {
         return { ok: false, error: `Insufficient wallet — need $${stake}.` };
     }
     pot.accepterSid = sid;
@@ -564,7 +580,7 @@ function _declineBeatHand(room, player, potId) {
         return { ok: true };
     }
     const challenger = room.gameState.players[pot.challengerSid];
-    _creditWallet(challenger, pot.pot);
+    _refundWallet(challenger, pot.pot, room, `beatHand:${pot.id}`, 'Beat Hand declined refund');
     pot.status = 'refunded';
     sb.beatHand.splice(idx, 1);
     console.log(`[SIDEBET][BH] ${player && player.username} declined pot ${pot.id} — refund $${pot.pot} to challenger`);
@@ -580,7 +596,7 @@ function _finalizeBeatHandPhase(room) {
         const pot = sb.beatHand[i];
         if (pot.status !== 'pending_accept') continue;
         const challenger = room.gameState.players[pot.challengerSid];
-        _creditWallet(challenger, pot.pot);
+        _refundWallet(challenger, pot.pot, room, `beatHand:${pot.id}`, 'Beat Hand no-response refund');
         pot.status = 'refunded';
         sb.beatHand.splice(i, 1);
         console.log(`[SIDEBET][BH] pot ${pot.id} refunded (no response) — $${pot.pot} back to challenger`);
@@ -635,13 +651,13 @@ function _resolveBeatHandAtRoundEnd(room) {
         if (split) {
             const each = Math.floor(pot.pot / 2);
             const rem  = pot.pot - 2 * each;
-            _creditWallet(chal, each + rem);             // rem (0 or 1) goes to challenger
-            _creditWallet(acc,  each);
+            _refundWallet(chal, each + rem, room, `beatHand:${pot.id}`, 'Beat Hand split refund'); // rem goes to challenger
+            _refundWallet(acc,  each, room, `beatHand:${pot.id}`, 'Beat Hand split refund');
             pot.status = 'refunded';
             console.log(`[SIDEBET][BH] pot ${pot.id} split (1.5–1.5 or both-DQ) — $${pot.pot}/2`);
         } else {
             const winner = room.gameState.players[winnerSid];
-            _creditWallet(winner, pot.pot);
+            _creditWallet(winner, pot.pot, room, 'side_bet_payout', `beatHand:${pot.id}`, 'Beat Hand payout');
             pot.status    = 'resolved';
             pot.winnerSid = winnerSid;
             console.log(`[SIDEBET][BH] pot ${pot.id} resolved — winner=${winner && winner.username} +$${pot.pot}`);
@@ -665,10 +681,10 @@ function _refundBeatHandAtGameEnd(room) {
         const acc  = pot.accepterSid && room.gameState.players[pot.accepterSid];
         if (acc) {
             const half = Math.floor(pot.pot / 2);
-            _creditWallet(chal, half + (pot.pot - 2 * half));
-            _creditWallet(acc, half);
+            _refundWallet(chal, half + (pot.pot - 2 * half), room, `beatHand:${pot.id}`, 'Beat Hand game-end refund');
+            _refundWallet(acc, half, room, `beatHand:${pot.id}`, 'Beat Hand game-end refund');
         } else {
-            _creditWallet(chal, pot.pot);
+            _refundWallet(chal, pot.pot, room, `beatHand:${pot.id}`, 'Beat Hand game-end refund');
         }
         pot.status = 'refunded';
         refunded.push(pot);
@@ -727,6 +743,14 @@ function resolveAtRoundEnd(room) {
     return { resolved, carried: [] };
 }
 
+function resolveAfterSideBetPhase(room) {
+    return resolveAtRoundEnd(room);
+}
+
+function resolveBestCardAfterSideBetPhase(room) {
+    return resolveAfterSideBetPhase(room);
+}
+
 function refundUnwonAtGameEnd(room) {
     const refunded = _refundBestCardAtGameEnd(room);
     const fs = _refundFirstSpecialAtGameEnd(room);
@@ -748,6 +772,8 @@ module.exports = {
     topupAtRoundStart,
     recordFirstSpecialDeclaration,
     resolveAtRoundEnd,
+    resolveAfterSideBetPhase,
+    resolveBestCardAfterSideBetPhase,
     refundUnwonAtGameEnd,
     SIDEBET_TYPES,
     // exported for unit smoke

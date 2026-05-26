@@ -9,8 +9,7 @@ const http     = require("http");
 // Canonical SipSam table tiers — single source of truth.
 // See shared/sipsam-tables.js + ARCHITECTURE.md §3.
 const SIPSAM_TABLES = require("../shared/sipsam-tables.js");
-// Side bets — schema/state only at this commit; behaviour lands in
-// subsequent commits per docs/system-development/sidebets-spec.md.
+// Side bets per docs/system-development/sidebets-spec.md.
 const SideBets = require("./sideBets.js");
 
 // â”€â”€ PLATFORM API CALLER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -118,6 +117,22 @@ class SipSamRoom {
             case "declineSideBet":    this._onDeclineSideBet(client, data);    break;
             default: console.log("Unknown message:", type);
         }
+    }
+
+    recordSideBetTransaction(player, type, amount, reference, description) {
+        if (!player || !player.token) return;
+        const signedAmount = Math.trunc(Number(amount) || 0);
+        if (!signedAmount) return;
+        callPlatformAPI('/api/game/side-bet-transaction', player.token, {
+            type,
+            amount:      signedAmount,
+            reference:   reference || null,
+            description: description || null,
+            tableMinBet: this.gameState.tableMinBet,
+            roomId:      this._roomId || null
+        }).then(r => {
+            if (!r || !r.ok) console.warn('[SIDEBET][TXN] record failed:', r && r.error);
+        }).catch(e => console.warn('[SIDEBET][TXN] record error:', e.message));
     }
 
     _onStartGame(client, data) {
@@ -515,11 +530,11 @@ class SipSamRoom {
     // by then the round has fully resolved — exits during roundEnd should
     // settle immediately, not wait for the next round to start.
     _isMidRoundPhase() {
-        return ['betting', 'arranging', 'revealing'].includes(this.gameState.status);
+        return ['betting', 'arranging', 'revealing', 'sideBetPhase'].includes(this.gameState.status);
     }
 
     // Player clicked Exit on the client. Behaviour by phase:
-    //   • betting / revealing  → mark pendingExit; reveal-end finalises
+    //   • betting / revealing / sideBetPhase → mark pendingExit; round-end finalises
     //   • arranging            → mark pendingExit AND auto-DQ them now so
     //                            the round can advance to reveal without
     //                            waiting on the arrange timer. Natural DQ
@@ -1011,8 +1026,9 @@ class SipSamRoom {
         }
         this.broadcastState();
         this.startCountdown(revealSecs, "revealing", () => {
-            // Resolve any side bets that should resolve at this reveal end.
-            // No-op until per-bet logic lands in subsequent commits.
+            // Resolve side bets that were locked before this reveal.
+            // Best Card pots initiated during this reveal resolve after their
+            // accept phase, once they have actually locked participants.
             try { SideBets.resolveAtRoundEnd(this); }
             catch(e) { console.error('[SIDEBETS] resolveAtRoundEnd threw:', e); }
 
@@ -1040,6 +1056,10 @@ class SipSamRoom {
     _startNextSideBetPhase() {
         const sb = this.gameState.sideBets;
         if (!sb || !sb.phaseQueue || sb.phaseQueue.length === 0) {
+            try {
+                if (SideBets.resolveAfterSideBetPhase) SideBets.resolveAfterSideBetPhase(this);
+                else if (SideBets.resolveBestCardAfterSideBetPhase) SideBets.resolveBestCardAfterSideBetPhase(this);
+            } catch(e) { console.error('[SIDEBETS] resolveAfterSideBetPhase threw:', e); }
             this._enterRoundEnd();
             return;
         }
@@ -1081,6 +1101,10 @@ class SipSamRoom {
     _onInitiateSideBet(client, data) {
         const player = this.gameState.players[client.sessionId];
         if (!player || player.isBot || player.isGhostBot) return;
+        if (player.pendingExit) {
+            this.sendToClient(client, { type:'sideBetError', message:'You are exiting - side bets disabled.' });
+            return;
+        }
         if (this.gameState.status !== 'revealing') {
             this.sendToClient(client, { type:'sideBetError', message:'Initiate only during reveal phase.' });
             return;
