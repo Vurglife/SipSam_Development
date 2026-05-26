@@ -837,6 +837,26 @@ class SipSamRoom {
             p.hand1=[]; p.hand2=[]; p.hand3=[];
             p.rawCards=[]; p.hasArranged=false;
         });
+
+        // Side-bet top-ups: active First Special pots charge each remaining
+        // participant minBet per round. Failures forfeit their contribution
+        // to the pot AND get DQ'd from this round's main game (no main-game
+        // chip penalty applied here — bet is zeroed so the banker-debt path
+        // doesn't fire for them; they simply sit out).
+        try {
+            const topup = SideBets.topupAtRoundStart(this);
+            const forfeited = (topup && topup.firstSpecial && topup.firstSpecial.forfeited) || [];
+            forfeited.forEach(sid => {
+                const p = this.gameState.players[sid];
+                if (!p) return;
+                p.disqualified     = true;
+                p.disqualifyReason = 'First Special top-up failed — insufficient wallet.';
+                p.lastSpecial      = '❌ Side-bet topup failed';
+                p.bet              = 0;
+                console.log(`[SIDEBET][FS] ${p.username} forfeited + DQ for top-up failure`);
+            });
+        } catch(e) { console.error('[SIDEBETS] topupAtRoundStart threw:', e); }
+
         // Promote ghost bots (left players) to real bots for this round
         // They were ghost last round — now they become a proper bot replacement
         let botNum = Object.values(this.gameState.players).filter(p => p.isBot && !p.isGhostBot).length + 1;
@@ -1558,6 +1578,12 @@ class SipSamRoom {
             player.hasArranged = true;
             console.log(`${player.username} declares special: ${specialName} (${chosen.multiplier}x) — accepted`);
             this.sendToClient(client, { type:'specialConfirmed', specialName, multiplier: chosen.multiplier });
+            // Side-bet hook: if a First Special pot is active and this
+            // player is a participant, record their (correct) declaration
+            // so reveal-end can pick the highest-rank winner across all
+            // declarers this round.
+            try { SideBets.recordFirstSpecialDeclaration(this, player, chosen); }
+            catch(e) { console.error('[SIDEBETS] recordFirstSpecialDeclaration threw:', e); }
             // Result announcement is broadcast after payout resolution so it can include bonus and payment.
         }
         this.broadcastState();
