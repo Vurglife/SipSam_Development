@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0b1c0d">
+  <title>Roulette — VURGLife</title>
+  <link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+
+<!-- ============ LOGIN / REDIRECT ============ -->
+<div id="screen-login" class="screen active">
+  <div class="login-card">
+    <h1>ROULETTE</h1>
+    <p class="subtitle">Connecting…</p>
+    <p id="login-status">Redirecting to VurgLife dashboard…</p>
+  </div>
+</div>
+
+<!-- ============ VARIANT / MODE SELECT ============ -->
+<div id="screen-mode" class="screen">
+  <div class="screen-bg">
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-grid"></div>
+  </div>
+
+  <div class="lobby-card glass-card">
+    <div class="card-accent"></div>
+
+    <div class="lobby-hero">
+      <div class="hero-icon">&#x1F3A1;</div>
+      <h2 class="lobby-title">ROUL<span class="gold">ETTE</span></h2>
+      <p class="lobby-subtitle">Place your chips. Spin the wheel.</p>
+    </div>
+
+    <div class="lobby-config-banner">
+      <div class="lobby-config-item">
+        <span class="lci-label">TABLE</span>
+        <span class="lci-value" id="lci-table">--</span>
+      </div>
+      <div class="lobby-config-divider"></div>
+      <div class="lobby-config-item">
+        <span class="lci-label">MIN BET</span>
+        <span class="lci-value" id="lci-minbet">--</span>
+      </div>
+      <div class="lobby-config-divider"></div>
+      <div class="lobby-config-item">
+        <span class="lci-label">WALLET</span>
+        <span class="lci-value" id="lci-wallet">--</span>
+      </div>
+    </div>
+
+    <p class="lobby-section-label">CHOOSE VARIANT</p>
+    <div class="variant-cards">
+      <button class="variant-card" data-variant="european" onclick="pickVariant('european')">
+        <div class="variant-card-title">European</div>
+        <div class="variant-card-sub">Single zero</div>
+        <div class="variant-card-edge">House edge 2.70%</div>
+        <div class="variant-card-badge">RECOMMENDED</div>
+      </button>
+      <button class="variant-card" data-variant="american" onclick="pickVariant('american')">
+        <div class="variant-card-title">American</div>
+        <div class="variant-card-sub">Double zero (0 &amp; 00)</div>
+        <div class="variant-card-edge">House edge 5.26%</div>
+        <div class="variant-card-badge">CLASSIC</div>
+      </button>
+    </div>
+
+    <p class="lobby-section-label">CHOOSE MODE</p>
+    <div class="mode-cards">
+      <button class="mode-card" data-mode="multiplayer" onclick="pickMode('multiplayer')">
+        <div class="mode-card-title">Multiplayer</div>
+        <div class="mode-card-desc">Share a wheel with other players at the same tier.</div>
+        <div class="mode-card-badge">2-6 PLAYERS</div>
+      </button>
+      <button class="mode-card" data-mode="single" onclick="pickMode('single')">
+        <div class="mode-card-title">Single Player</div>
+        <div class="mode-card-desc">Private table. Just you and the wheel.</div>
+        <div class="mode-card-badge">VS WHEEL</div>
+      </button>
+    </div>
+
+    <button id="btn-enter" class="btn-start" onclick="enterTable()" disabled>
+      <span class="btn-start-text">ENTER TABLE</span>
+      <span class="btn-start-arrow">&#x25B6;</span>
+    </button>
+    <button class="btn-back" onclick="backToDashboard()">&#x2190; Back to Dashboard</button>
+  </div>
+</div>
+
+<!-- ============ GAME SCREEN ============ -->
+<div id="screen-game" class="screen">
+
+  <div class="top-bar">
+    <span id="game-round" class="top-round">Round --</span>
+    <span id="game-status" class="top-status">--</span>
+    <div class="timer-box">
+      <div class="timer-ring-wrap">
+        <svg class="timer-ring-svg" viewBox="0 0 36 36">
+          <circle class="timer-ring-bg" cx="18" cy="18" r="15.9"/>
+          <circle class="timer-ring-fg" id="timer-ring" cx="18" cy="18" r="15.9"/>
+        </svg>
+        <span class="timer" id="game-timer">--</span>
+      </div>
+    </div>
+    <button class="btn-sm top-btn" onclick="toggleGameMenu()">Menu</button>
+  </div>
+  <div class="status-bar" id="table-message"></div>
+
+  <!-- IN-GAME MENU -->
+  <div id="game-menu" class="game-menu" style="display:none;">
+    <div class="gm-content">
+      <h3>Game Menu</h3>
+      <button class="btn-secondary gm-btn" onclick="showPayouts()">&#x1F48E; Payouts &amp; Specials</button>
+      <button class="btn-secondary gm-btn" onclick="replenishWallet()">Replenish Wallet</button>
+      <button class="btn-danger gm-btn" onclick="exitGame()">Exit Game</button>
+      <button class="btn-sm" onclick="toggleGameMenu()" style="margin-top:4px">Close</button>
+    </div>
+  </div>
+
+  <!-- PAYOUTS / SPECIALS -->
+  <div id="payouts-overlay" class="game-menu" style="display:none;">
+    <div class="gm-content payouts-content">
+      <h3>Payouts &amp; Specials</h3>
+      <div id="payouts-body"></div>
+      <button class="btn-sm" onclick="document.getElementById('payouts-overlay').style.display='none'">Close</button>
+    </div>
+  </div>
+
+  <div class="game-body">
+
+    <!-- WHEEL + HISTORY -->
+    <div class="wheel-zone">
+      <div class="wheel-wrap" id="wheel-wrap">
+        <div class="wheel" id="wheel">
+          <div class="wheel-inner"></div>
+          <div class="wheel-ball" id="wheel-ball"></div>
+          <div class="wheel-hub"></div>
+        </div>
+        <div class="winning-display" id="winning-display">
+          <span class="winning-label">LAST</span>
+          <span class="winning-num" id="winning-num">--</span>
+        </div>
+      </div>
+      <div class="history-strip" id="history-strip"></div>
+    </div>
+
+    <!-- BETTING BOARD -->
+    <div class="felt-zone">
+      <div class="felt">
+        <img class="table-watermark" src="VurgLife_logo_table.png?v=1" alt="">
+
+        <div class="board" id="board">
+          <!-- Zero row (0 spans tall; 00 only in American) -->
+          <div class="zero-col">
+            <button class="cell cell-zero" data-bet='{"type":"straight","target":0}'>0</button>
+            <button class="cell cell-zero" id="cell-dblzero" data-bet='{"type":"straight","target":"00"}' style="display:none">00</button>
+          </div>
+
+          <!-- Main 3x12 grid, generated by JS -->
+          <div class="grid-main" id="grid-main"></div>
+
+          <!-- Column 2:1 bets at the end -->
+          <div class="col-2to1" id="col-2to1">
+            <button class="cell cell-side" data-bet='{"type":"column","which":3}'>2:1</button>
+            <button class="cell cell-side" data-bet='{"type":"column","which":2}'>2:1</button>
+            <button class="cell cell-side" data-bet='{"type":"column","which":1}'>2:1</button>
+          </div>
+
+          <!-- Dozens strip (spans below grid) -->
+          <div class="dozens-row">
+            <button class="cell cell-wide" data-bet='{"type":"dozen","which":1}'>1st 12</button>
+            <button class="cell cell-wide" data-bet='{"type":"dozen","which":2}'>2nd 12</button>
+            <button class="cell cell-wide" data-bet='{"type":"dozen","which":3}'>3rd 12</button>
+          </div>
+
+          <!-- Outside even-money row -->
+          <div class="outside-row">
+            <button class="cell cell-ev" data-bet='{"type":"low"}'>1-18</button>
+            <button class="cell cell-ev" data-bet='{"type":"even"}'>EVEN</button>
+            <button class="cell cell-ev cell-red" data-bet='{"type":"red"}'>&#x25C6;</button>
+            <button class="cell cell-ev cell-black" data-bet='{"type":"black"}'>&#x25C6;</button>
+            <button class="cell cell-ev" data-bet='{"type":"odd"}'>ODD</button>
+            <button class="cell cell-ev" data-bet='{"type":"high"}'>19-36</button>
+          </div>
+
+          <!-- American basket row (only shown for american variant) -->
+          <div class="basket-row" id="basket-row" style="display:none;">
+            <button class="cell cell-wide" data-bet='{"type":"basket"}'>Basket (0-00-1-2-3) 6:1</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- CHIPS + MY CONTROLS (anchored bottom) -->
+    <div class="my-area">
+      <div class="my-info-bar">
+        <span id="my-name">--</span>
+        <span id="my-wallet">$--</span>
+        <span id="my-staked">Staked $0</span>
+      </div>
+
+      <div class="chip-row" id="chip-row"></div>
+
+      <div class="bet-controls">
+        <button class="btn-secondary" id="btn-undo" onclick="undoBet()">Undo</button>
+        <button class="btn-secondary" id="btn-clear" onclick="clearBets()">Clear</button>
+        <span class="selected-chip" id="selected-chip-label">CHIP: $100</span>
+      </div>
+
+      <div id="result-banner" class="result-banner" style="display:none;"></div>
+    </div>
+
+  </div>
+
+  <!-- BIG ANNOUNCEMENT OVERLAY -->
+  <div id="big-announcement" class="big-announce" style="display:none;"></div>
+
+</div>
+
+<script src="game.js?v=2"></script>
+</body>
+</html>

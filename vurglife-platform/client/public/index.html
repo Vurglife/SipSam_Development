@@ -1780,7 +1780,9 @@ async function enterRouletteTable(minBet) {
       refreshUI();
     }
   } catch(e) {
-    console.warn('[Roulette enter] platform call failed — continuing anyway:', e);
+    console.warn('[Roulette enter] platform call failed:', e);
+    toast('Error', 'Roulette table entry failed. Please try again.');
+    return;
   }
 
   sessionStorage.setItem('roulette_table', JSON.stringify({...t, minBet}));

@@ -349,7 +349,7 @@ router.post('/roulette/exit', requireAuth, async (req, res) => {
 
     try {
         const result = await _walletWithExitLock('roulette', req.userId, () =>
-            _walletExit('roulette', req.userId, remainingWallet, tableMinBet, false, req.body?.reason)
+            _walletExit('roulette', req.userId, remainingWallet, tableMinBet, _isTrustedGameServer(req), req.body?.reason)
         );
         res.json(result);
     } catch(e) {
@@ -768,6 +768,7 @@ router.post('/replenish', requireAuth, async (req, res) => {
     const gameKey = game || req.body.gameType;
     const configMap = gameKey === 'rhum32' ? RHUM32_TABLE_CONFIG
                     : gameKey === 'blackjack' ? BJ_TABLE_CONFIG
+                    : gameKey === 'roulette' ? ROULETTE_TABLE_CONFIG
                     : TABLE_CONFIG;
     const cfg = configMap[tableMinBet];
     if (!cfg)  return res.status(400).json({ error: 'Invalid table' });
@@ -782,7 +783,8 @@ router.post('/replenish', requireAuth, async (req, res) => {
         return res.status(400).json({ error: `Need $${topUp.toLocaleString()} in bank to replenish` });
 
     await UserDB.adjustBank(req.userId, -topUp);
-    await TxnDB.record(req.userId, 'wallet_replenish', -topUp, null, `Replenished wallet at $${tableMinBet} table`);
+    const replenishRef = gameKey === 'roulette' ? 'roulette' : null;
+    await TxnDB.record(req.userId, 'wallet_replenish', -topUp, replenishRef, `Replenished wallet at $${tableMinBet} table`);
 
     const updated = await UserDB.findById(req.userId);
     res.json({ ok:true, topUp, newBankBalance: updated.bank_balance, newWallet: wallet + topUp });
