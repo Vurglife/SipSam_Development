@@ -17,6 +17,8 @@
 
 'use strict';
 
+const Logic = require('./logic.js');     // for Beat Hand hand-comparison
+
 const SIDEBET_TYPES = Object.freeze({
     FIRST_SPECIAL: 'firstSpecial',
     BEAT_HAND:     'beatHand',
@@ -452,14 +454,223 @@ function _refundFirstSpecialAtGameEnd(room) {
     return pot;
 }
 
+// ── BEAT HAND ────────────────────────────────────────────────
+// Multi-pot, player-vs-player. Non-banker challenges a specific
+// non-banker opponent. Re-initiated every round. Resolution uses
+// the main SipSam hand-evaluator: +1 / +0.5 / 0 per hand (ties
+// split between the two sides). 1.5–1.5 → pot splits.
+
+function _isBanker(room, sid) {
+    return sid === room.gameState.bankerSessionId;
+}
+
+function _initiateBeatHand(room, player, opts) {
+    const challengerSid = _findPlayerSid(room, player);
+    if (!challengerSid) return { ok: false, error: 'Player not seated.' };
+    if (_isBanker(room, challengerSid)) return { ok: false, error: 'Banker cannot participate in Beat Hand.' };
+
+    const targetSid = String((opts && (opts.target || opts.targetSid)) || '');
+    if (!targetSid) return { ok: false, error: 'Beat Hand requires a target opponent.' };
+    if (targetSid === challengerSid) return { ok: false, error: 'Cannot challenge yourself.' };
+    if (_isBanker(room, targetSid)) return { ok: false, error: 'Banker cannot be challenged.' };
+
+    const target = room.gameState.players[targetSid];
+    if (!target || target.isGhostBot || target.disqualified || target.pendingExit) {
+        return { ok: false, error: 'Target opponent is not available.' };
+    }
+
+    const sb = room.gameState.sideBets;
+    if (!sb) return { ok: false, error: 'Side bets uninitialised.' };
+
+    // Spec: once two players are in a Beat Hand pot together this round,
+    // neither can issue another against the other. Check both directions.
+    const conflict = sb.beatHand.find(p =>
+        (p.challengerSid === challengerSid && p.accepterSid === targetSid) ||
+        (p.challengerSid === targetSid     && p.accepterSid === challengerSid) ||
+        // also block pending unaccepted pots between the same pair
+        (p.status === 'pending_accept' &&
+            ((p.challengerSid === challengerSid && p.targetSid === targetSid) ||
+             (p.challengerSid === targetSid     && p.targetSid === challengerSid)))
+    );
+    if (conflict) return { ok: false, error: 'Already in a Beat Hand with this opponent this round.' };
+
+    const stake = Number(room.gameState.tableMinBet) || 0;
+    if (stake <= 0) return { ok: false, error: 'Table min bet not set.' };
+    if (!_deductWallet(player, stake)) {
+        return { ok: false, error: `Insufficient wallet — need $${stake}.` };
+    }
+
+    const pot = {
+        id:             _genPotId('bh'),
+        type:           'beatHand',
+        challengerSid,
+        targetSid,                 // the player invited to accept
+        accepterSid:    null,      // populated on accept
+        pot:            stake,
+        status:         'pending_accept',
+        initiatedRound: room.gameState.round,
+    };
+    sb.beatHand.push(pot);
+    sb.initiationsThisRound.beatHand = true;
+    console.log(`[SIDEBET][BH] ${player.username} challenged ${target.username} (pot ${pot.id} stake=$${stake})`);
+    return { ok: true, potId: pot.id };
+}
+
+function _acceptBeatHand(room, player, potId) {
+    const sid = _findPlayerSid(room, player);
+    if (!sid) return { ok: false, error: 'Player not seated.' };
+    if (_isBanker(room, sid)) return { ok: false, error: 'Banker cannot participate in Beat Hand.' };
+
+    const sb  = room.gameState.sideBets;
+    const pot = sb && sb.beatHand.find(p => p.id === potId);
+    if (!pot) return { ok: false, error: 'Beat Hand pot not found.' };
+    if (pot.status !== 'pending_accept') return { ok: false, error: 'Pot already locked or resolved.' };
+    if (pot.targetSid !== sid)
+        return { ok: false, error: 'This Beat Hand challenge was not addressed to you.' };
+
+    const stake = Number(room.gameState.tableMinBet) || 0;
+    if (!_deductWallet(player, stake)) {
+        return { ok: false, error: `Insufficient wallet — need $${stake}.` };
+    }
+    pot.accepterSid = sid;
+    pot.pot        += stake;
+    pot.status      = 'locked';
+    console.log(`[SIDEBET][BH] ${player.username} accepted pot ${pot.id} — locked pot=$${pot.pot}`);
+    return { ok: true };
+}
+
+function _declineBeatHand(room, player, potId) {
+    // A targeted decline immediately refunds the challenger and removes the
+    // pot — there is no other accepter to wait for in a 1-vs-1 challenge.
+    const sid = _findPlayerSid(room, player);
+    if (!sid) return { ok: true };
+    const sb  = room.gameState.sideBets;
+    const idx = sb && sb.beatHand.findIndex(p => p.id === potId);
+    if (idx < 0) return { ok: true };
+    const pot = sb.beatHand[idx];
+    if (pot.status !== 'pending_accept') return { ok: true };
+    if (pot.targetSid !== sid) return { ok: true };
+    const challenger = room.gameState.players[pot.challengerSid];
+    _creditWallet(challenger, pot.pot);
+    pot.status = 'refunded';
+    sb.beatHand.splice(idx, 1);
+    console.log(`[SIDEBET][BH] ${player && player.username} declined pot ${pot.id} — refund $${pot.pot} to challenger`);
+    return { ok: true };
+}
+
+// At end of the Beat Hand side-bet phase: any pot still pending_accept
+// (no response from target) is refunded to challenger.
+function _finalizeBeatHandPhase(room) {
+    const sb = room.gameState.sideBets;
+    if (!sb) return;
+    for (let i = sb.beatHand.length - 1; i >= 0; i--) {
+        const pot = sb.beatHand[i];
+        if (pot.status !== 'pending_accept') continue;
+        const challenger = room.gameState.players[pot.challengerSid];
+        _creditWallet(challenger, pot.pot);
+        pot.status = 'refunded';
+        sb.beatHand.splice(i, 1);
+        console.log(`[SIDEBET][BH] pot ${pot.id} refunded (no response) — $${pot.pot} back to challenger`);
+    }
+}
+
+// Score one player's three hands vs another's. Returns numeric score
+// for side A (the challenger). Uses main Logic.compareHands so Flush
+// suit-tiebreak rules are applied identically to the main game.
+function _scoreBeatHand(playerA, playerB) {
+    const handsA = [playerA.hand1, playerA.hand2, playerA.hand3];
+    const handsB = [playerB.hand1, playerB.hand2, playerB.hand3];
+    let scoreA = 0;
+    for (let i = 0; i < 3; i++) {
+        const r = Logic.compareHands(handsA[i] || [], handsB[i] || []);
+        if (r > 0)      scoreA += 1;
+        else if (r < 0) scoreA += 0;        // B wins this hand
+        else            scoreA += 0.5;      // tie → split this hand
+    }
+    return scoreA;
+}
+
+function _resolveBeatHandAtRoundEnd(room) {
+    const sb = room.gameState.sideBets;
+    if (!sb) return [];
+    const resolved = [];
+    for (const pot of sb.beatHand) {
+        if (pot.status !== 'locked') continue;
+
+        const chal = room.gameState.players[pot.challengerSid];
+        const acc  = room.gameState.players[pot.accepterSid];
+        const chalDq = !chal || chal.disqualified || chal.isGhostBot;
+        const accDq  = !acc  || acc.disqualified  || acc.isGhostBot;
+
+        let winnerSid = null;
+        let split = false;
+        if (chalDq && accDq) {
+            split = true;
+        } else if (chalDq) {
+            winnerSid = pot.accepterSid;
+        } else if (accDq) {
+            winnerSid = pot.challengerSid;
+        } else {
+            const aScore = _scoreBeatHand(chal, acc);    // out of 3
+            const bScore = 3 - aScore;
+            if (aScore > bScore)       winnerSid = pot.challengerSid;
+            else if (bScore > aScore)  winnerSid = pot.accepterSid;
+            else                       split = true;     // 1.5–1.5
+            console.log(`[SIDEBET][BH] pot ${pot.id} scored — challenger ${aScore} vs accepter ${bScore}`);
+        }
+
+        if (split) {
+            const each = Math.floor(pot.pot / 2);
+            const rem  = pot.pot - 2 * each;
+            _creditWallet(chal, each + rem);             // rem (0 or 1) goes to challenger
+            _creditWallet(acc,  each);
+            pot.status = 'refunded';
+            console.log(`[SIDEBET][BH] pot ${pot.id} split (1.5–1.5 or both-DQ) — $${pot.pot}/2`);
+        } else {
+            const winner = room.gameState.players[winnerSid];
+            _creditWallet(winner, pot.pot);
+            pot.status    = 'resolved';
+            pot.winnerSid = winnerSid;
+            console.log(`[SIDEBET][BH] pot ${pot.id} resolved — winner=${winner && winner.username} +$${pot.pot}`);
+        }
+        resolved.push(pot);
+    }
+    sb.beatHand = sb.beatHand.filter(p => p.status !== 'resolved' && p.status !== 'refunded');
+    return resolved;
+}
+
+// Beat Hand is per-round. At game-end there shouldn't be unresolved
+// locked pots (they resolve at their own round's reveal-end). Any
+// stragglers refund to both sides.
+function _refundBeatHandAtGameEnd(room) {
+    const sb = room.gameState.sideBets;
+    if (!sb) return [];
+    const refunded = [];
+    for (const pot of sb.beatHand) {
+        if (pot.status === 'resolved' || pot.status === 'refunded') continue;
+        const chal = room.gameState.players[pot.challengerSid];
+        const acc  = pot.accepterSid && room.gameState.players[pot.accepterSid];
+        if (acc) {
+            const half = Math.floor(pot.pot / 2);
+            _creditWallet(chal, half + (pot.pot - 2 * half));
+            _creditWallet(acc, half);
+        } else {
+            _creditWallet(chal, pot.pot);
+        }
+        pot.status = 'refunded';
+        refunded.push(pot);
+    }
+    sb.beatHand = sb.beatHand.filter(p => p.status !== 'refunded');
+    return refunded;
+}
+
 // ── Dispatch ─────────────────────────────────────────────────
 
 function initiate(type, room, player, opts) {
     switch (type) {
         case SIDEBET_TYPES.BEST_CARD:     return _initiateBestCard(room, player, opts);
         case SIDEBET_TYPES.FIRST_SPECIAL: return _initiateFirstSpecial(room, player, opts);
-        case SIDEBET_TYPES.BEAT_HAND:
-            return { ok: false, error: `Side bet '${type}' not implemented yet.` };
+        case SIDEBET_TYPES.BEAT_HAND:     return _initiateBeatHand(room, player, opts);
         default:
             return { ok: false, error: `Unknown side bet type: ${type}` };
     }
@@ -469,6 +680,7 @@ function accept(type, room, player, potId) {
     switch (type) {
         case SIDEBET_TYPES.BEST_CARD:     return _acceptBestCard(room, player, potId);
         case SIDEBET_TYPES.FIRST_SPECIAL: return _acceptFirstSpecial(room, player, potId);
+        case SIDEBET_TYPES.BEAT_HAND:     return _acceptBeatHand(room, player, potId);
         default: return { ok: false, error: `Accept for '${type}' not implemented yet.` };
     }
 }
@@ -477,6 +689,7 @@ function decline(type, room, player, potId) {
     switch (type) {
         case SIDEBET_TYPES.BEST_CARD:     return _declineBestCard(room, player, potId);
         case SIDEBET_TYPES.FIRST_SPECIAL: return _declineFirstSpecial(room, player, potId);
+        case SIDEBET_TYPES.BEAT_HAND:     return _declineBeatHand(room, player, potId);
         default: return { ok: true };
     }
 }
@@ -484,6 +697,7 @@ function decline(type, room, player, potId) {
 function finalizePhase(room, phaseType) {
     if (phaseType === SIDEBET_TYPES.BEST_CARD)     _finalizeBestCardPhase(room);
     if (phaseType === SIDEBET_TYPES.FIRST_SPECIAL) _finalizeFirstSpecialPhase(room);
+    if (phaseType === SIDEBET_TYPES.BEAT_HAND)     _finalizeBeatHandPhase(room);
 }
 
 function topupAtRoundStart(room) {
@@ -495,6 +709,8 @@ function resolveAtRoundEnd(room) {
     const resolved = _resolveBestCardAtRoundEnd(room);
     const fs = _resolveFirstSpecialAtRoundEnd(room);
     if (fs) resolved.push(fs);
+    const bh = _resolveBeatHandAtRoundEnd(room);
+    bh.forEach(p => resolved.push(p));
     return { resolved, carried: [] };
 }
 
@@ -502,6 +718,8 @@ function refundUnwonAtGameEnd(room) {
     const refunded = _refundBestCardAtGameEnd(room);
     const fs = _refundFirstSpecialAtGameEnd(room);
     if (fs) refunded.push(fs);
+    const bh = _refundBeatHandAtGameEnd(room);
+    bh.forEach(p => refunded.push(p));
     return { refunded };
 }
 
