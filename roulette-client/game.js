@@ -85,6 +85,7 @@ const S = {
   wheelRotation: 0,
   ballAngle: 0,
   wheelAnimId: null,
+  wheelResetTimer: null,
 };
 
 const INSIDE_BET_SPECS = {
@@ -325,6 +326,7 @@ function onSpin(d) {
   S.phaseEnd = d.phaseEnd;
   S.phase    = 'spinning';
   S.lastWinning = d.winning;
+  cancelWheelResetTimer();
   animateWheel(d.winning);
   document.getElementById('game-status').textContent = 'Spinning…';
   document.getElementById('table-message').textContent = 'No more bets';
@@ -346,6 +348,7 @@ function onResolve(d) {
   renderWallet();
   showWinningNumber(d.winning, true);
   highlightWinningPocket(d.winning);
+  scheduleWheelRoundReset(d.phaseEnd);
   refreshPhaseUI();
 }
 
@@ -651,7 +654,11 @@ function polarPoint(radius, angleDeg) {
 function setWheelFaceRotation(deg) {
   S.wheelRotation = deg;
   const face = document.getElementById('wheel-face');
-  if (face) face.setAttribute('transform', `rotate(${deg} ${WHEEL_CENTER} ${WHEEL_CENTER})`);
+  if (!face) return;
+  face.removeAttribute('transform');
+  face.style.transformBox = 'view-box';
+  face.style.transformOrigin = `${WHEEL_CENTER}px ${WHEEL_CENTER}px`;
+  face.style.transform = `rotate(${deg}deg)`;
 }
 
 function setBallAtAngle(deg) {
@@ -1111,12 +1118,35 @@ function setWheelFocus(active) {
 }
 
 function clearWheelFocus() {
+  cancelWheelResetTimer();
+  if (S.wheelAnimId) {
+    cancelAnimationFrame(S.wheelAnimId);
+    S.wheelAnimId = null;
+  }
   setWheelFocus(false);
+  setBallAtAngle(0);
   if (S.lastWinning !== null && S.lastWinning !== undefined) {
     showWinningNumber(S.lastWinning, false);
   } else {
     showWinningNumber(undefined, false);
   }
+}
+
+function scheduleWheelRoundReset(phaseEnd) {
+  cancelWheelResetTimer();
+  const delay = Math.max(1100, Math.min(6200, (Number(phaseEnd) || Date.now()) - Date.now() + 120));
+  S.wheelResetTimer = setTimeout(() => {
+    S.wheelResetTimer = null;
+    setWheelFocus(false);
+    setBallAtAngle(0);
+    showWinningNumber(S.lastWinning !== null && S.lastWinning !== undefined ? S.lastWinning : undefined, false);
+  }, delay);
+}
+
+function cancelWheelResetTimer() {
+  if (!S.wheelResetTimer) return;
+  clearTimeout(S.wheelResetTimer);
+  S.wheelResetTimer = null;
 }
 
 function showResult(me) {

@@ -369,7 +369,9 @@ button {
   stroke-width: 3;
 }
 .wheel-face {
-  transform-origin: center;
+  transform-box: view-box;
+  transform-origin: 120px 120px;
+  will-change: transform;
 }
 .wheel-pocket {
   outline: none;
