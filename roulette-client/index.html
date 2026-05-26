@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#0b1c0d">
   <title>Roulette — VURGLife</title>
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
 
@@ -159,9 +159,9 @@
 
           <!-- Column 2:1 bets at the end -->
           <div class="col-2to1" id="col-2to1">
-            <button class="cell cell-side" data-bet='{"type":"column","which":3}'>2:1</button>
-            <button class="cell cell-side" data-bet='{"type":"column","which":2}'>2:1</button>
-            <button class="cell cell-side" data-bet='{"type":"column","which":1}'>2:1</button>
+            <button class="cell cell-side" data-bet='{"type":"column","which":3}'>Top Row 2:1</button>
+            <button class="cell cell-side" data-bet='{"type":"column","which":2}'>Mid Row 2:1</button>
+            <button class="cell cell-side" data-bet='{"type":"column","which":1}'>Bottom Row 2:1</button>
           </div>
 
           <!-- Dozens strip (spans below grid) -->
@@ -207,7 +207,10 @@
             <span>Split</span><b>17:1</b>
           </button>
           <button class="inside-mode-btn" data-inside-mode="street" onclick="setInsideMode('street')">
-            <span>Street</span><b>11:1</b>
+            <span>Row</span><b>11:1</b>
+          </button>
+          <button class="inside-mode-btn" data-inside-mode="trio" onclick="setInsideMode('trio')">
+            <span>Trio</span><b>11:1</b>
           </button>
           <button class="inside-mode-btn" data-inside-mode="corner" onclick="setInsideMode('corner')">
             <span>Corner</span><b>8:1</b>
@@ -228,6 +231,8 @@
       <div class="bet-controls">
         <button class="btn-secondary" id="btn-undo" onclick="undoBet()">Undo</button>
         <button class="btn-secondary" id="btn-clear" onclick="clearBets()">Clear</button>
+        <button class="btn-secondary" id="btn-repeat" onclick="repeatLastBets()" disabled>Repeat</button>
+        <button class="btn-secondary" id="btn-win-toggle" onclick="toggleWinValues()">Win: Off</button>
         <span class="selected-chip" id="selected-chip-label">CHIP: $100</span>
       </div>
 
@@ -241,6 +246,6 @@
 
 </div>
 
-<script src="game.js?v=8"></script>
+<script src="game.js?v=10"></script>
 </body>
 </html>

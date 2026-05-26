@@ -21,7 +21,7 @@ const WS_BASE  = (location.protocol === 'https:' ? 'wss://' : 'ws://')
 
 // ── Bet type labels + payouts (mirrors server engine.js) ──
 const BET_PAYOUTS = {
-  straight: 35, split: 17, street: 11, corner: 8, line: 5,
+  straight: 35, split: 17, street: 11, trio: 11, corner: 8, line: 5,
   basket: 6, column: 2, dozen: 2,
   red: 1, black: 1, even: 1, odd: 1, low: 1, high: 1,
 };
@@ -79,8 +79,10 @@ const S = {
   timerInt:  null,
   tableHooks: {}, // cellKey → DOM element for chip-stack update
   myBets:    [],  // mirror of server-side bets (for optimistic chip draw)
+  lastBets:  [],
   insideMode: null,
   insideSelection: [],
+  showWinValues: false,
   betView: 'table',
   wheelRotation: 0,
   ballAngle: 0,
@@ -90,7 +92,8 @@ const S = {
 
 const INSIDE_BET_SPECS = {
   split:  { label: 'Split',  count: 2, payout: '17:1' },
-  street: { label: 'Street', count: 3, payout: '11:1' },
+  street: { label: 'Row',    count: 3, payout: '11:1' },
+  trio:   { label: 'Trio',   count: 3, payout: '11:1' },
   corner: { label: 'Corner', count: 4, payout: '8:1' },
   line:   { label: 'Line',   count: 6, payout: '5:1' },
 };
@@ -326,6 +329,7 @@ function onSpin(d) {
   S.phaseEnd = d.phaseEnd;
   S.phase    = 'spinning';
   S.lastWinning = d.winning;
+  rememberLastBets();
   cancelWheelResetTimer();
   animateWheel(d.winning);
   document.getElementById('game-status').textContent = 'Spinning…';
@@ -406,6 +410,8 @@ function refreshPhaseUI() {
   });
   document.getElementById('btn-undo').disabled  = !bettingOpen;
   document.getElementById('btn-clear').disabled = !bettingOpen;
+  updateRepeatButton();
+  updateWinToggleButton();
   updateInsideBetUI();
   refreshBoardSelection();
   updateMyAreaHeight();
@@ -486,6 +492,75 @@ function attachBoardHandlers() {
     desc.amount = S.selectedChip;
     send({ type: 'placeBet', bet: desc });
   });
+}
+
+function rememberLastBets() {
+  if (!S.myBets.length) return;
+  const repeatable = S.myBets.map(repeatableBetFrom).filter(Boolean);
+  if (repeatable.length) S.lastBets = repeatable;
+  updateRepeatButton();
+}
+
+function repeatableBetFrom(b) {
+  const amount = Number(b.amount) || 0;
+  if (!amount || !b.type) return null;
+  if (b.type === 'straight') return { type: 'straight', target: b.numbers[0], amount };
+  if (['split', 'street', 'trio', 'corner', 'line'].includes(b.type)) {
+    return { type: b.type, targets: (b.numbers || []).slice(), amount };
+  }
+  if (b.type === 'column') return { type: 'column', which: b.which || columnForNumbers(b.numbers), amount };
+  if (b.type === 'dozen') return { type: 'dozen', which: b.which || dozenForNumbers(b.numbers), amount };
+  if (b.type === 'basket') return { type: 'basket', amount };
+  if (['red', 'black', 'even', 'odd', 'low', 'high'].includes(b.type)) return { type: b.type, amount };
+  return null;
+}
+
+function columnForNumbers(numbers) {
+  if (!Array.isArray(numbers) || !numbers.length) return 1;
+  return colOf(numbers[0]);
+}
+
+function dozenForNumbers(numbers) {
+  if (!Array.isArray(numbers) || !numbers.length) return 1;
+  const first = numbers[0];
+  if (first >= 25) return 3;
+  if (first >= 13) return 2;
+  return 1;
+}
+
+window.repeatLastBets = function () {
+  if (S.phase !== 'betting') return flashMessage('Betting is closed');
+  if (!S.lastBets.length) return flashMessage('No previous bet to repeat');
+  const repeatStake = S.lastBets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+  const currentStake = S.myBets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+  if (repeatStake + currentStake > S.wallet) {
+    return flashMessage('Not enough chips to repeat');
+  }
+  for (const bet of S.lastBets) {
+    send({ type: 'placeBet', bet: { ...bet, targets: bet.targets ? bet.targets.slice() : undefined } });
+  }
+};
+
+function updateRepeatButton() {
+  const btn = document.getElementById('btn-repeat');
+  if (!btn) return;
+  const repeatStake = S.lastBets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+  const currentStake = S.myBets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+  const canRepeat = S.phase === 'betting' && S.lastBets.length > 0 && repeatStake + currentStake <= S.wallet;
+  btn.disabled = !canRepeat;
+}
+
+window.toggleWinValues = function () {
+  S.showWinValues = !S.showWinValues;
+  updateWinToggleButton();
+  redrawChipStacks();
+};
+
+function updateWinToggleButton() {
+  const btn = document.getElementById('btn-win-toggle');
+  if (!btn) return;
+  btn.textContent = S.showWinValues ? 'Win: On' : 'Win: Off';
+  btn.classList.toggle('active', S.showWinValues);
 }
 
 window.setBetView = function (view) {
@@ -701,14 +776,26 @@ function redrawChipStacks() {
   const sums = new Map();
   for (const b of S.myBets) {
     const k = cellKeyForBet(b);
-    sums.set(k, (sums.get(k) || 0) + b.amount);
+    const prev = sums.get(k) || { amount: 0, win: 0 };
+    prev.amount += b.amount;
+    prev.win += potentialWinForBet(b);
+    sums.set(k, prev);
   }
-  for (const [key, total] of sums) {
+  for (const [key, sum] of sums) {
     const cell = findCellByKey(key);
     if (!cell) continue;
     const chip = document.createElement('div');
-    chip.className = 'chip-stack';
-    chip.textContent = fmtChip(total);
+    chip.className = 'chip-stack' + (S.showWinValues ? ' with-win' : '');
+    const stake = document.createElement('span');
+    stake.className = 'chip-stake';
+    stake.textContent = fmtChip(sum.amount);
+    chip.appendChild(stake);
+    if (S.showWinValues) {
+      const win = document.createElement('span');
+      win.className = 'chip-win-label';
+      win.textContent = '+$' + fmtChip(sum.win);
+      chip.appendChild(win);
+    }
     cell.appendChild(chip);
   }
   redrawWheelChipStacks();
@@ -725,9 +812,12 @@ function redrawWheelChipStacks() {
   for (const b of S.myBets) {
     if (b.type !== 'straight' || !b.numbers || !b.numbers.length) continue;
     const key = String(b.numbers[0]);
-    sums.set(key, (sums.get(key) || 0) + b.amount);
+    const prev = sums.get(key) || { amount: 0, win: 0 };
+    prev.amount += b.amount;
+    prev.win += potentialWinForBet(b);
+    sums.set(key, prev);
   }
-  for (const [key, total] of sums) {
+  for (const [key, sum] of sums) {
     let pocket = null;
     for (const node of face.querySelectorAll('.wheel-pocket')) {
       if (node.dataset.pocket === key) {
@@ -745,14 +835,30 @@ function redrawWheelChipStacks() {
     });
     chip.appendChild(svgEl('circle', { r: 8.5 }));
     const label = svgEl('text', {
+      class: 'wheel-chip-stake',
       'text-anchor': 'middle',
       'dominant-baseline': 'central',
       y: 0.5,
     });
-    label.textContent = fmtChip(total);
+    label.textContent = fmtChip(sum.amount);
     chip.appendChild(label);
+    if (S.showWinValues) {
+      const win = svgEl('text', {
+        class: 'wheel-chip-win',
+        'text-anchor': 'middle',
+        'dominant-baseline': 'central',
+        y: 15,
+      });
+      win.textContent = '+$' + fmtChip(sum.win);
+      chip.appendChild(win);
+    }
     face.appendChild(chip);
   }
+}
+
+function potentialWinForBet(b) {
+  const ratio = BET_PAYOUTS[b.type] || 0;
+  return (Number(b.amount) || 0) * ratio;
 }
 
 function findCellByKey(key) {
@@ -777,7 +883,7 @@ function fmtChip(n) {
   return String(n);
 }
 
-// Inside bets: mobile-safe precision controls for split, street, corner, line.
+// Inside bets: mobile-safe precision controls for split, row, trio, corner, line.
 window.setInsideMode = function (mode) {
   S.insideMode = mode && mode !== 'straight' ? mode : null;
   S.insideSelection = [];
@@ -888,7 +994,9 @@ function updateMyAreaHeight() {
 }
 
 function isEligibleInsideTarget(mode, target) {
-  if (mode === 'split') return target === 0 || target === '00' || isNumericTarget(target);
+  if (mode === 'split' || mode === 'trio' || mode === 'corner') {
+    return target === 0 || target === '00' || isNumericTarget(target);
+  }
   return isNumericTarget(target);
 }
 
@@ -938,9 +1046,10 @@ function isValidInsideSelection(mode, targets) {
   if (new Set(ns.map(formatTarget)).size !== ns.length) return false;
 
   if (mode === 'split') return isValidSplitSelection(ns);
+  if (mode === 'trio') return isValidTrioSelection(ns);
+  if (mode === 'corner') return isValidCornerSelection(ns);
   if (!ns.every(isNumericTarget)) return false;
   if (mode === 'street') return sameTargetSet(ns, streetForRow(rowOf(ns[0])));
-  if (mode === 'corner') return isValidCornerSelection(ns);
   if (mode === 'line') return isValidLineSelection(ns);
   return false;
 }
@@ -957,7 +1066,24 @@ function isValidSplitSelection(ns) {
   return sameRow || sameCol;
 }
 
+function isValidTrioSelection(ns) {
+  const zeroTrios = [
+    [0, '00', 2],
+    [0, 1, 2],
+    ['00', 2, 3],
+  ];
+  return zeroTrios.some((set) => sameTargetSet(ns, set));
+}
+
 function isValidCornerSelection(ns) {
+  if (ns.some((n) => n === 0 || n === '00')) {
+    const zeroCorners = [
+      [0, '00', 1, 2],
+      [0, '00', 2, 3],
+    ];
+    return zeroCorners.some((set) => sameTargetSet(ns, set));
+  }
+  if (!ns.every(isNumericTarget)) return false;
   const rows = [...new Set(ns.map(rowOf))].sort((a, b) => a - b);
   const cols = [...new Set(ns.map(colOf))].sort((a, b) => a - b);
   if (rows.length !== 2 || cols.length !== 2) return false;
@@ -1282,7 +1408,8 @@ window.showPayouts = function () {
       <tr><th>BET</th><th>PAYOUT</th></tr>
       <tr><td>Straight Up (1 number)</td><td>35:1</td></tr>
       <tr><td>Split (2 numbers)</td><td>17:1</td></tr>
-      <tr><td>Street (3 numbers)</td><td>11:1</td></tr>
+      <tr><td>Row (3 numbers)</td><td>11:1</td></tr>
+      <tr><td>Trio near 0/00 (3 numbers)</td><td>11:1</td></tr>
       <tr><td>Corner (4 numbers)</td><td>8:1</td></tr>
       <tr><td>Line (6 numbers)</td><td>5:1</td></tr>
       <tr><td>Basket (0-00-1-2-3)</td><td>6:1</td></tr>
@@ -1290,6 +1417,7 @@ window.showPayouts = function () {
       <tr><td>Red / Black / Odd / Even / 1-18 / 19-36</td><td>1:1</td></tr>
     </table>
     ${basketNote}
+    <p class="payouts-note"><strong>Zero-area bets:</strong> split supports 0-00, 0-1, 0-2, 00-2, and 00-3; trio supports 0-00-2, 0-1-2, and 00-2-3; corner supports 0-00-1-2 and 0-00-2-3.</p>
     <p class="payouts-note"><strong>Table limits:</strong>
        min $${(cfg?.minBet || 0).toLocaleString()},
        max $${(cfg?.maxBet || 0).toLocaleString()} per bet.</p>

@@ -452,6 +452,13 @@ button {
   font-weight: 900;
   letter-spacing: 0;
 }
+.wheel-chip .wheel-chip-win {
+  fill: var(--gold-lt);
+  stroke: rgba(0,0,0,0.85);
+  stroke-width: 0.4;
+  paint-order: stroke;
+  font-size: 5px;
+}
 
 .winning-display {
   position: absolute; left: 50%; top: 50%;
@@ -647,7 +654,15 @@ button {
   flex: 1;
   font-size: 0.95rem;
 }
-.cell-side { background: rgba(0,0,0,0.55); font-size: 0.7rem; color: var(--gold-lt); }
+.cell-side {
+  background: rgba(0,0,0,0.55);
+  font-size: 0.56rem;
+  line-height: 1.05;
+  padding: 2px;
+  color: var(--gold-lt);
+  text-align: center;
+  white-space: normal;
+}
 .cell-wide { background: rgba(0,0,0,0.55); font-weight: 700; font-size: 0.8rem; min-height: 30px; }
 .cell-ev {
   background: rgba(0,0,0,0.55);
@@ -671,6 +686,32 @@ button {
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 0 0 1px #000, 0 2px 4px rgba(0,0,0,0.5);
   pointer-events: none;
+  z-index: 4;
+}
+.cell .chip-stack.with-win {
+  right: -2px;
+  bottom: -2px;
+  width: auto;
+  min-width: 35px;
+  height: 25px;
+  padding: 2px 4px;
+  border-radius: 8px;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1;
+}
+.chip-stake {
+  display: block;
+}
+.chip-win-label {
+  display: block;
+  max-width: 42px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 7px;
+  font-weight: 900;
+  color: #0d3a16;
 }
 .cell.hit {
   animation: hit 1.2s ease 2;
@@ -720,7 +761,7 @@ button {
 }
 .inside-mode-row {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 4px;
 }
 .inside-mode-btn {
@@ -833,6 +874,7 @@ button {
 
 .bet-controls {
   display: flex; gap: 8px; align-items: center;
+  flex-wrap: wrap;
   padding: 3px 0 0;
 }
 .btn-secondary {
@@ -844,6 +886,15 @@ button {
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 1px;
+}
+.btn-secondary.active {
+  background: linear-gradient(135deg, rgba(139,105,20,0.84), rgba(240,208,128,0.74));
+  color: #1a1000;
+  border-color: rgba(255,245,208,0.7);
+}
+.btn-secondary:disabled {
+  opacity: 0.38;
+  cursor: default;
 }
 .btn-danger {
   background: var(--danger);

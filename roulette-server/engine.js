@@ -65,6 +65,7 @@ const BET_PAYOUTS = {
   straight: 35,   // 1 number
   split:    17,   // 2 adjacent numbers
   street:   11,   // 3 numbers in a row
+  trio:     11,   // 3-number zero-area bet
   corner:    8,   // 4 numbers in a square
   line:      5,   // 6 numbers in two adjacent rows
   basket:    6,   // American only — 0, 00, 1, 2, 3 (house edge ~7.9%, worst bet)
@@ -81,7 +82,8 @@ const BET_PAYOUTS = {
 const BET_LABEL = {
   straight: 'Straight Up',
   split:    'Split',
-  street:   'Street',
+  street:   'Row',
+  trio:     'Trio',
   corner:   'Corner',
   line:     'Line',
   basket:   'Basket (0-00-1-2-3)',
@@ -112,6 +114,7 @@ const DOZENS = {
 //   { type:'straight', target: 17 }
 //   { type:'split',    targets: [1, 2] }
 //   { type:'street',   targets: [1, 2, 3] }
+//   { type:'trio',     targets: [0, '00', 2] }
 //   { type:'corner',   targets: [1, 2, 4, 5] }
 //   { type:'line',     targets: [1, 2, 3, 4, 5, 6] }
 //   { type:'basket' }                        — american only; fixed [0,'00',1,2,3]
@@ -136,9 +139,14 @@ function normalizeBet(desc, variant) {
       if (!isValidStreetTargets(ns)) throw new Error('Invalid street shape');
       return { type: t, numbers: [...ns] };
     }
+    case 'trio': {
+      const ns = normalizeTargets(desc.targets, variant, 3, 'Trio');
+      if (!isValidTrioTargets(ns, variant)) throw new Error('Invalid trio shape');
+      return { type: t, numbers: [...ns] };
+    }
     case 'corner': {
       const ns = normalizeTargets(desc.targets, variant, 4, 'Corner');
-      if (!isValidCornerTargets(ns)) throw new Error('Invalid corner shape');
+      if (!isValidCornerTargets(ns, variant)) throw new Error('Invalid corner shape');
       return { type: t, numbers: [...ns] };
     }
     case 'line': {
@@ -255,7 +263,25 @@ function isValidStreetTargets(ns) {
   return samePocketSet(ns, streetForRow(rowOf(ns[0])));
 }
 
-function isValidCornerTargets(ns) {
+function isValidTrioTargets(ns, variant) {
+  if (variant !== 'american') return false;
+  const zeroTrios = [
+    [0, '00', 2],
+    [0, 1, 2],
+    ['00', 2, 3],
+  ];
+  return zeroTrios.some((set) => samePocketSet(ns, set));
+}
+
+function isValidCornerTargets(ns, variant) {
+  if (ns.some((n) => n === 0 || n === '00')) {
+    if (variant !== 'american') return false;
+    const zeroCorners = [
+      [0, '00', 1, 2],
+      [0, '00', 2, 3],
+    ];
+    return zeroCorners.some((set) => samePocketSet(ns, set));
+  }
   if (!ns.every(isNumericTablePocket)) return false;
   const rows = [...new Set(ns.map(rowOf))].sort((a, b) => a - b);
   const cols = [...new Set(ns.map(colOf))].sort((a, b) => a - b);
@@ -358,7 +384,7 @@ module.exports = {
   BET_PAYOUTS, BET_LABEL, COLUMNS, DOZENS,
   // helpers
   colorOf, wheelFor, pocketsFor, isValidPocket, isEvenMoney,
-  isValidSplitTargets, isValidStreetTargets, isValidCornerTargets, isValidLineTargets,
+  isValidSplitTargets, isValidStreetTargets, isValidTrioTargets, isValidCornerTargets, isValidLineTargets,
   // core
   spin, normalizeBet, resolveBets, validateBets,
 };
