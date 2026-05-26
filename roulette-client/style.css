@@ -612,6 +612,7 @@ button {
 }
 .grid-main {
   grid-area: main;
+  position: relative;
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   grid-template-rows: repeat(3, 1fr);
@@ -632,6 +633,97 @@ button {
 .basket-row {
   grid-area: basket;
   display: grid; grid-template-columns: 1fr; gap: 3px;
+}
+
+.grid-hotspots {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+.bet-hotspot {
+  position: absolute;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid rgba(255,233,168,0.4);
+  background: rgba(240,208,128,0.08);
+  color: #1a1000;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  opacity: 0.12;
+  transition: opacity 0.12s, background 0.12s, box-shadow 0.12s;
+  z-index: 6;
+}
+.bet-hotspot:hover,
+.bet-hotspot:focus-visible,
+.bet-hotspot:active {
+  opacity: 0.92;
+  background: rgba(240,208,128,0.82);
+  box-shadow: 0 0 10px rgba(240,208,128,0.45);
+}
+.bet-hotspot.has-chip,
+.zero-special-bet.has-chip {
+  opacity: 1;
+}
+.bet-hotspot.betting-closed,
+.zero-special-bet.betting-closed {
+  opacity: 0.24;
+}
+.bet-hotspot-split-h {
+  width: clamp(14px, 2.1vw, 22px);
+  height: 42%;
+  border-radius: 999px;
+}
+.bet-hotspot-split-v {
+  width: 64%;
+  max-width: 42px;
+  height: clamp(14px, 2.1vw, 22px);
+  border-radius: 999px;
+}
+.bet-hotspot-corner {
+  width: clamp(16px, 2.4vw, 24px);
+  height: clamp(16px, 2.4vw, 24px);
+  border-radius: 50%;
+  z-index: 8;
+}
+.bet-hotspot-street,
+.bet-hotspot-line {
+  top: calc(100% + 1px) !important;
+  width: clamp(15px, 2.2vw, 22px);
+  height: clamp(14px, 2vw, 18px);
+  border-radius: 5px;
+  opacity: 0.5;
+}
+.bet-hotspot-line {
+  z-index: 9;
+  border-color: rgba(154,238,170,0.65);
+  background: rgba(154,238,170,0.22);
+}
+
+.zero-special-bets {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 3px;
+}
+.zero-special-bet {
+  position: relative;
+  min-height: 26px;
+  padding: 4px 2px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,233,168,0.24);
+  background: rgba(0,0,0,0.55);
+  color: var(--gold-lt);
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.zero-special-bet:active {
+  transform: scale(0.96);
+  filter: brightness(1.2);
 }
 
 .cell {
@@ -674,8 +766,10 @@ button {
 .cell-red   { background: var(--red);   color: #fff; }
 .cell-black { background: var(--black); color: #fff; }
 
-/* Bet chips drawn on cells */
-.cell .chip-stack {
+/* Bet chips drawn on cells and direct bet hotspots */
+.cell .chip-stack,
+.bet-hotspot .chip-stack,
+.zero-special-bet .chip-stack {
   position: absolute;
   right: 1px; bottom: 1px;
   width: 16px; height: 16px;
@@ -688,7 +782,9 @@ button {
   pointer-events: none;
   z-index: 4;
 }
-.cell .chip-stack.with-win {
+.cell .chip-stack.with-win,
+.bet-hotspot .chip-stack.with-win,
+.zero-special-bet .chip-stack.with-win {
   right: -2px;
   bottom: -2px;
   width: auto;

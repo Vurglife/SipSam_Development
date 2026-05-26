@@ -83,6 +83,9 @@ const S = {
   insideMode: null,
   insideSelection: [],
   showWinValues: false,
+  soundEnabled: true,
+  audioCtx: null,
+  spinSoundTimer: null,
   betView: 'table',
   wheelRotation: 0,
   ballAngle: 0,
@@ -97,6 +100,19 @@ const INSIDE_BET_SPECS = {
   corner: { label: 'Corner', count: 4, payout: '8:1' },
   line:   { label: 'Line',   count: 6, payout: '5:1' },
 };
+
+const ZERO_AREA_BETS = [
+  { label: '0-00', type: 'split', targets: [0, '00'] },
+  { label: '0-1', type: 'split', targets: [0, 1] },
+  { label: '0-2', type: 'split', targets: [0, 2] },
+  { label: '00-2', type: 'split', targets: ['00', 2] },
+  { label: '00-3', type: 'split', targets: ['00', 3] },
+  { label: '0-00-2', type: 'trio', targets: [0, '00', 2] },
+  { label: '0-1-2', type: 'trio', targets: [0, 1, 2] },
+  { label: '00-2-3', type: 'trio', targets: ['00', 2, 3] },
+  { label: '0-00-1-2', type: 'corner', targets: [0, '00', 1, 2] },
+  { label: '0-00-2-3', type: 'corner', targets: [0, '00', 2, 3] },
+];
 
 // ── URL params + sessionStorage handoff ────────────────────
 function readHandoff() {
@@ -138,6 +154,98 @@ function showScreen(id) {
   const el = document.getElementById(id);
   if (el) el.classList.add('active');
 }
+
+// Browser-safe synthesized sounds. Audio starts only after a player gesture.
+function ensureAudio() {
+  if (!S.soundEnabled) return null;
+  const AudioCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtor) return null;
+  if (!S.audioCtx) S.audioCtx = new AudioCtor();
+  if (S.audioCtx.state === 'suspended') S.audioCtx.resume().catch(() => {});
+  return S.audioCtx;
+}
+
+function playTone(freq, duration, type, delay, gainValue) {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  const when = ctx.currentTime + (delay || 0);
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.setValueAtTime(freq, when);
+  gain.gain.setValueAtTime(0.0001, when);
+  gain.gain.exponentialRampToValueAtTime(gainValue || 0.035, when + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, when + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(when);
+  osc.stop(when + duration + 0.02);
+}
+
+function playSound(name) {
+  if (!S.soundEnabled) return;
+  if (name === 'chip') {
+    playTone(520, 0.055, 'triangle', 0, 0.04);
+    playTone(760, 0.045, 'triangle', 0.035, 0.025);
+  } else if (name === 'button') {
+    playTone(360, 0.045, 'sine', 0, 0.025);
+  } else if (name === 'error') {
+    playTone(150, 0.09, 'sawtooth', 0, 0.035);
+    playTone(110, 0.12, 'sawtooth', 0.075, 0.025);
+  } else if (name === 'tick') {
+    playTone(1180, 0.028, 'square', 0, 0.018);
+  } else if (name === 'win') {
+    playTone(520, 0.08, 'triangle', 0, 0.04);
+    playTone(660, 0.08, 'triangle', 0.08, 0.04);
+    playTone(880, 0.16, 'triangle', 0.16, 0.05);
+  } else if (name === 'lose') {
+    playTone(260, 0.09, 'triangle', 0, 0.028);
+    playTone(190, 0.16, 'triangle', 0.09, 0.025);
+  } else if (name === 'push') {
+    playTone(420, 0.08, 'sine', 0, 0.025);
+  }
+}
+
+function startSpinSound() {
+  stopSpinSound();
+  if (!S.soundEnabled) return;
+  const started = Date.now();
+  const tick = () => {
+    if (S.phase !== 'spinning') return stopSpinSound();
+    playSound('tick');
+    const elapsed = Date.now() - started;
+    const next = Math.min(240, 45 + elapsed / 42);
+    S.spinSoundTimer = setTimeout(tick, next);
+  };
+  playTone(95, 0.45, 'sawtooth', 0, 0.018);
+  S.spinSoundTimer = setTimeout(tick, 40);
+}
+
+function stopSpinSound() {
+  if (!S.spinSoundTimer) return;
+  clearTimeout(S.spinSoundTimer);
+  S.spinSoundTimer = null;
+}
+
+function updateSoundButton() {
+  const btn = document.getElementById('btn-sound-toggle');
+  if (!btn) return;
+  btn.textContent = S.soundEnabled ? 'Sound: On' : 'Sound: Off';
+  btn.classList.toggle('active', S.soundEnabled);
+}
+
+window.toggleSound = function () {
+  S.soundEnabled = !S.soundEnabled;
+  if (!S.soundEnabled) stopSpinSound();
+  else {
+    ensureAudio();
+    playSound('button');
+  }
+  updateSoundButton();
+};
+
+window.addEventListener('pointerdown', () => ensureAudio(), { passive: true });
+window.addEventListener('keydown', () => ensureAudio());
 
 // ── Mode-select screen ────────────────────────────────────
 window.pickVariant = function (v) {
@@ -296,6 +404,7 @@ function handleMessage(data) {
 }
 
 function onState(d) {
+  const prevStake = S.myBets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
   S.variant    = d.variant;
   S.mode       = d.mode;
   S.cfg        = d.cfg;
@@ -313,6 +422,8 @@ function onState(d) {
     S.wallet = me.wallet;
     S.myBets = me.bets.slice();
   }
+  const nextStake = S.myBets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+  if (S.phase === 'betting' && nextStake > prevStake) playSound('chip');
 
   renderBoard();      // ensures the variant-correct board is drawn
   renderWheelFace();
@@ -332,6 +443,7 @@ function onSpin(d) {
   rememberLastBets();
   cancelWheelResetTimer();
   animateWheel(d.winning);
+  startSpinSound();
   document.getElementById('game-status').textContent = 'Spinning…';
   document.getElementById('table-message').textContent = 'No more bets';
   refreshPhaseUI();
@@ -343,6 +455,7 @@ function onResolve(d) {
   S.history    = d.history;
   S.lastWinning = d.winning;
   const me = d.results && d.results[S.sessionId];
+  stopSpinSound();
   renderHistory();
   highlightWinningCell(d.winning);
   if (me) {
@@ -368,6 +481,7 @@ function onChat(d) {
 }
 
 function onErr(d) {
+  playSound('error');
   flashMessage(d.message || 'Error');
 }
 
@@ -404,6 +518,10 @@ function refreshPhaseUI() {
     c.style.pointerEvents = bettingOpen ? '' : 'none';
     c.style.opacity = bettingOpen ? '' : '0.78';
   });
+  document.querySelectorAll('.bet-hotspot, .zero-special-bet').forEach((c) => {
+    c.style.pointerEvents = bettingOpen ? '' : 'none';
+    c.classList.toggle('betting-closed', !bettingOpen);
+  });
   document.querySelectorAll('.wheel-pocket').forEach((pocket) => {
     pocket.classList.toggle('betting-open', bettingOpen && S.betView === 'wheel');
     pocket.classList.toggle('betting-closed', !bettingOpen || S.betView !== 'wheel');
@@ -412,6 +530,7 @@ function refreshPhaseUI() {
   document.getElementById('btn-clear').disabled = !bettingOpen;
   updateRepeatButton();
   updateWinToggleButton();
+  updateSoundButton();
   updateInsideBetUI();
   refreshBoardSelection();
   updateMyAreaHeight();
@@ -473,6 +592,128 @@ function renderBoard() {
     basket.style.display = 'none';
   }
   refreshBoardSelection();
+  renderDirectBetHotspots();
+  renderZeroAreaBets();
+}
+
+function renderDirectBetHotspots() {
+  const main = document.getElementById('grid-main');
+  if (!main || main.dataset.hotspotsRendered) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'grid-hotspots';
+  main.appendChild(overlay);
+
+  for (let street = 1; street <= 12; street += 1) {
+    for (let col = 1; col <= 2; col += 1) {
+      addHotspot(overlay, 'split', [tableNumber(street, col), tableNumber(street, col + 1)], {
+        kind: 'split-v',
+        x: streetCenterPct(street),
+        y: colBoundaryPct(col),
+      });
+    }
+  }
+
+  for (let street = 1; street <= 11; street += 1) {
+    for (let col = 1; col <= 3; col += 1) {
+      addHotspot(overlay, 'split', [tableNumber(street, col), tableNumber(street + 1, col)], {
+        kind: 'split-h',
+        x: streetBoundaryPct(street),
+        y: colCenterPct(col),
+      });
+    }
+  }
+
+  for (let street = 1; street <= 11; street += 1) {
+    for (let col = 1; col <= 2; col += 1) {
+      addHotspot(overlay, 'corner', [
+        tableNumber(street, col),
+        tableNumber(street, col + 1),
+        tableNumber(street + 1, col),
+        tableNumber(street + 1, col + 1),
+      ], {
+        kind: 'corner',
+        x: streetBoundaryPct(street),
+        y: colBoundaryPct(col),
+      });
+    }
+  }
+
+  for (let street = 1; street <= 12; street += 1) {
+    addHotspot(overlay, 'street', streetForRow(street), {
+      kind: 'street',
+      label: '3',
+      x: streetCenterPct(street),
+      y: '100%',
+    });
+  }
+
+  for (let street = 1; street <= 11; street += 1) {
+    addHotspot(overlay, 'line', [...streetForRow(street), ...streetForRow(street + 1)], {
+      kind: 'line',
+      label: '6',
+      x: streetBoundaryPct(street),
+      y: '100%',
+    });
+  }
+
+  main.dataset.hotspotsRendered = '1';
+}
+
+function renderZeroAreaBets() {
+  const basket = document.getElementById('basket-row');
+  if (!basket || basket.dataset.zeroRendered) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'zero-special-bets';
+  for (const bet of ZERO_AREA_BETS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'zero-special-bet';
+    btn.textContent = bet.label;
+    btn.title = bet.label + ' ' + bet.type;
+    btn.dataset.bet = JSON.stringify({ type: bet.type, targets: bet.targets });
+    btn.dataset.betKey = compoundKey(bet.type, bet.targets);
+    wrap.appendChild(btn);
+  }
+  basket.appendChild(wrap);
+  basket.dataset.zeroRendered = '1';
+}
+
+function addHotspot(parent, type, targets, opts) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'bet-hotspot bet-hotspot-' + opts.kind;
+  if (opts.label) btn.textContent = opts.label;
+  btn.title = `${betLabelForType(type)} ${targets.map(formatTarget).join('-')}`;
+  btn.style.left = opts.x;
+  btn.style.top = opts.y;
+  btn.dataset.bet = JSON.stringify({ type, targets });
+  btn.dataset.betKey = compoundKey(type, targets);
+  parent.appendChild(btn);
+}
+
+function betLabelForType(type) {
+  return INSIDE_BET_SPECS[type]?.label || type;
+}
+
+function tableNumber(street, col) {
+  return ((street - 1) * 3) + col;
+}
+
+function streetCenterPct(street) {
+  return (((street - 0.5) / 12) * 100).toFixed(4) + '%';
+}
+
+function streetBoundaryPct(street) {
+  return ((street / 12) * 100).toFixed(4) + '%';
+}
+
+function colCenterPct(col) {
+  const displayRow = 3 - col;
+  return (((displayRow + 0.5) / 3) * 100).toFixed(4) + '%';
+}
+
+function colBoundaryPct(lowCol) {
+  return (((3 - lowCol) / 3) * 100).toFixed(4) + '%';
 }
 
 function attachBoardHandlers() {
@@ -480,6 +721,14 @@ function attachBoardHandlers() {
   if (board.dataset.handlersAttached) return;
   board.dataset.handlersAttached = '1';
   board.addEventListener('click', (e) => {
+    const direct = e.target.closest('.bet-hotspot, .zero-special-bet');
+    if (direct && direct.dataset.bet) {
+      if (S.phase !== 'betting') return flashMessage('Betting is closed');
+      let desc;
+      try { desc = JSON.parse(direct.dataset.bet); } catch (_) { return; }
+      placeBetDescriptor(desc);
+      return;
+    }
     const cell = e.target.closest('.cell');
     if (!cell || !cell.dataset.bet) return;
     if (S.phase !== 'betting') return flashMessage('Betting is closed');
@@ -489,9 +738,13 @@ function attachBoardHandlers() {
       toggleInsideTarget(desc.target);
       return;
     }
-    desc.amount = S.selectedChip;
-    send({ type: 'placeBet', bet: desc });
+    placeBetDescriptor(desc);
   });
+}
+
+function placeBetDescriptor(desc) {
+  const bet = { ...desc, amount: S.selectedChip };
+  send({ type: 'placeBet', bet });
 }
 
 function rememberLastBets() {
@@ -534,8 +787,10 @@ window.repeatLastBets = function () {
   const repeatStake = S.lastBets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
   const currentStake = S.myBets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
   if (repeatStake + currentStake > S.wallet) {
+    playSound('error');
     return flashMessage('Not enough chips to repeat');
   }
+  playSound('button');
   for (const bet of S.lastBets) {
     send({ type: 'placeBet', bet: { ...bet, targets: bet.targets ? bet.targets.slice() : undefined } });
   }
@@ -552,6 +807,7 @@ function updateRepeatButton() {
 
 window.toggleWinValues = function () {
   S.showWinValues = !S.showWinValues;
+  playSound('button');
   updateWinToggleButton();
   redrawChipStacks();
 };
@@ -595,10 +851,7 @@ function attachWheelHandlers() {
     if (!pocket || S.betView !== 'wheel') return;
     if (S.phase !== 'betting') return flashMessage('Betting is closed');
     const target = parseWheelTarget(pocket.dataset.pocket);
-    send({
-      type: 'placeBet',
-      bet: { type: 'straight', target, amount: S.selectedChip },
-    });
+    placeBetDescriptor({ type: 'straight', target });
   });
 }
 
@@ -755,10 +1008,16 @@ function easeOutCubic(t) {
 
 function cellKeyForBet(b) {
   // Key used for drawing a chip stack on a bet. For simple straight/outside we map
-  // directly to a cell. For compound (split/street/corner/line) a chip stack lives
-  // on the first selected straight cell for a compact mobile table.
+  // directly to a cell. Compound bets use the matching edge/intersection hotspot
+  // when it exists, with a straight-cell fallback for precision-rail selections.
   switch (b.type) {
     case 'straight': return 'straight:' + b.numbers[0];
+    case 'split':
+    case 'street':
+    case 'trio':
+    case 'corner':
+    case 'line':
+      return compoundKey(b.type, b.numbers || []);
     case 'column':   return 'column:' + (b.which || b.numbers[0]);
     case 'dozen':    return 'dozen:'  + (b.which || b.numbers[0]);
     case 'red': case 'black': case 'even': case 'odd':
@@ -773,6 +1032,7 @@ function cellKeyForBet(b) {
 function redrawChipStacks() {
   // Clear existing stacks
   document.querySelectorAll('.chip-stack').forEach((n) => n.remove());
+  document.querySelectorAll('.bet-hotspot.has-chip, .zero-special-bet.has-chip').forEach((n) => n.classList.remove('has-chip'));
   const sums = new Map();
   for (const b of S.myBets) {
     const k = cellKeyForBet(b);
@@ -797,6 +1057,7 @@ function redrawChipStacks() {
       chip.appendChild(win);
     }
     cell.appendChild(chip);
+    cell.classList.add('has-chip');
   }
   redrawWheelChipStacks();
   // Staked total
@@ -862,6 +1123,9 @@ function potentialWinForBet(b) {
 }
 
 function findCellByKey(key) {
+  for (const hook of document.querySelectorAll('[data-bet-key]')) {
+    if (hook.dataset.betKey === key) return hook;
+  }
   const [type, rest] = key.split(':');
   const cells = document.querySelectorAll('.cell');
   for (const c of cells) {
@@ -873,6 +1137,10 @@ function findCellByKey(key) {
     if (type === 'column'  && String(d.which)  === rest) return c;
     if (type === 'dozen'   && String(d.which)  === rest) return c;
     if (['red','black','even','odd','low','high','basket'].includes(type)) return c;
+  }
+  if (['split', 'street', 'trio', 'corner', 'line'].includes(type)) {
+    const first = (rest || '').split('|')[0];
+    if (first) return findCellByKey('straight:' + first);
   }
   return null;
 }
@@ -901,15 +1169,12 @@ window.placeInsideBet = function () {
   const spec = INSIDE_BET_SPECS[S.insideMode];
   if (!spec) return;
   if (!isValidInsideSelection(S.insideMode, S.insideSelection)) {
+    playSound('error');
     return flashMessage(spec.label + ' targets are not valid');
   }
-  send({
-    type: 'placeBet',
-    bet: {
-      type: S.insideMode,
-      targets: S.insideSelection.slice(),
-      amount: S.selectedChip,
-    },
+  placeBetDescriptor({
+    type: S.insideMode,
+    targets: S.insideSelection.slice(),
   });
   S.insideSelection = [];
   updateInsideBetUI();
@@ -920,6 +1185,7 @@ function toggleInsideTarget(target) {
   const spec = INSIDE_BET_SPECS[S.insideMode];
   if (!spec) return;
   if (!isEligibleInsideTarget(S.insideMode, target)) {
+    playSound('error');
     return flashMessage(spec.label + ' uses table numbers only');
   }
   const idx = S.insideSelection.findIndex((n) => sameTarget(n, target));
@@ -1014,6 +1280,10 @@ function formatTarget(n) {
 
 function sortedTargets(targets) {
   return targets.slice().sort((a, b) => targetRank(a) - targetRank(b));
+}
+
+function compoundKey(type, targets) {
+  return type + ':' + sortedTargets(targets || []).map(formatTarget).join('|');
 }
 
 function targetRank(n) {
@@ -1124,6 +1394,7 @@ function renderChips() {
     btn.textContent = '$' + fmtChip(d);
     btn.onclick = () => {
       S.selectedChip = d;
+      playSound('button');
       document.querySelectorAll('.chip').forEach((c) =>
         c.classList.toggle('selected', c.textContent === '$' + fmtChip(d)));
       document.getElementById('selected-chip-label').textContent = 'CHIP: $' + fmtChip(d);
@@ -1245,6 +1516,7 @@ function setWheelFocus(active) {
 
 function clearWheelFocus() {
   cancelWheelResetTimer();
+  stopSpinSound();
   if (S.wheelAnimId) {
     cancelAnimationFrame(S.wheelAnimId);
     S.wheelAnimId = null;
@@ -1280,11 +1552,14 @@ function showResult(me) {
   banner.className = 'result-banner ' + (me.net > 0 ? 'win' : (me.net < 0 ? 'lose' : 'push'));
   banner.style.display = 'block';
   if (me.net > 0) {
+    playSound('win');
     banner.textContent = 'Won $' + me.net.toLocaleString() + ' (total $' + me.totalPayout.toLocaleString() + ')';
     animateWinChipFlow(me);
   } else if (me.net < 0) {
+    playSound('lose');
     banner.textContent = 'Lost $' + Math.abs(me.net).toLocaleString();
   } else {
+    playSound('push');
     banner.textContent = me.totalStake === 0 ? 'No bet this round' : 'Push';
   }
   setTimeout(() => { banner.style.display = 'none'; }, 4500);
@@ -1378,8 +1653,8 @@ window.toggleGameMenu = function () {
   const m = document.getElementById('game-menu');
   m.style.display = m.style.display === 'none' ? 'flex' : 'none';
 };
-window.undoBet    = function () { send({ type: 'undoBet' }); };
-window.clearBets  = function () { send({ type: 'clearBets' }); };
+window.undoBet    = function () { playSound('button'); send({ type: 'undoBet' }); };
+window.clearBets  = function () { playSound('button'); send({ type: 'clearBets' }); };
 window.replenishWallet = function () {
   send({ type: 'replenishWallet' });
   document.getElementById('game-menu').style.display = 'none';
