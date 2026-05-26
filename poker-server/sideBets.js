@@ -165,6 +165,11 @@ function _initiateBestCard(room, player, opts) {
 function _acceptBestCard(room, player, potId) {
     const sid = _findPlayerSid(room, player);
     if (!sid) return { ok: false, error: 'Player not seated.' };
+    // Defence in depth — every accept path re-checks pendingExit + the
+    // sideBetsAllowed gate so a future caller bypassing PokerRoom's WS
+    // handlers can't sneak through.
+    if (player && player.pendingExit) return { ok: false, error: 'You are exiting — accept blocked.' };
+    if (!sideBetsAllowed(room.gameState)) return { ok: false, error: 'Side bets disabled this round.' };
 
     const sb = room.gameState.sideBets;
     const pot = sb && sb.bestCard.find(p => p.id === potId);
@@ -320,6 +325,8 @@ function _initiateFirstSpecial(room, player /*, opts */) {
 function _acceptFirstSpecial(room, player /*, potId */) {
     const sid = _findPlayerSid(room, player);
     if (!sid) return { ok: false, error: 'Player not seated.' };
+    if (player && player.pendingExit) return { ok: false, error: 'You are exiting — accept blocked.' };
+    if (!sideBetsAllowed(room.gameState)) return { ok: false, error: 'Side bets disabled this round.' };
     const sb  = room.gameState.sideBets;
     const pot = sb && sb.firstSpecial;
     if (!pot) return { ok: false, error: 'No First Special pot active.' };
@@ -519,6 +526,8 @@ function _initiateBeatHand(room, player, opts) {
 function _acceptBeatHand(room, player, potId) {
     const sid = _findPlayerSid(room, player);
     if (!sid) return { ok: false, error: 'Player not seated.' };
+    if (player && player.pendingExit) return { ok: false, error: 'You are exiting — accept blocked.' };
+    if (!sideBetsAllowed(room.gameState)) return { ok: false, error: 'Side bets disabled this round.' };
     if (_isBanker(room, sid)) return { ok: false, error: 'Banker cannot participate in Beat Hand.' };
 
     const sb  = room.gameState.sideBets;
@@ -549,7 +558,11 @@ function _declineBeatHand(room, player, potId) {
     if (idx < 0) return { ok: true };
     const pot = sb.beatHand[idx];
     if (pot.status !== 'pending_accept') return { ok: true };
-    if (pot.targetSid !== sid) return { ok: true };
+    if (pot.targetSid !== sid) {
+        // Non-target tried to decline — surfaces a buggy/abusive client path.
+        console.warn(`[SIDEBET][BH] non-target decline rejected: pot=${pot.id} from=${sid} expected=${pot.targetSid}`);
+        return { ok: true };
+    }
     const challenger = room.gameState.players[pot.challengerSid];
     _creditWallet(challenger, pot.pot);
     pot.status = 'refunded';
