@@ -513,15 +513,13 @@ function onResolve(d) {
   renderWallet();
   showWinningNumber(d.winning, true);
   highlightWinningPocket(d.winning);
+  showRoundAnnouncement(d.winning, me);
   scheduleWheelRoundReset(d.phaseEnd);
   refreshPhaseUI();
 }
 
 function onBigAnnouncement(d) {
-  const el = document.getElementById('big-announcement');
-  el.textContent = d.text;
-  el.style.display = 'block';
-  setTimeout(() => { el.style.display = 'none'; }, d.duration || 3500);
+  showTextAnnouncement(d.text, d.duration || 3500);
 }
 
 function onChat(d) {
@@ -1630,16 +1628,99 @@ function showResult(me) {
   banner.style.display = 'block';
   if (me.net > 0) {
     playSound('win');
-    banner.textContent = 'Won $' + me.net.toLocaleString() + ' (total $' + me.totalPayout.toLocaleString() + ')';
+    banner.textContent = 'Win $' + me.net.toLocaleString();
     animateWinChipFlow(me);
   } else if (me.net < 0) {
     playSound('lose');
-    banner.textContent = 'Lost $' + Math.abs(me.net).toLocaleString();
+    banner.textContent = 'Lose';
   } else {
     playSound('push');
     banner.textContent = me.totalStake === 0 ? 'No bet this round' : 'Push';
   }
   setTimeout(() => { banner.style.display = 'none'; }, 4500);
+}
+
+let announcementTimer = null;
+
+function clearAnnouncementTimer() {
+  if (!announcementTimer) return;
+  clearTimeout(announcementTimer);
+  announcementTimer = null;
+}
+
+function showTextAnnouncement(text, duration) {
+  const el = document.getElementById('big-announcement');
+  if (!el) return;
+  clearAnnouncementTimer();
+  el.className = 'big-announce text-announce';
+  el.replaceChildren();
+  const card = document.createElement('div');
+  card.className = 'announce-card';
+  card.textContent = text || '';
+  el.appendChild(card);
+  el.style.display = 'flex';
+  void el.offsetWidth;
+  announcementTimer = setTimeout(() => {
+    el.style.display = 'none';
+    announcementTimer = null;
+  }, duration || 3500);
+}
+
+function showRoundAnnouncement(winning, me) {
+  const el = document.getElementById('big-announcement');
+  if (!el) return;
+
+  const result = getPlayerResult(me);
+  const color = colorOfNum(winning);
+  clearAnnouncementTimer();
+  el.className = 'big-announce round-result ' + color + ' ' + result.kind;
+  el.replaceChildren();
+
+  const card = document.createElement('div');
+  card.className = 'announce-card';
+
+  const kicker = document.createElement('div');
+  kicker.className = 'announce-kicker';
+  kicker.textContent = 'Winning Number';
+
+  const number = document.createElement('div');
+  number.className = 'announce-number';
+  number.textContent = String(winning);
+
+  const outcome = document.createElement('div');
+  outcome.className = 'announce-outcome';
+  outcome.textContent = result.label;
+  card.append(kicker, number, outcome);
+
+  if (result.amount) {
+    const amount = document.createElement('div');
+    amount.className = 'announce-amount';
+    amount.textContent = result.amount;
+    card.appendChild(amount);
+  }
+
+  el.appendChild(card);
+  el.style.display = 'flex';
+  void el.offsetWidth;
+  announcementTimer = setTimeout(() => {
+    el.style.display = 'none';
+    announcementTimer = null;
+  }, result.kind === 'win' ? 5600 : 4200);
+}
+
+function getPlayerResult(me) {
+  const net = Number(me && me.net) || 0;
+  const stake = Number(me && me.totalStake) || 0;
+  if (net > 0) {
+    return {
+      kind: 'win',
+      label: 'You Win',
+      amount: '+$' + net.toLocaleString(),
+    };
+  }
+  if (net < 0) return { kind: 'lose', label: 'Lose', amount: '' };
+  if (!me || !stake) return { kind: 'neutral', label: 'No Bet', amount: '' };
+  return { kind: 'push', label: 'Push', amount: '' };
 }
 
 function animateWinChipFlow(me) {
