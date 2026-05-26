@@ -1371,6 +1371,11 @@ class SipSamRoom {
         this.gameState.status    = "gameOver";
         this.gameState.completed = true;   // exclude from quick-join match candidates
         this.gameState.message   = "Game Over! Final scores:";
+        // Refund any unwon side-bet pots equally to participants BEFORE the
+        // wallet→bank settlement, so refunds land in player.chips and are
+        // included in _settleToBank's per-player return amount.
+        try { SideBets.refundUnwonAtGameEnd(this); }
+        catch(e) { console.error('[SIDEBETS] refundUnwonAtGameEnd threw:', e); }
         console.log("=== GAME OVER ===  room flagged completed");
         this.broadcastState();
         // Settle: return each player's remaining chips to their bank
