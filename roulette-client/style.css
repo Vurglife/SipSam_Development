@@ -879,6 +879,38 @@ button {
 .result-banner.lose { color: #ffb0b0; border-color: rgba(255,68,68,0.25); }
 .result-banner.push { color: var(--gold-lt); }
 
+.win-flow-chip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 22px;
+  height: 22px;
+  z-index: 140;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 28%, #fff7c8 0 18%, transparent 19%),
+    radial-gradient(circle, var(--gold-lt) 0 30%, var(--gold) 31% 58%, var(--gold-dk) 59% 100%);
+  border: 2px dashed rgba(26,16,0,0.82);
+  color: #1a1000;
+  font-size: 10px;
+  font-weight: 900;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.55), 0 0 10px rgba(240,208,128,0.45);
+}
+
+.wallet-credit-pulse {
+  display: inline-block;
+  animation: walletCreditPulse 1.05s ease;
+}
+@keyframes walletCreditPulse {
+  0%   { text-shadow: none; transform: scale(1); }
+  30%  { color: #9aeeaa; text-shadow: 0 0 14px rgba(68,255,136,0.8); transform: scale(1.08); }
+  100% { text-shadow: none; transform: scale(1); }
+}
+
 /* ── OVERLAYS ──────────────────────────────────────────────── */
 .game-menu {
   position: fixed; inset: 0; z-index: 60;

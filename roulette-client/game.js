@@ -1125,12 +1125,96 @@ function showResult(me) {
   banner.style.display = 'block';
   if (me.net > 0) {
     banner.textContent = 'Won $' + me.net.toLocaleString() + ' (total $' + me.totalPayout.toLocaleString() + ')';
+    animateWinChipFlow(me);
   } else if (me.net < 0) {
     banner.textContent = 'Lost $' + Math.abs(me.net).toLocaleString();
   } else {
     banner.textContent = me.totalStake === 0 ? 'No bet this round' : 'Push';
   }
   setTimeout(() => { banner.style.display = 'none'; }, 4500);
+}
+
+function animateWinChipFlow(me) {
+  if (!me || !(me.net > 0)) return;
+
+  const source = document.querySelector('#screen-game.wheel-focus .wheel-wrap')
+    || (S.betView === 'wheel' ? document.getElementById('wheel-wrap') : document.querySelector('.felt'))
+    || document.getElementById('wheel-wrap')
+    || document.body;
+  const target = document.getElementById('my-wallet') || document.querySelector('.my-area') || document.body;
+  const from = rectCenter(source);
+  const to = rectCenter(target);
+  const count = Math.max(5, Math.min(12, Math.ceil(Math.log10(Math.max(10, me.net))) + 4));
+
+  for (let i = 0; i < count; i += 1) {
+    const chip = document.createElement('div');
+    chip.className = 'win-flow-chip';
+    chip.setAttribute('aria-hidden', 'true');
+    chip.textContent = '$';
+    document.body.appendChild(chip);
+
+    const spread = count <= 1 ? 0 : (i - (count - 1) / 2);
+    const startX = from.x + spread * 5;
+    const startY = from.y + ((i % 2) ? 8 : -6);
+    const midX = from.x + (to.x - from.x) * 0.46 + spread * 14;
+    const midY = Math.min(from.y, to.y) - 62 - (i % 3) * 12;
+    const endX = to.x + spread * 3;
+    const endY = to.y + ((i % 2) ? 3 : -3);
+
+    const animation = chip.animate([
+      {
+        left: startX + 'px',
+        top: startY + 'px',
+        opacity: 0,
+        transform: 'translate(-50%, -50%) scale(0.62)',
+      },
+      {
+        left: startX + 'px',
+        top: startY + 'px',
+        opacity: 1,
+        transform: 'translate(-50%, -50%) scale(0.92)',
+        offset: 0.12,
+      },
+      {
+        left: midX + 'px',
+        top: midY + 'px',
+        opacity: 1,
+        transform: 'translate(-50%, -50%) scale(1)',
+        offset: 0.58,
+      },
+      {
+        left: endX + 'px',
+        top: endY + 'px',
+        opacity: 0,
+        transform: 'translate(-50%, -50%) scale(0.42)',
+      },
+    ], {
+      duration: 850 + i * 35,
+      delay: i * 55,
+      easing: 'cubic-bezier(0.16, 0.84, 0.28, 1)',
+      fill: 'forwards',
+    });
+    animation.onfinish = () => chip.remove();
+    animation.oncancel = () => chip.remove();
+  }
+  pulseWalletCredit();
+}
+
+function rectCenter(el) {
+  const r = el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+  if (!r || (!r.width && !r.height)) {
+    return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  }
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+function pulseWalletCredit() {
+  const wallet = document.getElementById('my-wallet');
+  if (!wallet) return;
+  wallet.classList.remove('wallet-credit-pulse');
+  void wallet.offsetWidth;
+  wallet.classList.add('wallet-credit-pulse');
+  setTimeout(() => wallet.classList.remove('wallet-credit-pulse'), 1200);
 }
 
 // ── Menu / actions ────────────────────────────────────────
