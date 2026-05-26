@@ -272,6 +272,7 @@ class RouletteRoom {
   get handlers() {
     return {
       placeBet:   this.onPlaceBet,
+      doubleBets: this.onDoubleBets,
       clearBets:  this.onClearBets,
       undoBet:    this.onUndoBet,
       replenish:  this.onReplenishWallet,
@@ -317,6 +318,30 @@ class RouletteRoom {
     if (!p) return;
     if (this.phase !== 'betting') return;
     p.bets.pop();
+    this.broadcastState();
+  }
+
+  onDoubleBets(client) {
+    const p = this.players[client.sessionId];
+    if (!p) return;
+    if (this.phase !== 'betting') {
+      return this._err(client, 'Betting is closed');
+    }
+    if (!p.bets.length) {
+      return this._err(client, 'No current bet to double');
+    }
+    const currentStake = p.bets.reduce((sum, bet) => sum + (Number(bet.amount) || 0), 0);
+    if (currentStake <= 0) {
+      return this._err(client, 'No current bet to double');
+    }
+    if (currentStake * 2 > p.wallet) {
+      return this._err(client, 'Insufficient wallet to double bet');
+    }
+    const clones = p.bets.map((bet) => ({
+      ...bet,
+      numbers: Array.isArray(bet.numbers) ? bet.numbers.slice() : bet.numbers,
+    }));
+    p.bets.push(...clones);
     this.broadcastState();
   }
 

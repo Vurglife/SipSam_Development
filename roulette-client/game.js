@@ -145,7 +145,7 @@ const PARTNER_ODDS_CHART = [
   ['21', '00, 27, 1, 14, 12', '5', '22, 35, 16', '3, 30'],
   ['22', '34, 3, 2, 30', '23, 8', '21, 14, 24', '4, 31, 13'],
   ['23', '24, 25, 30, 12, 14', '26, 17, 32', '3, 36, 10, 29', '5, 11'],
-  ['24', '23, 12, 1', '32, 2, 4, 35', '26, 17, 8', '15, 31, 6, 33'],
+  ['24', '23, 12, 1', '32, 2, 4, 35, 29', '26, 17, 8', '15, 31, 6, 33'],
   ['25', '26, 23, 30', '11, 9, 4, 33', '', '7, 27, 16'],
   ['26', '3, 25, 6, 13', '5, 17, 15, 24, 29', '10, 21', '8, 35'],
   ['27', '35, 00, 1, 21, 12', '13, 6, 19', '28', '9, 18, 36, 33'],
@@ -155,8 +155,8 @@ const PARTNER_ODDS_CHART = [
   ['31', '13, 15, 33', '26, 2, 22', '32, 5', '4'],
   ['32', '23, 12, 28, 1, 16', '18, 8, 19, 20, 34', '31, 5', '14, 26, 17'],
   ['33', '35, 31, 5', '22, 14', '34, 17, 26', '00, 2, 6, 15, 24, 8'],
-  ['34', '17, 1, 23', '22, 19, 32', '33', '7, 25, 16'],
-  ['35', '12, 27, 33', '26, 28, 19', '36, 17, 4, 30', '8, 1'],
+  ['34', '17, 1, 23', '22, 19, 32, 36', '33', '7, 25, 16'],
+  ['35', '12, 27, 33', '26, 28, 19', '36, 17, 4, 30', '8, 1, 0, 00'],
   ['36', '1, 21, 14', '13, 18', '35, 26, 6, 34', '00, 33, 9, 27, 32'],
   ['00', '21, 8, 7', '33, 11, 23, 26, 17', '0, 19, 6, 28, 2', '10, 20, 30, 12'],
   ['0',  '16, 17', '18, 00, 4, 33, 26', '21, 1, 20, 5', '11, 30, 10'],
@@ -576,6 +576,7 @@ function refreshPhaseUI() {
   });
   document.getElementById('btn-undo').disabled  = !bettingOpen;
   document.getElementById('btn-clear').disabled = !bettingOpen;
+  updateDoubleButton();
   updateRepeatButton();
   updateWinToggleButton();
   updateSoundButton();
@@ -833,7 +834,7 @@ window.repeatLastBets = function () {
   if (S.phase !== 'betting') return flashMessage('Betting is closed');
   if (!S.lastBets.length) return flashMessage('No previous bet to repeat');
   const repeatStake = S.lastBets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
-  const currentStake = S.myBets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+  const currentStake = currentBetStake();
   if (repeatStake + currentStake > S.wallet) {
     playSound('error');
     return flashMessage('Not enough chips to repeat');
@@ -844,11 +845,34 @@ window.repeatLastBets = function () {
   }
 };
 
+window.doubleCurrentBets = function () {
+  if (S.phase !== 'betting') return flashMessage('Betting is closed');
+  const currentStake = currentBetStake();
+  if (!currentStake) return flashMessage('No current bet to double');
+  if (currentStake * 2 > S.wallet) {
+    playSound('error');
+    return flashMessage('Not enough chips to double');
+  }
+  playSound('button');
+  send({ type: 'doubleBets' });
+};
+
+function currentBetStake() {
+  return S.myBets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+}
+
+function updateDoubleButton() {
+  const btn = document.getElementById('btn-double');
+  if (!btn) return;
+  const currentStake = currentBetStake();
+  btn.disabled = !(S.phase === 'betting' && currentStake > 0 && currentStake * 2 <= S.wallet);
+}
+
 function updateRepeatButton() {
   const btn = document.getElementById('btn-repeat');
   if (!btn) return;
   const repeatStake = S.lastBets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
-  const currentStake = S.myBets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+  const currentStake = currentBetStake();
   const canRepeat = S.phase === 'betting' && S.lastBets.length > 0 && repeatStake + currentStake <= S.wallet;
   btn.disabled = !canRepeat;
 }
