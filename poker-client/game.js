@@ -1903,7 +1903,11 @@ function handleServerMessage(msg) {
                 if (menuBtn) menuBtn.style.display = 'flex';
             }
             updateGameUI(state);
+            renderSideBets(state);
         }
+    } else if (msg.type === 'sideBetError') {
+        const el = document.getElementById('sb-status');
+        if (el) { el.textContent = '⚠ ' + (msg.message || 'Side-bet rejected.'); el.style.color = '#fca5a5'; setTimeout(() => { if (el) { el.textContent=''; el.style.color=''; } }, 3500); }
     } else if (msg.type === 'error') {
         // General errors (chip transfers, etc.) — shown in relevant panel
         // Note: invalid hand arrangement now results in DQ, not an error message
@@ -2682,3 +2686,205 @@ window.addEventListener('DOMContentLoaded', function() {
         showScreen('screen-login');
     }
 });
+// ═══════════════════════════════════════════════════════════════════════
+// SIDE BETS — client UI
+// Spec: docs/system-development/sidebets-spec.md
+// Minimal-but-functional: initiate buttons during reveal, accept/decline
+// during sideBetPhase, active-pot summary visible across phases.
+// ═══════════════════════════════════════════════════════════════════════
+
+let _sbInitiatePending = null;   // { type, target?, value? } pending Confirm
+
+function _sbEsc(s) {
+    return String(s || '').replace(/[&<>"']/g, ch => (
+        ch === '&' ? '&amp;' :
+        ch === '<' ? '&lt;'  :
+        ch === '>' ? '&gt;'  :
+        ch === '"' ? '&quot;' :
+        '&#39;'
+    ));
+}
+
+function renderSideBets(state) {
+    const panel = document.getElementById('sidebets-panel');
+    if (!panel) return;
+    const sb = state && state.sideBets;
+    const status = state && state.status;
+    const me = state && state.players && state.players[mySessionId];
+
+    const inReveal = status === 'revealing';
+    const inPhase  = status === 'sideBetPhase';
+    const hasAnyPot = sb && (
+        sb.firstSpecial ||
+        (sb.beatHand && sb.beatHand.length) ||
+        (sb.bestCard && sb.bestCard.length)
+    );
+
+    if (!inReveal && !inPhase && !hasAnyPot) {
+        panel.style.display = 'none';
+        return;
+    }
+    panel.style.display = 'block';
+
+    const phaseLabel = document.getElementById('sb-phase-label');
+    if (phaseLabel) {
+        phaseLabel.textContent =
+            inReveal ? 'Initiate during reveal' :
+            inPhase  ? ('Accept (' + (sb.phaseActive || '') + ' ' + (state.timer || 0) + 's)') :
+            '';
+    }
+
+    // Initiate buttons — visible only during reveal AND not blitz/final
+    const initRow = document.getElementById('sb-initiate-row');
+    if (initRow) {
+        const allowed = inReveal &&
+            !state.blitz &&
+            !(state.maxRounds > 0 && state.round >= state.maxRounds);
+        initRow.style.display = allowed ? 'flex' : 'none';
+    }
+
+    // Active pots summary
+    const potsEl = document.getElementById('sb-active-pots');
+    if (potsEl) {
+        const out = [];
+        if (sb && sb.firstSpecial) {
+            const p = sb.firstSpecial;
+            const youIn = p.participants && p.participants.find(x => x.sid === mySessionId);
+            out.push('<div class="sb-pot-card"><span class="sb-pot-type">⭐ First Special</span> '
+                + '<span class="sb-pot-amount">$' + p.pot.toLocaleString() + '</span>'
+                + ' · N=' + p.participants.length + ' · ' + p.status
+                + (youIn ? ' · you in' : '') + '</div>');
+        }
+        if (sb && sb.beatHand) {
+            sb.beatHand.forEach(p => {
+                const chal = state.players[p.challengerSid] && state.players[p.challengerSid].username || '?';
+                const accUser = p.accepterSid
+                    ? (state.players[p.accepterSid] && state.players[p.accepterSid].username || '?')
+                    : ((state.players[p.targetSid] && state.players[p.targetSid].username || '?') + ' (pending)');
+                out.push('<div class="sb-pot-card"><span class="sb-pot-type">🥊 Beat Hand</span> '
+                    + _sbEsc(chal) + ' vs ' + _sbEsc(accUser)
+                    + ' · <span class="sb-pot-amount">$' + p.pot.toLocaleString() + '</span> · ' + p.status + '</div>');
+            });
+        }
+        if (sb && sb.bestCard) {
+            sb.bestCard.forEach(p => {
+                out.push('<div class="sb-pot-card"><span class="sb-pot-type">🃏 Best Card ' + _sbEsc(p.value) + '</span> '
+                    + '<span class="sb-pot-amount">$' + p.pot.toLocaleString() + '</span>'
+                    + ' · N=' + p.participants.length + ' · ' + p.status + '</div>');
+            });
+        }
+        potsEl.innerHTML = out.join('');
+    }
+
+    // Accept/decline buttons during sideBetPhase
+    const acceptRow = document.getElementById('sb-accept-row');
+    if (acceptRow) {
+        acceptRow.innerHTML = '';
+        const showAccept = inPhase && sb && sb.phaseActive && me && !me.isBot && !me.pendingExit;
+        if (showAccept) {
+            const phase = sb.phaseActive;
+            const offers = [];
+            if (phase === 'firstSpecial' && sb.firstSpecial && sb.firstSpecial.status === 'pending_accept') {
+                const already = sb.firstSpecial.participants.find(x => x.sid === mySessionId);
+                if (!already) offers.push({ id: sb.firstSpecial.id, label: '⭐ Accept First Special — $' + state.tableMinBet + ' stake' });
+            }
+            if (phase === 'beatHand') {
+                sb.beatHand.forEach(p => {
+                    if (p.status === 'pending_accept' && p.targetSid === mySessionId) {
+                        const chal = (state.players[p.challengerSid] && state.players[p.challengerSid].username) || '?';
+                        offers.push({ id: p.id, label: '🥊 Accept Beat Hand vs ' + chal + ' — $' + state.tableMinBet });
+                    }
+                });
+            }
+            if (phase === 'bestCard') {
+                sb.bestCard.forEach(p => {
+                    if (p.status === 'pending_accept' && !p.participants.find(x => x.sid === mySessionId)) {
+                        const init = (state.players[p.initiatorSid] && state.players[p.initiatorSid].username) || '?';
+                        offers.push({ id: p.id, label: '🃏 Accept Best Card (' + _sbEsc(p.value) + ') from ' + init + ' — $' + state.tableMinBet });
+                    }
+                });
+            }
+            offers.forEach(o => {
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex;gap:6px;margin-bottom:5px';
+                const aBtn = document.createElement('button');
+                aBtn.className = 'sb-btn sb-btn-accept';
+                aBtn.textContent = o.label;
+                aBtn.onclick = () => sbAccept(phase, o.id);
+                const dBtn = document.createElement('button');
+                dBtn.className = 'sb-btn sb-btn-decline';
+                dBtn.textContent = 'Decline';
+                dBtn.style.flex = '0 0 auto';
+                dBtn.onclick = () => sbDecline(phase, o.id);
+                row.appendChild(aBtn);
+                row.appendChild(dBtn);
+                acceptRow.appendChild(row);
+            });
+            acceptRow.style.display = offers.length ? 'flex' : 'none';
+        } else {
+            acceptRow.style.display = 'none';
+        }
+    }
+}
+
+function sbOpenInitiate(type) {
+    _sbInitiatePending = { type };
+    const modal = document.getElementById('sb-init-modal');
+    const title = document.getElementById('sb-init-title');
+    const body  = document.getElementById('sb-init-body');
+    const conf  = document.getElementById('sb-init-confirm');
+    if (!modal || !title || !body || !conf) return;
+    const state = window._lastState;
+    const stake = (state && state.tableMinBet) || 0;
+
+    if (type === 'firstSpecial') {
+        title.textContent = '⭐ Initiate First Special';
+        body.innerHTML = '<p>Bet $' + stake.toLocaleString() + ' that you will be the first to correctly declare a Special. Pot tops up each round until won or the game ends.</p>';
+        conf.disabled = false;
+    } else if (type === 'bestCard') {
+        title.textContent = '🃏 Initiate Best Card';
+        const values = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+        let html = '<p>Pick a card value. Everyone who accepts pays $' + stake.toLocaleString()
+            + '. Highest-suit of that value at reveal wins.</p>';
+        values.forEach(v => {
+            html += '<label><input type="radio" name="sb-card-value" value="' + v + '"'
+                + ' onclick="_sbInitiatePending.value=this.value;document.getElementById(\'sb-init-confirm\').disabled=false">' + v + '</label>';
+        });
+        body.innerHTML = html;
+        conf.disabled = true;
+    } else if (type === 'beatHand') {
+        title.textContent = '🥊 Initiate Beat Hand';
+        const players = (state && state.players) || {};
+        const opps = Object.entries(players).filter(([sid, p]) =>
+            sid !== mySessionId && !p.isBanker && !p.isBot && !p.isGhostBot && !p.pendingExit && !p.disqualified
+        );
+        if (opps.length === 0) {
+            body.innerHTML = '<p style="color:#fca5a5">No eligible opponents at this table.</p>';
+            conf.disabled = true;
+        } else {
+            let html = '<p>Pick an opponent. Both stake $' + stake.toLocaleString() + '. Best-of-3 hands wins.</p>';
+            opps.forEach(([sid, p]) => {
+                html += '<label><input type="radio" name="sb-target" value="' + sid + '"'
+                    + ' onclick="_sbInitiatePending.target=this.value;document.getElementById(\'sb-init-confirm\').disabled=false">' + _sbEsc(p.username) + '</label>';
+            });
+            body.innerHTML = html;
+            conf.disabled = true;
+        }
+    }
+    modal.style.display = 'flex';
+}
+
+function sbCloseInitiate() {
+    const modal = document.getElementById('sb-init-modal');
+    if (modal) modal.style.display = 'none';
+    _sbInitiatePending = null;
+}
+
+function sbConfirmInitiate() {
+    if (!_sbInitiatePending) return;
+    sendMsg('initiateSideBet', _sbInitiatePending);
+    sbCloseInitiate();
+}
+
+function sbAccept(type, potId)  { sendMsg('acceptSideBet',  { type: type, potId: potId }); }
+function sbDecline(type, potId) { sendMsg('declineSideBet', { type: type, potId: potId }); }
