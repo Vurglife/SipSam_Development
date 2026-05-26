@@ -289,6 +289,7 @@ class RouletteRoom {
     }
     let norm;
     try {
+      if (!data || !data.bet) throw new Error('Invalid bet');
       norm = engine.normalizeBet(data.bet, this.variant);
     } catch (e) {
       return this._err(client, e.message);

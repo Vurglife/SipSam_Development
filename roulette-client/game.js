@@ -70,6 +70,15 @@ const S = {
   timerInt:  null,
   tableHooks: {}, // cellKey → DOM element for chip-stack update
   myBets:    [],  // mirror of server-side bets (for optimistic chip draw)
+  insideMode: null,
+  insideSelection: [],
+};
+
+const INSIDE_BET_SPECS = {
+  split:  { label: 'Split',  count: 2, payout: '17:1' },
+  street: { label: 'Street', count: 3, payout: '11:1' },
+  corner: { label: 'Corner', count: 4, payout: '8:1' },
+  line:   { label: 'Line',   count: 6, payout: '5:1' },
 };
 
 // ── URL params + sessionStorage handoff ────────────────────
@@ -356,12 +365,18 @@ function updateHeader(msg) {
 function refreshPhaseUI() {
   startTimerLoop();
   const bettingOpen = S.phase === 'betting';
+  if (!bettingOpen && S.insideSelection.length) {
+    S.insideSelection = [];
+  }
   document.querySelectorAll('.cell').forEach((c) => {
     c.style.pointerEvents = bettingOpen ? '' : 'none';
     c.style.opacity = bettingOpen ? '' : '0.78';
   });
   document.getElementById('btn-undo').disabled  = !bettingOpen;
   document.getElementById('btn-clear').disabled = !bettingOpen;
+  updateInsideBetUI();
+  refreshBoardSelection();
+  updateMyAreaHeight();
 }
 
 function startTimerLoop() {
@@ -419,15 +434,23 @@ function renderBoard() {
     dbl.style.display = 'none';
     basket.style.display = 'none';
   }
+  refreshBoardSelection();
 }
 
 function attachBoardHandlers() {
-  document.getElementById('board').addEventListener('click', (e) => {
+  const board = document.getElementById('board');
+  if (board.dataset.handlersAttached) return;
+  board.dataset.handlersAttached = '1';
+  board.addEventListener('click', (e) => {
     const cell = e.target.closest('.cell');
     if (!cell || !cell.dataset.bet) return;
     if (S.phase !== 'betting') return flashMessage('Betting is closed');
     let desc;
     try { desc = JSON.parse(cell.dataset.bet); } catch (_) { return; }
+    if (S.insideMode && desc.type === 'straight') {
+      toggleInsideTarget(desc.target);
+      return;
+    }
     desc.amount = S.selectedChip;
     send({ type: 'placeBet', bet: desc });
   });
@@ -436,7 +459,7 @@ function attachBoardHandlers() {
 function cellKeyForBet(b) {
   // Key used for drawing a chip stack on a bet. For simple straight/outside we map
   // directly to a cell. For compound (split/street/corner/line) a chip stack lives
-  // on the first-target straight cell (good-enough visual for a mobile MVP).
+  // on the first selected straight cell for a compact mobile table.
   switch (b.type) {
     case 'straight': return 'straight:' + b.numbers[0];
     case 'column':   return 'column:' + (b.which || b.numbers[0]);
@@ -493,6 +516,206 @@ function fmtChip(n) {
   return String(n);
 }
 
+// Inside bets: mobile-safe precision controls for split, street, corner, line.
+window.setInsideMode = function (mode) {
+  S.insideMode = mode && mode !== 'straight' ? mode : null;
+  S.insideSelection = [];
+  updateInsideBetUI();
+  refreshBoardSelection();
+};
+
+window.clearInsideSelection = function () {
+  S.insideSelection = [];
+  updateInsideBetUI();
+  refreshBoardSelection();
+};
+
+window.placeInsideBet = function () {
+  const spec = INSIDE_BET_SPECS[S.insideMode];
+  if (!spec) return;
+  if (!isValidInsideSelection(S.insideMode, S.insideSelection)) {
+    return flashMessage(spec.label + ' targets are not valid');
+  }
+  send({
+    type: 'placeBet',
+    bet: {
+      type: S.insideMode,
+      targets: S.insideSelection.slice(),
+      amount: S.selectedChip,
+    },
+  });
+  S.insideSelection = [];
+  updateInsideBetUI();
+  refreshBoardSelection();
+};
+
+function toggleInsideTarget(target) {
+  const spec = INSIDE_BET_SPECS[S.insideMode];
+  if (!spec) return;
+  if (!isEligibleInsideTarget(S.insideMode, target)) {
+    return flashMessage(spec.label + ' uses table numbers only');
+  }
+  const idx = S.insideSelection.findIndex((n) => sameTarget(n, target));
+  if (idx >= 0) {
+    S.insideSelection.splice(idx, 1);
+  } else {
+    if (S.insideSelection.length >= spec.count) S.insideSelection.shift();
+    S.insideSelection.push(target);
+  }
+  updateInsideBetUI();
+  refreshBoardSelection();
+}
+
+function updateInsideBetUI() {
+  const bettingOpen = S.phase === 'betting';
+  document.querySelectorAll('.inside-mode-btn').forEach((btn) => {
+    const mode = btn.dataset.insideMode;
+    btn.classList.toggle('active', mode === (S.insideMode || 'straight'));
+    btn.disabled = !bettingOpen;
+  });
+
+  const label = document.getElementById('inside-selection-label');
+  const clear = document.getElementById('inside-clear');
+  const place = document.getElementById('inside-place');
+  if (!label || !clear || !place) return;
+
+  const spec = INSIDE_BET_SPECS[S.insideMode];
+  if (!spec) {
+    label.textContent = 'Straight bets active';
+    clear.disabled = true;
+    place.disabled = true;
+    updateMyAreaHeight();
+    return;
+  }
+
+  const count = S.insideSelection.length;
+  const targets = S.insideSelection.map(formatTarget).join(', ');
+  const valid = isValidInsideSelection(S.insideMode, S.insideSelection);
+  label.textContent = targets
+    ? `${spec.label} ${targets} (${count}/${spec.count})`
+    : `${spec.label} ${spec.payout}`;
+  if (count === spec.count && !valid) label.textContent = `${spec.label} invalid`;
+  clear.disabled = !bettingOpen || count === 0;
+  place.disabled = !bettingOpen || !valid;
+  updateMyAreaHeight();
+}
+
+function refreshBoardSelection() {
+  const board = document.getElementById('board');
+  if (board) board.classList.toggle('inside-mode', !!S.insideMode);
+  document.querySelectorAll('.cell').forEach((cell) => {
+    cell.classList.remove('inside-selected', 'inside-eligible');
+    if (!cell.dataset.bet) return;
+    let desc;
+    try { desc = JSON.parse(cell.dataset.bet); } catch (_) { return; }
+    if (desc.type !== 'straight') return;
+    if (S.insideMode && isEligibleInsideTarget(S.insideMode, desc.target)) {
+      cell.classList.add('inside-eligible');
+    }
+    if (S.insideSelection.some((n) => sameTarget(n, desc.target))) {
+      cell.classList.add('inside-selected');
+    }
+  });
+}
+
+function updateMyAreaHeight() {
+  window.requestAnimationFrame(() => {
+    const el = document.querySelector('.my-area');
+    if (!el) return;
+    document.documentElement.style.setProperty('--my-area-h', Math.ceil(el.getBoundingClientRect().height) + 'px');
+  });
+}
+
+function isEligibleInsideTarget(mode, target) {
+  if (mode === 'split') return target === 0 || target === '00' || isNumericTarget(target);
+  return isNumericTarget(target);
+}
+
+function isNumericTarget(n) {
+  return Number.isInteger(n) && n >= 1 && n <= 36;
+}
+
+function sameTarget(a, b) {
+  return String(a) === String(b);
+}
+
+function formatTarget(n) {
+  return n === '00' ? '00' : String(n);
+}
+
+function sortedTargets(targets) {
+  return targets.slice().sort((a, b) => targetRank(a) - targetRank(b));
+}
+
+function targetRank(n) {
+  if (n === 0) return 0;
+  if (n === '00') return 1;
+  return n + 1;
+}
+
+function rowOf(n) {
+  return Math.ceil(n / 3);
+}
+
+function colOf(n) {
+  return ((n - 1) % 3) + 1;
+}
+
+function streetForRow(row) {
+  const start = ((row - 1) * 3) + 1;
+  return [start, start + 1, start + 2];
+}
+
+function sameTargetSet(a, b) {
+  return a.length === b.length && a.every((x) => b.some((y) => sameTarget(x, y)));
+}
+
+function isValidInsideSelection(mode, targets) {
+  const spec = INSIDE_BET_SPECS[mode];
+  if (!spec || targets.length !== spec.count) return false;
+  const ns = sortedTargets(targets);
+  if (new Set(ns.map(formatTarget)).size !== ns.length) return false;
+
+  if (mode === 'split') return isValidSplitSelection(ns);
+  if (!ns.every(isNumericTarget)) return false;
+  if (mode === 'street') return sameTargetSet(ns, streetForRow(rowOf(ns[0])));
+  if (mode === 'corner') return isValidCornerSelection(ns);
+  if (mode === 'line') return isValidLineSelection(ns);
+  return false;
+}
+
+function isValidSplitSelection(ns) {
+  const zeroSplits = [[0, '00'], [0, 1], [0, 2], ['00', 2], ['00', 3]];
+  if (ns.some((n) => n === 0 || n === '00')) {
+    return zeroSplits.some((pair) => sameTargetSet(ns, pair));
+  }
+  if (!ns.every(isNumericTarget)) return false;
+  const [a, b] = ns;
+  const sameRow = rowOf(a) === rowOf(b) && Math.abs(colOf(a) - colOf(b)) === 1;
+  const sameCol = colOf(a) === colOf(b) && Math.abs(rowOf(a) - rowOf(b)) === 1;
+  return sameRow || sameCol;
+}
+
+function isValidCornerSelection(ns) {
+  const rows = [...new Set(ns.map(rowOf))].sort((a, b) => a - b);
+  const cols = [...new Set(ns.map(colOf))].sort((a, b) => a - b);
+  if (rows.length !== 2 || cols.length !== 2) return false;
+  if (rows[1] - rows[0] !== 1 || cols[1] - cols[0] !== 1) return false;
+  const expected = [];
+  for (const row of rows) {
+    for (const col of cols) expected.push(((row - 1) * 3) + col);
+  }
+  return sameTargetSet(ns, expected);
+}
+
+function isValidLineSelection(ns) {
+  const rows = [...new Set(ns.map(rowOf))].sort((a, b) => a - b);
+  const cols = [...new Set(ns.map(colOf))].sort((a, b) => a - b);
+  if (rows.length !== 2 || rows[1] - rows[0] !== 1) return false;
+  if (cols.length !== 3 || cols[0] !== 1 || cols[1] !== 2 || cols[2] !== 3) return false;
+  return sameTargetSet(ns, [...streetForRow(rows[0]), ...streetForRow(rows[1])]);
+}
+
 // ── Chips row ─────────────────────────────────────────────
 function renderChips() {
   const row = document.getElementById('chip-row');
@@ -521,6 +744,8 @@ function renderChips() {
     row.appendChild(btn);
   }
   document.getElementById('selected-chip-label').textContent = 'CHIP: $' + fmtChip(S.selectedChip);
+  updateInsideBetUI();
+  updateMyAreaHeight();
 }
 
 // ── Wallet / history ──────────────────────────────────────

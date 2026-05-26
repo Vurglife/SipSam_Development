@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#0b1c0d">
   <title>Roulette — VURGLife</title>
-  <link rel="stylesheet" href="style.css?v=1">
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 
@@ -197,6 +197,31 @@
         <span id="my-staked">Staked $0</span>
       </div>
 
+      <div class="inside-bet-panel" id="inside-bet-panel">
+        <div class="inside-mode-row" role="group" aria-label="Inside bet type">
+          <button class="inside-mode-btn active" data-inside-mode="straight" onclick="setInsideMode('straight')">
+            <span>Straight</span><b>35:1</b>
+          </button>
+          <button class="inside-mode-btn" data-inside-mode="split" onclick="setInsideMode('split')">
+            <span>Split</span><b>17:1</b>
+          </button>
+          <button class="inside-mode-btn" data-inside-mode="street" onclick="setInsideMode('street')">
+            <span>Street</span><b>11:1</b>
+          </button>
+          <button class="inside-mode-btn" data-inside-mode="corner" onclick="setInsideMode('corner')">
+            <span>Corner</span><b>8:1</b>
+          </button>
+          <button class="inside-mode-btn" data-inside-mode="line" onclick="setInsideMode('line')">
+            <span>Line</span><b>5:1</b>
+          </button>
+        </div>
+        <div class="inside-selection-row">
+          <span id="inside-selection-label">Straight bets active</span>
+          <button class="inside-action" id="inside-clear" onclick="clearInsideSelection()" disabled>Clear</button>
+          <button class="inside-action primary" id="inside-place" onclick="placeInsideBet()" disabled>Place</button>
+        </div>
+      </div>
+
       <div class="chip-row" id="chip-row"></div>
 
       <div class="bet-controls">
@@ -215,6 +240,6 @@
 
 </div>
 
-<script src="game.js?v=3"></script>
+<script src="game.js?v=4"></script>
 </body>
 </html>

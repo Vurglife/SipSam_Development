@@ -127,24 +127,23 @@ function normalizeBet(desc, variant) {
       return { type: t, numbers: [n] };
     }
     case 'split': {
-      const ns = desc.targets || [];
-      if (ns.length !== 2) throw new Error('Split needs 2 targets');
-      if (!ns.every((n) => isValidPocket(n, variant))) throw new Error('Invalid split target');
+      const ns = normalizeTargets(desc.targets, variant, 2, 'Split');
+      if (!isValidSplitTargets(ns, variant)) throw new Error('Invalid split shape');
       return { type: t, numbers: [...ns] };
     }
     case 'street': {
-      const ns = desc.targets || [];
-      if (ns.length !== 3) throw new Error('Street needs 3 targets');
+      const ns = normalizeTargets(desc.targets, variant, 3, 'Street');
+      if (!isValidStreetTargets(ns)) throw new Error('Invalid street shape');
       return { type: t, numbers: [...ns] };
     }
     case 'corner': {
-      const ns = desc.targets || [];
-      if (ns.length !== 4) throw new Error('Corner needs 4 targets');
+      const ns = normalizeTargets(desc.targets, variant, 4, 'Corner');
+      if (!isValidCornerTargets(ns)) throw new Error('Invalid corner shape');
       return { type: t, numbers: [...ns] };
     }
     case 'line': {
-      const ns = desc.targets || [];
-      if (ns.length !== 6) throw new Error('Line needs 6 targets');
+      const ns = normalizeTargets(desc.targets, variant, 6, 'Line');
+      if (!isValidLineTargets(ns)) throw new Error('Invalid line shape');
       return { type: t, numbers: [...ns] };
     }
     case 'basket': {
@@ -191,6 +190,93 @@ function isValidPocket(n, variant) {
   if (n === 0) return true;
   if (n === '00') return variant === 'american';
   return Number.isInteger(n) && n >= 1 && n <= 36;
+}
+
+function normalizeTargets(targets, variant, count, label) {
+  const ns = Array.isArray(targets) ? targets : [];
+  if (ns.length !== count) throw new Error(`${label} needs ${count} targets`);
+  if (!ns.every((n) => isValidPocket(n, variant))) throw new Error(`Invalid ${label.toLowerCase()} target`);
+  const unique = uniquePockets(ns);
+  if (unique.length !== ns.length) throw new Error(`Duplicate ${label.toLowerCase()} target`);
+  return unique.sort((a, b) => pocketRank(a) - pocketRank(b));
+}
+
+function uniquePockets(ns) {
+  const out = [];
+  for (const n of ns) {
+    if (!out.some((x) => samePocket(x, n))) out.push(n);
+  }
+  return out;
+}
+
+function pocketRank(n) {
+  if (n === 0) return 0;
+  if (n === '00') return 1;
+  return n + 1;
+}
+
+function isNumericTablePocket(n) {
+  return Number.isInteger(n) && n >= 1 && n <= 36;
+}
+
+function rowOf(n) {
+  return Math.ceil(n / 3);
+}
+
+function colOf(n) {
+  return ((n - 1) % 3) + 1;
+}
+
+function streetForRow(row) {
+  const start = ((row - 1) * 3) + 1;
+  return [start, start + 1, start + 2];
+}
+
+function samePocketSet(a, b) {
+  return a.length === b.length && a.every((x) => b.some((y) => samePocket(x, y)));
+}
+
+function isValidSplitTargets(ns, variant) {
+  const zeroSplits = variant === 'american'
+    ? [[0, '00'], [0, 1], [0, 2], ['00', 2], ['00', 3]]
+    : [[0, 1], [0, 2], [0, 3]];
+  if (ns.some((n) => n === 0 || n === '00')) {
+    return zeroSplits.some((pair) => samePocketSet(ns, pair));
+  }
+  if (!ns.every(isNumericTablePocket)) return false;
+  const [a, b] = ns;
+  const sameRow = rowOf(a) === rowOf(b) && Math.abs(colOf(a) - colOf(b)) === 1;
+  const sameCol = colOf(a) === colOf(b) && Math.abs(rowOf(a) - rowOf(b)) === 1;
+  return sameRow || sameCol;
+}
+
+function isValidStreetTargets(ns) {
+  if (!ns.every(isNumericTablePocket)) return false;
+  return samePocketSet(ns, streetForRow(rowOf(ns[0])));
+}
+
+function isValidCornerTargets(ns) {
+  if (!ns.every(isNumericTablePocket)) return false;
+  const rows = [...new Set(ns.map(rowOf))].sort((a, b) => a - b);
+  const cols = [...new Set(ns.map(colOf))].sort((a, b) => a - b);
+  if (rows.length !== 2 || cols.length !== 2) return false;
+  if (rows[1] - rows[0] !== 1 || cols[1] - cols[0] !== 1) return false;
+  const expected = [];
+  for (const row of rows) {
+    for (const col of cols) {
+      expected.push(((row - 1) * 3) + col);
+    }
+  }
+  return samePocketSet(ns, expected);
+}
+
+function isValidLineTargets(ns) {
+  if (!ns.every(isNumericTablePocket)) return false;
+  const rows = [...new Set(ns.map(rowOf))].sort((a, b) => a - b);
+  const cols = [...new Set(ns.map(colOf))].sort((a, b) => a - b);
+  if (rows.length !== 2 || rows[1] - rows[0] !== 1) return false;
+  if (cols.length !== 3 || cols[0] !== 1 || cols[1] !== 2 || cols[2] !== 3) return false;
+  return samePocketSet(ns, [...streetForRow(rows[0]), ...streetForRow(rows[1])]);
 }
 
 // Is this bet an "even-money" outside bet? (relevant for European en-prison rule)
@@ -272,6 +358,7 @@ module.exports = {
   BET_PAYOUTS, BET_LABEL, COLUMNS, DOZENS,
   // helpers
   colorOf, wheelFor, pocketsFor, isValidPocket, isEvenMoney,
+  isValidSplitTargets, isValidStreetTargets, isValidCornerTargets, isValidLineTargets,
   // core
   spin, normalizeBet, resolveBets, validateBets,
 };
