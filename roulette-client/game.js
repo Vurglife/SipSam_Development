@@ -65,6 +65,7 @@ const S = {
   lastWinning: null,
   ws:        null,
   authToken: '',
+  autoEnter: false,
 
   // UI helpers
   timerInt:  null,
@@ -97,6 +98,7 @@ function readHandoff() {
   if (urlUser)     S.username = urlUser;
   if (urlUid)      S.userId = urlUid;
   if (urlWallet)   S.wallet = Number(urlWallet);
+  S.autoEnter = Boolean(urlMinBet && urlWallet);
 
   // Pull auth token / extra fields from sessionStorage (set by dashboard)
   try {
@@ -896,6 +898,10 @@ function flashMessage(txt) {
   if (S.sessionId) {
     // Already have a session — go straight to the game (pre-wired).
     connectWS();
+  } else if (S.autoEnter) {
+    document.getElementById('login-status').textContent = 'Opening Roulette table...';
+    showScreen('screen-login');
+    enterTable();
   } else {
     // Mark the active American table type and preselected mode from URL if any
     document.querySelectorAll('.variant-card').forEach((c) =>

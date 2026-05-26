@@ -77,7 +77,8 @@ button {
 }
 
 /* ── LOGIN CARD ────────────────────────────────────────────── */
-#screen-login { display: flex; align-items: center; justify-content: center; padding: 24px; }
+#screen-login { align-items: center; justify-content: center; padding: 24px; }
+#screen-login.active { display: flex; }
 .login-card {
   position: relative; z-index: 1;
   background: rgba(10,22,10,0.85);
@@ -104,8 +105,9 @@ button {
 #screen-mode {
   min-height: 100dvh;
   padding: 20px 14px 40px;
-  display: flex; align-items: flex-start; justify-content: center;
+  align-items: flex-start; justify-content: center;
 }
+#screen-mode.active { display: flex; }
 .lobby-card {
   position: relative; z-index: 1;
   background: rgba(10,22,10,0.88);
