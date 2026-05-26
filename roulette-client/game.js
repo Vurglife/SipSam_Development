@@ -42,6 +42,14 @@ const EUROPEAN_WHEEL = [
   5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
 ];
 
+const PHASE_SECONDS = { betting: 40, spinning: 8, resolving: 5 };
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const WHEEL_CENTER = 120;
+const WHEEL_OUTER_R = 112;
+const WHEEL_INNER_R = 73;
+const WHEEL_LABEL_R = 94;
+const BALL_TRACK_R = 82;
+
 // ── Client state ──────────────────────────────────────────
 const S = {
   username:   'Player',
@@ -73,6 +81,10 @@ const S = {
   myBets:    [],  // mirror of server-side bets (for optimistic chip draw)
   insideMode: null,
   insideSelection: [],
+  betView: 'table',
+  wheelRotation: 0,
+  ballAngle: 0,
+  wheelAnimId: null,
 };
 
 const INSIDE_BET_SPECS = {
@@ -190,7 +202,10 @@ function connectWS() {
   ws.onopen = () => {
     showScreen('screen-game');
     renderChips();
+    renderWheelFace();
     attachBoardHandlers();
+    attachWheelHandlers();
+    refreshBetViewUI();
     window.addEventListener('beforeunload', handleBeforeUnload);
   };
   ws.onclose = (e) => {
@@ -285,7 +300,9 @@ function onState(d) {
   S.phaseEnd   = d.phaseEnd;
   S.round      = d.round;
   S.history    = d.history || [];
-  S.lastWinning = d.winning;
+  S.lastWinning = d.winning !== null && d.winning !== undefined
+    ? d.winning
+    : (S.history[0]?.pocket ?? S.lastWinning);
 
   const me = d.players && d.players[S.sessionId];
   if (me) {
@@ -294,16 +311,20 @@ function onState(d) {
   }
 
   renderBoard();      // ensures the variant-correct board is drawn
+  renderWheelFace();
   updateHeader(d.message);
   renderWallet();
   renderHistory();
   redrawChipStacks();
+  if (S.phase === 'betting') clearWheelFocus();
+  refreshBetViewUI();
   refreshPhaseUI();
 }
 
 function onSpin(d) {
   S.phaseEnd = d.phaseEnd;
   S.phase    = 'spinning';
+  S.lastWinning = d.winning;
   animateWheel(d.winning);
   document.getElementById('game-status').textContent = 'Spinning…';
   document.getElementById('table-message').textContent = 'No more bets';
@@ -323,6 +344,8 @@ function onResolve(d) {
     showResult(me);
   }
   renderWallet();
+  showWinningNumber(d.winning, true);
+  highlightWinningPocket(d.winning);
   refreshPhaseUI();
 }
 
@@ -374,6 +397,10 @@ function refreshPhaseUI() {
     c.style.pointerEvents = bettingOpen ? '' : 'none';
     c.style.opacity = bettingOpen ? '' : '0.78';
   });
+  document.querySelectorAll('.wheel-pocket').forEach((pocket) => {
+    pocket.classList.toggle('betting-open', bettingOpen && S.betView === 'wheel');
+    pocket.classList.toggle('betting-closed', !bettingOpen || S.betView !== 'wheel');
+  });
   document.getElementById('btn-undo').disabled  = !bettingOpen;
   document.getElementById('btn-clear').disabled = !bettingOpen;
   updateInsideBetUI();
@@ -392,7 +419,7 @@ function startTimerLoop() {
     }
     const ring = document.getElementById('timer-ring');
     if (ring) {
-      const total = S.phase === 'betting' ? 20 : (S.phase === 'spinning' ? 6 : 5);
+      const total = PHASE_SECONDS[S.phase] || 5;
       const frac = Math.max(0, Math.min(1, remain / total));
       ring.style.strokeDashoffset = String(100 - frac * 100);
     }
@@ -458,6 +485,192 @@ function attachBoardHandlers() {
   });
 }
 
+window.setBetView = function (view) {
+  S.betView = view === 'wheel' ? 'wheel' : 'table';
+  if (S.betView === 'wheel') {
+    S.insideMode = null;
+    S.insideSelection = [];
+  }
+  refreshBetViewUI();
+  updateInsideBetUI();
+  refreshBoardSelection();
+  refreshPhaseUI();
+};
+
+function refreshBetViewUI() {
+  const game = document.getElementById('screen-game');
+  if (game) game.classList.toggle('bet-view-wheel', S.betView === 'wheel');
+  document.querySelectorAll('.view-toggle').forEach((btn) => {
+    const active = (btn.id === 'view-wheel' && S.betView === 'wheel')
+      || (btn.id === 'view-table' && S.betView !== 'wheel');
+    btn.classList.toggle('active', active);
+  });
+  updateMyAreaHeight();
+}
+
+function attachWheelHandlers() {
+  const wheel = document.getElementById('wheel');
+  if (!wheel || wheel.dataset.handlersAttached) return;
+  wheel.dataset.handlersAttached = '1';
+  wheel.addEventListener('click', (e) => {
+    const pocket = e.target.closest('.wheel-pocket');
+    if (!pocket || S.betView !== 'wheel') return;
+    if (S.phase !== 'betting') return flashMessage('Betting is closed');
+    const target = parseWheelTarget(pocket.dataset.pocket);
+    send({
+      type: 'placeBet',
+      bet: { type: 'straight', target, amount: S.selectedChip },
+    });
+  });
+}
+
+function parseWheelTarget(value) {
+  return value === '00' ? '00' : Number(value);
+}
+
+function renderWheelFace() {
+  const mount = document.getElementById('wheel');
+  if (!mount || mount.dataset.rendered) return;
+
+  const svg = svgEl('svg', {
+    id: 'wheel-svg',
+    class: 'wheel-svg',
+    viewBox: '0 0 240 240',
+    role: 'img',
+    'aria-label': 'American roulette wheel',
+  });
+
+  svg.appendChild(svgEl('circle', {
+    class: 'wheel-bowl',
+    cx: WHEEL_CENTER,
+    cy: WHEEL_CENTER,
+    r: 118,
+  }));
+
+  const face = svgEl('g', { id: 'wheel-face', class: 'wheel-face' });
+  const wheel = wheelFor(S.variant);
+  const seg = 360 / wheel.length;
+  for (let i = 0; i < wheel.length; i += 1) {
+    const pocket = wheel[i];
+    const start = i * seg;
+    const end = start + seg;
+    const mid = start + seg / 2;
+    const color = colorOfNum(pocket);
+    const group = svgEl('g', {
+      class: 'wheel-pocket pocket-' + color,
+      'data-pocket': String(pocket),
+      role: 'button',
+      tabindex: '0',
+    });
+    group.appendChild(svgEl('path', {
+      class: 'wheel-pocket-path',
+      d: sectorPath(WHEEL_OUTER_R, WHEEL_INNER_R, start, end),
+    }));
+    const labelPos = polarPoint(WHEEL_LABEL_R, mid);
+    const chipPos = polarPoint(84, mid);
+    group.dataset.chipX = chipPos.x.toFixed(2);
+    group.dataset.chipY = chipPos.y.toFixed(2);
+    const labelRotation = mid > 90 && mid < 270 ? mid + 180 : mid;
+    const label = svgEl('text', {
+      class: 'wheel-pocket-label',
+      x: labelPos.x.toFixed(2),
+      y: labelPos.y.toFixed(2),
+      'text-anchor': 'middle',
+      'dominant-baseline': 'central',
+      transform: `rotate(${labelRotation} ${labelPos.x.toFixed(2)} ${labelPos.y.toFixed(2)})`,
+    });
+    label.textContent = String(pocket);
+    group.appendChild(label);
+    face.appendChild(group);
+  }
+
+  svg.appendChild(face);
+  svg.appendChild(svgEl('circle', {
+    class: 'wheel-ball-track',
+    cx: WHEEL_CENTER,
+    cy: WHEEL_CENTER,
+    r: BALL_TRACK_R,
+  }));
+  svg.appendChild(svgEl('circle', {
+    class: 'wheel-inner',
+    cx: WHEEL_CENTER,
+    cy: WHEEL_CENTER,
+    r: WHEEL_INNER_R - 11,
+  }));
+  svg.appendChild(svgEl('circle', {
+    class: 'wheel-hub',
+    cx: WHEEL_CENTER,
+    cy: WHEEL_CENTER,
+    r: 14,
+  }));
+  svg.appendChild(svgEl('circle', {
+    id: 'wheel-ball',
+    class: 'wheel-ball',
+    r: 4.8,
+  }));
+
+  mount.textContent = '';
+  mount.appendChild(svg);
+  mount.dataset.rendered = '1';
+  setWheelFaceRotation(S.wheelRotation);
+  setBallAtAngle(S.ballAngle);
+  redrawWheelChipStacks();
+}
+
+function svgEl(name, attrs) {
+  const el = document.createElementNS(SVG_NS, name);
+  for (const [key, value] of Object.entries(attrs || {})) {
+    el.setAttribute(key, String(value));
+  }
+  return el;
+}
+
+function sectorPath(outerR, innerR, startDeg, endDeg) {
+  const a = polarPoint(outerR, startDeg);
+  const b = polarPoint(outerR, endDeg);
+  const c = polarPoint(innerR, endDeg);
+  const d = polarPoint(innerR, startDeg);
+  const large = endDeg - startDeg > 180 ? 1 : 0;
+  return [
+    `M ${a.x.toFixed(2)} ${a.y.toFixed(2)}`,
+    `A ${outerR} ${outerR} 0 ${large} 1 ${b.x.toFixed(2)} ${b.y.toFixed(2)}`,
+    `L ${c.x.toFixed(2)} ${c.y.toFixed(2)}`,
+    `A ${innerR} ${innerR} 0 ${large} 0 ${d.x.toFixed(2)} ${d.y.toFixed(2)}`,
+    'Z',
+  ].join(' ');
+}
+
+function polarPoint(radius, angleDeg) {
+  const rad = (angleDeg - 90) * Math.PI / 180;
+  return {
+    x: WHEEL_CENTER + Math.cos(rad) * radius,
+    y: WHEEL_CENTER + Math.sin(rad) * radius,
+  };
+}
+
+function setWheelFaceRotation(deg) {
+  S.wheelRotation = deg;
+  const face = document.getElementById('wheel-face');
+  if (face) face.setAttribute('transform', `rotate(${deg} ${WHEEL_CENTER} ${WHEEL_CENTER})`);
+}
+
+function setBallAtAngle(deg) {
+  S.ballAngle = deg;
+  const ball = document.getElementById('wheel-ball');
+  if (!ball) return;
+  const p = polarPoint(BALL_TRACK_R, normalizeDeg(deg));
+  ball.setAttribute('cx', p.x.toFixed(2));
+  ball.setAttribute('cy', p.y.toFixed(2));
+}
+
+function normalizeDeg(deg) {
+  return ((deg % 360) + 360) % 360;
+}
+
+function easeOutCubic(t) {
+  return 1 - Math.pow(1 - t, 3);
+}
+
 function cellKeyForBet(b) {
   // Key used for drawing a chip stack on a bet. For simple straight/outside we map
   // directly to a cell. For compound (split/street/corner/line) a chip stack lives
@@ -491,9 +704,48 @@ function redrawChipStacks() {
     chip.textContent = fmtChip(total);
     cell.appendChild(chip);
   }
+  redrawWheelChipStacks();
   // Staked total
   const staked = S.myBets.reduce((s, b) => s + b.amount, 0);
   document.getElementById('my-staked').textContent = 'Staked $' + staked.toLocaleString();
+}
+
+function redrawWheelChipStacks() {
+  const face = document.getElementById('wheel-face');
+  if (!face) return;
+  face.querySelectorAll('.wheel-chip').forEach((n) => n.remove());
+  const sums = new Map();
+  for (const b of S.myBets) {
+    if (b.type !== 'straight' || !b.numbers || !b.numbers.length) continue;
+    const key = String(b.numbers[0]);
+    sums.set(key, (sums.get(key) || 0) + b.amount);
+  }
+  for (const [key, total] of sums) {
+    let pocket = null;
+    for (const node of face.querySelectorAll('.wheel-pocket')) {
+      if (node.dataset.pocket === key) {
+        pocket = node;
+        break;
+      }
+    }
+    if (!pocket) continue;
+    const x = Number(pocket.dataset.chipX);
+    const y = Number(pocket.dataset.chipY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    const chip = svgEl('g', {
+      class: 'wheel-chip',
+      transform: `translate(${x.toFixed(2)} ${y.toFixed(2)})`,
+    });
+    chip.appendChild(svgEl('circle', { r: 8.5 }));
+    const label = svgEl('text', {
+      'text-anchor': 'middle',
+      'dominant-baseline': 'central',
+      y: 0.5,
+    });
+    label.textContent = fmtChip(total);
+    chip.appendChild(label);
+    face.appendChild(chip);
+  }
 }
 
 function findCellByKey(key) {
@@ -767,41 +1019,47 @@ function renderHistory() {
 }
 
 // ── Wheel animation ───────────────────────────────────────
+function wheelFor(variant) {
+  return AMERICAN_WHEEL;
+}
+
 function animateWheel(winning) {
+  renderWheelFace();
   const wheel = wheelFor(S.variant);
   const idx = wheel.findIndex((p) => String(p) === String(winning));
   if (idx < 0) return;
   const segAngle = 360 / wheel.length;
-  // Add several full rotations for drama; land so the winning segment is at the
-  // top (ball pointer). We rotate the wheel counter-clockwise and the ball
-  // clockwise so relative motion looks right on a small display.
-  const finalWheelDeg = -(360 * 4 + idx * segAngle);
-  const finalBallDeg  = 360 * 6 + idx * segAngle;
+  const winningAngle = idx * segAngle + segAngle / 2;
+  const startWheel = S.wheelRotation || 0;
+  const targetWheelMod = normalizeDeg(-winningAngle);
+  const wheelDelta = normalizeDeg(targetWheelMod - normalizeDeg(startWheel));
+  const endWheel = startWheel + 360 * 5 + wheelDelta;
+  const startBall = S.ballAngle || 0;
+  const ballBackToTop = normalizeDeg(startBall);
+  const endBall = startBall - 360 * 8 - ballBackToTop;
+  const started = performance.now();
+  const duration = Math.max(3600, (PHASE_SECONDS.spinning - 0.45) * 1000);
 
-  const w = document.getElementById('wheel');
-  const b = document.getElementById('wheel-ball');
-  w.style.transition = 'none';
-  b.style.transition = 'none';
-  w.style.transform = 'rotate(0deg)';
-  b.style.transform = 'translate(-50%, 0) rotate(0deg)';
-  // force layout
-  void w.offsetWidth;
-  w.style.transition = 'transform 5s cubic-bezier(0.2, 0.6, 0.2, 1)';
-  b.style.transition = 'transform 4.8s cubic-bezier(0.25, 0.1, 0.25, 1)';
-  w.style.transform = 'rotate(' + finalWheelDeg + 'deg)';
-  b.style.transform = 'translate(-50%, 0) rotate(' + finalBallDeg + 'deg)';
+  setWheelFocus(true);
+  showWinningNumber(null, true);
+  if (S.wheelAnimId) cancelAnimationFrame(S.wheelAnimId);
 
-  const disp = document.getElementById('winning-num');
-  disp.textContent = '…';
-  setTimeout(() => {
-    disp.textContent = String(winning);
-    disp.style.color = colorOfNum(winning) === 'red' ? '#ff8585'
-                    : colorOfNum(winning) === 'black' ? '#fff'
-                    : '#9aeeaa';
-  }, 4900);
-}
-function wheelFor(variant) {
-  return AMERICAN_WHEEL;
+  const frame = (now) => {
+    const t = Math.min(1, (now - started) / duration);
+    const eased = easeOutCubic(t);
+    setWheelFaceRotation(startWheel + (endWheel - startWheel) * eased);
+    setBallAtAngle(startBall + (endBall - startBall) * eased);
+    if (t < 1) {
+      S.wheelAnimId = requestAnimationFrame(frame);
+      return;
+    }
+    S.wheelAnimId = null;
+    setWheelFaceRotation(endWheel);
+    setBallAtAngle(0);
+    showWinningNumber(winning, true);
+    highlightWinningPocket(winning);
+  };
+  S.wheelAnimId = requestAnimationFrame(frame);
 }
 
 function highlightWinningCell(winning) {
@@ -811,6 +1069,54 @@ function highlightWinningCell(winning) {
   setTimeout(() => {
     if (cell) cell.classList.remove('hit');
   }, 2800);
+}
+
+function highlightWinningPocket(winning) {
+  document.querySelectorAll('.wheel-pocket.hit').forEach((p) => p.classList.remove('hit'));
+  const key = String(winning);
+  let target = null;
+  document.querySelectorAll('.wheel-pocket').forEach((pocket) => {
+    if (pocket.dataset.pocket === key) target = pocket;
+  });
+  if (!target) return;
+  target.classList.add('hit');
+  setTimeout(() => target.classList.remove('hit'), 3000);
+}
+
+function showWinningNumber(winning, big) {
+  const display = document.getElementById('winning-display');
+  const num = document.getElementById('winning-num');
+  if (!display || !num) return;
+  display.classList.toggle('show-win', !!big);
+  if (winning === null) {
+    num.textContent = '...';
+    num.style.color = '#ffe9a8';
+    return;
+  }
+  if (winning === undefined) {
+    num.textContent = '--';
+    num.style.color = '#f0fff0';
+    return;
+  }
+  num.textContent = String(winning);
+  const color = colorOfNum(winning);
+  num.style.color = color === 'red' ? '#ff8585'
+    : color === 'black' ? '#fff'
+    : '#9aeeaa';
+}
+
+function setWheelFocus(active) {
+  const game = document.getElementById('screen-game');
+  if (game) game.classList.toggle('wheel-focus', !!active);
+}
+
+function clearWheelFocus() {
+  setWheelFocus(false);
+  if (S.lastWinning !== null && S.lastWinning !== undefined) {
+    showWinningNumber(S.lastWinning, false);
+  } else {
+    showWinningNumber(undefined, false);
+  }
 }
 
 function showResult(me) {

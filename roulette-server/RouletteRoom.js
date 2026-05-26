@@ -86,10 +86,9 @@ const TABLE_CONFIG = {
   },
 };
 
-// Timing (seconds). Phase durations tuned for mobile — short enough to keep
-// pace on a phone session, long enough for real chip placement.
-const BETTING_SECONDS   = 20;
-const SPINNING_SECONDS  = 6;
+// Timing (seconds). The betting window gives players time to use table or wheel bets.
+const BETTING_SECONDS   = 40;
+const SPINNING_SECONDS  = 8;
 const RESOLVING_SECONDS = 5;
 
 const MAX_PLAYERS = 6;

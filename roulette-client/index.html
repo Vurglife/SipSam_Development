@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#0b1c0d">
   <title>Roulette — VURGLife</title>
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 
@@ -128,17 +128,18 @@
     <!-- WHEEL + HISTORY -->
     <div class="wheel-zone">
       <div class="wheel-wrap" id="wheel-wrap">
-        <div class="wheel" id="wheel">
-          <div class="wheel-inner"></div>
-          <div class="wheel-ball" id="wheel-ball"></div>
-          <div class="wheel-hub"></div>
-        </div>
+        <div class="wheel" id="wheel" aria-label="American roulette wheel"></div>
         <div class="winning-display" id="winning-display">
           <span class="winning-label">LAST</span>
           <span class="winning-num" id="winning-num">--</span>
         </div>
       </div>
       <div class="history-strip" id="history-strip"></div>
+    </div>
+
+    <div class="bet-view-toggle" id="bet-view-toggle" role="group" aria-label="Betting view">
+      <button class="view-toggle active" id="view-table" onclick="setBetView('table')">Table</button>
+      <button class="view-toggle" id="view-wheel" onclick="setBetView('wheel')">Wheel</button>
     </div>
 
     <!-- BETTING BOARD -->
@@ -240,6 +241,6 @@
 
 </div>
 
-<script src="game.js?v=5"></script>
+<script src="game.js?v=6"></script>
 </body>
 </html>
