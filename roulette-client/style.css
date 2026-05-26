@@ -839,13 +839,29 @@ button {
   box-shadow: 0 -6px 24px rgba(0,0,0,0.55);
 }
 .my-info-bar {
-  display: flex; justify-content: space-between; align-items: center;
+  display: grid;
+  grid-template-columns: minmax(76px, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
   font-size: 0.78rem;
   padding: 0 2px 4px;
 }
-#my-name { font-weight: 700; color: var(--gold-lt); }
-#my-wallet { font-weight: 800; color: var(--cream); }
-#my-staked { color: #b5d0b5; }
+#my-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  color: var(--gold-lt);
+}
+#my-wallet {
+  font-weight: 900;
+  color: var(--cream);
+}
+#my-bet {
+  color: var(--gold-lt);
+  font-weight: 900;
+}
 
 .inside-bet-panel {
   display: flex;
@@ -1173,5 +1189,12 @@ button {
   .wheel-wrap { width: 220px; }
   .cell { font-size: 0.95rem; min-height: 38px; }
   .game-body { max-width: 720px; margin: 0 auto; }
-  .my-area { max-width: 720px; margin: 0 auto; left: 50%; transform: translateX(-50%); border-radius: 14px 14px 0 0; }
+  .my-area {
+    width: min(720px, calc(100vw - 16px));
+    max-width: none;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    border-radius: 14px 14px 0 0;
+  }
 }

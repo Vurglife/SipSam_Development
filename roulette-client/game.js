@@ -861,6 +861,11 @@ function currentBetStake() {
   return S.myBets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
 }
 
+function displayedBalance() {
+  const lockedBet = (S.phase === 'betting' || S.phase === 'spinning') ? currentBetStake() : 0;
+  return Math.max(0, (Number(S.wallet) || 0) - lockedBet);
+}
+
 function updateDoubleButton() {
   const btn = document.getElementById('btn-double');
   if (!btn) return;
@@ -1132,9 +1137,7 @@ function redrawChipStacks() {
     cell.classList.add('has-chip');
   }
   redrawWheelChipStacks();
-  // Staked total
-  const staked = S.myBets.reduce((s, b) => s + b.amount, 0);
-  document.getElementById('my-staked').textContent = 'Staked $' + staked.toLocaleString();
+  renderWallet();
 }
 
 function redrawWheelChipStacks() {
@@ -1480,8 +1483,10 @@ function renderChips() {
 
 // ── Wallet / history ──────────────────────────────────────
 function renderWallet() {
+  const bet = currentBetStake();
   document.getElementById('my-name').textContent = S.username;
-  document.getElementById('my-wallet').textContent = '$' + (S.wallet || 0).toLocaleString();
+  document.getElementById('my-wallet').textContent = 'Balance $' + displayedBalance().toLocaleString();
+  document.getElementById('my-bet').textContent = 'Bet $' + bet.toLocaleString();
 }
 function renderHistory() {
   const strip = document.getElementById('history-strip');
