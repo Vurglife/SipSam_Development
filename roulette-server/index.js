@@ -4,7 +4,8 @@
 // VurgLife Roulette — server/index.js
 // Port 3005: Express matchmake + table browse API
 // Port 3006: WebSocket game server (ws)
-// Supports American (38 pockets) and European (37 pockets) variants.
+// Current release exposes American roulette. European logic stays in engine.js
+// for the later European table build.
 // Mirrors the Rhum32 two-port pattern so the platform proxy stays consistent.
 // Spawned by vurglife-platform/server/index.js — see PLATFORM_INTEGRATION.md.
 // ─────────────────────────────────────────────────────────────
@@ -46,7 +47,7 @@ app.post('/matchmake/joinOrCreate/roulette_room', (req, res) => {
   const token        = req.body?.token       || null;
   const wallet       = Number(req.body?.wallet) || 0;
   const tableMinBet  = Number(req.body?.tableMinBet) || 100;
-  const variant      = req.body?.variant     || 'european';
+  const variant      = 'american';
   const mode         = req.body?.mode        || 'multiplayer';
   const targetRoomId = req.body?.roomId      || null;
 
@@ -91,7 +92,7 @@ app.get('/tables/browse', (req, res) => {
 // ── CREATE a host room ─────────────────────────────────────
 app.post('/tables/create', (req, res) => {
   const tableMinBet = Number(req.body?.tableMinBet) || 100;
-  const variant = req.body?.variant || 'european';
+  const variant = 'american';
   const mode = req.body?.mode || 'multiplayer';
   const { roomId } = manager.createRoom(variant, tableMinBet, mode);
   res.json({ ok: true, roomId });
@@ -165,7 +166,7 @@ wss.on('listening', () => {
   console.log('  Roulette WS:  ws://localhost:' + WS_PORT);
   console.log('==============================');
   console.log('  ROULETTE SERVER READY');
-  console.log('  Variants: american, european');
+  console.log('  Variant: american');
   console.log('==============================');
 });
 

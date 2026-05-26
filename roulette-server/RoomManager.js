@@ -2,7 +2,7 @@
 
 // ─────────────────────────────────────────────────────────────
 // VurgLife Roulette — RoomManager.js
-// Room map keyed by roomId. Supports quick-join per (variant, minBet).
+// Room map keyed by roomId. Current product release quick-joins American rooms.
 // Single-player rooms are always private (never surfaced to joinOrCreate).
 // ─────────────────────────────────────────────────────────────
 
@@ -15,7 +15,7 @@ class RoomManager {
   }
 
   createRoom(variant, tableMinBet, mode) {
-    const v = variant === 'american' ? 'american' : 'european';
+    const v = 'american';
     const m = mode === 'single' ? 'single' : 'multiplayer';
     const roomId = `rlt_${v}_${tableMinBet}_${++this.counter}_${Date.now()}`;
     const room = new RouletteRoom({ roomId, variant: v, tableMinBet, mode: m });
@@ -50,7 +50,7 @@ class RoomManager {
   }
 
   joinOrCreate(variant, tableMinBet) {
-    const v = variant === 'american' ? 'american' : 'european';
+    const v = 'american';
     const available = this.listRooms(v, tableMinBet);
     if (available.length > 0) {
       // Prefer rooms that aren't already spinning.

@@ -48,7 +48,7 @@ const S = {
   userId:     null,
   sessionId:  null,
   roomId:     null,
-  variant:    'european',      // 'american' | 'european'
+  variant:    'american',
   mode:       'multiplayer',   // 'multiplayer' | 'single'
   tableMinBet: 100,
   wallet:     0,
@@ -82,7 +82,7 @@ function readHandoff() {
   const urlUid     = p.get('userId');
   const urlWallet  = p.get('wallet');
 
-  if (urlVariant)  S.variant = urlVariant;
+  if (urlVariant === 'american') S.variant = 'american';
   if (urlMinBet)   S.tableMinBet = Number(urlMinBet);
   if (urlMode)     S.mode = urlMode;
   if (urlUser)     S.username = urlUser;
@@ -114,9 +114,9 @@ function showScreen(id) {
 
 // ── Mode-select screen ────────────────────────────────────
 window.pickVariant = function (v) {
-  S.variant = v;
+  S.variant = 'american';
   document.querySelectorAll('.variant-card').forEach((c) => {
-    c.classList.toggle('selected', c.dataset.variant === v);
+    c.classList.toggle('selected', c.dataset.variant === S.variant);
   });
   refreshEnterButton();
 };
@@ -155,7 +155,7 @@ window.enterTable = async function () {
         token:        S.authToken,
         wallet:       S.wallet,
         tableMinBet:  S.tableMinBet,
-        variant:      S.variant,
+        variant:      'american',
         mode:         S.mode,
       }),
     });
@@ -574,7 +574,7 @@ function animateWheel(winning) {
   }, 4900);
 }
 function wheelFor(variant) {
-  return variant === 'american' ? AMERICAN_WHEEL : EUROPEAN_WHEEL;
+  return AMERICAN_WHEEL;
 }
 
 function highlightWinningCell(winning) {
@@ -622,16 +622,14 @@ window.exitGame = async function () {
 window.showPayouts = function () {
   const body = document.getElementById('payouts-body');
   const cfg  = S.cfg;
-  const variantLabel = S.variant === 'american' ? 'American (0 &amp; 00)' : 'European (single 0)';
+  const variantLabel = 'American (0 &amp; 00)';
   const vipNote = cfg && cfg.label === 'vip'
     ? '<p class="payouts-note"><strong>VIP table.</strong> Higher limits, standard payouts.</p>'
     : '';
-  const euroNote = S.variant === 'european'
-    ? '<p class="payouts-note"><strong>La Partage:</strong> when 0 lands, even-money bets (Red/Black, Even/Odd, 1-18/19-36) return half your stake.</p>'
-    : '<p class="payouts-note"><strong>Basket bet</strong> (0-00-1-2-3) pays 6:1 but carries the highest house edge on the board.</p>';
+  const basketNote = '<p class="payouts-note"><strong>Basket bet</strong> (0-00-1-2-3) pays 6:1 and is available only on the American board.</p>';
 
   body.innerHTML = `
-    <p class="payouts-note"><strong>Variant:</strong> ${variantLabel} — house edge ${S.variant === 'american' ? '5.26%' : '2.70%'}</p>
+    <p class="payouts-note"><strong>Variant:</strong> ${variantLabel} — house edge 5.26%</p>
     ${vipNote}
     <table class="payouts-table">
       <tr><th>BET</th><th>PAYOUT</th></tr>
@@ -640,11 +638,11 @@ window.showPayouts = function () {
       <tr><td>Street (3 numbers)</td><td>11:1</td></tr>
       <tr><td>Corner (4 numbers)</td><td>8:1</td></tr>
       <tr><td>Line (6 numbers)</td><td>5:1</td></tr>
-      ${S.variant === 'american' ? '<tr><td>Basket (0-00-1-2-3)</td><td>6:1</td></tr>' : ''}
+      <tr><td>Basket (0-00-1-2-3)</td><td>6:1</td></tr>
       <tr><td>Column / Dozen</td><td>2:1</td></tr>
       <tr><td>Red / Black / Odd / Even / 1-18 / 19-36</td><td>1:1</td></tr>
     </table>
-    ${euroNote}
+    ${basketNote}
     <p class="payouts-note"><strong>Table limits:</strong>
        min $${(cfg?.minBet || 0).toLocaleString()},
        max $${(cfg?.maxBet || 0).toLocaleString()} per bet.</p>
@@ -664,16 +662,17 @@ function flashMessage(txt) {
 // ── BOOT ──────────────────────────────────────────────────
 (function boot() {
   readHandoff();
+  S.variant = 'american';
   // Update lobby banner with any incoming handoff details.
   if (S.tableMinBet) document.getElementById('lci-minbet').textContent = '$' + S.tableMinBet.toLocaleString();
   if (S.wallet)      document.getElementById('lci-wallet').textContent = '$' + S.wallet.toLocaleString();
 
-  // If the handoff provided everything needed, jump straight to the variant/mode picker.
+  // If the handoff provided everything needed, jump straight to the mode picker.
   if (S.sessionId) {
     // Already have a session — go straight to the game (pre-wired).
     connectWS();
   } else {
-    // Mark preselected variant/mode from URL if any
+    // Mark the active American table type and preselected mode from URL if any
     document.querySelectorAll('.variant-card').forEach((c) =>
       c.classList.toggle('selected', c.dataset.variant === S.variant));
     document.querySelectorAll('.mode-card').forEach((c) =>

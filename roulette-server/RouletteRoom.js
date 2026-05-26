@@ -3,7 +3,8 @@
 // ─────────────────────────────────────────────────────────────
 // VurgLife Roulette — RouletteRoom.js
 // One room = one wheel running a continuous bet → spin → resolve loop.
-// Supports American (38 pockets) and European (37 pockets) via `variant`.
+// Current product release exposes American roulette. European engine support is
+// retained for a later table build.
 // ─────────────────────────────────────────────────────────────
 
 const engine = require('./engine');
@@ -96,7 +97,7 @@ const MAX_PLAYERS = 6;
 class RouletteRoom {
   constructor({ roomId, variant, tableMinBet, mode }) {
     this.roomId   = roomId;
-    this.variant  = variant === 'american' ? 'american' : 'european';
+    this.variant  = 'american';
     this.mode     = mode === 'single' ? 'single' : 'multiplayer';
     this.cfg      = TABLE_CONFIG[tableMinBet] || TABLE_CONFIG[100];
     this.tableMinBet = this.cfg.minBet;

@@ -18,7 +18,7 @@
   </div>
 </div>
 
-<!-- ============ VARIANT / MODE SELECT ============ -->
+<!-- ============ AMERICAN ROULETTE / MODE SELECT ============ -->
 <div id="screen-mode" class="screen">
   <div class="screen-bg">
     <div class="bg-glow bg-glow-1"></div>
@@ -52,19 +52,13 @@
       </div>
     </div>
 
-    <p class="lobby-section-label">CHOOSE VARIANT</p>
+    <p class="lobby-section-label">TABLE TYPE</p>
     <div class="variant-cards">
-      <button class="variant-card" data-variant="european" onclick="pickVariant('european')">
-        <div class="variant-card-title">European</div>
-        <div class="variant-card-sub">Single zero</div>
-        <div class="variant-card-edge">House edge 2.70%</div>
-        <div class="variant-card-badge">RECOMMENDED</div>
-      </button>
-      <button class="variant-card" data-variant="american" onclick="pickVariant('american')">
+      <button class="variant-card selected" data-variant="american" onclick="pickVariant('american')">
         <div class="variant-card-title">American</div>
         <div class="variant-card-sub">Double zero (0 &amp; 00)</div>
         <div class="variant-card-edge">House edge 5.26%</div>
-        <div class="variant-card-badge">CLASSIC</div>
+        <div class="variant-card-badge">ACTIVE</div>
       </button>
     </div>
 
@@ -221,6 +215,6 @@
 
 </div>
 
-<script src="game.js?v=2"></script>
+<script src="game.js?v=3"></script>
 </body>
 </html>
