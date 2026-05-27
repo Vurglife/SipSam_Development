@@ -63,6 +63,27 @@ function _findPlayerSid(room, player) {
     return null;
 }
 
+// Eligible human-accepter check used at INITIATION time.
+// Bots auto-decline (per spec); pendingExit auto-declines (per spec);
+// ghost bots and disqualified players are out. If there is no live human
+// who could accept, the side bet "does not stand" — initiator gets
+// instant feedback instead of a silent 7-second wait.
+function _eligibleHumans(room, excludeSid, { allowBanker } = { allowBanker: true }) {
+    const players = (room.gameState && room.gameState.players) || {};
+    const bankerSid = room.gameState.bankerSessionId;
+    const out = [];
+    for (const sid of Object.keys(players)) {
+        if (sid === excludeSid) continue;
+        if (!allowBanker && sid === bankerSid) continue;
+        const p = players[sid];
+        if (!p) continue;
+        if (p.isBot || p.isGhostBot) continue;
+        if (p.pendingExit || p.disqualified) continue;
+        out.push(sid);
+    }
+    return out;
+}
+
 function _recordWalletTxn(room, player, type, amount, ref, desc) {
     if (room && typeof room.recordSideBetTransaction === 'function') {
         room.recordSideBetTransaction(player, type, amount, ref, desc);
@@ -152,6 +173,14 @@ function _initiateBestCard(room, player, opts) {
         p.status !== 'refunded'
     );
     if (conflict) return { ok: false, error: 'You already have an active Best Card pot.' };
+
+    // Per spec: "If no one selects yes to participate, then the player who
+    // initiated is notified and the side bet does not stand." We surface
+    // that instantly when there is no human-eligible accepter, instead of
+    // making the initiator wait 7s for bots to silently auto-decline.
+    if (_eligibleHumans(room, sid, { allowBanker: true }).length === 0) {
+        return { ok: false, error: 'No human players available to accept this side bet.' };
+    }
 
     const stake = Number(room.gameState.tableMinBet) || 0;
     if (stake <= 0) return { ok: false, error: 'Table min bet not set.' };
@@ -314,6 +343,11 @@ function _initiateFirstSpecial(room, player /*, opts */) {
         sb.firstSpecial.status !== 'resolved' &&
         sb.firstSpecial.status !== 'refunded') {
         return { ok: false, error: 'A First Special pot is already active.' };
+    }
+    // Spec: notify initiator instead of silent 7s wait when no human is
+    // eligible to accept (all opponents are bots / DQ'd / exiting).
+    if (_eligibleHumans(room, sid, { allowBanker: true }).length === 0) {
+        return { ok: false, error: 'No human players available to accept this side bet.' };
     }
     const stake = Number(room.gameState.tableMinBet) || 0;
     if (stake <= 0) return { ok: false, error: 'Table min bet not set.' };
@@ -499,6 +533,11 @@ function _initiateBeatHand(room, player, opts) {
     const target = room.gameState.players[targetSid];
     if (!target || target.isGhostBot || target.disqualified || target.pendingExit) {
         return { ok: false, error: 'Target opponent is not available.' };
+    }
+    // Bots auto-decline (per spec) — instead of silent 7s wait, reject
+    // the challenge at initiation so the challenger can pick a human.
+    if (target.isBot) {
+        return { ok: false, error: 'Beat Hand requires a human opponent — bots auto-decline.' };
     }
 
     const sb = room.gameState.sideBets;
