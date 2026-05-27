@@ -2,7 +2,7 @@
 // VURGLIFE — AUTH MIDDLEWARE
 // ============================================
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || 'vurglife_dev_secret_change_in_prod';
+const JWT_SECRET = process.env.JWT_SECRET || 'vurglife_jwt_secret_change_in_prod';
 
 function requireAuth(req, res, next) {
     const token = req.cookies?.vurglife_token
