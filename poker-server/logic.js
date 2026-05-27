@@ -780,22 +780,11 @@ function detectSpecialFromRaw(rawCards) {
 }
 
 
-const SPECIAL_BONUS_VIP = {
-    'No Face':                    100000,
-    'Four of a Kind':             250000,
-    'Straight Flush':             250000,
-    'Straight-Straight-Straight': 500000,
-    'Flush-Flush-Flush':          500000,
-    'Royal Flush':                750000,
-    '6½':                         1000000,
-    'Full Suit':                  3000000,
-};
-
-function getSpecialBonus(specialName, isVip) {
-    if (isVip) return SPECIAL_BONUS_VIP[specialName] || 0;
-    return SPECIAL_BONUS[specialName] || 0;
-}
-
+// Four-tier special-bonus table per the May 2026 payout chart.
+//   Normal     — minBet <  $10K   ($100 / $250 / $500 / $1K tables)
+//   VIP        — minBet >= $10K   ($10K table)
+//   Elite      — minBet >= $100K  ($100K table)
+//   Celestial  — minBet >= $500K  ($500K table — chart labels this $250K)
 const SPECIAL_BONUS = {
     'No Face':                    1000,
     'Four of a Kind':             2500,
@@ -806,6 +795,54 @@ const SPECIAL_BONUS = {
     '6½':                         15000,
     'Full Suit':                  50000,
 };
+const SPECIAL_BONUS_VIP = {
+    'No Face':                    25000,
+    'Four of a Kind':             75000,
+    'Straight Flush':             75000,
+    'Straight-Straight-Straight': 150000,
+    'Flush-Flush-Flush':          150000,
+    'Royal Flush':                250000,
+    '6½':                         300000,
+    'Full Suit':                  500000,
+};
+const SPECIAL_BONUS_ELITE = {
+    'No Face':                    300000,
+    'Four of a Kind':             1000000,
+    'Straight Flush':             1000000,
+    'Straight-Straight-Straight': 2000000,
+    'Flush-Flush-Flush':          2000000,
+    'Royal Flush':                3000000,
+    '6½':                         4000000,
+    'Full Suit':                  7000000,
+};
+const SPECIAL_BONUS_CELESTIAL = {
+    'No Face':                    1000000,
+    'Four of a Kind':             2500000,
+    'Straight Flush':             2500000,
+    'Straight-Straight-Straight': 5000000,
+    'Flush-Flush-Flush':          5000000,
+    'Royal Flush':                7000000,
+    '6½':                         10000000,
+    'Full Suit':                  15000000,
+};
+
+// getSpecialBonus(name, tier) — `tier` is the table's minBet (Number) OR
+// the legacy boolean `isVip`. Boolean true is treated as VIP; false/0 as
+// Normal. This preserves backward compatibility while routing $100K (Elite)
+// and $500K (Celestial) tables to their correct higher bonus rows.
+function getSpecialBonus(specialName, tier) {
+    let table;
+    if (tier === true)            table = SPECIAL_BONUS_VIP;
+    else if (tier === false || !tier) table = SPECIAL_BONUS;
+    else {
+        const n = Number(tier) || 0;
+        if      (n >= 500000) table = SPECIAL_BONUS_CELESTIAL;
+        else if (n >= 100000) table = SPECIAL_BONUS_ELITE;
+        else if (n >= 10000)  table = SPECIAL_BONUS_VIP;
+        else                  table = SPECIAL_BONUS;
+    }
+    return table[specialName] || 0;
+}
 
 // Best suit rank across a set of cards (Hearts=4 highest)
 function bestSuitRank(cards) {
@@ -910,12 +947,16 @@ function resolveSpecialTie(special, handsA, handsB) {
 }
 
 // ── RESOLVE ROUND ─────────────────────────────────────────────────
-// `isVip` toggles between SPECIAL_BONUS and SPECIAL_BONUS_VIP for bonus values.
-// Payouts (bet × multiplier) are unchanged regardless of VIP.
-function resolveRound(playerHands, bankerHands, betAmount, playerDeclaredSpecial, bankerDeclaredSpecial, isVip) {
+// `tier` is the table's minBet (Number) used to select the right bonus
+// table — Normal / VIP / Elite / Celestial. Legacy boolean callers still
+// work: true → VIP, false → Normal. Payouts (bet × multiplier) are
+// unchanged regardless of tier.
+function resolveRound(playerHands, bankerHands, betAmount, playerDeclaredSpecial, bankerDeclaredSpecial, tier) {
     const ps = playerDeclaredSpecial || null;
     const bs = bankerDeclaredSpecial || null;
-    const vip = !!isVip;
+    // Preserve `vip` name only for in-function readability; the actual
+    // bonus-table routing now happens inside getSpecialBonus.
+    const vip = tier;
 
     // ── Both have a special ───────────────────────────────────────
     if (ps && bs) {
@@ -1009,7 +1050,7 @@ module.exports = {
     compare3CardHands, compare5CardHands,
     resolveRound, resolveSpecialTie, disqualifyResult, dealPlayerCards, hasFaceCard,
     longestStraightLength, getEffectiveRank,
-    SPECIAL_BONUS, SPECIAL_BONUS_VIP, getSpecialBonus, bestSuitRank, sixHalfExtraCard
+    SPECIAL_BONUS, SPECIAL_BONUS_VIP, SPECIAL_BONUS_ELITE, SPECIAL_BONUS_CELESTIAL, getSpecialBonus, bestSuitRank, sixHalfExtraCard
 };
 
 // ── BOT ARRANGEMENT ───────────────────────────────────────────────
