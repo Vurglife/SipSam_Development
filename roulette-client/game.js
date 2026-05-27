@@ -631,6 +631,8 @@ function renderBoard() {
   // Variant-conditional cells
   const dbl = document.getElementById('cell-dblzero');
   const basket = document.getElementById('basket-row');
+  const zeroCol = document.querySelector('.zero-col');
+  if (zeroCol) zeroCol.classList.toggle('american-zero', S.variant === 'american');
   if (S.variant === 'american') {
     dbl.style.display = '';
     basket.style.display = '';
@@ -767,6 +769,10 @@ function attachBoardHandlers() {
   const board = document.getElementById('board');
   if (board.dataset.handlersAttached) return;
   board.dataset.handlersAttached = '1';
+  board.addEventListener('pointerover', previewBetTarget);
+  board.addEventListener('pointerout', clearPreviewOnLeave);
+  board.addEventListener('focusin', previewBetTarget);
+  board.addEventListener('focusout', clearBetPreview);
   board.addEventListener('click', (e) => {
     const direct = e.target.closest('.bet-hotspot, .zero-special-bet');
     if (direct && direct.dataset.bet) {
@@ -787,6 +793,47 @@ function attachBoardHandlers() {
     }
     placeBetDescriptor(desc);
   });
+}
+
+function previewBetTarget(e) {
+  const el = e.target.closest('.bet-hotspot, .zero-special-bet, .cell');
+  if (!el || !el.dataset.bet) return;
+  showBetPreview(el);
+}
+
+function clearPreviewOnLeave(e) {
+  const el = e.target.closest('.bet-hotspot, .zero-special-bet, .cell');
+  if (!el) return;
+  const next = e.relatedTarget && e.relatedTarget.closest
+    ? e.relatedTarget.closest('.bet-hotspot, .zero-special-bet, .cell')
+    : null;
+  if (next === el) return;
+  clearBetPreview();
+}
+
+function showBetPreview(el) {
+  clearBetPreview();
+  el.classList.add('bet-preview-anchor');
+  let desc;
+  try { desc = JSON.parse(el.dataset.bet); } catch (_) { return; }
+  const targets = previewTargetsFor(desc);
+  for (const target of targets) {
+    const cell = findCellByKey('straight:' + target);
+    if (cell) cell.classList.add('bet-preview');
+  }
+}
+
+function clearBetPreview() {
+  document.querySelectorAll('.bet-preview, .bet-preview-anchor').forEach((n) => {
+    n.classList.remove('bet-preview', 'bet-preview-anchor');
+  });
+}
+
+function previewTargetsFor(desc) {
+  if (!desc) return [];
+  if (desc.type === 'straight') return [desc.target];
+  if (Array.isArray(desc.targets)) return desc.targets.slice();
+  return [];
 }
 
 function placeBetDescriptor(desc) {
