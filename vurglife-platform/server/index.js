@@ -31,6 +31,7 @@ app.use(express.static(path.join(__dirname, '../client/public')));
 // ── API ROUTES ────────────────────────────────
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/game', require('./routes/game'));
+app.use('/api/friends', require('./routes/friends'));
 
 // ── PAGE ROUTES ───────────────────────────────
 // Main platform landing / login / dashboard
