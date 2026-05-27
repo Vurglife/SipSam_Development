@@ -2719,19 +2719,22 @@ function _sbPlayerName(state, sid) {
 
 function _sbCollectSideBetOffers(state) {
     const sb = state && state.sideBets;
-    const phase = sb && sb.phaseActive;
     const me = state && state.players && state.players[mySessionId];
-    if (!state || state.status !== 'sideBetPhase' || !sb || !phase || !me || me.isBot || me.pendingExit) {
+    const canAnswer = state && (state.status === 'revealing' || state.status === 'sideBetPhase');
+    if (!canAnswer || !sb || !me || me.isBot || me.pendingExit) {
         return [];
     }
 
     const stake = _sbMoney(state.tableMinBet);
     const offers = [];
-    if (phase === 'firstSpecial' && sb.firstSpecial && sb.firstSpecial.status === 'pending_accept') {
+    const active = sb.phaseActive;
+    const shouldCheck = type => !active || active === type;
+
+    if (shouldCheck('firstSpecial') && sb.firstSpecial && sb.firstSpecial.status === 'pending_accept') {
         const already = sb.firstSpecial.participants && sb.firstSpecial.participants.find(x => x.sid === mySessionId);
         if (!already) {
             offers.push({
-                type: phase,
+                type: 'firstSpecial',
                 id: sb.firstSpecial.id,
                 title: 'First Special',
                 label: 'Accept First Special - ' + stake + ' stake',
@@ -2739,12 +2742,12 @@ function _sbCollectSideBetOffers(state) {
             });
         }
     }
-    if (phase === 'beatHand' && sb.beatHand) {
+    if (shouldCheck('beatHand') && sb.beatHand) {
         sb.beatHand.forEach(p => {
             if (p.status === 'pending_accept' && p.targetSid === mySessionId) {
                 const chal = _sbPlayerName(state, p.challengerSid);
                 offers.push({
-                    type: phase,
+                    type: 'beatHand',
                     id: p.id,
                     title: 'Beat Hand',
                     label: 'Accept Beat Hand vs ' + chal + ' - ' + stake,
@@ -2753,13 +2756,13 @@ function _sbCollectSideBetOffers(state) {
             }
         });
     }
-    if (phase === 'bestCard' && sb.bestCard) {
+    if (shouldCheck('bestCard') && sb.bestCard) {
         sb.bestCard.forEach(p => {
             const already = p.participants && p.participants.find(x => x.sid === mySessionId);
             if (p.status === 'pending_accept' && !already) {
                 const init = _sbPlayerName(state, p.initiatorSid);
                 offers.push({
-                    type: phase,
+                    type: 'bestCard',
                     id: p.id,
                     title: 'Best Card',
                     label: 'Accept Best Card (' + p.value + ') from ' + init + ' - ' + stake,

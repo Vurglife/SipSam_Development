@@ -1125,7 +1125,7 @@ class SipSamRoom {
         const player = this.gameState.players[client.sessionId];
         if (!player || player.isBot || player.isGhostBot) return;
         if (player.pendingExit) return;                                    // auto-declines per spec
-        if (this.gameState.status !== 'sideBetPhase') return;
+        if (!['revealing', 'sideBetPhase'].includes(this.gameState.status)) return;
         const res = SideBets.accept(data && data.type, this, player, data && data.potId);
         if (!res || !res.ok) {
             this.sendToClient(client, { type:'sideBetError', message:(res && res.error) || 'Cannot accept side bet.' });
@@ -1137,7 +1137,7 @@ class SipSamRoom {
     _onDeclineSideBet(client, data) {
         const player = this.gameState.players[client.sessionId];
         if (!player || player.isBot || player.isGhostBot) return;
-        if (this.gameState.status !== 'sideBetPhase') return;
+        if (!['revealing', 'sideBetPhase'].includes(this.gameState.status)) return;
         SideBets.decline(data && data.type, this, player, data && data.potId);
         this.broadcastState();
     }
