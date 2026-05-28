@@ -568,6 +568,10 @@ function refreshPhaseUI() {
     c.style.pointerEvents = bettingOpen ? '' : 'none';
     c.classList.toggle('betting-closed', !bettingOpen);
   });
+  document.querySelectorAll('.wheel-special-bet').forEach((c) => {
+    c.disabled = !bettingOpen;
+    c.classList.toggle('betting-closed', !bettingOpen);
+  });
   document.querySelectorAll('.wheel-pocket').forEach((pocket) => {
     pocket.classList.toggle('betting-open', bettingOpen && S.betView === 'wheel');
     pocket.classList.toggle('betting-closed', !bettingOpen || S.betView !== 'wheel');
@@ -975,6 +979,34 @@ function attachWheelHandlers() {
     const target = parseWheelTarget(pocket.dataset.pocket);
     placeBetDescriptor({ type: 'straight', target });
   });
+
+  document.querySelectorAll('.wheel-special-bet').forEach((btn) => {
+    btn.addEventListener('pointerenter', () => showWheelTargetPreview([0, '00']));
+    btn.addEventListener('pointerleave', clearWheelTargetPreview);
+    btn.addEventListener('focus', () => showWheelTargetPreview([0, '00']));
+    btn.addEventListener('blur', clearWheelTargetPreview);
+  });
+}
+
+window.placeWheelSpecialBet = function (el) {
+  if (S.phase !== 'betting') return flashMessage('Betting is closed');
+  let desc;
+  try { desc = JSON.parse(el.dataset.bet); } catch (_) { return; }
+  placeBetDescriptor(desc);
+};
+
+function showWheelTargetPreview(targets) {
+  clearWheelTargetPreview();
+  const wanted = new Set((targets || []).map(String));
+  document.querySelectorAll('.wheel-pocket').forEach((pocket) => {
+    pocket.classList.toggle('bet-preview', wanted.has(pocket.dataset.pocket));
+  });
+}
+
+function clearWheelTargetPreview() {
+  document.querySelectorAll('.wheel-pocket.bet-preview').forEach((pocket) => {
+    pocket.classList.remove('bet-preview');
+  });
 }
 
 function parseWheelTarget(value) {
@@ -1154,7 +1186,7 @@ function cellKeyForBet(b) {
 function redrawChipStacks() {
   // Clear existing stacks
   document.querySelectorAll('.chip-stack').forEach((n) => n.remove());
-  document.querySelectorAll('.bet-hotspot.has-chip, .zero-special-bet.has-chip').forEach((n) => n.classList.remove('has-chip'));
+  document.querySelectorAll('.bet-hotspot.has-chip, .zero-special-bet.has-chip, .wheel-special-bet.has-chip').forEach((n) => n.classList.remove('has-chip'));
   const sums = new Map();
   for (const b of S.myBets) {
     const k = cellKeyForBet(b);
@@ -1243,9 +1275,13 @@ function potentialWinForBet(b) {
 }
 
 function findCellByKey(key) {
+  const matches = [];
   for (const hook of document.querySelectorAll('[data-bet-key]')) {
-    if (hook.dataset.betKey === key) return hook;
+    if (hook.dataset.betKey !== key) continue;
+    if (isVisibleBetHook(hook)) return hook;
+    matches.push(hook);
   }
+  if (matches.length) return matches[0];
   const [type, rest] = key.split(':');
   const cells = document.querySelectorAll('.cell');
   for (const c of cells) {
@@ -1263,6 +1299,10 @@ function findCellByKey(key) {
     if (first) return findCellByKey('straight:' + first);
   }
   return null;
+}
+
+function isVisibleBetHook(el) {
+  return !!(el && el.getClientRects && el.getClientRects().length);
 }
 
 function fmtChip(n) {

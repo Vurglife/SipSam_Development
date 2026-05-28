@@ -394,7 +394,8 @@ button {
 }
 .wheel-pocket.betting-open { cursor: pointer; }
 .wheel-pocket.betting-open:hover .wheel-pocket-path,
-.wheel-pocket.betting-open:focus .wheel-pocket-path {
+.wheel-pocket.betting-open:focus .wheel-pocket-path,
+.wheel-pocket.bet-preview .wheel-pocket-path {
   filter: brightness(1.28);
   stroke: var(--gold-lt);
   stroke-width: 1.3;
@@ -484,6 +485,53 @@ button {
   text-shadow: 0 0 18px rgba(0,0,0,0.95), 0 0 12px rgba(240,208,128,0.35);
 }
 
+.wheel-special-bets {
+  display: none;
+  width: min(100%, 360px);
+  justify-content: center;
+  margin: -2px auto 0;
+}
+.wheel-special-bet {
+  position: relative;
+  min-height: 38px;
+  min-width: 150px;
+  padding: 6px 14px;
+  border: 1px solid rgba(255,233,168,0.38);
+  border-radius: 7px;
+  background:
+    linear-gradient(180deg, rgba(29,129,55,0.9), rgba(7,55,22,0.92)),
+    #0d5c28;
+  color: #fff7cf;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 7px 18px rgba(0,0,0,0.28);
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+.wheel-special-bet span,
+.wheel-special-bet b {
+  display: block;
+  line-height: 1;
+}
+.wheel-special-bet b {
+  margin-top: 3px;
+  color: var(--gold-lt);
+  font-size: 0.68rem;
+}
+.wheel-special-bet:hover,
+.wheel-special-bet:focus-visible {
+  border-color: var(--gold-lt);
+  filter: brightness(1.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.22),
+    0 0 0 2px rgba(255,233,168,0.18),
+    0 10px 22px rgba(0,0,0,0.34);
+}
+.wheel-special-bet:disabled,
+.wheel-special-bet.betting-closed {
+  opacity: 0.45;
+  filter: grayscale(0.35);
+}
+
 .history-strip {
   display: flex; flex-direction: row; gap: 4px;
   align-items: center; justify-content: center;
@@ -536,6 +584,9 @@ button {
 #screen-game.bet-view-wheel .inside-bet-panel {
   display: none;
 }
+#screen-game.bet-view-wheel .wheel-special-bets {
+  display: flex;
+}
 #screen-game.bet-view-wheel .wheel-wrap {
   width: min(86vw, 480px);
 }
@@ -557,7 +608,8 @@ button {
   width: min(88vmin, 620px);
 }
 #screen-game.wheel-focus .history-strip,
-#screen-game.wheel-focus .bet-view-toggle {
+#screen-game.wheel-focus .bet-view-toggle,
+#screen-game.wheel-focus .wheel-special-bets {
   display: none;
 }
 #screen-game.wheel-focus .winning-display.show-win .winning-label {
@@ -769,7 +821,8 @@ button {
 /* Bet chips drawn on cells and direct bet hotspots */
 .cell .chip-stack,
 .bet-hotspot .chip-stack,
-.zero-special-bet .chip-stack {
+.zero-special-bet .chip-stack,
+.wheel-special-bet .chip-stack {
   position: absolute;
   right: 1px; bottom: 1px;
   width: 16px; height: 16px;
@@ -784,7 +837,8 @@ button {
 }
 .cell .chip-stack.with-win,
 .bet-hotspot .chip-stack.with-win,
-.zero-special-bet .chip-stack.with-win {
+.zero-special-bet .chip-stack.with-win,
+.wheel-special-bet .chip-stack.with-win {
   right: -2px;
   bottom: -2px;
   width: auto;

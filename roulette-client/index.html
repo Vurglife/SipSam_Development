@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#030705">
   <title>Roulette — VURGLife</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23030705'/%3E%3Ccircle cx='32' cy='32' r='24' fill='none' stroke='%23ffe9a8' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='9' fill='%23dc3d49'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=13">
+  <link rel="stylesheet" href="style.css?v=14">
 </head>
 <body>
 
@@ -131,9 +131,22 @@
       <div class="wheel-wrap" id="wheel-wrap">
         <div class="wheel" id="wheel" aria-label="American roulette wheel"></div>
         <div class="winning-display" id="winning-display">
-          <span class="winning-label">LAST</span>
+          <span class="winning-label">LAST SPIN</span>
           <span class="winning-num" id="winning-num">--</span>
         </div>
+      </div>
+      <div class="wheel-special-bets" id="wheel-special-bets" aria-label="Wheel view special bets">
+        <button
+          class="wheel-special-bet"
+          id="wheel-zero-split"
+          type="button"
+          data-bet='{"type":"split","targets":[0,"00"]}'
+          data-bet-key="split:0|00"
+          onclick="placeWheelSpecialBet(this)"
+          title="Split bet covering 0 and 00"
+        >
+          <span>0-00 Split</span><b>17:1</b>
+        </button>
       </div>
       <div class="history-strip" id="history-strip"></div>
     </div>
@@ -250,6 +263,6 @@
 
 </div>
 
-<script src="game.js?v=16"></script>
+<script src="game.js?v=17"></script>
 </body>
 </html>
