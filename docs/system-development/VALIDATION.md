@@ -4,6 +4,7 @@
 
 - Build or run check: Required for future code changes.
 - Test check: Required for future rule, payout, wallet, platform, or UI changes.
+- Platform route check: Required for future platform server routing/proxy/static-client changes; verify all installed game launch routes through `localhost:3000` and the affected `/matchmake/...` paths, not only the game being edited.
 - Data check: Required before and after database, wallet, bank, balance, session, invite, or game-result changes.
 - AI output check: Required for future AI-assisted user-facing features or automations.
 - Automation check: Required for future scheduled, triggered, or background workflows.

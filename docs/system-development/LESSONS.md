@@ -6,6 +6,7 @@
 - Use project files for durable decisions, validation, lessons, and roadmap.
 - Validate end-to-end game and platform flows after meaningful changes.
 - Snapshot sensitive platform data before risky changes.
+- Platform server route changes must preserve and test every installed game mount, not only the game being changed. Before committing route/proxy/static-server edits, smoke-test `/sipsam/`, `/roulette/`, `/rhum32/`, and `/blackjack/` through `localhost:3000`, plus any affected `/matchmake/...` path. A route table can break untouched games.
 - Platform JWT signing and verification must share the same secret. `routes/auth.js`, `middleware/auth.js`, and `routes/game.js` all need the same `JWT_SECRET` fallback or a missing `.env` will let the dashboard appear logged in while protected game-entry routes fail with "Session expired."
 - Platform route registration must include every API module after restarts. SipSam lobby invites depend on `app.use('/api/friends', require('./routes/friends'))`; if omitted, the database still has friends but `/api/friends` returns 404 and the lobby dropdown says "No friends yet."
 - Side-bet phases need two settlement passes: one before response windows for pots already locked from prior rounds, and one after `sideBetPhase` for pots that just accepted. Otherwise the UI can collect acceptances but Best Card/Beat Hand payouts wait forever or miss the revealed cards. Also give responders an explicit Accept/Decline/Ignore prompt immediately when the challenge is initiated; waiting until a later phase looks broken in live Multiplayer.
@@ -39,6 +40,7 @@
 | 2026-05-15 | Put every Claude Code rule into always-loaded `CLAUDE.md`. | It increases token use every session and makes procedures harder to trigger intentionally. | Keep `CLAUDE.md` short and move repeatable workflows into `.claude/skills`. |
 | 2026-05-15 | Make Claude Code agents read-only when the user wants implementation handled by Claude. | It reduces Claude Code's usefulness and leaves more manual work for Mitstar. | Let specialist agents edit when requested, but keep safety rules around secrets, destructive commands, direct database edits, and validation. |
 | 2026-05-15 | Leave meaningful Claude Code work uncommitted. | The project already lost substantial uncommitted work. | Claude Code should commit current-task changes after validation and avoid staging unrelated files. |
+| 2026-05-28 | Change platform routing and validate only the target game. | The platform route table is shared. A narrow Roulette-focused validation missed that Rhum32 and Blackjack game-launch routes had been dropped while SipSam still worked. | Treat platform routing as cross-game infrastructure: compare existing mounts before editing, preserve unrelated mounts, and smoke-test every installed game launch plus relevant matchmaking before commit. |
 
 ## Removed Failed Artifacts
 
