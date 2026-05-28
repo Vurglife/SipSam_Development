@@ -7,7 +7,7 @@ require('dotenv').config();
 const express    = require('express');
 const path       = require('path');
 const cookieParser = require('cookie-parser');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+const fs         = require('fs');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -17,13 +17,44 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// ── PROXY /matchmake → poker-server on port 2999 ─────────
-// This lets game.js call /matchmake from the same origin (port 3000)
-app.use('/matchmake', createProxyMiddleware({
-    target: 'http://localhost:2999',
-    changeOrigin: true,
-    logLevel: 'silent'
-}));
+// ── FORWARD /matchmake → the matching game server ─────────
+// This lets game clients call /matchmake from the same origin (port 3000).
+function matchmakeTarget(req) {
+    const url = req.originalUrl || req.url || '';
+    if (url.includes('/roulette_room')) return 'http://127.0.0.1:3005';
+    if (url.includes('/rhum32_room')) return 'http://127.0.0.1:2998';
+    return 'http://127.0.0.1:2999';
+}
+
+async function forwardMatchmake(req, res) {
+    const target = matchmakeTarget(req);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+
+    try {
+        const headers = { 'content-type': 'application/json' };
+        const options = {
+            method: req.method,
+            headers,
+            signal: controller.signal
+        };
+        if (!['GET', 'HEAD'].includes(req.method)) {
+            options.body = JSON.stringify(req.body || {});
+        }
+
+        const upstream = await fetch(target + req.originalUrl, options);
+        const text = await upstream.text();
+        const contentType = upstream.headers.get('content-type') || 'application/json';
+        res.status(upstream.status).type(contentType).send(text);
+    } catch (err) {
+        console.error('[matchmake proxy] failed:', err.message || err);
+        res.status(502).json({ error: 'Game server unavailable' });
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+app.all('/matchmake/*', forwardMatchmake);
 
 // Serve static assets from client/public
 app.use(express.static(path.join(__dirname, '../client/public')));
@@ -56,6 +87,28 @@ app.use('/sipsam', express.static(path.join(__dirname, '../../poker-client')));
 app.get('/sipsam', (req, res) => {
     res.sendFile(path.join(__dirname, '../../poker-client/index.html'));
 });
+
+function mountGameClient(routePath, relativeClientPath) {
+    const clientDir = path.join(__dirname, relativeClientPath);
+    const indexFile = path.join(clientDir, 'index.html');
+
+    if (!fs.existsSync(indexFile)) {
+        console.warn(`[Platform] Skipping ${routePath}; missing ${indexFile}`);
+        return;
+    }
+
+    app.use(routePath, express.static(clientDir));
+    app.get(routePath, (req, res) => {
+        res.sendFile(indexFile);
+    });
+    app.get(`${routePath}/`, (req, res) => {
+        res.sendFile(indexFile);
+    });
+}
+
+mountGameClient('/rhum32', '../../rhum32-client');
+mountGameClient('/blackjack', '../../blackjack-client');
+mountGameClient('/roulette', '../../roulette-client');
 
 // ── HEALTH CHECK ──────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', platform: 'VurgLife', version: '1.0.0' }));
