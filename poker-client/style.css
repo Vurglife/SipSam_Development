@@ -214,13 +214,13 @@ html, body {
   position:absolute;
   top:50%; left:50%;
   transform:translate(-50%, -50%);
-  /* Restored full-table presence — was perceived as shrunk after the
-     side-bets panel landed on the right side of the felt. */
-  width: clamp(380px, 70%, 700px);
-  max-width: calc(100% - 40px);
-  opacity:0.22;
+  /* Large centred watermark filling the felt between the seat zones,
+     layered behind cards (z-index:0; zones/cards sit above). */
+  width: clamp(460px, 82%, 880px);
+  max-width: calc(100% - 30px);
+  opacity:0.20;
   pointer-events:none;
-  z-index:1;
+  z-index:0;
   user-select:none;
   filter: drop-shadow(0 0 4px rgba(255,255,255,0.1));
 }
@@ -408,7 +408,10 @@ html, body {
   border-top:2px solid var(--gold-dk);
   padding:8px 16px 10px; min-height:90px;
   display:flex; flex-direction:column; gap:6px;
-  overflow-y:auto; max-height:42vh;
+  /* Taller cap so the banker view (extra banker message + two card rows)
+     shows all three hand piles without the sticky Confirm bar clipping the
+     3rd pile. scroll-padding keeps the last pile clear of the sticky bar. */
+  overflow-y:auto; max-height:56vh; scroll-padding-bottom:64px;
 }
 .my-info-bar { display:flex; align-items:center; justify-content:space-between; font-size:14px; flex-wrap:wrap; gap:6px; }
 .my-tier { display:none; align-items:center; gap:5px; font-family:'Rajdhani',sans-serif; font-weight:800; font-size:11px;
@@ -442,14 +445,14 @@ html, body {
 .bet-row .btn-secondary { font-size:clamp(16px,2.5vw,22px); padding:8px 16px; min-width:44px; }
 .banker-msg {
   background:rgba(201,168,76,.1); border:1px solid var(--gold-dk);
-  border-radius:8px; padding:10px 16px; color:var(--gold);
-  font-size:clamp(13px,1.8vw,15px); text-align:center;
+  border-radius:8px; padding:6px 14px; color:var(--gold);
+  font-size:clamp(12px,1.6vw,14px); text-align:center;
 }
 .raw-cards-area { display:flex; flex-direction:column; gap:4px; align-items:center; }
 #raw-card-row   { display:flex; gap:6px; flex-wrap:wrap; min-height:56px; justify-content:center; }
 
 /* Hand piles */
-.my-hands { display:flex; gap:8px; }
+.my-hands { display:flex; gap:8px; margin-bottom:6px; }
 .hand-pile { flex:1; }
 .pile-label {
   font-size:clamp(10px,1.4vw,12px); color:#aaa; letter-spacing:1px;
@@ -991,13 +994,13 @@ html, body{
 /* Drop the dated grid pattern */
 .felt-grid{ display:none; }
 
-/* Logo watermark — keep behind cards but ABOVE the felt-grid background.
-   z-index: 1 matches the original rule above; the old z-index:-1 here was
-   pushing the watermark behind the table's stacking context entirely. */
+/* Logo watermark — behind cards/zones, above the felt-grid background.
+   z-index:0 matches the first rule; the old z-index:-1 here pushed the
+   watermark behind the table's own stacking context entirely. */
 .table-logo{
-  opacity: .22;
+  opacity: .20;
   filter: drop-shadow(0 0 6px rgba(255,255,255,.08));
-  z-index: 1;
+  z-index: 0;
 }
 
 /* ── ZONE NAMETAG — gold gloss capsule ── */
