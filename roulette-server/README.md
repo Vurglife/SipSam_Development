@@ -28,23 +28,26 @@ The platform spawns this server as a child process and proxies HTTP/WS to it.
 
 - **American** - 38 pockets: `0`, `00`, and `1-36`.
 - House edge: **5.26%**.
-- The 5-number **Basket** bet covers `0-00-1-2-3` and pays **6:1**.
+- Zero-area click targets currently cover `0-00`, `0-1`, `00-3`, and `0-00-2`.
 
 ## Tiers
 
-| minBet | maxBet | wallet | tier |
-| ---: | ---: | ---: | --- |
-| 100 | 500 | 2,500 | standard |
-| 1,000 | 5,000 | 25,000 | VIP |
-| 5,000 | 25,000 | 120,000 | VIP |
-| 10,000 | 50,000 | 250,000 | VIP |
-| 50,000 | 250,000 | 1,000,000 | VIP |
+Roulette has one shared room. Each player joins with a level-specific wallet,
+max chip, and max direct straight-up bet.
 
-VIP gate (`minBet >= 10000`) matches the other VurgLife games.
+| level | wallet / min bank | max chip | max direct number bet |
+| --- | ---: | ---: | ---: |
+| Bronze | 5,000 | 500 | 500 |
+| Silver | 15,000 | 500 | 1,000 |
+| Gold | 30,000 | 1,000 | 2,000 |
+| Platinum | 60,000 | 5,000 | 10,000 |
+| VIP | 2,000,000 | 25,000 | 100,000 |
+| Elite | 7,000,000 | 50,000 | 500,000 |
+| Celestial | 10,000,000 | 100,000 | 1,000,000 |
 
 ## Phase Loop
 
-`betting (20s)` -> `spinning (6s)` -> `resolving (5s)` -> repeat.
+`betting (40s)` -> `spinning (8s)` -> `resolving (5s)` -> repeat.
 
 ## Files
 

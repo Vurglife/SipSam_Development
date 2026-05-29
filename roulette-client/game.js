@@ -22,7 +22,7 @@ const WS_BASE  = (location.protocol === 'https:' ? 'wss://' : 'ws://')
 // ── Bet type labels + payouts (mirrors server engine.js) ──
 const BET_PAYOUTS = {
   straight: 35, split: 17, street: 11, trio: 11, corner: 8, line: 5,
-  basket: 6, column: 2, dozen: 2,
+  column: 2, dozen: 2,
   red: 1, black: 1, even: 1, odd: 1, low: 1, high: 1,
 };
 
@@ -59,6 +59,7 @@ const S = {
   variant:    'american',
   mode:       'multiplayer',   // 'multiplayer' | 'single'
   tableMinBet: 100,
+  accessLevel: '',
   wallet:     0,
   walletSize: 0,               // default wallet draw (for replenish cap)
 
@@ -70,6 +71,7 @@ const S = {
   round:     0,
   phaseEnd:  0,
   history:   [],
+  gameMemory: [],
   lastWinning: null,
   ws:        null,
   authToken: '',
@@ -101,17 +103,11 @@ const INSIDE_BET_SPECS = {
   line:   { label: 'Line',   count: 6, payout: '5:1' },
 };
 
-const ZERO_AREA_BETS = [
-  { label: '0-00', type: 'split', targets: [0, '00'] },
-  { label: '0-1', type: 'split', targets: [0, 1] },
-  { label: '0-2', type: 'split', targets: [0, 2] },
-  { label: '00-2', type: 'split', targets: ['00', 2] },
-  { label: '00-3', type: 'split', targets: ['00', 3] },
-  { label: '0-00-2', type: 'trio', targets: [0, '00', 2] },
-  { label: '0-1-2', type: 'trio', targets: [0, 1, 2] },
-  { label: '00-2-3', type: 'trio', targets: ['00', 2, 3] },
-  { label: '0-00-1-2', type: 'corner', targets: [0, '00', 1, 2] },
-  { label: '0-00-2-3', type: 'corner', targets: [0, '00', 2, 3] },
+const ZERO_DIRECT_BETS = [
+  { label: '0-00', type: 'split', targets: [0, '00'], className: 'zero-hotspot-0-00', title: 'Split 0 and 00' },
+  { label: '0-1', type: 'split', targets: [0, 1], className: 'zero-hotspot-0-1', title: 'Split 0 and 1' },
+  { label: '00-3', type: 'split', targets: ['00', 3], className: 'zero-hotspot-00-3', title: 'Split 00 and 3' },
+  { label: '0-00-2', type: 'trio', targets: [0, '00', 2], className: 'zero-hotspot-0-00-2', title: 'Trio 0, 00, and 2' },
 ];
 
 const PARTNER_ODDS_RATES = {
@@ -168,6 +164,7 @@ function readHandoff() {
   const urlVariant = p.get('variant');
   const urlMinBet  = p.get('minBet') || p.get('tableMinBet');
   const urlMode    = p.get('mode');
+  const urlLevel   = p.get('level');
   const urlUser    = p.get('username') || p.get('user');
   const urlUid     = p.get('userId');
   const urlWallet  = p.get('wallet');
@@ -175,6 +172,7 @@ function readHandoff() {
   if (urlVariant === 'american') S.variant = 'american';
   if (urlMinBet)   S.tableMinBet = Number(urlMinBet);
   if (urlMode)     S.mode = urlMode;
+  if (urlLevel)    S.accessLevel = urlLevel;
   if (urlUser)     S.username = urlUser;
   if (urlUid)      S.userId = urlUid;
   if (urlWallet)   S.wallet = Number(urlWallet);
@@ -190,10 +188,12 @@ function readHandoff() {
     }
     const t = JSON.parse(sessionStorage.getItem('roulette_table') || 'null');
     if (t) {
-      if (!S.tableMinBet) S.tableMinBet = Number(t.minBet);
+      if (!S.tableMinBet) S.tableMinBet = Number(t.entryKey || t.minBet);
+      if (!S.accessLevel) S.accessLevel = t.label || t.level || '';
       if (!S.wallet)      S.wallet = Number(t.wallet || t.walletSize || 0);
     }
   } catch (_) {}
+  loadGameMemory();
 }
 
 // ── Screen helpers ────────────────────────────────────────
@@ -453,6 +453,7 @@ function handleMessage(data) {
 
 function onState(d) {
   const prevStake = S.myBets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+  const prevCfg = JSON.stringify(S.cfg || {});
   S.variant    = d.variant;
   S.mode       = d.mode;
   S.cfg        = d.cfg;
@@ -467,6 +468,10 @@ function onState(d) {
 
   const me = d.players && d.players[S.sessionId];
   if (me) {
+    S.cfg = me.cfg || S.cfg;
+    S.tableMinBet = Number(me.tableMinBet) || S.tableMinBet;
+    S.accessLevel = S.cfg?.level || S.accessLevel;
+    S.walletSize = S.cfg?.walletSize || S.walletSize;
     S.wallet = me.wallet;
     S.myBets = me.bets.slice();
   }
@@ -475,6 +480,7 @@ function onState(d) {
 
   renderBoard();      // ensures the variant-correct board is drawn
   renderWheelFace();
+  if (JSON.stringify(S.cfg || {}) !== prevCfg) renderChips();
   updateHeader(d.message);
   renderWallet();
   renderHistory();
@@ -510,6 +516,7 @@ function onResolve(d) {
     S.wallet = me.wallet;
     showResult(me);
   }
+  rememberGameResult(d, me);
   renderWallet();
   showWinningNumber(d.winning, true);
   highlightWinningPocket(d.winning);
@@ -564,7 +571,7 @@ function refreshPhaseUI() {
     c.style.pointerEvents = bettingOpen ? '' : 'none';
     c.style.opacity = bettingOpen ? '' : '0.78';
   });
-  document.querySelectorAll('.bet-hotspot, .zero-special-bet').forEach((c) => {
+  document.querySelectorAll('.bet-hotspot, .zero-hotspot').forEach((c) => {
     c.style.pointerEvents = bettingOpen ? '' : 'none';
     c.classList.toggle('betting-closed', !bettingOpen);
   });
@@ -634,19 +641,16 @@ function renderBoard() {
 
   // Variant-conditional cells
   const dbl = document.getElementById('cell-dblzero');
-  const basket = document.getElementById('basket-row');
   const zeroCol = document.querySelector('.zero-col');
   if (zeroCol) zeroCol.classList.toggle('american-zero', S.variant === 'american');
   if (S.variant === 'american') {
     dbl.style.display = '';
-    basket.style.display = '';
   } else {
     dbl.style.display = 'none';
-    basket.style.display = 'none';
   }
   refreshBoardSelection();
   renderDirectBetHotspots();
-  renderZeroAreaBets();
+  renderZeroDirectHotspots();
 }
 
 function renderDirectBetHotspots() {
@@ -712,23 +716,21 @@ function renderDirectBetHotspots() {
   main.dataset.hotspotsRendered = '1';
 }
 
-function renderZeroAreaBets() {
-  const basket = document.getElementById('basket-row');
-  if (!basket || basket.dataset.zeroRendered) return;
-  const wrap = document.createElement('div');
-  wrap.className = 'zero-special-bets';
-  for (const bet of ZERO_AREA_BETS) {
+function renderZeroDirectHotspots() {
+  const zeroCol = document.querySelector('.zero-col');
+  if (!zeroCol || zeroCol.dataset.zeroRendered) return;
+  for (const bet of ZERO_DIRECT_BETS) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'zero-special-bet';
+    btn.className = 'zero-hotspot ' + bet.className;
     btn.textContent = bet.label;
-    btn.title = bet.label + ' ' + bet.type;
+    btn.title = bet.title;
+    btn.setAttribute('aria-label', bet.title);
     btn.dataset.bet = JSON.stringify({ type: bet.type, targets: bet.targets });
     btn.dataset.betKey = compoundKey(bet.type, bet.targets);
-    wrap.appendChild(btn);
+    zeroCol.appendChild(btn);
   }
-  basket.appendChild(wrap);
-  basket.dataset.zeroRendered = '1';
+  zeroCol.dataset.zeroRendered = '1';
 }
 
 function addHotspot(parent, type, targets, opts) {
@@ -778,7 +780,7 @@ function attachBoardHandlers() {
   board.addEventListener('focusin', previewBetTarget);
   board.addEventListener('focusout', clearBetPreview);
   board.addEventListener('click', (e) => {
-    const direct = e.target.closest('.bet-hotspot, .zero-special-bet');
+    const direct = e.target.closest('.bet-hotspot, .zero-hotspot');
     if (direct && direct.dataset.bet) {
       if (S.phase !== 'betting') return flashMessage('Betting is closed');
       let desc;
@@ -800,16 +802,16 @@ function attachBoardHandlers() {
 }
 
 function previewBetTarget(e) {
-  const el = e.target.closest('.bet-hotspot, .zero-special-bet, .cell');
+  const el = e.target.closest('.bet-hotspot, .zero-hotspot, .cell');
   if (!el || !el.dataset.bet) return;
   showBetPreview(el);
 }
 
 function clearPreviewOnLeave(e) {
-  const el = e.target.closest('.bet-hotspot, .zero-special-bet, .cell');
+  const el = e.target.closest('.bet-hotspot, .zero-hotspot, .cell');
   if (!el) return;
   const next = e.relatedTarget && e.relatedTarget.closest
-    ? e.relatedTarget.closest('.bet-hotspot, .zero-special-bet, .cell')
+    ? e.relatedTarget.closest('.bet-hotspot, .zero-hotspot, .cell')
     : null;
   if (next === el) return;
   clearBetPreview();
@@ -861,7 +863,6 @@ function repeatableBetFrom(b) {
   }
   if (b.type === 'column') return { type: 'column', which: b.which || columnForNumbers(b.numbers), amount };
   if (b.type === 'dozen') return { type: 'dozen', which: b.which || dozenForNumbers(b.numbers), amount };
-  if (b.type === 'basket') return { type: 'basket', amount };
   if (['red', 'black', 'even', 'odd', 'low', 'high'].includes(b.type)) return { type: b.type, amount };
   return null;
 }
@@ -1176,7 +1177,6 @@ function cellKeyForBet(b) {
     case 'dozen':    return 'dozen:'  + (b.which || b.numbers[0]);
     case 'red': case 'black': case 'even': case 'odd':
     case 'low': case 'high':
-    case 'basket':
       return b.type + ':';
     default:
       return 'straight:' + b.numbers[0];
@@ -1186,7 +1186,7 @@ function cellKeyForBet(b) {
 function redrawChipStacks() {
   // Clear existing stacks
   document.querySelectorAll('.chip-stack').forEach((n) => n.remove());
-  document.querySelectorAll('.bet-hotspot.has-chip, .zero-special-bet.has-chip, .wheel-special-bet.has-chip').forEach((n) => n.classList.remove('has-chip'));
+  document.querySelectorAll('.bet-hotspot.has-chip, .zero-hotspot.has-chip, .wheel-special-bet.has-chip').forEach((n) => n.classList.remove('has-chip'));
   const sums = new Map();
   for (const b of S.myBets) {
     const k = cellKeyForBet(b);
@@ -1292,7 +1292,7 @@ function findCellByKey(key) {
     if (type === 'straight' && String(d.target) === rest) return c;
     if (type === 'column'  && String(d.which)  === rest) return c;
     if (type === 'dozen'   && String(d.which)  === rest) return c;
-    if (['red','black','even','odd','low','high','basket'].includes(type)) return c;
+    if (['red','black','even','odd','low','high'].includes(type)) return c;
   }
   if (['split', 'street', 'trio', 'corner', 'line'].includes(type)) {
     const first = (rest || '').split('|')[0];
@@ -1485,7 +1485,7 @@ function isValidInsideSelection(mode, targets) {
 }
 
 function isValidSplitSelection(ns) {
-  const zeroSplits = [[0, '00'], [0, 1], [0, 2], ['00', 2], ['00', 3]];
+  const zeroSplits = [[0, '00'], [0, 1], ['00', 3]];
   if (ns.some((n) => n === 0 || n === '00')) {
     return zeroSplits.some((pair) => sameTargetSet(ns, pair));
   }
@@ -1499,19 +1499,13 @@ function isValidSplitSelection(ns) {
 function isValidTrioSelection(ns) {
   const zeroTrios = [
     [0, '00', 2],
-    [0, 1, 2],
-    ['00', 2, 3],
   ];
   return zeroTrios.some((set) => sameTargetSet(ns, set));
 }
 
 function isValidCornerSelection(ns) {
   if (ns.some((n) => n === 0 || n === '00')) {
-    const zeroCorners = [
-      [0, '00', 1, 2],
-      [0, '00', 2, 3],
-    ];
-    return zeroCorners.some((set) => sameTargetSet(ns, set));
+    return false;
   }
   if (!ns.every(isNumericTarget)) return false;
   const rows = [...new Set(ns.map(rowOf))].sort((a, b) => a - b);
@@ -1537,16 +1531,12 @@ function isValidLineSelection(ns) {
 function renderChips() {
   const row = document.getElementById('chip-row');
   row.innerHTML = '';
-  // Pick chip denominations appropriate for this tier.
-  const min = S.tableMinBet || 100;
-  let denoms;
-  if (min >= 50000) denoms = [50000, 100000, 250000];
-  else if (min >= 10000) denoms = [10000, 25000, 50000, 100000];
-  else if (min >= 5000)  denoms = [5000, 10000, 25000, 50000];
-  else if (min >= 1000)  denoms = [1000, 5000, 10000, 25000];
-  else                   denoms = [100, 500, 1000, 5000, 10000];
+  const chipCap = Number(S.cfg?.maxChip || S.cfg?.maxBet || 500);
+  let denoms = [100, 500, 1000, 5000, 10000, 25000, 50000, 100000]
+    .filter((value) => value <= chipCap);
+  if (!denoms.length) denoms = [100];
   S.chipDenoms = denoms;
-  S.selectedChip = denoms[0];
+  if (!denoms.includes(S.selectedChip)) S.selectedChip = denoms[0];
 
   for (const d of denoms) {
     const btn = document.createElement('button');
@@ -1585,6 +1575,98 @@ function renderHistory() {
 }
 
 // ── Wheel animation ───────────────────────────────────────
+function gameMemoryKey() {
+  const user = S.userId || S.username || 'guest';
+  return 'vurglife_roulette_last100_' + String(user);
+}
+
+function loadGameMemory() {
+  try {
+    const raw = localStorage.getItem(gameMemoryKey());
+    const parsed = raw ? JSON.parse(raw) : [];
+    S.gameMemory = Array.isArray(parsed) ? parsed.slice(0, 100) : [];
+  } catch (_) {
+    S.gameMemory = [];
+  }
+}
+
+function saveGameMemory() {
+  try {
+    localStorage.setItem(gameMemoryKey(), JSON.stringify(S.gameMemory.slice(0, 100)));
+  } catch (_) {}
+}
+
+function rememberGameResult(d, me) {
+  const net = Number(me && me.net) || 0;
+  const stake = Number(me && me.totalStake) || 0;
+  const outcome = net > 0 ? 'Win'
+    : net < 0 ? 'Lose'
+    : stake > 0 ? 'Push'
+    : 'No Bet';
+  const pocket = d.winning;
+  S.gameMemory.unshift({
+    round: d.round || S.round,
+    pocket,
+    color: d.color || colorOfNum(pocket),
+    outcome,
+    net,
+    stake,
+    wallet: Number(me && me.wallet) || S.wallet,
+    at: Date.now(),
+  });
+  if (S.gameMemory.length > 100) S.gameMemory.length = 100;
+  saveGameMemory();
+  renderGameMemory();
+}
+
+window.showGameMemory = function () {
+  renderGameMemory();
+  const overlay = document.getElementById('memory-overlay');
+  if (overlay) overlay.style.display = 'flex';
+  const menu = document.getElementById('game-menu');
+  if (menu) menu.style.display = 'none';
+};
+
+function renderGameMemory() {
+  const body = document.getElementById('memory-body');
+  if (!body) return;
+  const wins = S.gameMemory.filter((h) => h.outcome === 'Win').length;
+  const losses = S.gameMemory.filter((h) => h.outcome === 'Lose').length;
+  const pushes = S.gameMemory.filter((h) => h.outcome === 'Push').length;
+  const net = S.gameMemory.reduce((sum, h) => sum + (Number(h.net) || 0), 0);
+  if (!S.gameMemory.length) {
+    body.innerHTML = '<p class="payouts-note">No Roulette results recorded yet.</p>';
+    return;
+  }
+  body.innerHTML = `
+    <div class="memory-summary">
+      <span>Wins <b>${wins}</b></span>
+      <span>Losses <b>${losses}</b></span>
+      <span>Push <b>${pushes}</b></span>
+      <span>Net <b class="${net >= 0 ? 'memory-win' : 'memory-lose'}">${net >= 0 ? '+' : '-'}$${Math.abs(net).toLocaleString()}</b></span>
+    </div>
+    <div class="memory-list">
+      ${S.gameMemory.map(memoryRowHtml).join('')}
+    </div>`;
+}
+
+function memoryRowHtml(row) {
+  const color = row.color || colorOfNum(row.pocket);
+  const net = Number(row.net) || 0;
+  const netLabel = net === 0 ? '$0' : `${net > 0 ? '+' : '-'}$${Math.abs(net).toLocaleString()}`;
+  const time = row.at ? new Date(row.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+  const outcomeClass = row.outcome === 'Win' ? 'memory-win'
+    : row.outcome === 'Lose' ? 'memory-lose'
+    : 'memory-push';
+  return `
+    <div class="memory-row">
+      <span class="memory-pocket ${color}">${row.pocket}</span>
+      <span class="memory-outcome ${outcomeClass}">${row.outcome}</span>
+      <span class="memory-net ${outcomeClass}">${netLabel}</span>
+      <span class="memory-meta">Round ${row.round || '--'}${time ? ' - ' + time : ''}</span>
+    </div>`;
+}
+
 function wheelFor(variant) {
   return AMERICAN_WHEEL;
 }
@@ -1916,14 +1998,13 @@ window.showPayouts = function () {
   const body = document.getElementById('payouts-body');
   const cfg  = S.cfg;
   const variantLabel = 'American (0 &amp; 00)';
-  const vipNote = cfg && cfg.label === 'vip'
-    ? '<p class="payouts-note"><strong>VIP table.</strong> Higher limits, standard payouts.</p>'
+  const tierNote = cfg?.level
+    ? `<p class="payouts-note"><strong>${cfg.level} access:</strong> max chip $${(cfg.maxChip || 0).toLocaleString()}, max direct number bet $${(cfg.maxDirectBet || 0).toLocaleString()}.</p>`
     : '';
-  const basketNote = '<p class="payouts-note"><strong>Basket bet</strong> (0-00-1-2-3) pays 6:1 and is available only on the American board.</p>';
 
   body.innerHTML = `
     <p class="payouts-note"><strong>Variant:</strong> ${variantLabel} — house edge 5.26%</p>
-    ${vipNote}
+    ${tierNote}
     <table class="payouts-table">
       <tr><th>BET</th><th>PAYOUT</th></tr>
       <tr><td>Straight Up (1 number)</td><td>35:1</td></tr>
@@ -1932,12 +2013,10 @@ window.showPayouts = function () {
       <tr><td>Trio near 0/00 (3 numbers)</td><td>11:1</td></tr>
       <tr><td>Corner (4 numbers)</td><td>8:1</td></tr>
       <tr><td>Line (6 numbers)</td><td>5:1</td></tr>
-      <tr><td>Basket (0-00-1-2-3)</td><td>6:1</td></tr>
       <tr><td>Column / Dozen</td><td>2:1</td></tr>
       <tr><td>Red / Black / Odd / Even / 1-18 / 19-36</td><td>1:1</td></tr>
     </table>
-    ${basketNote}
-    <p class="payouts-note"><strong>Zero-area bets:</strong> split supports 0-00, 0-1, 0-2, 00-2, and 00-3; trio supports 0-00-2, 0-1-2, and 00-2-3; corner supports 0-00-1-2 and 0-00-2-3.</p>
+    <p class="payouts-note"><strong>Zero-area bets:</strong> click the zero-area seams for 0-00, 0-1, 00-3, and 0-00-2.</p>
     <p class="payouts-note"><strong>Partner odds:</strong> after a winning number, listed partner pockets are weighted for the next spin. First tier is ${PARTNER_ODDS_RATES.first} each, second tier ${PARTNER_ODDS_RATES.second} each, third tier ${PARTNER_ODDS_RATES.third} each, and fourth tier ${PARTNER_ODDS_RATES.fourth} each. Unlisted pockets share the remaining chance evenly.</p>
     <div class="partner-chart-wrap">
       <table class="partner-chart">
@@ -1946,8 +2025,9 @@ window.showPayouts = function () {
       </table>
     </div>
     <p class="payouts-note"><strong>Table limits:</strong>
-       min $${(cfg?.minBet || 0).toLocaleString()},
-       max $${(cfg?.maxBet || 0).toLocaleString()} per bet.</p>
+       min chip $${(cfg?.minBet || 0).toLocaleString()},
+       max chip $${(cfg?.maxChip || cfg?.maxBet || 0).toLocaleString()},
+       max direct number bet $${(cfg?.maxDirectBet || 0).toLocaleString()}.</p>
   `;
   document.getElementById('payouts-overlay').style.display = 'flex';
   document.getElementById('game-menu').style.display = 'none';
@@ -1978,7 +2058,9 @@ function flashMessage(txt) {
   readHandoff();
   S.variant = 'american';
   // Update lobby banner with any incoming handoff details.
-  if (S.tableMinBet) document.getElementById('lci-minbet').textContent = '$' + S.tableMinBet.toLocaleString();
+  document.getElementById('lci-table').textContent = 'Shared';
+  if (S.accessLevel) document.getElementById('lci-minbet').textContent = S.accessLevel;
+  else if (S.tableMinBet) document.getElementById('lci-minbet').textContent = '$' + S.tableMinBet.toLocaleString();
   if (S.wallet)      document.getElementById('lci-wallet').textContent = '$' + S.wallet.toLocaleString();
 
   // If the handoff provided everything needed, jump straight to the mode picker.

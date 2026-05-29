@@ -62,14 +62,11 @@ app.post('/matchmake/joinOrCreate/roulette_room', (req, res) => {
     }
     roomId = targetRoomId;
     created = false;
-  } else if (mode === 'single') {
-    ({ roomId, room } = manager.createRoom(variant, tableMinBet, 'single'));
-    created = true;
   } else {
     ({ roomId, room, created } = manager.joinOrCreate(variant, tableMinBet));
   }
 
-  pendingSessions[sessionId] = { username, userId, roomId, wallet, token };
+  pendingSessions[sessionId] = { username, userId, roomId, wallet, token, tableMinBet };
   console.log(`[RouletteMatchmake] ${username} → ${sessionId} (${roomId}, ${created ? 'NEW' : 'EXISTING'})`);
   res.json({
     ok:        true,
@@ -141,6 +138,7 @@ wss.on('connection', (socket, req) => {
     wallet:   session.wallet,
     userId:   session.userId,
     token:    session.token,
+    tableMinBet: session.tableMinBet,
   });
 
   socket.on('message', (raw) => {

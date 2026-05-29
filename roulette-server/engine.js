@@ -4,8 +4,8 @@
 // VurgLife Roulette — engine.js
 // Pure logic: wheel layout, bet validation, payout resolution.
 // Supports two variants:
-//   american  — 38 pockets (0, 00, 1-36). House edge 5.26%. Allows basket (0-00-1-2-3).
-//   european  — 37 pockets (0, 1-36).    House edge 2.70%. No basket, but allows en prison
+//   american  — 38 pockets (0, 00, 1-36). House edge 5.26%.
+//   european  — 37 pockets (0, 1-36).    House edge 2.70%. Allows en prison
 //               on even-money bets when 0 lands (half-back return).
 // No randomness is imported — callers pass in spin results or use spin() helper.
 // ─────────────────────────────────────────────────────────────
@@ -171,7 +171,6 @@ const BET_PAYOUTS = {
   trio:     11,   // 3-number zero-area bet
   corner:    8,   // 4 numbers in a square
   line:      5,   // 6 numbers in two adjacent rows
-  basket:    6,   // American only — 0, 00, 1, 2, 3 (house edge ~7.9%, worst bet)
   column:    2,   // 12 numbers (one of three columns)
   dozen:     2,   // 12 numbers (1-12, 13-24, 25-36)
   red:       1,
@@ -189,7 +188,6 @@ const BET_LABEL = {
   trio:     'Trio',
   corner:   'Corner',
   line:     'Line',
-  basket:   'Basket (0-00-1-2-3)',
   column:   'Column',
   dozen:    'Dozen',
   red:      'Red',
@@ -220,7 +218,6 @@ const DOZENS = {
 //   { type:'trio',     targets: [0, '00', 2] }
 //   { type:'corner',   targets: [1, 2, 4, 5] }
 //   { type:'line',     targets: [1, 2, 3, 4, 5, 6] }
-//   { type:'basket' }                        — american only; fixed [0,'00',1,2,3]
 //   { type:'column',   which: 1|2|3 }
 //   { type:'dozen',    which: 1|2|3 }
 //   { type:'red'|'black'|'even'|'odd'|'low'|'high' }
@@ -256,10 +253,6 @@ function normalizeBet(desc, variant) {
       const ns = normalizeTargets(desc.targets, variant, 6, 'Line');
       if (!isValidLineTargets(ns)) throw new Error('Invalid line shape');
       return { type: t, numbers: [...ns] };
-    }
-    case 'basket': {
-      if (variant !== 'american') throw new Error('Basket bet is American only');
-      return { type: t, numbers: [0, '00', 1, 2, 3] };
     }
     case 'column': {
       const w = desc.which;
@@ -349,7 +342,7 @@ function samePocketSet(a, b) {
 
 function isValidSplitTargets(ns, variant) {
   const zeroSplits = variant === 'american'
-    ? [[0, '00'], [0, 1], [0, 2], ['00', 2], ['00', 3]]
+    ? [[0, '00'], [0, 1], ['00', 3]]
     : [[0, 1], [0, 2], [0, 3]];
   if (ns.some((n) => n === 0 || n === '00')) {
     return zeroSplits.some((pair) => samePocketSet(ns, pair));
@@ -370,8 +363,6 @@ function isValidTrioTargets(ns, variant) {
   if (variant !== 'american') return false;
   const zeroTrios = [
     [0, '00', 2],
-    [0, 1, 2],
-    ['00', 2, 3],
   ];
   return zeroTrios.some((set) => samePocketSet(ns, set));
 }
@@ -379,11 +370,7 @@ function isValidTrioTargets(ns, variant) {
 function isValidCornerTargets(ns, variant) {
   if (ns.some((n) => n === 0 || n === '00')) {
     if (variant !== 'american') return false;
-    const zeroCorners = [
-      [0, '00', 1, 2],
-      [0, '00', 2, 3],
-    ];
-    return zeroCorners.some((set) => samePocketSet(ns, set));
+    return false;
   }
   if (!ns.every(isNumericTablePocket)) return false;
   const rows = [...new Set(ns.map(rowOf))].sort((a, b) => a - b);
@@ -470,8 +457,8 @@ function validateBets(bets, cfg) {
     if (b.amount < cfg.minBet) {
       return { ok: false, error: `Bet below minimum (${cfg.minBet})` };
     }
-    if (b.amount > cfg.maxBet) {
-      return { ok: false, error: `Bet above maximum (${cfg.maxBet})` };
+    if (b.amount > (cfg.maxChip || cfg.maxBet)) {
+      return { ok: false, error: `Bet above maximum (${cfg.maxChip || cfg.maxBet})` };
     }
     total += b.amount;
   }

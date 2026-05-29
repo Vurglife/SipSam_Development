@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#030705">
   <title>Roulette — VURGLife</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23030705'/%3E%3Ccircle cx='32' cy='32' r='24' fill='none' stroke='%23ffe9a8' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='9' fill='%23dc3d49'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=14">
+  <link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 
@@ -38,12 +38,12 @@
 
     <div class="lobby-config-banner">
       <div class="lobby-config-item">
-        <span class="lci-label">TABLE</span>
+        <span class="lci-label">ROOM</span>
         <span class="lci-value" id="lci-table">--</span>
       </div>
       <div class="lobby-config-divider"></div>
       <div class="lobby-config-item">
-        <span class="lci-label">MIN BET</span>
+        <span class="lci-label">ACCESS</span>
         <span class="lci-value" id="lci-minbet">--</span>
       </div>
       <div class="lobby-config-divider"></div>
@@ -63,17 +63,12 @@
       </button>
     </div>
 
-    <p class="lobby-section-label">CHOOSE MODE</p>
+    <p class="lobby-section-label">ROOM</p>
     <div class="mode-cards">
       <button class="mode-card" data-mode="multiplayer" onclick="pickMode('multiplayer')">
-        <div class="mode-card-title">Multiplayer</div>
-        <div class="mode-card-desc">Share a wheel with other players at the same tier.</div>
-        <div class="mode-card-badge">2-6 PLAYERS</div>
-      </button>
-      <button class="mode-card" data-mode="single" onclick="pickMode('single')">
-        <div class="mode-card-title">Single Player</div>
-        <div class="mode-card-desc">Private table. Just you and the wheel.</div>
-        <div class="mode-card-badge">VS WHEEL</div>
+        <div class="mode-card-title">Shared Room</div>
+        <div class="mode-card-desc">All eligible Roulette levels play on one American wheel.</div>
+        <div class="mode-card-badge">ACTIVE</div>
       </button>
     </div>
 
@@ -109,6 +104,7 @@
     <div class="gm-content">
       <h3>Game Menu</h3>
       <button class="btn-secondary gm-btn" onclick="showPayouts()">&#x1F48E; Payouts &amp; Specials</button>
+      <button class="btn-secondary gm-btn" onclick="showGameMemory()">Last 100 Results</button>
       <button class="btn-secondary gm-btn" onclick="replenishWallet()">Replenish Wallet</button>
       <button class="btn-danger gm-btn" onclick="exitGame()">Exit Game</button>
       <button class="btn-sm" onclick="toggleGameMenu()" style="margin-top:4px">Close</button>
@@ -124,6 +120,15 @@
     </div>
   </div>
 
+  <!-- LAST 100 RESULTS -->
+  <div id="memory-overlay" class="game-menu" style="display:none;">
+    <div class="gm-content memory-content">
+      <h3>Last 100 Results</h3>
+      <div id="memory-body"></div>
+      <button class="btn-sm" onclick="document.getElementById('memory-overlay').style.display='none'">Close</button>
+    </div>
+  </div>
+
   <div class="game-body">
 
     <!-- WHEEL + HISTORY -->
@@ -131,7 +136,7 @@
       <div class="wheel-wrap" id="wheel-wrap">
         <div class="wheel" id="wheel" aria-label="American roulette wheel"></div>
         <div class="winning-display" id="winning-display">
-          <span class="winning-label">LAST SPIN</span>
+          <span class="winning-label" aria-hidden="true"></span>
           <span class="winning-num" id="winning-num">--</span>
         </div>
       </div>
@@ -196,11 +201,6 @@
             <button class="cell cell-ev" data-bet='{"type":"high"}'>19-36</button>
           </div>
 
-          <!-- American basket row (only shown for american variant) -->
-          <div class="basket-row" id="basket-row" style="display:none;">
-            <button class="cell cell-wide" data-bet='{"type":"basket"}'>Basket (0-00-1-2-3) 6:1</button>
-          </div>
-
         </div>
       </div>
     </div>
@@ -248,6 +248,7 @@
         <button class="btn-secondary" id="btn-clear" onclick="clearBets()">Clear</button>
         <button class="btn-secondary" id="btn-double" onclick="doubleCurrentBets()" disabled>Double Bet</button>
         <button class="btn-secondary" id="btn-repeat" onclick="repeatLastBets()" disabled>Repeat</button>
+        <button class="btn-secondary" id="btn-history" onclick="showGameMemory()">History</button>
         <button class="btn-secondary" id="btn-win-toggle" onclick="toggleWinValues()">Win: Off</button>
         <button class="btn-secondary active" id="btn-sound-toggle" onclick="toggleSound()">Sound: On</button>
         <span class="selected-chip" id="selected-chip-label">CHIP: $100</span>
@@ -263,6 +264,6 @@
 
 </div>
 
-<script src="game.js?v=17"></script>
+<script src="game.js?v=18"></script>
 </body>
 </html>

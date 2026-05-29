@@ -1219,11 +1219,13 @@ const HOLDEM_TABLES = {
 };
 
 const ROULETTE_TABLES = {
-  100:   { minBet:100,   maxBet:500,    wallet:2500,    minBank:2500,    label:'Standard'   },
-  1000:  { minBet:1000,  maxBet:5000,   wallet:25000,   minBank:25000,   label:'Premium'    },
-  5000:  { minBet:5000,  maxBet:25000,  wallet:120000,  minBank:120000,  label:'High Stakes'},
-  10000: { minBet:10000, maxBet:50000,  wallet:250000,  minBank:250000,  label:'VIP'        },
-  50000: { minBet:50000, maxBet:250000, wallet:1000000, minBank:1000000, label:'VIP Whale'  },
+  5000:     { entryKey:5000,     minBet:100, maxChip:500,    maxBet:500,     maxDirectBet:500,     wallet:5000,     walletSize:5000,     minBank:5000,     label:'Bronze'    },
+  15000:    { entryKey:15000,    minBet:100, maxChip:500,    maxBet:1000,    maxDirectBet:1000,    wallet:15000,    walletSize:15000,    minBank:15000,    label:'Silver'    },
+  30000:    { entryKey:30000,    minBet:100, maxChip:1000,   maxBet:2000,    maxDirectBet:2000,    wallet:30000,    walletSize:30000,    minBank:30000,    label:'Gold'      },
+  60000:    { entryKey:60000,    minBet:100, maxChip:5000,   maxBet:10000,   maxDirectBet:10000,   wallet:60000,    walletSize:60000,    minBank:60000,    label:'Platinum'  },
+  2000000:  { entryKey:2000000,  minBet:100, maxChip:25000,  maxBet:100000,  maxDirectBet:100000,  wallet:2000000,  walletSize:2000000,  minBank:2000000,  label:'VIP'       },
+  7000000:  { entryKey:7000000,  minBet:100, maxChip:50000,  maxBet:500000,  maxDirectBet:500000,  wallet:7000000,  walletSize:7000000,  minBank:7000000,  label:'Elite'     },
+  10000000: { entryKey:10000000, minBet:100, maxChip:100000, maxBet:1000000, maxDirectBet:1000000, wallet:10000000, walletSize:10000000, minBank:10000000, label:'Celestial' },
 };
 
 const PKGS = [
@@ -1738,49 +1740,66 @@ async function enterHoldemTable(minBet) {
 function buildRouletteGrid(gridId) {
   const grid=document.getElementById(gridId); if (!grid) return;
   const bank=getBank(); grid.innerHTML='';
-  Object.values(ROULETTE_TABLES).forEach(t => {
+  const intro=document.createElement('div');
+  intro.className='tc';
+  intro.style.gridColumn='1 / -1';
+  intro.innerHTML=`<div class="tc-name">One Shared Roulette Room</div>
+    <div style="font-size:13px;color:var(--text-dim);line-height:1.5">
+      All eligible levels join the same American wheel. Your entry level controls your wallet, chip values, and straight-number limit.
+    </div>`;
+  grid.appendChild(intro);
+  Object.entries(ROULETTE_TABLES).forEach(([key,t]) => {
     const ok=bank>=t.minBank;
-    const isVIP = t.minBet>=10000;
+    const tier=String(t.label || '').toLowerCase();
+    const premium=['vip','elite','celestial'].includes(tier);
     const d=document.createElement('div');
-    d.className='tc'+(ok?'':' locked');
+    d.className='tc'+(ok?'':' locked')+(premium?' tc-'+tier:'');
     d.innerHTML=`
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim)">${t.label.toUpperCase()}</div>
-        ${isVIP?'<div style="font-size:9px;font-weight:700;color:var(--gold);background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.25);padding:2px 7px;border-radius:8px;letter-spacing:1px">VIP</div>':''}
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim)">${t.label.toUpperCase()} ACCESS</div>
+        ${premium?`<div style="font-size:9px;font-weight:700;color:var(--gold);background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.25);padding:2px 7px;border-radius:8px;letter-spacing:1px">${t.label.toUpperCase()}</div>`:''}
       </div>
-      <div class="tc-bet">$${t.minBet.toLocaleString()}</div>
-      <div class="tc-name">${t.label} Table</div>
+      <div class="tc-bet">${t.label}</div>
+      <div class="tc-name">Shared Roulette Room</div>
       <div>
         <div class="tc-row"><span class="tc-l">Min Bank Required</span><span class="tc-r">$${t.minBank.toLocaleString()}</span></div>
         <div class="tc-row"><span class="tc-l">Wallet Size</span><span class="tc-r gold">$${t.wallet.toLocaleString()}</span></div>
-        <div class="tc-row"><span class="tc-l">Min Bet</span><span class="tc-r">$${t.minBet.toLocaleString()}</span></div>
-        <div class="tc-row"><span class="tc-l">Max Bet</span><span class="tc-r">$${t.maxBet.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Max Chip</span><span class="tc-r">$${t.maxChip.toLocaleString()}</span></div>
+        <div class="tc-row"><span class="tc-l">Max Direct Bet</span><span class="tc-r">$${t.maxDirectBet.toLocaleString()}</span></div>
       </div>
       <div style="margin-top:14px">
-        ${ok?`<button class="btn bp bsm bfull" onclick="enterRouletteTable(${t.minBet})">Enter Table →</button>`
+        ${ok?`<button class="btn bp bsm bfull" onclick="enterRouletteTable(${Number(key)})">Enter Room →</button>`
             :`<div style="font-size:11px;color:var(--text-dim)">Need $${t.minBank.toLocaleString()} in bank</div>`}
       </div>`;
     grid.appendChild(d);
   });
 }
 
-async function enterRouletteTable(minBet) {
-  const t=ROULETTE_TABLES[Number(minBet)];
+async function enterRouletteTable(entryKey) {
+  const key=Number(entryKey);
+  const t=ROULETTE_TABLES[key];
   if (!t) return;
   const bank=getBank();
-  if (bank<t.minBank) { toast('Insufficient Balance',`You need $${t.minBank.toLocaleString()} in your bank to enter this table.`); return; }
+  if (bank<t.minBank) { toast('Insufficient Balance',`You need $${t.minBank.toLocaleString()} in your bank to enter Roulette at ${t.label} access.`); return; }
 
   // Deduct wallet from bank on the platform
   try {
-    const res = await apiPost('/api/game/roulette/enter', { tableMinBet: minBet });
+    const res = await apiPost('/api/game/roulette/enter', { tableMinBet: key });
     if (res.code === 'active_wallet_session' && res.activeSession?.game === 'roulette') {
       const active = res.activeSession;
-      const activeTable = ROULETTE_TABLES[Number(active.tableMinBet)];
-      if (activeTable) {
-        toast('Active Roulette Session', `Opening your active $${Number(active.tableMinBet).toLocaleString()} Roulette table. Exit it before switching tables.`);
-        openRouletteTable(activeTable, Number(active.walletSize || activeTable.wallet));
-        return;
-      }
+      const activeTable = ROULETTE_TABLES[Number(active.tableMinBet)] || {
+        entryKey: Number(active.tableMinBet),
+        minBet: 100,
+        maxChip: 500,
+        maxDirectBet: 500,
+        wallet: Number(active.walletSize) || 0,
+        walletSize: Number(active.walletSize) || 0,
+        minBank: 0,
+        label: 'Active'
+      };
+      toast('Active Roulette Session', `Opening your active ${activeTable.label} Roulette session.`);
+      openRouletteTable(activeTable, Number(active.walletSize || activeTable.wallet));
+      return;
     }
     if (res.error) { toast('⚠️ Error', res.error); return; }
     if (res.newBankBalance != null) {
@@ -1794,7 +1813,8 @@ async function enterRouletteTable(minBet) {
     return;
   }
 
-  sessionStorage.setItem('roulette_table', JSON.stringify({...t, minBet}));
+  const wallet = Number(t.wallet || t.walletSize || 0);
+  sessionStorage.setItem('roulette_table', JSON.stringify({...t, entryKey:key, wallet, walletSize:wallet}));
   sessionStorage.setItem('roulette_user', JSON.stringify({
     id: currentUser.id||currentUser.user_id||0,
     username: currentUser.username,
@@ -1805,8 +1825,9 @@ async function enterRouletteTable(minBet) {
 
   // Pass handoff via URL so the roulette client picks it up directly.
   const params = new URLSearchParams({
-    minBet:   String(t.minBet),
-    wallet:   String(t.wallet),
+    minBet:   String(key),
+    wallet:   String(wallet),
+    level:    t.label,
     username: currentUser.username,
     userId:   String(currentUser.id||currentUser.user_id||0),
   });
@@ -1815,7 +1836,8 @@ async function enterRouletteTable(minBet) {
 
 function openRouletteTable(t, walletSize) {
   const wallet = Math.max(0, Math.floor(Number(walletSize) || Number(t.wallet) || 0));
-  sessionStorage.setItem('roulette_table', JSON.stringify({...t, minBet:t.minBet, wallet}));
+  const key = Number(t.entryKey || t.minBank || t.minBet);
+  sessionStorage.setItem('roulette_table', JSON.stringify({...t, entryKey:key, wallet, walletSize:wallet}));
   sessionStorage.setItem('roulette_user', JSON.stringify({
     id: currentUser.id||currentUser.user_id||0,
     username: currentUser.username,
@@ -1825,8 +1847,9 @@ function openRouletteTable(t, walletSize) {
   }));
 
   const params = new URLSearchParams({
-    minBet:   String(t.minBet),
+    minBet:   String(key),
     wallet:   String(wallet),
+    level:    t.label || '',
     username: currentUser.username,
     userId:   String(currentUser.id||currentUser.user_id||0),
   });

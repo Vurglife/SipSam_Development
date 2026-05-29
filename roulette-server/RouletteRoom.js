@@ -46,44 +46,16 @@ function callPlatformAPI(path, token, body) {
   });
 }
 
-// Tier config. Keyed by minBet. walletSize = default wallet draw on enter.
-// maxBet is the per-bet cap, not the total-stake cap (that's walletSize).
+// One shared American room. Config is keyed by access-tier wallet key; each
+// player carries their own limits inside the shared room.
 const TABLE_CONFIG = {
-  100: {
-    minBet:     100,
-    maxBet:     500,
-    walletSize: 2500,
-    minBank:    2500,
-    label:      'standard',
-  },
-  1000: {
-    minBet:     1000,
-    maxBet:     5000,
-    walletSize: 25000,
-    minBank:    25000,
-    label:      'vip',
-  },
-  5000: {
-    minBet:     5000,
-    maxBet:     25000,
-    walletSize: 120000,
-    minBank:    120000,
-    label:      'vip',
-  },
-  10000: {
-    minBet:     10000,
-    maxBet:     50000,
-    walletSize: 250000,
-    minBank:    250000,
-    label:      'vip',
-  },
-  50000: {
-    minBet:     50000,
-    maxBet:     250000,
-    walletSize: 1000000,
-    minBank:    1000000,
-    label:      'vip',
-  },
+  5000:     { level:'Bronze',    minBet:100, maxChip:500,    maxBet:500,     maxDirectBet:500,     walletSize:5000,     minBank:5000     },
+  15000:    { level:'Silver',    minBet:100, maxChip:500,    maxBet:1000,    maxDirectBet:1000,    walletSize:15000,    minBank:15000    },
+  30000:    { level:'Gold',      minBet:100, maxChip:1000,   maxBet:2000,    maxDirectBet:2000,    walletSize:30000,    minBank:30000    },
+  60000:    { level:'Platinum',  minBet:100, maxChip:5000,   maxBet:10000,   maxDirectBet:10000,   walletSize:60000,    minBank:60000    },
+  2000000:  { level:'VIP',       minBet:100, maxChip:25000,  maxBet:100000,  maxDirectBet:100000,  walletSize:2000000,  minBank:2000000  },
+  7000000:  { level:'Elite',     minBet:100, maxChip:50000,  maxBet:500000,  maxDirectBet:500000,  walletSize:7000000,  minBank:7000000  },
+  10000000: { level:'Celestial', minBet:100, maxChip:100000, maxBet:1000000, maxDirectBet:1000000, walletSize:10000000, minBank:10000000 },
 };
 
 // Timing (seconds). The betting window gives players time to use table or wheel bets.
@@ -91,20 +63,21 @@ const BETTING_SECONDS   = 40;
 const SPINNING_SECONDS  = 8;
 const RESOLVING_SECONDS = 5;
 
-const MAX_PLAYERS = 6;
+const DEFAULT_TABLE_KEY = 5000;
+const MAX_PLAYERS = 100;
 
 class RouletteRoom {
   constructor({ roomId, variant, tableMinBet, mode }) {
     this.roomId   = roomId;
     this.variant  = 'american';
-    this.mode     = mode === 'single' ? 'single' : 'multiplayer';
-    this.cfg      = TABLE_CONFIG[tableMinBet] || TABLE_CONFIG[100];
-    this.tableMinBet = this.cfg.minBet;
+    this.mode     = 'multiplayer';
+    this.cfg      = { ...TABLE_CONFIG[DEFAULT_TABLE_KEY], level: 'Shared' };
+    this.tableMinBet = DEFAULT_TABLE_KEY;
 
     this.clients = [];             // [{ sessionId, userId, username, send }]
     this.players = {};             // sessionId → { sessionId, username, wallet, bets, lastPayout }
     this.history = [];             // last N winning numbers (for display)
-    this.historyMax = 20;
+    this.historyMax = 100;
 
     this.phase     = 'waiting';    // 'waiting' | 'betting' | 'spinning' | 'resolving'
     this.phaseEnd  = 0;            // epoch ms when current phase ends
@@ -116,13 +89,17 @@ class RouletteRoom {
 
   // ── LIFECYCLE ──────────────────────────────────────────────
 
-  onJoin(client, { username, wallet, userId, token }) {
+  onJoin(client, { username, wallet, userId, token, tableMinBet }) {
+    const entryKey = Number(tableMinBet) || DEFAULT_TABLE_KEY;
+    const cfg = TABLE_CONFIG[entryKey] || TABLE_CONFIG[DEFAULT_TABLE_KEY];
     this.players[client.sessionId] = {
       sessionId:  client.sessionId,
       userId,
       username:   username || 'Player',
-      wallet:     Number(wallet) || this.cfg.walletSize,
+      wallet:     Number(wallet) || cfg.walletSize,
       token:      token || null,
+      tableMinBet: entryKey,
+      cfg:        { ...cfg },
       bankSettled:false,
       bets:       [],
       lastPayout: null,
@@ -218,9 +195,9 @@ class RouletteRoom {
         net: p.lastNet,
         wallet: p.wallet,
       };
-      // Any single-bet multiplier ≥ 35× (straight hit) or net ≥ 50× minBet? Announce.
+      // Announce standout straight-hit-scale wins.
       if (p.lastNet > 0) {
-        const mult = Math.floor(p.lastNet / this.cfg.minBet);
+        const mult = Math.floor(p.lastNet / (p.cfg?.minBet || 100));
         if (mult > tableTopPayoutMultiple) {
           tableTopPayoutMultiple = mult;
           tableTopPlayer = p;
@@ -248,7 +225,7 @@ class RouletteRoom {
 
     this.loopTimer = setTimeout(() => {
       // If everyone's broke, pause.
-      const anyCanBet = Object.values(this.players).some((p) => p.wallet >= this.cfg.minBet);
+      const anyCanBet = Object.values(this.players).some((p) => p.wallet >= (p.cfg?.minBet || 100));
       if (!anyCanBet && Object.keys(this.players).length > 0) {
         this.phase = 'waiting';
         this.broadcastState('Waiting — replenish wallet to continue');
@@ -299,18 +276,34 @@ class RouletteRoom {
     if (!Number.isFinite(amount) || amount <= 0) {
       return this._err(client, 'Invalid bet amount');
     }
-    if (amount < this.cfg.minBet) {
-      return this._err(client, `Minimum bet is $${this.cfg.minBet}`);
-    }
-    if (amount > this.cfg.maxBet) {
-      return this._err(client, `Maximum bet is $${this.cfg.maxBet}`);
-    }
-    const staked = p.bets.reduce((s, b) => s + b.amount, 0);
-    if (staked + amount > p.wallet) {
-      return this._err(client, 'Insufficient wallet');
-    }
+    const allowed = this._validateBetPlacement(p, norm, amount);
+    if (!allowed.ok) return this._err(client, allowed.error);
     p.bets.push({ ...norm, amount });
     this.broadcastState();
+  }
+
+  _validateBetPlacement(player, norm, amount, pendingBets = player.bets) {
+    const cfg = player.cfg || TABLE_CONFIG[DEFAULT_TABLE_KEY];
+    if (amount < cfg.minBet) {
+      return { ok: false, error: `Minimum bet is $${cfg.minBet}` };
+    }
+    if (amount > cfg.maxChip) {
+      return { ok: false, error: `Maximum chip is $${cfg.maxChip}` };
+    }
+    const staked = pendingBets.reduce((s, b) => s + b.amount, 0);
+    if (staked + amount > player.wallet) {
+      return { ok: false, error: 'Insufficient wallet' };
+    }
+    if (norm.type === 'straight') {
+      const target = String(norm.numbers[0]);
+      const directTotal = pendingBets
+        .filter((b) => b.type === 'straight' && String(b.numbers?.[0]) === target)
+        .reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+      if (directTotal + amount > cfg.maxDirectBet) {
+        return { ok: false, error: `Max direct bet on ${target} is $${cfg.maxDirectBet}` };
+      }
+    }
+    return { ok: true };
   }
 
   onUndoBet(client) {
@@ -341,7 +334,13 @@ class RouletteRoom {
       ...bet,
       numbers: Array.isArray(bet.numbers) ? bet.numbers.slice() : bet.numbers,
     }));
-    p.bets.push(...clones);
+    const staged = p.bets.slice();
+    for (const clone of clones) {
+      const allowed = this._validateBetPlacement(p, clone, clone.amount, staged);
+      if (!allowed.ok) return this._err(client, allowed.error);
+      staged.push(clone);
+    }
+    p.bets = staged;
     this.broadcastState();
   }
 
@@ -365,7 +364,7 @@ class RouletteRoom {
       game: 'roulette',
       amount,
       currentWallet: p.wallet,
-      tableMinBet: this.tableMinBet,
+      tableMinBet: p.tableMinBet || this.tableMinBet,
     });
 
     if (!res || !res.ok) {
@@ -438,6 +437,8 @@ class RouletteRoom {
         sessionId:  sid,
         username:   p.username,
         wallet:     p.wallet,
+        tableMinBet: p.tableMinBet,
+        cfg:        p.cfg,
         bets:       p.bets,
         lastPayout: p.lastPayout,
         lastNet:    p.lastNet,
@@ -458,7 +459,7 @@ class RouletteRoom {
       : 0;
     const res = await callPlatformAPI('/api/game/roulette/exit', player.token, {
       remainingWallet: Math.max(0, Math.floor((Number(player.wallet) || 0) - lockedStake)),
-      tableMinBet: this.tableMinBet,
+      tableMinBet: player.tableMinBet || this.tableMinBet,
       reason,
     });
     if (!res || !res.ok) {

@@ -641,10 +641,10 @@ button {
   transform: translate(-50%, -50%);
   width: 70%;
   max-width: 220px;
-  opacity: 0.07;
+  opacity: 0.16;
   pointer-events: none;
   z-index: 0;
-  filter: brightness(1.5);
+  filter: brightness(1.6) drop-shadow(0 0 12px rgba(126,200,255,0.22));
 }
 
 .board {
@@ -654,13 +654,14 @@ button {
   grid-template-areas:
     "zero main cols"
     "zero dozen dozen"
-    "zero outside outside"
-    "zero basket basket";
+    "zero outside outside";
   gap: 3px;
 }
 .zero-col {
   grid-area: zero;
   display: flex; flex-direction: column; gap: 3px;
+  position: relative;
+  overflow: visible;
 }
 .grid-main {
   grid-area: main;
@@ -682,11 +683,6 @@ button {
   grid-area: outside;
   display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px;
 }
-.basket-row {
-  grid-area: basket;
-  display: grid; grid-template-columns: 1fr; gap: 3px;
-}
-
 .grid-hotspots {
   position: absolute;
   inset: 0;
@@ -718,11 +714,11 @@ button {
   box-shadow: 0 0 10px rgba(240,208,128,0.45);
 }
 .bet-hotspot.has-chip,
-.zero-special-bet.has-chip {
+.zero-hotspot.has-chip {
   opacity: 1;
 }
 .bet-hotspot.betting-closed,
-.zero-special-bet.betting-closed {
+.zero-hotspot.betting-closed {
   opacity: 0.24;
 }
 .bet-hotspot-split-h {
@@ -756,28 +752,44 @@ button {
   background: rgba(154,238,170,0.22);
 }
 
-.zero-special-bets {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 3px;
-}
-.zero-special-bet {
-  position: relative;
-  min-height: 26px;
-  padding: 4px 2px;
-  border-radius: 5px;
-  border: 1px solid rgba(255,233,168,0.24);
-  background: rgba(0,0,0,0.55);
-  color: var(--gold-lt);
-  font-size: 0.58rem;
-  font-weight: 800;
+.zero-hotspot {
+  position: absolute;
+  z-index: 10;
+  min-width: 38px;
+  min-height: 22px;
+  padding: 3px 5px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,245,208,0.54);
+  background: radial-gradient(circle, rgba(255,245,208,0.9), rgba(240,208,128,0.72));
+  color: #1a1000;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.58), 0 0 14px rgba(240,208,128,0.34);
+  font-size: 0.54rem;
+  font-weight: 900;
   line-height: 1;
+  opacity: 0.42;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.12s, filter 0.12s, box-shadow 0.12s;
 }
-.zero-special-bet:active {
-  transform: scale(0.96);
-  filter: brightness(1.2);
+.zero-hotspot:hover,
+.zero-hotspot:focus-visible,
+.zero-hotspot.bet-preview-anchor {
+  opacity: 1;
+  filter: brightness(1.08);
+  box-shadow:
+    0 0 0 2px rgba(255,233,168,0.26),
+    0 0 20px rgba(255,233,168,0.78);
 }
-
+.zero-hotspot:active {
+  transform: translate(-50%, -50%) scale(0.94);
+}
+.zero-hotspot-0-00 { left: 50%; top: 50%; }
+.zero-hotspot-0-1 { left: 100%; top: 75%; }
+.zero-hotspot-00-3 { left: 100%; top: 25%; }
+.zero-hotspot-0-00-2 { left: 100%; top: 50%; min-width: 50px; }
+.zero-hotspot.betting-closed {
+  opacity: 0.18;
+  filter: grayscale(0.4);
+}
 .cell {
   position: relative;
   min-height: 32px;
@@ -821,7 +833,7 @@ button {
 /* Bet chips drawn on cells and direct bet hotspots */
 .cell .chip-stack,
 .bet-hotspot .chip-stack,
-.zero-special-bet .chip-stack,
+.zero-hotspot .chip-stack,
 .wheel-special-bet .chip-stack {
   position: absolute;
   right: 1px; bottom: 1px;
@@ -837,7 +849,7 @@ button {
 }
 .cell .chip-stack.with-win,
 .bet-hotspot .chip-stack.with-win,
-.zero-special-bet .chip-stack.with-win,
+.zero-hotspot .chip-stack.with-win,
 .wheel-special-bet .chip-stack.with-win {
   right: -2px;
   bottom: -2px;
@@ -1156,6 +1168,7 @@ button {
 }
 .gm-btn { padding: 10px; text-align: left; }
 .payouts-content { max-width: min(920px, 94vw); max-height: 82vh; overflow-y: auto; }
+.memory-content { max-width: min(620px, 94vw); max-height: 82vh; overflow-y: auto; }
 
 .payouts-table {
   width: 100%;
@@ -1214,6 +1227,74 @@ button {
   color: var(--gold-lt);
   font-weight: 900;
   width: 58px;
+}
+
+.memory-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.memory-summary span {
+  padding: 8px 6px;
+  border: 1px solid rgba(255,233,168,0.14);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  color: #b9cde0;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  text-align: center;
+}
+.memory-summary b {
+  display: block;
+  margin-top: 2px;
+  color: var(--cream);
+  font-size: 0.88rem;
+}
+.memory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.memory-row {
+  display: grid;
+  grid-template-columns: 40px 72px 86px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid rgba(255,233,168,0.12);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.22);
+  font-size: 0.78rem;
+}
+.memory-pocket {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 900;
+  border: 1px solid rgba(255,255,255,0.26);
+}
+.memory-pocket.red { background: linear-gradient(180deg, var(--ruby-lt), var(--red-dk)); }
+.memory-pocket.black { background: linear-gradient(180deg, #353935, #070807); }
+.memory-pocket.green { background: linear-gradient(180deg, #20a64a, #0a5524); }
+.memory-outcome,
+.memory-net {
+  font-weight: 900;
+}
+.memory-win { color: #a9f2bb; }
+.memory-lose { color: #ffb8b8; }
+.memory-push { color: var(--gold-lt); }
+.memory-meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #8fa6bd;
 }
 
 .big-announce {
@@ -1468,7 +1549,7 @@ body {
   padding: 9px 7px 7px;
   background:
     linear-gradient(135deg, rgba(255,255,255,0.08), transparent 26%),
-    radial-gradient(ellipse at 50% 28%, #1a7442 0%, var(--felt) 48%, #03140b 100%);
+    radial-gradient(ellipse at 50% 28%, rgba(48,126,216,0.72) 0%, rgba(11,53,111,0.94) 48%, #03101f 100%);
   border: 1px solid rgba(255,233,168,0.5);
   border-top-color: var(--gold-lt);
   box-shadow:
@@ -1483,15 +1564,13 @@ body {
 .grid-main,
 .col-2to1,
 .dozens-row,
-.outside-row,
-.basket-row,
-.zero-special-bets {
+.outside-row {
   gap: 4px;
 }
 
-.zero-special-bet {
+.zero-hotspot {
   border: 1px solid rgba(255,233,168,0.26);
-  background: linear-gradient(180deg, rgba(12,19,15,0.9), rgba(0,0,0,0.55));
+  background: radial-gradient(circle, rgba(255,245,208,0.96), rgba(240,208,128,0.76));
 }
 
 .cell {
@@ -1524,7 +1603,7 @@ body {
 .cell-side,
 .cell-wide,
 .cell-ev {
-  background: linear-gradient(180deg, rgba(18,28,22,0.92), rgba(2,7,4,0.82));
+  background: linear-gradient(180deg, rgba(19,55,104,0.94), rgba(3,15,34,0.86));
 }
 
 .chip-win-label {
@@ -1620,6 +1699,7 @@ body {
 .chip.c-10000 { background: radial-gradient(circle at 30% 28%, #a24db0, #2a0b30 72%); }
 .chip.c-25000 { background: radial-gradient(circle at 30% 28%, #ffe19a, #785100 74%); color: #1a1000; }
 .chip.c-50000 { background: radial-gradient(circle at 30% 28%, #ffffff, #8b8f91 74%); color: #111; }
+.chip.c-100000 { background: radial-gradient(circle at 30% 28%, #7ec8ff, #12396a 74%); }
 
 .chip.selected {
   box-shadow: 0 0 0 2px rgba(240,208,128,0.42), 0 7px 16px rgba(0,0,0,0.62), 0 0 18px rgba(240,208,128,0.2);
@@ -1925,9 +2005,9 @@ body {
   padding: 7px;
   border-radius: 12px;
   background:
-    linear-gradient(135deg, rgba(255,255,255,0.09), transparent 24%),
-    linear-gradient(180deg, rgba(18,110,60,0.18), transparent 38%),
-    radial-gradient(ellipse at 50% 34%, #176d3d 0%, #093b22 54%, #03120a 100%);
+    linear-gradient(135deg, rgba(255,255,255,0.12), transparent 24%),
+    linear-gradient(180deg, rgba(33,128,224,0.22), transparent 38%),
+    radial-gradient(ellipse at 50% 34%, #1f6fca 0%, #0b356f 52%, #020b18 100%);
 }
 
 .board {
@@ -1935,8 +2015,7 @@ body {
   grid-template-areas:
     "zero main cols"
     "zero-rail dozen dozen"
-    "zero-rail outside outside"
-    "zero-rail basket basket";
+    "zero-rail outside outside";
   gap: 3px;
 }
 
@@ -2026,9 +2105,9 @@ body {
 .bet-hotspot:focus-visible,
 .bet-hotspot:active,
 .bet-hotspot.bet-preview-anchor,
-.zero-special-bet:hover,
-.zero-special-bet:focus-visible,
-.zero-special-bet.bet-preview-anchor {
+.zero-hotspot:hover,
+.zero-hotspot:focus-visible,
+.zero-hotspot.bet-preview-anchor {
   opacity: 1;
   background:
     radial-gradient(circle, rgba(255,245,208,0.95), rgba(240,208,128,0.78));
@@ -2060,7 +2139,7 @@ body {
   min-height: 30px;
 }
 
-.zero-special-bet {
+.zero-hotspot {
   min-height: 24px;
   font-size: 0.55rem;
 }
@@ -2134,9 +2213,7 @@ body {
   .grid-main,
   .col-2to1,
   .dozens-row,
-  .outside-row,
-  .basket-row,
-  .zero-special-bets {
+  .outside-row {
     gap: 2px;
   }
   .cell {
@@ -2156,7 +2233,7 @@ body {
     font-size: 0.6rem;
     letter-spacing: 0.3px;
   }
-  .zero-special-bet {
+  .zero-hotspot {
     min-height: 22px;
     font-size: 0.48rem;
   }

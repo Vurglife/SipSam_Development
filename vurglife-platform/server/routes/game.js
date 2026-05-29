@@ -37,13 +37,16 @@ const RHUM32_TABLE_CONFIG = {
 };
 
 // ── ROULETTE TABLE CONFIG ──────────────────────────────────────────────
-// Matches the engine tier ladder in roulette-server/RouletteRoom.js
+// Roulette uses one shared American room. These entries are access tiers:
+// tableMinBet is kept as the wallet-session key for compatibility.
 const ROULETTE_TABLE_CONFIG = {
-    100:   { minBet:100,   maxBet:500,     minBank:2500,    walletSize:2500    },
-    1000:  { minBet:1000,  maxBet:5000,    minBank:25000,   walletSize:25000   },
-    5000:  { minBet:5000,  maxBet:25000,   minBank:120000,  walletSize:120000  },
-    10000: { minBet:10000, maxBet:50000,   minBank:250000,  walletSize:250000  },
-    50000: { minBet:50000, maxBet:250000,  minBank:1000000, walletSize:1000000 }
+    5000:     { level:'Bronze',    minBet:100, maxChip:500,    maxBet:500,     maxDirectBet:500,     minBank:5000,     walletSize:5000     },
+    15000:    { level:'Silver',    minBet:100, maxChip:500,    maxBet:1000,    maxDirectBet:1000,    minBank:15000,    walletSize:15000    },
+    30000:    { level:'Gold',      minBet:100, maxChip:1000,   maxBet:2000,    maxDirectBet:2000,    minBank:30000,    walletSize:30000    },
+    60000:    { level:'Platinum',  minBet:100, maxChip:5000,   maxBet:10000,   maxDirectBet:10000,   minBank:60000,    walletSize:60000    },
+    2000000:  { level:'VIP',       minBet:100, maxChip:25000,  maxBet:100000,  maxDirectBet:100000,  minBank:2000000,  walletSize:2000000  },
+    7000000:  { level:'Elite',     minBet:100, maxChip:50000,  maxBet:500000,  maxDirectBet:500000,  minBank:7000000,  walletSize:7000000  },
+    10000000: { level:'Celestial', minBet:100, maxChip:100000, maxBet:1000000, maxDirectBet:1000000, minBank:10000000, walletSize:10000000 }
 };
 
 // ── CHIP PACKAGES ─────────────────────────────────────────────────
@@ -346,8 +349,8 @@ router.post('/roulette/enter', requireAuth, async (req, res) => {
     if (!cfg) return res.status(400).json({ error:'Invalid Roulette table' });
 
     const result = await _walletEnter('roulette', req.userId, tableMinBet, cfg,
-        `Entered Roulette $${tableMinBet} table`);
-    if (!result.ok) return res.status(result.status || 400).json({ error: result.error || 'Entry failed' });
+        `Entered Roulette ${cfg.level || tableMinBet} access`);
+    if (!result.ok) return res.status(result.status || 400).json({ ...result, ok:false, error: result.error || 'Entry failed' });
     res.json(result);
 });
 
