@@ -1113,13 +1113,14 @@ class SipSamRoom {
             this.sendToClient(client, { type:'sideBetError', message:'Side bets disabled this round (Blitz or final round).' });
             return;
         }
-        const res = SideBets.initiate(data && data.type, this, player, data || {});
+        const sideBetType = data && (data.sideBetType || data.betType || data.type);
+        const res = SideBets.initiate(sideBetType, this, player, data || {});
         if (!res || !res.ok) {
             this.sendToClient(client, { type:'sideBetError', message:(res && res.error) || 'Cannot initiate side bet.' });
             return;
         }
         this.broadcastState();
-        this._sendSideBetOfferNotifications(client.sessionId, data && data.type, res.potId, data || {});
+        this._sendSideBetOfferNotifications(client.sessionId, sideBetType, res.potId, data || {});
     }
 
     _sendSideBetOfferNotifications(fromSid, sideBetType, potId, data) {
@@ -1163,7 +1164,8 @@ class SipSamRoom {
         if (!player || player.isBot || player.isGhostBot) return;
         if (player.pendingExit) return;                                    // auto-declines per spec
         if (!['revealing', 'sideBetPhase'].includes(this.gameState.status)) return;
-        const res = SideBets.accept(data && data.type, this, player, data && data.potId);
+        const sideBetType = data && (data.sideBetType || data.betType || data.type);
+        const res = SideBets.accept(sideBetType, this, player, data && data.potId);
         if (!res || !res.ok) {
             this.sendToClient(client, { type:'sideBetError', message:(res && res.error) || 'Cannot accept side bet.' });
             return;
@@ -1175,7 +1177,8 @@ class SipSamRoom {
         const player = this.gameState.players[client.sessionId];
         if (!player || player.isBot || player.isGhostBot) return;
         if (!['revealing', 'sideBetPhase'].includes(this.gameState.status)) return;
-        SideBets.decline(data && data.type, this, player, data && data.potId);
+        const sideBetType = data && (data.sideBetType || data.betType || data.type);
+        SideBets.decline(sideBetType, this, player, data && data.potId);
         this.broadcastState();
     }
 

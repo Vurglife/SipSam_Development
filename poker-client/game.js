@@ -3076,9 +3076,13 @@ function sbCloseInitiate() {
 
 function sbConfirmInitiate() {
     if (!_sbInitiatePending) return;
-    sendMsg('initiateSideBet', _sbInitiatePending);
+    sendMsg('initiateSideBet', {
+        sideBetType: _sbInitiatePending.type,
+        target:      _sbInitiatePending.target,
+        value:       _sbInitiatePending.value
+    });
     sbCloseInitiate();
 }
 
-function sbAccept(type, potId)  { sendMsg('acceptSideBet',  { type: type, potId: potId }); }
-function sbDecline(type, potId) { sendMsg('declineSideBet', { type: type, potId: potId }); }
+function sbAccept(type, potId)  { sendMsg('acceptSideBet',  { sideBetType: type, potId: potId }); }
+function sbDecline(type, potId) { sendMsg('declineSideBet', { sideBetType: type, potId: potId }); }
