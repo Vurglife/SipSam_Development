@@ -212,16 +212,25 @@ html, body {
 /* VurgLife logo watermark — centred on table */
 .table-logo {
   position:absolute;
-  top:50%; left:50%;
-  transform:translate(-50%, -50%);
-  /* Large centred watermark filling the felt between the seat zones,
-     layered behind cards (z-index:0; zones/cards sit above). */
-  width: clamp(460px, 82%, 880px);
-  max-width: calc(100% - 30px);
-  opacity:0.20;
-  pointer-events:none;
-  z-index:0;
-  user-select:none;
+  /* Full-felt watermark, layered behind cards/zones. inset:0 +
+     object-fit:contain scales the logo to the largest size that
+     fits inside the table at ANY viewport (no fixed min-width
+     that could overflow on mobile, no max-width that caps on
+     desktop). Transform reset because absolute inset already
+     centres the box. */
+  inset: 8px;
+  width: auto;
+  height: auto;
+  max-width: calc(100% - 16px);
+  max-height: calc(100% - 16px);
+  object-fit: contain;
+  object-position: center;
+  transform: none;
+  top: 8px; left: 8px; right: 8px; bottom: 8px;
+  opacity: 0.22;
+  pointer-events: none;
+  z-index: 0;
+  user-select: none;
   filter: drop-shadow(0 0 4px rgba(255,255,255,0.1));
 }
 
@@ -995,10 +1004,10 @@ html, body{
 .felt-grid{ display:none; }
 
 /* Logo watermark — behind cards/zones, above the felt-grid background.
-   z-index:0 matches the first rule; the old z-index:-1 here pushed the
-   watermark behind the table's own stacking context entirely. */
+   Sizing/positioning lives in the primary .table-logo rule above
+   (inset:8px + object-fit:contain). Keep only the cascade tweaks here. */
 .table-logo{
-  opacity: .20;
+  opacity: .22;
   filter: drop-shadow(0 0 6px rgba(255,255,255,.08));
   z-index: 0;
 }
