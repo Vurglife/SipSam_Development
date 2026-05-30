@@ -1,7 +1,9 @@
 # SipSam Side Bets — Canonical Spec
 
-Locked May 2026. Source of truth for behaviour, payouts, timing, and edge
-cases. Any implementation discrepancy with this doc is a bug in the
+Locked May 2026 (revised May 30 2026 — DQ/exit rules, Best Card timing,
+10s phases, pre-round-1 window, public payout announcements, low-wallet
+alert). Source of truth for behaviour, payouts, timing, and edge cases.
+Any implementation discrepancy with this doc is a bug in the
 implementation, not the spec. Update this doc *first* if rules change.
 
 There are three side bets — **First Special**, **Beat Hand**, **Best Card**.
@@ -13,18 +15,30 @@ rake. All movements logged as `side_bet_buy_in` / `side_bet_payout` /
 
 ## Lifecycle (all three bets)
 
-1. **Initiation window** — during the *reveal* phase of round N. Players
-   click side-bet buttons on the table; the server records each
-   initiation but doesn't lock stakes yet.
+0. **Pre-round-1 window** — 10s window inserted before round 1's betting
+   phase. Players may initiate AND accept any of the three side bets here.
+   Same phase ordering as between-round phases (First Special → Beat Hand
+   → Best Card), each lasting 10s, inserted only if that type was
+   initiated. Zero initiations → window skipped entirely.
+1. **Initiation window (rounds 2+)** — during the *reveal* phase of round
+   N. Players click side-bet buttons; the server records each initiation
+   but doesn't lock stakes yet.
 2. **Side-bet phase(s)** — inserted between reveal and round N+1's
    betting phase, sequentially in this order: **First Special → Beat Hand
-   → Best Card**, each lasting **7 seconds**. A phase is inserted *only if
-   that type was initiated this round*. Zero initiations → no extra time.
+   → Best Card**, each lasting **10 seconds**. A phase is inserted *only
+   if that type was initiated this round*. Zero initiations → no extra
+   time.
 3. **Acceptance** — targeted opponent(s) accept or decline during the
    phase. Stake deducted from accepter's wallet on accept. No response =
    decline.
-4. **Resolution** — at end of round N+1 (and subsequent rounds for
-   carry-over bets) per each bet's resolution rules.
+4. **Resolution** — per each bet's rules:
+   - **Best Card**: immediately after the deal of the round it resolves
+     in (a 2-second public announcement of winner + card + payout fires
+     before the betting phase begins).
+   - **First Special**: at end of the round the winning declaration is
+     made.
+   - **Beat Hand**: at end of round N+1.
+   - Carry-over bets continue to next round per each bet's rules.
 
 ### Universal rules
 
@@ -36,10 +50,31 @@ rake. All movements logged as `side_bet_buy_in` / `side_bet_payout` /
 - **`pendingExit` players auto-decline** all prompts. A player who clicks
   Exit *during* a side-bet phase keeps their already-locked stakes; the
   bet still resolves at the round end they're being deferred to.
-- **Forfeit on exit** — any contribution already paid into any pot is
-  forfeited; the leaving player never gets a refund of their stake.
+- **Forfeit on exit** — any contribution already paid into any pot stays
+  in the pot for the remaining participants. The leaving player never
+  receives a refund. **If exit reduces a pot to a single remaining
+  participant**, that participant is awarded the entire pot immediately
+  (resolved as `side_bet_payout`, status `resolved`).
 - **Wallet-only** — stakes drawn from `player.chips`. Bank is touched only
   by main-game shortfalls (banker debt path), never by side bets.
+
+### Universal DQ rule
+
+A main-game disqualification has **different consequences per bet**:
+
+| Bet | DQ effect |
+|---|---|
+| First Special | DQ'd player remains in the pot. They cannot declare this round, but if no other participant declares a Special this round, they continue into the next round and top up `minBet` as normal. If another participant declares this round, the DQ'd player loses with the rest. |
+| Beat Hand | DQ'd player **forfeits the pot to their opponent immediately**. Pot goes 100% to the opponent (banker receives nothing from the Beat Hand pot — main-game DQ payment to banker is a separate, existing rule). |
+| Best Card | No effect — the cards dealt to the DQ'd player still count toward suit-tiebreak resolution. |
+
+### Public payout announcement
+
+Every side-bet payout (`side_bet_payout`) triggers a public table-wide
+announcement broadcast to all clients, naming the winner, the winning
+event (e.g. "Best Card: K of Hearts", "Beat Hand vs Player B", "First
+Special: 6½"), and the amount won. Winning client also receives the
+same chip-flow animation used for main-round wins.
 
 ---
 
@@ -75,9 +110,15 @@ rake. All movements logged as `side_bet_buy_in` / `side_bet_payout` /
   6½ > Royal Flush > Flush-Flush-Flush > Straight-Straight-Straight >
   Four of a Kind > Straight Flush > No Face). Identical ranks → pot
   split equally among those declarers.
-- **Wrong-Special DQ** in main game: that participant stays in the side
-  bet for subsequent rounds if their wallet allows. Main-game DQ payment
-  applies as normal.
+- **DQ this round** (wrong-Special or any other DQ cause): see Universal
+  DQ rule above. DQ'd player remains in pot if wallet allows next-round
+  top-up; loses with the rest only if another participant declared this
+  round.
+
+### Exit during active pot
+- See Universal exit rule. If exit reduces the pot to a single remaining
+  participant, that participant wins the pot immediately and the bet
+  resolves (no further top-ups).
 
 ### Concurrency
 - A First Special being active does NOT block Beat Hand or Best Card
@@ -114,8 +155,10 @@ rake. All movements logged as `side_bet_buy_in` / `side_bet_payout` /
 - Winner of 2 or more hands takes the pot. **1.5–1.5 → split.**
 - Special declared by one side: pot resolves on hand-compare as normal
   (no multiplier applied — pot was fixed pre-round).
-- **DQ in main game** → DQ'd side forfeits pot to the other side. If both
-  sides DQ → pot split.
+- **DQ or exit by one side** → forfeiting side loses the pot immediately
+  (no wait for round end). Pot goes 100% to the remaining opponent.
+  Banker is not a beneficiary of a Beat Hand pot. If both sides DQ or
+  exit in the same window → pot split equally.
 
 ---
 
@@ -137,20 +180,29 @@ rake. All movements logged as `side_bet_buy_in` / `side_bet_payout` /
 - `minBet` per participant (initiator + accepters), deducted on accept
   or initiation.
 
-### Resolution (at end of the same round)
+### Resolution (immediately after the deal of the round it resolves in)
 - Among that round's participants who were dealt the chosen value:
   highest-suit copy wins (H > S > D > C). If a player holds multiple
   copies of that value, use their highest-suit copy.
+- Resolution happens **right after deal**, before the betting phase
+  begins. A 2-second public announcement of winner + card + payout
+  fires before play proceeds.
 - **No participant holds the value this round** → pot carries to next
-  round with the same selected value. Same participants top up `minBet`;
-  participants who are exiting or cannot top up forfeit their prior
-  contribution to the pot. The pot remains active until won or refunded
-  at game end.
+  round with the same selected value. Same participants top up `minBet`
+  at the start of the next round; participants who are exiting or cannot
+  top up forfeit their prior contribution to the pot. The pot remains
+  active until won or refunded at game end.
 - Players cannot *join* a carry-over pot once it has been locked — only
-  the original participants top up.
+  the original participants top up. Initiating a **separate** Best Card
+  pot (different initiator and/or different value) is always allowed,
+  even if a carry-over pot already exists between the same players.
 
 ### DQ in main game
 - Does NOT affect Best Card eligibility. The dealt cards still count.
+
+### Exit during active pot
+- See Universal exit rule. If exit reduces the pot to a single remaining
+  participant, that participant wins the pot immediately.
 
 ### Game-end with carry-over pot unwon
 - Pot refunded equally to the participants still in the pot
@@ -193,3 +245,21 @@ Status values per pot: `pending_accept`, `locked`, `resolved`, `refunded`.
 | `side_bet_refund` | positive | same | At game-end refund or beatHand-both-DQ split |
 
 No `side_bet_rake` — house takes nothing on side bets.
+
+---
+
+## Low-wallet alert (player-private)
+
+Independent of side-bet wiring, but added at the same time because
+heavy side-bet play accelerates wallet drain.
+
+- Each tier has a starting `walletSize` (see `shared/sipsam-tables.js`).
+  When a player's `chips` drops to **≤ 10% of that starting walletSize**,
+  the server pushes a **private** alert (`type:'lowWalletAlert'`, fields:
+  `currentWallet`, `walletStart`, `thresholdPct:10`) to that player's
+  socket only — **never broadcast**.
+- Alert fires **once per descent below the threshold per game** (no spam
+  if wallet hovers around the threshold). It re-arms only if the wallet
+  recovers above the threshold (e.g. side-bet payout) and drops below
+  again.
+- Example: Celestial $500K (walletSize $7M) triggers at chips ≤ $700,000.
