@@ -142,10 +142,10 @@ rake. All movements logged as `side_bet_buy_in` / `side_bet_payout` /
   highest-suit copy wins (H > S > D > C). If a player holds multiple
   copies of that value, use their highest-suit copy.
 - **No participant holds the value this round** → pot carries to next
-  round. Same participants top up `minBet`; the original initiator picks
-  a new value for the next round. Participants may drop out at end of
-  round (forfeit to pot per universal rule); the pot remains active
-  until won.
+  round with the same selected value. Same participants top up `minBet`;
+  participants who are exiting or cannot top up forfeit their prior
+  contribution to the pot. The pot remains active until won or refunded
+  at game end.
 - Players cannot *join* a carry-over pot once it has been locked — only
   the original participants top up.
 

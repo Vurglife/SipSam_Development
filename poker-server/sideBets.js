@@ -11,9 +11,7 @@
 // Implemented bets:
 //   First Special: table-wide multi-round pot, ranked declaration wins.
 //   Beat Hand: targeted player-vs-player best-of-3 challenge.
-//   Best Card: chosen value, suit tiebreak H>S>D>C, fresh-round only.
-// If no participant holds the chosen Best Card value at reveal-end, the
-// pot is refunded equally; carry-over remains deferred.
+//   Best Card: chosen value, suit tiebreak H>S>D>C, carried until won.
 // ============================================================
 
 'use strict';
@@ -50,9 +48,13 @@ function _specialRank(name) {
 let _potCounter = 0;
 function _genPotId(prefix) { _potCounter += 1; return `${prefix}-${_potCounter}`; }
 
-// Card-code helpers. SipSam cards encode as VALUE+SUIT, e.g.
-// '7H', '10S', 'AH'. Value can be 1 or 2 chars; suit is the last char.
-function _cardValue(card) { return String(card || '').slice(0, -1).toUpperCase(); }
+// Card-code helpers. SipSam cards encode as VALUE+SUIT; current deck uses
+// T for ten, while the UI displays 10. Normalize both to 10.
+function _normalizeCardValue(value) {
+    const v = String(value || '').toUpperCase();
+    return v === 'T' ? '10' : v;
+}
+function _cardValue(card) { return _normalizeCardValue(String(card || '').slice(0, -1)); }
 function _cardSuit(card)  { return String(card || '').slice(-1).toUpperCase(); }
 function _suitRank(card)  { return SUIT_RANK[_cardSuit(card)] || 0; }
 
@@ -156,7 +158,7 @@ function publicView(state /*, forSid */) { return state || emptyState(); }
 // ── BEST CARD ────────────────────────────────────────────────
 
 function _initiateBestCard(room, player, opts) {
-    const value = String((opts && opts.value) || '').toUpperCase();
+    const value = _normalizeCardValue((opts && opts.value) || '');
     if (!VALID_CARD_VALUES.includes(value)) {
         return { ok: false, error: `Invalid card value: ${value || '(empty)'}` };
     }
@@ -198,6 +200,10 @@ function _initiateBestCard(room, player, opts) {
         pot:            stake,
         status:         'pending_accept',
         initiatedRound: room.gameState.round,
+        lockedAtRound:  null,
+        lastChargedRound: null,
+        carryOverRounds: 0,
+        lastResolvedRound: null,
     };
     sb.bestCard.push(pot);
     sb.initiationsThisRound.bestCard = true;
@@ -250,6 +256,8 @@ function _finalizeBestCardPhase(room) {
             sb.bestCard.splice(i, 1);
         } else {
             pot.status = 'locked';
+            pot.lockedAtRound = (Number(room.gameState.round) || 0) + 1;
+            pot.lastChargedRound = pot.lockedAtRound;
             console.log(`[SIDEBET][BC] pot ${pot.id} locked — value=${pot.value} pot=$${pot.pot} N=${pot.participants.length}`);
         }
     }
@@ -258,6 +266,7 @@ function _finalizeBestCardPhase(room) {
 // At reveal-end of the round AFTER initiation, resolve every locked
 // Best Card pot using each participant's dealt rawCards.
 function _resolveBestCardAtRoundEnd(room) {
+    return _resolveBestCardCarryAtRoundEnd(room);
     const sb = room.gameState.sideBets;
     if (!sb) return [];
     const resolved = [];
@@ -306,6 +315,106 @@ function _resolveBestCardAtRoundEnd(room) {
     }
     sb.bestCard = sb.bestCard.filter(p => p.status !== 'resolved' && p.status !== 'refunded');
     return resolved;
+}
+
+function _topupBestCardAtRoundStart(room) {
+    const sb = room.gameState.sideBets;
+    if (!sb) return { forfeited: [], closed: [] };
+
+    const round = Number(room.gameState.round) || 0;
+    const stake = Number(room.gameState.tableMinBet) || 0;
+    if (stake <= 0) return { forfeited: [], closed: [] };
+
+    const forfeited = [];
+    const closed = [];
+    for (let i = sb.bestCard.length - 1; i >= 0; i--) {
+        const pot = sb.bestCard[i];
+        if (!pot || pot.status !== 'locked') continue;
+        const lockedAt = Number(pot.lockedAtRound) || 0;
+        if (!lockedAt || round < lockedAt) continue;
+
+        const lastCharged = Number(pot.lastChargedRound) || lockedAt;
+        if (round <= lastCharged) continue;
+
+        pot.participants = (pot.participants || []).filter(part => {
+            const p = room.gameState.players[part.sid];
+            if (!p || p.isGhostBot || p.pendingExit) {
+                forfeited.push(part.sid);
+                return false;
+            }
+            if (!_deductWallet(p, stake, room, `bestCard:${pot.id}`, `Best Card ${pot.value} round ${round} top-up`)) {
+                forfeited.push(part.sid);
+                return false;
+            }
+            part.contributedTotal += stake;
+            pot.pot += stake;
+            return true;
+        });
+        pot.lastChargedRound = round;
+
+        if (pot.participants.length < 2) {
+            const remaining = pot.participants[0] && room.gameState.players[pot.participants[0].sid];
+            if (remaining && pot.pot > 0) {
+                _refundWallet(remaining, pot.pot, room, `bestCard:${pot.id}`, 'Best Card refund - insufficient participants');
+            }
+            pot.status = 'refunded';
+            closed.push(pot);
+            sb.bestCard.splice(i, 1);
+            console.log(`[SIDEBET][BC] pot ${pot.id} closed after top-up forfeits; remaining=${pot.participants.length}`);
+        } else if (forfeited.length) {
+            console.log(`[SIDEBET][BC] round ${round} top-up forfeits on ${pot.id}; remaining ${pot.participants.length}`);
+        }
+    }
+
+    return { forfeited, closed };
+}
+
+function _resolveBestCardCarryAtRoundEnd(room) {
+    const sb = room.gameState.sideBets;
+    if (!sb) return { resolved: [], carried: [] };
+    const resolved = [];
+    const carried = [];
+    const round = Number(room.gameState.round) || 0;
+
+    for (const pot of sb.bestCard) {
+        if (pot.status !== 'locked') continue;
+        const lockedAt = Number(pot.lockedAtRound) || 0;
+        if (lockedAt && round < lockedAt) continue;
+        if (Number(pot.lastResolvedRound) === round) continue;
+
+        let bestSid = null;
+        let bestRank = -1;
+        for (const part of pot.participants || []) {
+            const p = room.gameState.players[part.sid];
+            if (!p) continue;
+            const dealt = Array.isArray(p.rawCards) ? p.rawCards : [];
+            const copies = dealt.filter(c => _cardValue(c) === pot.value);
+            if (copies.length === 0) continue;
+            const myBest = copies.reduce((a, b) => _suitRank(a) >= _suitRank(b) ? a : b);
+            const rank = _suitRank(myBest);
+            if (rank > bestRank) {
+                bestRank = rank;
+                bestSid = part.sid;
+            }
+        }
+
+        pot.lastResolvedRound = round;
+        if (bestSid) {
+            const winner = room.gameState.players[bestSid];
+            _creditWallet(winner, pot.pot, room, 'side_bet_payout', `bestCard:${pot.id}`, `Best Card ${pot.value} payout`);
+            pot.status = 'resolved';
+            pot.winnerSid = bestSid;
+            resolved.push(pot);
+            console.log(`[SIDEBET][BC] pot ${pot.id} resolved - winner=${winner && winner.username} +$${pot.pot}`);
+        } else {
+            pot.carryOverRounds = (Number(pot.carryOverRounds) || 0) + 1;
+            carried.push(pot);
+            console.log(`[SIDEBET][BC] pot ${pot.id} no winner for value=${pot.value}; carries to next round with pot=$${pot.pot}`);
+        }
+    }
+
+    sb.bestCard = sb.bestCard.filter(p => p.status !== 'resolved' && p.status !== 'refunded');
+    return { resolved, carried };
 }
 
 function _refundBestCardAtGameEnd(room) {
@@ -571,6 +680,7 @@ function _initiateBeatHand(room, player, opts) {
         pot:            stake,
         status:         'pending_accept',
         initiatedRound: room.gameState.round,
+        lockedAtRound:  null,
     };
     sb.beatHand.push(pot);
     sb.initiationsThisRound.beatHand = true;
@@ -599,6 +709,7 @@ function _acceptBeatHand(room, player, potId) {
     pot.accepterSid = sid;
     pot.pot        += stake;
     pot.status      = 'locked';
+    pot.lockedAtRound = (Number(room.gameState.round) || 0) + 1;
     console.log(`[SIDEBET][BH] ${player.username} accepted pot ${pot.id} — locked pot=$${pot.pot}`);
     return { ok: true };
 }
@@ -662,8 +773,11 @@ function _resolveBeatHandAtRoundEnd(room) {
     const sb = room.gameState.sideBets;
     if (!sb) return [];
     const resolved = [];
+    const round = Number(room.gameState.round) || 0;
     for (const pot of sb.beatHand) {
         if (pot.status !== 'locked') continue;
+        const lockedAt = Number(pot.lockedAtRound) || 0;
+        if (lockedAt && round < lockedAt) continue;
 
         const chal = room.gameState.players[pot.challengerSid];
         const acc  = room.gameState.players[pot.accepterSid];
@@ -770,20 +884,23 @@ function finalizePhase(room, phaseType) {
 
 function topupAtRoundStart(room) {
     const fs = _topupFirstSpecialAtRoundStart(room);
-    return { firstSpecial: fs };
+    const bc = _topupBestCardAtRoundStart(room);
+    return { firstSpecial: fs, bestCard: bc };
 }
 
 function resolveAtRoundEnd(room) {
-    const resolved = _resolveBestCardAtRoundEnd(room);
+    const bc = _resolveBestCardCarryAtRoundEnd(room);
+    const resolved = (bc && bc.resolved) || [];
+    const carried = (bc && bc.carried) || [];
     const fs = _resolveFirstSpecialAtRoundEnd(room);
     if (fs) resolved.push(fs);
     const bh = _resolveBeatHandAtRoundEnd(room);
     bh.forEach(p => resolved.push(p));
-    return { resolved, carried: [] };
+    return { resolved, carried };
 }
 
-function resolveAfterSideBetPhase(room) {
-    return resolveAtRoundEnd(room);
+function resolveAfterSideBetPhase(/* room */) {
+    return { resolved: [], carried: [] };
 }
 
 function resolveBestCardAfterSideBetPhase(room) {

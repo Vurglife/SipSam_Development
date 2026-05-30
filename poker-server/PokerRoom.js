@@ -1119,6 +1119,43 @@ class SipSamRoom {
             return;
         }
         this.broadcastState();
+        this._sendSideBetOfferNotifications(client.sessionId, data && data.type, res.potId, data || {});
+    }
+
+    _sendSideBetOfferNotifications(fromSid, sideBetType, potId, data) {
+        const from = this.gameState.players[fromSid];
+        if (!from || !potId) return;
+        const players = this.gameState.players || {};
+        const bankerSid = this.gameState.bankerSessionId;
+        const targetSids = [];
+
+        if (sideBetType === 'beatHand') {
+            const targetSid = String((data && (data.target || data.targetSid)) || '');
+            if (targetSid) targetSids.push(targetSid);
+        } else if (sideBetType === 'firstSpecial' || sideBetType === 'bestCard') {
+            Object.keys(players).forEach(sid => {
+                if (sid !== fromSid) targetSids.push(sid);
+            });
+        }
+
+        targetSids.forEach(sid => {
+            const p = players[sid];
+            if (!p || p.isBot || p.isGhostBot || p.pendingExit || p.disqualified) return;
+            if (sideBetType === 'beatHand' && sid === bankerSid) return;
+            const cli = this.clients.find(c => c.sessionId === sid);
+            if (!cli) return;
+            this.sendToClient(cli, {
+                type:        'sideBetOffer',
+                sideBetType,
+                potId,
+                fromSid,
+                fromName:    from.username,
+                targetSid:   sid,
+                value:       data && data.value,
+                stake:       this.gameState.tableMinBet || 0,
+                phase:       this.gameState.status
+            });
+        });
     }
 
     _onAcceptSideBet(client, data) {

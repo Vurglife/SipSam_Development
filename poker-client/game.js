@@ -1908,6 +1908,40 @@ function handleServerMessage(msg) {
     } else if (msg.type === 'sideBetError') {
         const el = document.getElementById('sb-status');
         if (el) { el.textContent = '⚠ ' + (msg.message || 'Side-bet rejected.'); el.style.color = '#fca5a5'; setTimeout(() => { if (el) { el.textContent=''; el.style.color=''; } }, 3500); }
+    } else if (msg.type === 'sideBetOffer') {
+        const state = window._lastState || {};
+        const stake = _sbMoney(msg.stake || state.tableMinBet);
+        const from = msg.fromName || _sbPlayerName(state, msg.fromSid);
+        let offer = null;
+        if (msg.sideBetType === 'firstSpecial') {
+            offer = {
+                type: 'firstSpecial',
+                id: msg.potId,
+                title: 'First Special',
+                label: 'Accept First Special - ' + stake + ' stake',
+                detail: from + ' opened a table-wide First Special pot.'
+            };
+        } else if (msg.sideBetType === 'beatHand') {
+            offer = {
+                type: 'beatHand',
+                id: msg.potId,
+                title: 'Beat Hand',
+                label: 'Accept Beat Hand vs ' + from + ' - ' + stake,
+                detail: from + ' challenged you to a best-of-3 hand side bet.'
+            };
+        } else if (msg.sideBetType === 'bestCard') {
+            offer = {
+                type: 'bestCard',
+                id: msg.potId,
+                title: 'Best Card',
+                label: 'Accept Best Card (' + (msg.value || '?') + ') from ' + from + ' - ' + stake,
+                detail: 'Highest suit of ' + (msg.value || '?') + ' wins this pot.'
+            };
+        }
+        if (offer) {
+            _sbOfferDismissedKey = '';
+            _sbRenderOfferPrompt(state, [offer]);
+        }
     } else if (msg.type === 'error') {
         // General errors (chip transfers, etc.) — shown in relevant panel
         // Note: invalid hand arrangement now results in DQ, not an error message
