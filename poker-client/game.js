@@ -1958,6 +1958,8 @@ function handleServerMessage(msg) {
         queueSpecialAnnouncements(msg.announcements || []);
     } else if (msg.type === 'specialAlert') {
         queueSpecialAnnouncements([{ username: msg.username, specialName: msg.specialName, multiplier: msg.multiplier }]);
+    } else if (msg.type === 'sideBetAnnouncement') {
+        showSideBetAnnouncement(msg);
     } else if (msg.type === 'walletDebt') {
         const tmEl = document.getElementById('table-message');
         if (tmEl) tmEl.textContent = `💸 ${msg.reason}`;
@@ -2190,6 +2192,58 @@ function showSpecialAlertBanner(announcementOrUsername, specialName, multiplier)
     banner.appendChild(title);
     banner.appendChild(detail);
     oval.appendChild(banner);
+}
+
+// ── SIDE BET ANNOUNCEMENT (toast + chip-flow) ──
+// Server emits { type:'sideBetAnnouncement', message, event, durationMs }
+// per resolved side-bet payout (First Special, Beat Hand, Best Card,
+// or instant Beat Hand forfeits / sole-remaining awards from exit/DQ).
+// We render a gold banner + chip flow from the table center to the
+// winner's seat. Self-wins also get a top-of-screen toast.
+function showSideBetAnnouncement(msg) {
+    try {
+        const ev = msg && msg.event;
+        if (!ev) return;
+        const durationMs = Number(msg.durationMs) || 2500;
+        const summary = msg.message || ev.eventLabel || 'Side bet payout';
+
+        // Banner over the table
+        const oval = document.querySelector('.oval-table');
+        if (oval) {
+            const existing = oval.querySelector('.sidebet-announce-banner');
+            if (existing) existing.remove();
+            const banner = document.createElement('div');
+            banner.className = 'sidebet-announce-banner';
+            const title = document.createElement('div');
+            title.className = 'sidebet-announce-title';
+            title.textContent = '⭐ ' + (ev.eventLabel || 'Side Bet');
+            const detail = document.createElement('div');
+            detail.className = 'sidebet-announce-detail';
+            detail.textContent = summary;
+            banner.appendChild(title);
+            banner.appendChild(detail);
+            oval.appendChild(banner);
+            setTimeout(() => { if (banner.parentNode) banner.remove(); }, Math.max(800, durationMs));
+        }
+
+        // Chip flow for the local player if they're a winner
+        const names = ev.winnerNames || [];
+        const iWon = myUsername && names.indexOf(myUsername) >= 0;
+        if (iWon && typeof animateChipFlow === 'function') {
+            const fromEl = document.querySelector('.oval-table') || document.body;
+            const toEl   = document.getElementById('my-area')
+                        || document.querySelector('.my-area')
+                        || document.body;
+            const amount = Number(ev.amount) || 0;
+            try { animateChipFlow(fromEl, toEl, true, amount); } catch (_e) {}
+            if (typeof showIngameToast === 'function') {
+                showIngameToast('⭐ Side Bet Win!', summary);
+            }
+            if (typeof SFX !== 'undefined' && SFX.chipStack) SFX.chipStack(10, amount);
+        } else if (typeof SFX !== 'undefined' && SFX.special) {
+            SFX.special();
+        }
+    } catch (e) { console.warn('[SIDEBET][ANNOUNCE] render failed:', e); }
 }
 
 function buildDisqualifyPanel(state) {

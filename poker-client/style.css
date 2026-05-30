@@ -710,6 +710,39 @@ html, body {
   to   { transform: translate(-50%,-50%) scale(1);   opacity: 1; }
 }
 
+/* Side-bet payout announcement banner (toast over the felt) */
+.sidebet-announce-banner {
+  position: absolute;
+  left: 50%; top: 38%;
+  transform: translate(-50%,-50%);
+  background: linear-gradient(145deg, rgba(15,18,40,.96), rgba(8,10,24,.96));
+  border: 2px solid var(--gold);
+  color: var(--gold-lt);
+  font-family: 'Cinzel Decorative', serif;
+  padding: 12px 26px;
+  border-radius: 14px;
+  z-index: 110;
+  text-align: center;
+  white-space: nowrap;
+  box-shadow: 0 0 36px rgba(201,168,76,.55);
+  animation: specialBannerAnim 0.32s ease-out;
+  pointer-events: none;
+}
+.sidebet-announce-title {
+  font-size: clamp(13px, 2vw, 18px);
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.sidebet-announce-detail {
+  margin-top: 4px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(11px, 1.6vw, 14px);
+  font-weight: 600;
+  color: #ffe9a9;
+  letter-spacing: .5px;
+}
+
 /* Special selection modal */
 .special-modal-backdrop {
   position: fixed; inset: 0; background: rgba(0,0,0,0.75);
