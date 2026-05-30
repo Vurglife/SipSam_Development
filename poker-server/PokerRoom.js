@@ -970,15 +970,59 @@ class SipSamRoom {
             p.hasArranged = false;
             if (p.isBot) this.botArrange(p);
         });
-        const arrangeSecs = this.gameState.blitz ? 40 : 65;
-        this.gameState.status  = "arranging";
-        this.gameState.timer   = arrangeSecs;
-        this.gameState.message = "Cards dealt! Arrange hands. (1st=weakest, 3rd=strongest)";
-        this.broadcastState();
-        this.startCountdown(arrangeSecs, "arranging", () => {
-            this.disqualifyLate();
-            this.startRevealPhase();
-        });
+
+        // ── Best Card resolution (immediately after deal) ──
+        // Per revised spec: Best Card pots resolve against this round's
+        // freshly dealt cards BEFORE the arranging phase begins. Winners
+        // get a 2-second public announcement so the table sees the
+        // winning card + payout before play continues.
+        let bcEvents = [];
+        try {
+            const bc = SideBets.resolveBestCardAfterDeal(this);
+            bcEvents = (bc && bc.events) || [];
+        } catch(e) { console.error('[SIDEBETS] resolveBestCardAfterDeal threw:', e); }
+
+        const goToArranging = () => {
+            const arrangeSecs = this.gameState.blitz ? 40 : 65;
+            this.gameState.status  = "arranging";
+            this.gameState.timer   = arrangeSecs;
+            this.gameState.message = "Cards dealt! Arrange hands. (1st=weakest, 3rd=strongest)";
+            this.broadcastState();
+            this.startCountdown(arrangeSecs, "arranging", () => {
+                this.disqualifyLate();
+                this.startRevealPhase();
+            });
+        };
+
+        if (bcEvents.length) {
+            // Broadcast the public announcement(s) and pause 2s before
+            // transitioning to arranging so all clients have time to render.
+            bcEvents.forEach(ev => {
+                const summary = ev.winnerNames && ev.winnerNames[0]
+                    ? `${ev.winnerNames[0]} wins ${ev.eventLabel} with ${ev.cardLabel} — $${(ev.amount || 0).toLocaleString()}`
+                    : ev.eventLabel;
+                this.broadcast({
+                    type:       'sideBetAnnouncement',
+                    event:      ev,
+                    durationMs: 2000,
+                    message:    summary,
+                });
+                console.log(`[SIDEBET][ANNOUNCE] ${summary}`);
+            });
+            // Hold the deal screen briefly so the toast is visible
+            this.gameState.message = bcEvents.length === 1
+                ? bcEvents[0].winnerNames[0] + ' wins ' + bcEvents[0].eventLabel + '!'
+                : `${bcEvents.length} Best Card winners — see announcements`;
+            this.gameState.timer = 2;
+            this.broadcastState();
+            if (this._bestCardAnnounceTimer) clearTimeout(this._bestCardAnnounceTimer);
+            this._bestCardAnnounceTimer = setTimeout(() => {
+                this._bestCardAnnounceTimer = null;
+                goToArranging();
+            }, 2000);
+        } else {
+            goToArranging();
+        }
     }
 
     disqualifyLate() {

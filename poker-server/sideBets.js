@@ -1039,14 +1039,52 @@ function topupAtRoundStart(room) {
 }
 
 function resolveAtRoundEnd(room) {
-    const bc = _resolveBestCardCarryAtRoundEnd(room);
-    const resolved = (bc && bc.resolved) || [];
-    const carried = (bc && bc.carried) || [];
+    // Best Card moved to resolveBestCardAfterDeal (runs at deal-time of
+    // the round it resolves in, per revised spec). Only First Special
+    // and Beat Hand resolve at end of round here.
+    const resolved = [];
+    const carried = [];
     const fs = _resolveFirstSpecialAtRoundEnd(room);
     if (fs) resolved.push(fs);
     const bh = _resolveBeatHandAtRoundEnd(room);
     bh.forEach(p => resolved.push(p));
     return { resolved, carried };
+}
+
+// Called from PokerRoom.dealCards() AFTER cards are dealt and BEFORE
+// the arranging phase starts. Resolves every locked Best Card pot
+// against the just-dealt rawCards. Returns events list for the caller
+// to broadcast as a public 2-second announcement before play continues.
+function resolveBestCardAfterDeal(room) {
+    const bc = _resolveBestCardCarryAtRoundEnd(room);   // logic is identical — uses rawCards
+    const resolved = (bc && bc.resolved) || [];
+    const carried  = (bc && bc.carried) || [];
+
+    // Build announce events from resolved pots
+    const events = [];
+    for (const pot of resolved) {
+        if (!pot || pot.status !== 'resolved' || !pot.winnerSid) continue;
+        const winner = room.gameState.players[pot.winnerSid];
+        if (!winner) continue;
+        // Determine the actual winning card for the announcement
+        const dealt = Array.isArray(winner.rawCards) ? winner.rawCards : [];
+        const copies = dealt.filter(c => _cardValue(c) === pot.value);
+        const winningCard = copies.length
+            ? copies.reduce((a, b) => _suitRank(a) >= _suitRank(b) ? a : b)
+            : pot.value;
+        events.push({
+            type:        'bestCard',
+            potId:       pot.id,
+            winnerSids:  [pot.winnerSid],
+            winnerNames: [winner.username],
+            amount:      Number(pot.pot) || 0,
+            valueLabel:  pot.value,
+            cardLabel:   winningCard,
+            eventLabel:  `Best Card ${pot.value}`,
+            announceType:'payout',
+        });
+    }
+    return { resolved, carried, events };
 }
 
 function resolveAfterSideBetPhase(/* room */) {
@@ -1080,6 +1118,7 @@ module.exports = {
     resolveAtRoundEnd,
     resolveAfterSideBetPhase,
     resolveBestCardAfterSideBetPhase,
+    resolveBestCardAfterDeal,
     refundUnwonAtGameEnd,
     handleExit,
     handleDQ,
