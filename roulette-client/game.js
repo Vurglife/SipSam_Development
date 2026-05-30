@@ -95,6 +95,7 @@ const S = {
   ballAngle: 0,
   wheelAnimId: null,
   wheelResetTimer: null,
+  temperatureHistoryKey: null,
 };
 
 const INSIDE_BET_SPECS = {
@@ -1614,8 +1615,7 @@ function recentPocketHistory() {
     .slice(0, 100);
 }
 
-function buildTemperatureStats() {
-  const pockets = recentPocketHistory();
+function buildTemperatureStats(pockets = recentPocketHistory()) {
   const stats = new Map(AMERICAN_POCKETS.map((pocket) => [
     normalizePocketKey(pocket),
     { pocket, count: 0, lastSeen: Infinity },
@@ -1627,13 +1627,16 @@ function buildTemperatureStats() {
     if (index < stat.lastSeen) stat.lastSeen = index;
   });
   const all = Array.from(stats.values());
-  const hot = all.slice()
+  const hot = all
+    .filter((stat) => stat.count > 0)
     .sort((a, b) =>
       (b.count - a.count)
       || (a.lastSeen - b.lastSeen)
       || (pocketSortValue(a.pocket) - pocketSortValue(b.pocket)))
     .slice(0, 7);
-  const cold = all.slice()
+  const hotKeys = new Set(hot.map((stat) => normalizePocketKey(stat.pocket)));
+  const cold = all
+    .filter((stat) => !hotKeys.has(normalizePocketKey(stat.pocket)))
     .sort((a, b) =>
       (a.count - b.count)
       || (b.lastSeen - a.lastSeen)
@@ -1646,13 +1649,19 @@ function renderTemperaturePanel() {
   const hotEl = document.getElementById('hot-numbers');
   const coldEl = document.getElementById('cold-numbers');
   if (!hotEl || !coldEl) return;
-  const stats = buildTemperatureStats();
+  const pockets = recentPocketHistory();
+  const historyKey = pockets.map(normalizePocketKey).join('|');
+  if (S.temperatureHistoryKey === historyKey && hotEl.childElementCount && coldEl.childElementCount) return;
+  S.temperatureHistoryKey = historyKey;
+  const stats = buildTemperatureStats(pockets);
   if (!stats.total) {
     hotEl.innerHTML = '<div class="temperature-empty">Waiting for history</div>';
     coldEl.innerHTML = '<div class="temperature-empty">Waiting for history</div>';
     return;
   }
-  hotEl.innerHTML = stats.hot.map((stat, index) => temperatureCardHtml(stat, index, 'hot', stats.total)).join('');
+  hotEl.innerHTML = stats.hot.length
+    ? stats.hot.map((stat, index) => temperatureCardHtml(stat, index, 'hot', stats.total)).join('')
+    : '<div class="temperature-empty">Waiting for hits</div>';
   coldEl.innerHTML = stats.cold.map((stat, index) => temperatureCardHtml(stat, index, 'cold', stats.total)).join('');
 }
 
@@ -1751,17 +1760,36 @@ function renderGameMemory() {
 }
 
 function memoryRowsForGrid() {
-  if (S.gameMemory.length) return S.gameMemory.slice(0, 100);
-  return (Array.isArray(S.history) ? S.history : [])
-    .slice(0, 100)
-    .map((h) => ({
-      pocket: h.pocket,
-      color: h.color || colorOfNum(h.pocket),
-      outcome: 'Result',
-      net: 0,
-      round: null,
-      serverOnly: true,
-    }));
+  const serverHistory = (Array.isArray(S.history) ? S.history : [])
+    .filter((h) => h && isKnownAmericanPocket(h.pocket))
+    .slice(0, 100);
+  if (serverHistory.length) {
+    return serverHistory.map((h, index) => {
+      const local = S.gameMemory[index];
+      if (local && normalizePocketKey(local.pocket) === normalizePocketKey(h.pocket)) {
+        return {
+          ...local,
+          pocket: h.pocket,
+          color: h.color || local.color || colorOfNum(h.pocket),
+          round: h.round || local.round,
+          at: h.at || local.at,
+        };
+      }
+      return {
+        pocket: h.pocket,
+        color: h.color || colorOfNum(h.pocket),
+        outcome: 'Result',
+        net: 0,
+        round: h.round || null,
+        at: h.at || null,
+        serverOnly: true,
+      };
+    });
+  }
+  return S.gameMemory.slice(0, 100).map((h) => ({
+    ...h,
+    color: h.color || colorOfNum(h.pocket),
+  }));
 }
 
 function memoryCellHtml(row, index) {

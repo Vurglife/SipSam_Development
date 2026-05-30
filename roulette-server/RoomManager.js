@@ -18,7 +18,9 @@ class RoomManager {
   createRoom(variant, tableMinBet, mode) {
     const v = 'american';
     const m = 'multiplayer';
-    const roomId = mode === 'public' ? this.publicRoomId : `rlt_${v}_${++this.counter}_${Date.now()}`;
+    const roomId = this.publicRoomId;
+    const existing = this.rooms.get(roomId);
+    if (existing) return { roomId, room: existing };
     const room = new RouletteRoom({ roomId, variant: v, tableMinBet, mode: m });
     this.rooms.set(roomId, room);
     console.log(`[RouletteRoomManager] Created ${roomId} (${v}, $${tableMinBet}, ${m})`);
@@ -61,6 +63,7 @@ class RoomManager {
 
   cleanup() {
     for (const [roomId, room] of this.rooms) {
+      if (roomId === this.publicRoomId) continue;
       const playerCount = Object.keys(room.players).length;
       const idleFor = Date.now() - (room.startedAt || 0);
       if (playerCount === 0 && idleFor > 60000) {

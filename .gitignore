@@ -1,1 +1,3 @@
 node_modules/ 
+roulette-server/data/roulette-history.json
+roulette-server/data/roulette-history.json.tmp

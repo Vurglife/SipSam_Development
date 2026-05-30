@@ -9,6 +9,7 @@
 
 const engine = require('./engine');
 const http = require('http');
+const historyStore = require('./historyStore');
 
 function callPlatformAPI(path, token, body) {
   return new Promise((resolve) => {
@@ -76,8 +77,8 @@ class RouletteRoom {
 
     this.clients = [];             // [{ sessionId, userId, username, send }]
     this.players = {};             // sessionId → { sessionId, username, wallet, bets, lastPayout }
-    this.history = [];             // last N winning numbers (for display)
-    this.historyMax = 100;
+    this.history = historyStore.getHistory(); // shared last-100 winning numbers
+    this.historyMax = historyStore.HISTORY_MAX;
 
     this.phase     = 'waiting';    // 'waiting' | 'betting' | 'spinning' | 'resolving'
     this.phaseEnd  = 0;            // epoch ms when current phase ends
@@ -120,7 +121,7 @@ class RouletteRoom {
     delete this.players[client.sessionId];
     this.broadcastState(`${p.username} left`);
 
-    // If the room has emptied, pause the loop. RoomManager cleanup will reap.
+    // If the room has emptied, pause the loop while preserving shared history.
     if (Object.keys(this.players).length === 0) {
       this.phase = 'waiting';
       if (this.loopTimer) {
@@ -158,7 +159,7 @@ class RouletteRoom {
       return;
     }
     this.phase    = 'spinning';
-    const previousPocket = this.history[0]?.pocket;
+    const previousPocket = historyStore.latest()?.pocket;
     this.winning  = engine.spin(this.variant, previousPocket);
     this.phaseEnd = Date.now() + SPINNING_SECONDS * 1000;
     // Show animation client-side. Winning number is already chosen.
@@ -205,15 +206,19 @@ class RouletteRoom {
       }
     }
 
-    this.history.unshift({ pocket: this.winning, color: engine.colorOf(this.winning) });
-    if (this.history.length > this.historyMax) this.history.length = this.historyMax;
+    this.history = historyStore.recordSpin({
+      pocket: this.winning,
+      color: engine.colorOf(this.winning),
+      round: this.round,
+      at: Date.now(),
+    });
 
     this.broadcast({
       type: 'resolve',
       winning: this.winning,
       color:   engine.colorOf(this.winning),
       results,
-      history: this.history,
+      history: this._history(),
       phaseEnd: this.phaseEnd,
     });
 
@@ -422,12 +427,17 @@ class RouletteRoom {
       phaseEnd:    this.phaseEnd,
       round:       this.round,
       winning:     this.winning,
-      history:     this.history,
+      history:     this._history(),
       players:     this._publicPlayers(),
       message:     message || '',
       now:         Date.now(),
     };
     this.broadcast(payload);
+  }
+
+  _history() {
+    this.history = historyStore.getHistory();
+    return this.history;
   }
 
   _publicPlayers() {
