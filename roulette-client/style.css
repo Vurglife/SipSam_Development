@@ -609,6 +609,7 @@ button {
 }
 #screen-game.wheel-focus .history-strip,
 #screen-game.wheel-focus .bet-view-toggle,
+#screen-game.wheel-focus .temperature-panel,
 #screen-game.wheel-focus .wheel-special-bets {
   display: none;
 }
@@ -1168,7 +1169,7 @@ button {
 }
 .gm-btn { padding: 10px; text-align: left; }
 .payouts-content { max-width: min(920px, 94vw); max-height: 82vh; overflow-y: auto; }
-.memory-content { max-width: min(620px, 94vw); max-height: 82vh; overflow-y: auto; }
+.memory-content { max-width: min(780px, 94vw); max-height: 82vh; overflow-y: auto; }
 
 .payouts-table {
   width: 100%;
@@ -1251,51 +1252,70 @@ button {
   color: var(--cream);
   font-size: 0.88rem;
 }
-.memory-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 8px;
+.memory-grid-wrap {
+  margin-top: 10px;
+  overflow-x: auto;
+  padding-bottom: 2px;
 }
-.memory-row {
+.memory-grid {
+  min-width: 680px;
   display: grid;
-  grid-template-columns: 40px 72px 86px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  padding: 7px 8px;
-  border: 1px solid rgba(255,233,168,0.12);
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  grid-auto-rows: minmax(58px, auto);
+  gap: 6px;
+}
+.memory-cell {
+  position: relative;
+  min-height: 58px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 1px;
+  padding: 6px 4px 5px;
+  border: 1px solid rgba(255,233,168,0.16);
   border-radius: 8px;
-  background: rgba(0,0,0,0.22);
-  font-size: 0.78rem;
+  background: rgba(0,0,0,0.28);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  overflow: hidden;
 }
-.memory-pocket {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.memory-cell.red { background: linear-gradient(180deg, rgba(190,32,40,0.92), rgba(58,7,10,0.94)); }
+.memory-cell.black { background: linear-gradient(180deg, rgba(38,43,40,0.96), rgba(5,6,5,0.98)); }
+.memory-cell.green { background: linear-gradient(180deg, rgba(26,150,64,0.94), rgba(5,58,23,0.96)); }
+.memory-cell.empty {
+  opacity: 0.42;
+  background: rgba(255,255,255,0.035);
+  border-style: dashed;
+}
+.memory-order {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  color: rgba(255,244,204,0.7);
+  font-size: 0.52rem;
+  font-weight: 900;
+}
+.memory-cell-pocket {
   color: #fff;
+  font-family: var(--font-disp);
+  font-size: 1.16rem;
   font-weight: 900;
-  border: 1px solid rgba(255,255,255,0.26);
+  line-height: 1;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.72);
 }
-.memory-pocket.red { background: linear-gradient(180deg, var(--ruby-lt), var(--red-dk)); }
-.memory-pocket.black { background: linear-gradient(180deg, #353935, #070807); }
-.memory-pocket.green { background: linear-gradient(180deg, #20a64a, #0a5524); }
-.memory-outcome,
-.memory-net {
+.memory-cell-outcome,
+.memory-cell-net {
+  max-width: 100%;
+  font-size: 0.54rem;
   font-weight: 900;
+  line-height: 1.05;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .memory-win { color: #a9f2bb; }
 .memory-lose { color: #ffb8b8; }
 .memory-push { color: var(--gold-lt); }
-.memory-meta {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: #8fa6bd;
-}
 
 .big-announce {
   position: fixed; top: 20%; left: 50%;
@@ -1518,6 +1538,139 @@ body {
 .history-chip.red { background: linear-gradient(180deg, var(--ruby-lt), var(--red-dk)); }
 .history-chip.black { background: linear-gradient(180deg, #333934, #080a09); }
 .history-chip.green { background: linear-gradient(180deg, #24a54b, #0b5326); }
+
+.temperature-panel {
+  width: min(100%, 740px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 7px;
+  border: 1px solid rgba(255,233,168,0.14);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.045), transparent 38%),
+    rgba(2,7,5,0.72);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 28px rgba(0,0,0,0.28);
+}
+.temperature-group {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+.temperature-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--gold-lt);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.temperature-mark {
+  position: relative;
+  width: 12px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+.temperature-mark.hot-mark {
+  border-radius: 70% 70% 52% 52%;
+  background: radial-gradient(circle at 52% 68%, #fff2aa 0 20%, #ffb12d 34%, #df2f1f 68%, transparent 70%);
+  filter: drop-shadow(0 0 8px rgba(255,117,32,0.58));
+  animation: flameFlicker 980ms ease-in-out infinite alternate;
+}
+.temperature-mark.cold-mark {
+  border-radius: 50%;
+  background:
+    linear-gradient(90deg, transparent 43%, rgba(231,251,255,0.92) 44% 56%, transparent 57%),
+    linear-gradient(30deg, transparent 43%, rgba(159,221,255,0.86) 44% 56%, transparent 57%),
+    linear-gradient(150deg, transparent 43%, rgba(159,221,255,0.86) 44% 56%, transparent 57%);
+  filter: drop-shadow(0 0 8px rgba(129,215,255,0.62));
+  animation: iceShimmer 1500ms ease-in-out infinite;
+}
+.temperature-list {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+.temperature-card {
+  position: relative;
+  isolation: isolate;
+  min-height: 46px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 1px;
+  padding: 5px 3px 4px;
+  border-radius: 9px;
+  border: 1px solid rgba(255,255,255,0.16);
+  color: #fff;
+  overflow: hidden;
+  animation: temperatureCardIn 420ms cubic-bezier(0.16, 0.84, 0.28, 1) both;
+  animation-delay: calc(var(--rank) * 42ms);
+}
+.temperature-card.red { background: linear-gradient(180deg, rgba(203,37,39,0.96), rgba(72,6,9,0.98)); }
+.temperature-card.black { background: linear-gradient(180deg, rgba(38,43,40,0.98), rgba(4,5,4,1)); }
+.temperature-card.green { background: linear-gradient(180deg, rgba(21,145,58,0.98), rgba(5,57,23,1)); }
+.temperature-effect {
+  position: absolute;
+  inset: auto 8% -30% 8%;
+  z-index: -1;
+  height: 70%;
+  border-radius: 50% 50% 0 0;
+  opacity: 0.68;
+}
+.temperature-card.hot .temperature-effect {
+  background:
+    radial-gradient(circle at 35% 72%, rgba(255,246,158,0.72) 0 12%, transparent 24%),
+    radial-gradient(circle at 58% 62%, rgba(255,136,36,0.78) 0 22%, transparent 42%),
+    radial-gradient(circle at 42% 88%, rgba(221,45,29,0.88) 0 34%, transparent 58%);
+  filter: blur(1px) drop-shadow(0 -8px 10px rgba(255,95,34,0.32));
+  animation: flameRise 1100ms ease-in-out infinite alternate;
+}
+.temperature-card.cold .temperature-effect {
+  inset: -20% -16%;
+  height: auto;
+  border-radius: 0;
+  background:
+    linear-gradient(115deg, transparent 35%, rgba(218,249,255,0.38) 44%, transparent 54%),
+    radial-gradient(circle at 50% 50%, rgba(110,204,255,0.3), transparent 60%);
+  animation: frostSweep 1700ms ease-in-out infinite;
+}
+.temperature-rank {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  color: rgba(255,244,204,0.74);
+  font-size: 0.5rem;
+  font-weight: 900;
+}
+.temperature-pocket {
+  font-family: var(--font-disp);
+  font-size: 1.06rem;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+}
+.temperature-count {
+  color: rgba(255,244,204,0.82);
+  font-size: 0.52rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.temperature-empty {
+  grid-column: 1 / -1;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed rgba(255,233,168,0.18);
+  border-radius: 9px;
+  color: rgba(255,244,204,0.62);
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
 
 .bet-view-toggle {
   border: 1px solid rgba(255,233,168,0.24);
@@ -1939,6 +2092,32 @@ body {
   to { transform: translateX(58%) rotate(6deg); opacity: 0; }
 }
 
+@keyframes temperatureCardIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.92); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes flameFlicker {
+  0% { transform: skewX(-4deg) scaleY(0.92); opacity: 0.8; }
+  100% { transform: skewX(5deg) scaleY(1.08); opacity: 1; }
+}
+
+@keyframes flameRise {
+  0% { transform: translateY(7px) scaleX(0.92); opacity: 0.52; }
+  100% { transform: translateY(-3px) scaleX(1.08); opacity: 0.86; }
+}
+
+@keyframes iceShimmer {
+  0%, 100% { transform: rotate(0deg) scale(0.94); opacity: 0.72; }
+  50% { transform: rotate(18deg) scale(1.08); opacity: 1; }
+}
+
+@keyframes frostSweep {
+  0% { transform: translateX(-34%); opacity: 0.38; }
+  50% { opacity: 0.72; }
+  100% { transform: translateX(34%); opacity: 0.38; }
+}
+
 @media (min-width: 680px) {
   .wheel-wrap { width: 248px; }
   .game-body {
@@ -2198,6 +2377,28 @@ body {
   }
   .history-strip {
     max-width: calc(100vw - 20px);
+  }
+  .temperature-panel {
+    width: calc(100vw - 20px);
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 6px;
+  }
+  .temperature-list {
+    gap: 3px;
+  }
+  .temperature-card {
+    min-height: 40px;
+    border-radius: 8px;
+  }
+  .temperature-pocket {
+    font-size: 0.92rem;
+  }
+  .memory-content {
+    padding: 14px;
+  }
+  .memory-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .bet-view-toggle {
     min-height: 34px;

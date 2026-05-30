@@ -37,6 +37,8 @@ const AMERICAN_WHEEL = [
   0, 28, 9, 26, 30, 11, 7, 20, 32, 17, 5, 22, 34, 15, 3, 24, 36, 13, 1,
   '00', 27, 10, 25, 29, 12, 8, 19, 31, 18, 6, 21, 33, 16, 4, 23, 35, 14, 2,
 ];
+const AMERICAN_POCKETS = [0, '00', ...Array.from({ length: 36 }, (_, i) => i + 1)];
+const AMERICAN_POCKET_KEYS = new Set(AMERICAN_POCKETS.map(normalizePocketKey));
 const EUROPEAN_WHEEL = [
   0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10,
   5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
@@ -1565,13 +1567,107 @@ function renderWallet() {
 }
 function renderHistory() {
   const strip = document.getElementById('history-strip');
+  if (!strip) {
+    renderTemperaturePanel();
+    return;
+  }
   strip.innerHTML = '';
   for (const h of S.history.slice(0, 14)) {
     const chip = document.createElement('div');
-    chip.className = 'history-chip ' + h.color;
+    const color = h.color || colorOfNum(h.pocket) || 'green';
+    chip.className = 'history-chip ' + color;
     chip.textContent = String(h.pocket);
     strip.appendChild(chip);
   }
+  renderTemperaturePanel();
+}
+
+function normalizePocketKey(pocket) {
+  if (pocket === '00') return '00';
+  const n = Number(pocket);
+  return Number.isInteger(n) && n >= 0 && n <= 36 ? String(n) : '';
+}
+
+function displayPocket(pocket) {
+  const key = normalizePocketKey(pocket);
+  return key || '--';
+}
+
+function isKnownAmericanPocket(pocket) {
+  return AMERICAN_POCKET_KEYS.has(normalizePocketKey(pocket));
+}
+
+function pocketSortValue(pocket) {
+  if (pocket === '00') return 1;
+  const n = Number(pocket);
+  return n === 0 ? 0 : n + 1;
+}
+
+function recentPocketHistory() {
+  const serverHistory = (Array.isArray(S.history) ? S.history : [])
+    .map((h) => h && h.pocket)
+    .filter(isKnownAmericanPocket);
+  if (serverHistory.length) return serverHistory.slice(0, 100);
+  return S.gameMemory
+    .map((h) => h && h.pocket)
+    .filter(isKnownAmericanPocket)
+    .slice(0, 100);
+}
+
+function buildTemperatureStats() {
+  const pockets = recentPocketHistory();
+  const stats = new Map(AMERICAN_POCKETS.map((pocket) => [
+    normalizePocketKey(pocket),
+    { pocket, count: 0, lastSeen: Infinity },
+  ]));
+  pockets.forEach((pocket, index) => {
+    const stat = stats.get(normalizePocketKey(pocket));
+    if (!stat) return;
+    stat.count += 1;
+    if (index < stat.lastSeen) stat.lastSeen = index;
+  });
+  const all = Array.from(stats.values());
+  const hot = all.slice()
+    .sort((a, b) =>
+      (b.count - a.count)
+      || (a.lastSeen - b.lastSeen)
+      || (pocketSortValue(a.pocket) - pocketSortValue(b.pocket)))
+    .slice(0, 7);
+  const cold = all.slice()
+    .sort((a, b) =>
+      (a.count - b.count)
+      || (b.lastSeen - a.lastSeen)
+      || (pocketSortValue(a.pocket) - pocketSortValue(b.pocket)))
+    .slice(0, 7);
+  return { hot, cold, total: pockets.length };
+}
+
+function renderTemperaturePanel() {
+  const hotEl = document.getElementById('hot-numbers');
+  const coldEl = document.getElementById('cold-numbers');
+  if (!hotEl || !coldEl) return;
+  const stats = buildTemperatureStats();
+  if (!stats.total) {
+    hotEl.innerHTML = '<div class="temperature-empty">Waiting for history</div>';
+    coldEl.innerHTML = '<div class="temperature-empty">Waiting for history</div>';
+    return;
+  }
+  hotEl.innerHTML = stats.hot.map((stat, index) => temperatureCardHtml(stat, index, 'hot', stats.total)).join('');
+  coldEl.innerHTML = stats.cold.map((stat, index) => temperatureCardHtml(stat, index, 'cold', stats.total)).join('');
+}
+
+function temperatureCardHtml(stat, index, type, total) {
+  const pocket = displayPocket(stat.pocket);
+  const color = colorOfNum(stat.pocket) || 'green';
+  const count = Number(stat.count) || 0;
+  const recency = stat.lastSeen === Infinity ? 'not seen in this set' : `${stat.lastSeen + 1} spins ago`;
+  return `
+    <div class="temperature-card ${type} ${color}" style="--rank:${index};" title="${pocket}: ${count} hit${count === 1 ? '' : 's'} in last ${total}; ${recency}">
+      <span class="temperature-effect" aria-hidden="true"></span>
+      <span class="temperature-rank">${index + 1}</span>
+      <span class="temperature-pocket">${pocket}</span>
+      <span class="temperature-count">${count}x</span>
+    </div>`;
 }
 
 // ── Wheel animation ───────────────────────────────────────
@@ -1617,6 +1713,7 @@ function rememberGameResult(d, me) {
   if (S.gameMemory.length > 100) S.gameMemory.length = 100;
   saveGameMemory();
   renderGameMemory();
+  renderTemperaturePanel();
 }
 
 window.showGameMemory = function () {
@@ -1634,7 +1731,8 @@ function renderGameMemory() {
   const losses = S.gameMemory.filter((h) => h.outcome === 'Lose').length;
   const pushes = S.gameMemory.filter((h) => h.outcome === 'Push').length;
   const net = S.gameMemory.reduce((sum, h) => sum + (Number(h.net) || 0), 0);
-  if (!S.gameMemory.length) {
+  const rows = memoryRowsForGrid();
+  if (!rows.length) {
     body.innerHTML = '<p class="payouts-note">No Roulette results recorded yet.</p>';
     return;
   }
@@ -1645,25 +1743,49 @@ function renderGameMemory() {
       <span>Push <b>${pushes}</b></span>
       <span>Net <b class="${net >= 0 ? 'memory-win' : 'memory-lose'}">${net >= 0 ? '+' : '-'}$${Math.abs(net).toLocaleString()}</b></span>
     </div>
-    <div class="memory-list">
-      ${S.gameMemory.map(memoryRowHtml).join('')}
+    <div class="memory-grid-wrap" aria-label="Last 100 spins, newest to oldest">
+      <div class="memory-grid">
+        ${Array.from({ length: 100 }, (_, index) => memoryCellHtml(rows[index], index)).join('')}
+      </div>
     </div>`;
 }
 
-function memoryRowHtml(row) {
-  const color = row.color || colorOfNum(row.pocket);
+function memoryRowsForGrid() {
+  if (S.gameMemory.length) return S.gameMemory.slice(0, 100);
+  return (Array.isArray(S.history) ? S.history : [])
+    .slice(0, 100)
+    .map((h) => ({
+      pocket: h.pocket,
+      color: h.color || colorOfNum(h.pocket),
+      outcome: 'Result',
+      net: 0,
+      round: null,
+      serverOnly: true,
+    }));
+}
+
+function memoryCellHtml(row, index) {
+  if (!row) {
+    return `
+      <div class="memory-cell empty">
+        <span class="memory-order">${index + 1}</span>
+        <span class="memory-cell-pocket">--</span>
+      </div>`;
+  }
+  const color = row.color || colorOfNum(row.pocket) || 'green';
   const net = Number(row.net) || 0;
   const netLabel = net === 0 ? '$0' : `${net > 0 ? '+' : '-'}$${Math.abs(net).toLocaleString()}`;
-  const time = row.at ? new Date(row.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
   const outcomeClass = row.outcome === 'Win' ? 'memory-win'
     : row.outcome === 'Lose' ? 'memory-lose'
     : 'memory-push';
+  const outcome = row.outcome || 'Result';
+  const netHtml = row.serverOnly ? '' : `<span class="memory-cell-net ${outcomeClass}">${netLabel}</span>`;
   return `
-    <div class="memory-row">
-      <span class="memory-pocket ${color}">${row.pocket}</span>
-      <span class="memory-outcome ${outcomeClass}">${row.outcome}</span>
-      <span class="memory-net ${outcomeClass}">${netLabel}</span>
-      <span class="memory-meta">Round ${row.round || '--'}${time ? ' - ' + time : ''}</span>
+    <div class="memory-cell ${color}">
+      <span class="memory-order">${index + 1}</span>
+      <span class="memory-cell-pocket">${displayPocket(row.pocket)}</span>
+      <span class="memory-cell-outcome ${outcomeClass}">${outcome}</span>
+      ${netHtml}
     </div>`;
 }
 

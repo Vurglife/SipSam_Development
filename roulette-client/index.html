@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#030705">
   <title>Roulette — VURGLife</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23030705'/%3E%3Ccircle cx='32' cy='32' r='24' fill='none' stroke='%23ffe9a8' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='9' fill='%23dc3d49'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=15">
+  <link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
 
@@ -154,6 +154,16 @@
         </button>
       </div>
       <div class="history-strip" id="history-strip"></div>
+      <div class="temperature-panel" id="temperature-panel" aria-label="Hot and cold numbers">
+        <div class="temperature-group hot">
+          <div class="temperature-title"><span class="temperature-mark hot-mark" aria-hidden="true"></span><span>Hot Numbers</span></div>
+          <div class="temperature-list" id="hot-numbers"></div>
+        </div>
+        <div class="temperature-group cold">
+          <div class="temperature-title"><span class="temperature-mark cold-mark" aria-hidden="true"></span><span>Cold Numbers</span></div>
+          <div class="temperature-list" id="cold-numbers"></div>
+        </div>
+      </div>
     </div>
 
     <div class="bet-view-toggle" id="bet-view-toggle" role="group" aria-label="Betting view">
@@ -264,6 +274,6 @@
 
 </div>
 
-<script src="game.js?v=18"></script>
+<script src="game.js?v=19"></script>
 </body>
 </html>
