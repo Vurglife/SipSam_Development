@@ -212,21 +212,19 @@ html, body {
 /* VurgLife logo watermark — centred on table */
 .table-logo {
   position:absolute;
-  /* Full-felt watermark, layered behind cards/zones. inset:0 +
-     object-fit:contain scales the logo to the largest size that
-     fits inside the table at ANY viewport (no fixed min-width
-     that could overflow on mobile, no max-width that caps on
-     desktop). Transform reset because absolute inset already
-     centres the box. */
-  inset: 8px;
-  width: auto;
+  /* Centred watermark, layered behind cards/zones. Sized to the inner
+     felt area between seat rows — not edge-to-edge — and scales with
+     the table at any viewport. clamp() floor 220px keeps it readable
+     on mobile; 55% midpoint sits inside the cards on desktop without
+     spilling under banker/player rows. */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: clamp(220px, 55%, 560px);
   height: auto;
-  max-width: calc(100% - 16px);
-  max-height: calc(100% - 16px);
+  max-width: calc(100% - 32px);
   object-fit: contain;
   object-position: center;
-  transform: none;
-  top: 8px; left: 8px; right: 8px; bottom: 8px;
   opacity: 0.22;
   pointer-events: none;
   z-index: 0;
