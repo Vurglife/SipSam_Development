@@ -796,6 +796,41 @@ class SipSamRoom {
         }
     }
 
+    // Low-wallet private alert per spec section "Low-wallet alert":
+    // fires once per descent below 10% of starting walletSize, re-arms
+    // when player recovers above the threshold. Bot players are skipped.
+    _checkLowWallets() {
+        const walletSize = Number(this.gameState.tableWalletSize) || 0;
+        if (walletSize <= 0) return;
+        const threshold = Math.floor(walletSize * 0.10);
+        const players = this.gameState.players || {};
+        for (const sid of Object.keys(players)) {
+            const p = players[sid];
+            if (!p || p.isBot || p.isGhostBot || p.pendingExit) continue;
+            const chips = Number(p.chips) || 0;
+            if (chips <= threshold) {
+                if (!p._lowWalletAlerted) {
+                    p._lowWalletAlerted = true;
+                    const cli = this.clients.find(c => c.sessionId === sid);
+                    if (cli) {
+                        this.sendToClient(cli, {
+                            type:           'lowWalletAlert',
+                            currentWallet:  chips,
+                            walletStart:    walletSize,
+                            thresholdPct:   10,
+                            threshold:      threshold,
+                            message:        `Your wallet is at $${chips.toLocaleString()} — that's 10% or less of your starting $${walletSize.toLocaleString()}. Consider topping up.`,
+                        });
+                        console.log(`[LOW-WALLET] private alert to ${p.username}: $${chips} / $${walletSize}`);
+                    }
+                }
+            } else if (p._lowWalletAlerted) {
+                // Re-arm once the player recovers above threshold
+                p._lowWalletAlerted = false;
+            }
+        }
+    }
+
     // Broadcast announce events emitted by SideBets.handleExit / handleDQ
     // (the helpers already credit wallets — this is the public-facing
     // announce only). Event shape: { type, potId, winnerSids, amount,
@@ -1190,6 +1225,11 @@ class SipSamRoom {
                 this._broadcastSideBetPayouts(r && r.resolved);
             }
             catch(e) { console.error('[SIDEBETS] resolveAtRoundEnd threw:', e); }
+
+            // Low-wallet private alert (post-payouts so main + side-bet
+            // settlements have landed before we evaluate the threshold).
+            try { this._checkLowWallets(); }
+            catch(e) { console.error('[LOW-WALLET] check threw:', e); }
 
             // If players initiated any side bets during this reveal phase,
             // queue 7s accept phases (one per type) before the next round

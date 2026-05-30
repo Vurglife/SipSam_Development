@@ -1960,6 +1960,14 @@ function handleServerMessage(msg) {
         queueSpecialAnnouncements([{ username: msg.username, specialName: msg.specialName, multiplier: msg.multiplier }]);
     } else if (msg.type === 'sideBetAnnouncement') {
         showSideBetAnnouncement(msg);
+    } else if (msg.type === 'lowWalletAlert') {
+        if (typeof showIngameToast === 'function') {
+            const cur = Number(msg.currentWallet) || 0;
+            const start = Number(msg.walletStart) || 0;
+            showIngameToast('⚠️ Wallet Low',
+                msg.message || `Wallet at $${cur.toLocaleString()} (≤10% of $${start.toLocaleString()}). Consider topping up.`);
+        }
+        if (typeof SFX !== 'undefined' && SFX.confirm) SFX.confirm();
     } else if (msg.type === 'walletDebt') {
         const tmEl = document.getElementById('table-message');
         if (tmEl) tmEl.textContent = `💸 ${msg.reason}`;
