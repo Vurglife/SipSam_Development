@@ -45,6 +45,10 @@ function _specialRank(name) {
     return SPECIAL_RANK_BY_NAME[String(name || '')] || 0;
 }
 
+// Phase duration (spec: 10s per side-bet phase). Exported so PokerRoom
+// uses the spec value rather than a literal — change here only.
+const PHASE_DURATION_SECONDS = 10;
+
 let _potCounter = 0;
 function _genPotId(prefix) { _potCounter += 1; return `${prefix}-${_potCounter}`; }
 
@@ -846,6 +850,152 @@ function _refundBeatHandAtGameEnd(room) {
     return refunded;
 }
 
+// ── EXIT / DQ universal handlers ─────────────────────────────
+// Spec (revised May 30 2026):
+//   First Special:
+//     - Exit: leaver dropped from participants; stake stays in pot.
+//       If pot drops to 1 participant, they're awarded immediately.
+//     - DQ:   no immediate action; topup logic next round handles
+//       continuation. If another participant declares this round, the
+//       DQ'd player loses with the rest (existing resolveFirstSpecial).
+//   Beat Hand:
+//     - Exit OR DQ of either side: pot goes 100% to remaining opponent
+//       immediately (banker is NOT a beneficiary). Both DQ/exit in
+//       the same pass → split.
+//   Best Card:
+//     - Exit: leaver dropped; stake stays in pot. If pot drops to 1
+//       participant, they're awarded immediately.
+//     - DQ:   no effect — cards still count for resolution.
+//
+// Both helpers return a list of {type, potId, winnerSids, amount,
+// eventLabel, valueLabel} for the caller to broadcast as public
+// payout announcements. handleExit also reports refund events.
+
+function _awardSinglePotToParticipant(pot, room, refund, sid, eventLabel) {
+    const p = room.gameState.players[sid];
+    if (!p || pot.pot <= 0) return null;
+    const amount = pot.pot;
+    const ledgerType = refund ? 'side_bet_refund' : 'side_bet_payout';
+    _creditWallet(p, amount, room, ledgerType,
+        `${pot.type}:${pot.id}`,
+        refund ? `${eventLabel} — refund (sole remaining participant)`
+               : `${eventLabel} — sole remaining participant`);
+    pot.status = 'resolved';
+    pot.winnerSid = sid;
+    pot.pot = 0;
+    return {
+        type: pot.type,
+        potId: pot.id,
+        winnerSids: [sid],
+        amount,
+        eventLabel,
+        announceType: refund ? 'refund' : 'payout',
+    };
+}
+
+function _forfeitBeatHandPotToOpponent(pot, room, leaverSid, reason) {
+    if (pot.status !== 'locked') return null;
+    const sides = [pot.challengerSid, pot.accepterSid].filter(Boolean);
+    if (!sides.includes(leaverSid)) return null;
+    const opponentSid = sides.find(s => s !== leaverSid);
+    if (!opponentSid) return null;
+    const opponent = room.gameState.players[opponentSid];
+    if (!opponent) return null;
+    const amount = pot.pot;
+    _creditWallet(opponent, amount, room, 'side_bet_payout',
+        `beatHand:${pot.id}`, `Beat Hand forfeit (${reason}) — opponent wins`);
+    pot.status = 'resolved';
+    pot.winnerSid = opponentSid;
+    pot.pot = 0;
+    console.log(`[SIDEBET][BH] pot ${pot.id} forfeit-to-opponent (${reason}) — winner ${opponent.username} +$${amount}`);
+    return {
+        type: 'beatHand',
+        potId: pot.id,
+        winnerSids: [opponentSid],
+        amount,
+        eventLabel: `Beat Hand (${reason})`,
+        announceType: 'payout',
+    };
+}
+
+// Apply when a player has exited the game (post pendingExit settlement,
+// no longer counted as a participant in the next round). Touches every
+// LOCKED pot the player participates in.
+function handleExit(room, sid) {
+    const sb = room && room.gameState && room.gameState.sideBets;
+    if (!sb || !sid) return { events: [] };
+    const events = [];
+
+    // First Special
+    const fs = sb.firstSpecial;
+    if (fs && fs.status === 'locked') {
+        const before = fs.participants.length;
+        fs.participants = fs.participants.filter(p => p.sid !== sid);
+        if (fs.participants.length !== before) {
+            console.log(`[SIDEBET][FS] exit removed ${sid} from pot ${fs.id} (${fs.participants.length} left)`);
+        }
+        if (fs.participants.length === 1) {
+            const ev = _awardSinglePotToParticipant(fs, room, false,
+                fs.participants[0].sid, 'First Special');
+            if (ev) { events.push(ev); sb.firstSpecial = null; }
+        } else if (fs.participants.length === 0) {
+            fs.status = 'refunded';
+            sb.firstSpecial = null;
+        }
+    }
+
+    // Beat Hand — instant forfeit of every locked pot the leaver is in
+    for (let i = sb.beatHand.length - 1; i >= 0; i--) {
+        const pot = sb.beatHand[i];
+        if (pot.status !== 'locked') continue;
+        if (pot.challengerSid !== sid && pot.accepterSid !== sid) continue;
+        const ev = _forfeitBeatHandPotToOpponent(pot, room, sid, 'exit');
+        if (ev) events.push(ev);
+        sb.beatHand.splice(i, 1);
+    }
+
+    // Best Card — same exit semantics as First Special, per pot
+    for (let i = sb.bestCard.length - 1; i >= 0; i--) {
+        const pot = sb.bestCard[i];
+        if (pot.status !== 'locked') continue;
+        const before = pot.participants.length;
+        pot.participants = (pot.participants || []).filter(p => p.sid !== sid);
+        if (pot.participants.length === before) continue;
+        console.log(`[SIDEBET][BC] exit removed ${sid} from pot ${pot.id} (${pot.participants.length} left)`);
+        if (pot.participants.length === 1) {
+            const ev = _awardSinglePotToParticipant(pot, room, false,
+                pot.participants[0].sid, `Best Card ${pot.value}`);
+            if (ev) events.push(ev);
+            sb.bestCard.splice(i, 1);
+        } else if (pot.participants.length === 0) {
+            pot.status = 'refunded';
+            sb.bestCard.splice(i, 1);
+        }
+    }
+
+    return { events };
+}
+
+// Apply when a player is disqualified mid-round. Only Beat Hand has an
+// immediate consequence (instant pot-to-opponent forfeit). First Special
+// and Best Card resolve at their own normal timing.
+function handleDQ(room, sid) {
+    const sb = room && room.gameState && room.gameState.sideBets;
+    if (!sb || !sid) return { events: [] };
+    const events = [];
+
+    for (let i = sb.beatHand.length - 1; i >= 0; i--) {
+        const pot = sb.beatHand[i];
+        if (pot.status !== 'locked') continue;
+        if (pot.challengerSid !== sid && pot.accepterSid !== sid) continue;
+        const ev = _forfeitBeatHandPotToOpponent(pot, room, sid, 'DQ');
+        if (ev) events.push(ev);
+        sb.beatHand.splice(i, 1);
+    }
+
+    return { events };
+}
+
 // ── Dispatch ─────────────────────────────────────────────────
 
 function initiate(type, room, player, opts) {
@@ -931,6 +1081,9 @@ module.exports = {
     resolveAfterSideBetPhase,
     resolveBestCardAfterSideBetPhase,
     refundUnwonAtGameEnd,
+    handleExit,
+    handleDQ,
+    PHASE_DURATION_SECONDS,
     SIDEBET_TYPES,
     // exported for unit smoke
     _cardValue,

@@ -445,6 +445,11 @@ class SipSamRoom {
         }
 
         // Banker mid-round exit OR end-of-round/gameOver exit: settle now.
+        // Side-bet exit semantics first (Beat Hand forfeit / sole-remaining win)
+        // so payouts to remaining players are credited before this player's
+        // wallet is settled to bank.
+        try { SideBets.handleExit(this, client.sessionId); }
+        catch(e) { console.error('[SIDEBETS] handleExit threw on immediate exit:', e); }
         this._applyExitPayments(player);
         this._settleExitedHumanWallet(player, leavingWasBanker ? 'banker_left_game' : 'left_game');
 
@@ -582,6 +587,14 @@ class SipSamRoom {
             const chips = Math.max(0, Number(player.chips) || 0);
             console.log(`[EXIT-FINALIZE] ${name}: settling $${chips} → bank`);
 
+            // Side-bet exit semantics — Beat Hand forfeits to opponent;
+            // First Special / Best Card sole-remaining gets the pot.
+            // Runs BEFORE wallet settle so any payouts already landed in
+            // OTHER players' wallets are credited correctly; the leaver's
+            // own pot stake is never refunded.
+            try { SideBets.handleExit(this, sid); }
+            catch(e) { console.error('[SIDEBETS] handleExit threw on finalize:', e); }
+
             // Settle wallet → bank using the trusted game-server path so the
             // platform credits the full amount, including any post-payout
             // winnings, without the client-side ceiling cap.
@@ -654,6 +667,17 @@ class SipSamRoom {
             player.lastPayout = 0;
         }
         player.lastSpecial = `DQ - paid double ($${penalty.toLocaleString()})`;
+        // Side-bet DQ semantics — Beat Hand pots instant-forfeit to opponent.
+        // First Special / Best Card are unaffected (resolve at own timing).
+        try {
+            const sid = this._findSidForPlayer ? this._findSidForPlayer(player) : null;
+            if (sid) SideBets.handleDQ(this, sid);
+            else {
+                const fallbackSid = Object.keys(this.gameState.players)
+                    .find(s => this.gameState.players[s] === player);
+                if (fallbackSid) SideBets.handleDQ(this, fallbackSid);
+            }
+        } catch(e) { console.error('[SIDEBETS] handleDQ threw on _applyDqPayment:', e); }
         return penalty;
     }
 
@@ -688,6 +712,14 @@ class SipSamRoom {
         banker.disqualified = true;
         if (reason) banker.disqualifyReason = reason;
         banker.lastSpecial = `DQ - paid double ($${totalFromBanker.toLocaleString()})`;
+        // Side-bet DQ semantics for banker — banker can hold First Special
+        // pot (banker is allowed initiator per spec), so we still call
+        // handleDQ (no-op for Beat Hand since banker can't participate).
+        try {
+            const bSid = Object.keys(this.gameState.players)
+                .find(s => this.gameState.players[s] === banker);
+            if (bSid) SideBets.handleDQ(this, bSid);
+        } catch(e) { console.error('[SIDEBETS] handleDQ threw on banker DQ:', e); }
         this._broadcastSpecialAnnouncements(specialAnnouncements);
         return totalFromBanker;
     }
@@ -1064,13 +1096,14 @@ class SipSamRoom {
             return;
         }
         const phaseType = sb.phaseQueue.shift();
+        const PHASE_SECS = (SideBets && SideBets.PHASE_DURATION_SECONDS) || 10;
         sb.phaseActive = phaseType;
-        sb.phaseTimer  = 7;
+        sb.phaseTimer  = PHASE_SECS;
         this.gameState.status  = 'sideBetPhase';
-        this.gameState.timer   = 7;
-        this.gameState.message = `Side bet: ${phaseType} (7s to accept)`;
+        this.gameState.timer   = PHASE_SECS;
+        this.gameState.message = `Side bet: ${phaseType} (${PHASE_SECS}s to accept)`;
         this.broadcastState();
-        this.startCountdown(7, 'sideBetPhase', () => {
+        this.startCountdown(PHASE_SECS, 'sideBetPhase', () => {
             // Phase timed out — finalize stakes (no-op until per-bet logic
             // lands). Non-responders are treated as decline. Then drain
             // the queue to the next phase, or fall through to roundEnd.
