@@ -448,8 +448,10 @@ class SipSamRoom {
         // Side-bet exit semantics first (Beat Hand forfeit / sole-remaining win)
         // so payouts to remaining players are credited before this player's
         // wallet is settled to bank.
-        try { SideBets.handleExit(this, client.sessionId); }
-        catch(e) { console.error('[SIDEBETS] handleExit threw on immediate exit:', e); }
+        try {
+            const r = SideBets.handleExit(this, client.sessionId);
+            this._broadcastSideBetEvents(r && r.events);
+        } catch(e) { console.error('[SIDEBETS] handleExit threw on immediate exit:', e); }
         this._applyExitPayments(player);
         this._settleExitedHumanWallet(player, leavingWasBanker ? 'banker_left_game' : 'left_game');
 
@@ -592,8 +594,10 @@ class SipSamRoom {
             // Runs BEFORE wallet settle so any payouts already landed in
             // OTHER players' wallets are credited correctly; the leaver's
             // own pot stake is never refunded.
-            try { SideBets.handleExit(this, sid); }
-            catch(e) { console.error('[SIDEBETS] handleExit threw on finalize:', e); }
+            try {
+                const r = SideBets.handleExit(this, sid);
+                this._broadcastSideBetEvents(r && r.events);
+            } catch(e) { console.error('[SIDEBETS] handleExit threw on finalize:', e); }
 
             // Settle wallet → bank using the trusted game-server path so the
             // platform credits the full amount, including any post-payout
@@ -671,11 +675,11 @@ class SipSamRoom {
         // First Special / Best Card are unaffected (resolve at own timing).
         try {
             const sid = this._findSidForPlayer ? this._findSidForPlayer(player) : null;
-            if (sid) SideBets.handleDQ(this, sid);
-            else {
-                const fallbackSid = Object.keys(this.gameState.players)
-                    .find(s => this.gameState.players[s] === player);
-                if (fallbackSid) SideBets.handleDQ(this, fallbackSid);
+            const useSid = sid || Object.keys(this.gameState.players)
+                .find(s => this.gameState.players[s] === player);
+            if (useSid) {
+                const r = SideBets.handleDQ(this, useSid);
+                this._broadcastSideBetEvents(r && r.events);
             }
         } catch(e) { console.error('[SIDEBETS] handleDQ threw on _applyDqPayment:', e); }
         return penalty;
@@ -718,7 +722,10 @@ class SipSamRoom {
         try {
             const bSid = Object.keys(this.gameState.players)
                 .find(s => this.gameState.players[s] === banker);
-            if (bSid) SideBets.handleDQ(this, bSid);
+            if (bSid) {
+                const r = SideBets.handleDQ(this, bSid);
+                this._broadcastSideBetEvents(r && r.events);
+            }
         } catch(e) { console.error('[SIDEBETS] handleDQ threw on banker DQ:', e); }
         this._broadcastSpecialAnnouncements(specialAnnouncements);
         return totalFromBanker;
@@ -740,6 +747,79 @@ class SipSamRoom {
         const clean = (announcements || []).filter(Boolean);
         if (!clean.length) return;
         this.broadcast({ type:'specialAnnouncements', announcements: clean });
+    }
+
+    // Publicly announce every resolved side-bet pot (First Special, Beat
+    // Hand, Best Card). Each broadcast is a sideBetAnnouncement WS message
+    // the client renders as a toast + chip-flow to the winner. Best Card's
+    // post-deal resolver broadcasts its own events directly (with 2s pause
+    // before play continues); this helper covers FS / BH at round-end.
+    _broadcastSideBetPayouts(resolvedPots) {
+        const pots = (resolvedPots || []).filter(p =>
+            p && p.status === 'resolved' && p.type !== 'bestCard'
+        );
+        if (!pots.length) return;
+        for (const pot of pots) {
+            const winnerSids = pot.winnerSids && pot.winnerSids.length
+                ? pot.winnerSids
+                : (pot.winnerSid ? [pot.winnerSid] : []);
+            if (!winnerSids.length) continue;
+            const winnerNames = winnerSids.map(sid => {
+                const p = this.gameState.players[sid];
+                return (p && p.username) || 'Player';
+            });
+            const amount = Number(pot.pot) || 0;
+            let eventLabel;
+            if (pot.type === 'firstSpecial') {
+                const decl = (pot.declarationsThisRound || [])
+                    .find(d => winnerSids.includes(d.sid));
+                eventLabel = `First Special${decl ? ' — ' + decl.specialName : ''}`;
+            } else {
+                eventLabel = 'Beat Hand';
+            }
+            const summary = `${winnerNames.join(' + ')} wins ${eventLabel} — $${amount.toLocaleString()}`;
+            this.broadcast({
+                type:       'sideBetAnnouncement',
+                event:      {
+                    type:        pot.type,
+                    potId:       pot.id,
+                    winnerSids,
+                    winnerNames,
+                    amount,
+                    eventLabel,
+                    announceType: 'payout',
+                },
+                durationMs: 2500,
+                message:    summary,
+            });
+            console.log(`[SIDEBET][ANNOUNCE] ${summary}`);
+        }
+    }
+
+    // Broadcast announce events emitted by SideBets.handleExit / handleDQ
+    // (the helpers already credit wallets — this is the public-facing
+    // announce only). Event shape: { type, potId, winnerSids, amount,
+    // eventLabel, announceType }.
+    _broadcastSideBetEvents(events) {
+        const list = (events || []).filter(Boolean);
+        if (!list.length) return;
+        for (const ev of list) {
+            const winnerNames = (ev.winnerSids || []).map(sid => {
+                const p = this.gameState.players[sid];
+                return (p && p.username) || 'Player';
+            });
+            const amount = Number(ev.amount) || 0;
+            const summary = winnerNames.length
+                ? `${winnerNames.join(' + ')} wins ${ev.eventLabel} — $${amount.toLocaleString()}`
+                : ev.eventLabel;
+            this.broadcast({
+                type:       'sideBetAnnouncement',
+                event:      Object.assign({}, ev, { winnerNames }),
+                durationMs: 2500,
+                message:    summary,
+            });
+            console.log(`[SIDEBET][ANNOUNCE] ${summary}`);
+        }
     }
 
     _settleExitedHumanWallet(player, reason) {
@@ -1105,7 +1185,10 @@ class SipSamRoom {
             // Resolve side bets that were locked before this reveal.
             // Best Card pots initiated during this reveal resolve after their
             // accept phase, once they have actually locked participants.
-            try { SideBets.resolveAtRoundEnd(this); }
+            try {
+                const r = SideBets.resolveAtRoundEnd(this);
+                this._broadcastSideBetPayouts(r && r.resolved);
+            }
             catch(e) { console.error('[SIDEBETS] resolveAtRoundEnd threw:', e); }
 
             // If players initiated any side bets during this reveal phase,
