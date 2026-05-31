@@ -1559,9 +1559,66 @@ body.igm-open #igm-panel   { z-index: 1700 !important; }
 .sb-btn:hover { background:linear-gradient(180deg, rgba(74,171,255,.28), rgba(74,171,255,.12)); }
 .sb-btn:disabled { opacity:.4; cursor:not-allowed; }
 .sb-active-pots { display:flex; flex-direction:column; gap:6px; margin-bottom:8px; }
-.sb-pot-card { background:rgba(8,12,24,.7); border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:7px 9px; font-size:11px; line-height:1.4; }
-.sb-pot-card .sb-pot-type { color:#7ec8ff; font-weight:700; text-transform:uppercase; letter-spacing:1px; font-size:10px; }
-.sb-pot-card .sb-pot-amount { color:#e8c96a; font-weight:700; }
+.sb-pot-card {
+  background: linear-gradient(180deg, rgba(12,18,38,.85), rgba(6,10,22,.85));
+  border: 1px solid rgba(201,168,76,.32);
+  border-radius: 10px;
+  padding: 9px 11px;
+  font-size: 12px;
+  line-height: 1.45;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.sb-pot-card .sb-pot-type {
+  color: #ffe9a9;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.sb-pot-card.sb-pot-fs .sb-pot-type { color:#ffd86b; }
+.sb-pot-card.sb-pot-bh .sb-pot-type { color:#ff9a9a; }
+.sb-pot-card.sb-pot-bc .sb-pot-type { color:#9adfff; }
+.sb-pot-card .sb-pot-amount {
+  color: #e8c96a;
+  font-weight: 800;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.sb-pot-card .sb-pot-meta {
+  color: #97a8c8;
+  font-size: 11px;
+  letter-spacing: .5px;
+}
+.sb-pot-card .sb-pot-vs {
+  color: #d6e1f5;
+  font-weight: 600;
+}
+.sb-pot-card .sb-pot-carry {
+  color: #ff9a9a;
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.sb-btn-optout {
+  background: rgba(60,10,10,.6);
+  border: 1px solid rgba(239,68,68,.55);
+  color: #fca5a5;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  margin-left: auto;
+}
+.sb-btn-optout:hover { background: rgba(80,15,15,.75); color: #ffdada; }
 .sb-status { font-size:11px; color:#7a9ac0; min-height:14px; margin-top:4px; }
 .sb-btn-accept { background:linear-gradient(180deg, rgba(34,197,94,.22), rgba(34,197,94,.1)); border-color:rgba(34,197,94,.45); color:#9fefb8; }
 .sb-btn-decline { background:rgba(60,10,10,.6); border-color:rgba(239,68,68,.45); color:#fca5a5; }

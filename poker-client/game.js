@@ -2241,7 +2241,10 @@ function showSideBetAnnouncement(msg) {
             return;
         }
         console.log('[SIDEBET][ANNOUNCE-RX]', ev.eventLabel, ev);
-        const durationMs = Math.max(2400, Number(msg.durationMs) || 2500);
+        // Spec May 31 2026: 5-second floor so winners + amounts have
+        // time to be read clearly. Server can still send a longer
+        // durationMs and we'll honour it.
+        const durationMs = Math.max(5000, Number(msg.durationMs) || 5000);
         const summary = msg.message || ev.eventLabel || 'Side bet payout';
 
         // Body-level overlay banner. Fixed position, very high z-index —
@@ -3075,17 +3078,32 @@ function renderSideBets(state) {
         initRow.style.display = allowed ? 'flex' : 'none';
     }
 
-    // Active pots summary
+    // Active pots summary — clearer labels + Opt Out for First Special.
     const potsEl = document.getElementById('sb-active-pots');
     if (potsEl) {
         const out = [];
+        const statusLabel = s =>
+            s === 'locked'         ? 'LOCKED'
+          : s === 'pending_accept' ? 'AWAITING ACCEPT'
+          : s === 'resolved'       ? 'RESOLVED'
+          : s === 'refunded'       ? 'REFUNDED'
+          : String(s || '').toUpperCase();
+
         if (sb && sb.firstSpecial) {
             const p = sb.firstSpecial;
             const youIn = p.participants && p.participants.find(x => x.sid === mySessionId);
-            out.push('<div class="sb-pot-card"><span class="sb-pot-type">⭐ First Special</span> '
-                + '<span class="sb-pot-amount">$' + p.pot.toLocaleString() + '</span>'
-                + ' · N=' + p.participants.length + ' · ' + p.status
-                + (youIn ? ' · you in' : '') + '</div>');
+            const carryNote = (Number(p.carryOverRounds) > 0)
+                ? ' <span class="sb-pot-carry">(rolled ' + p.carryOverRounds + 'x)</span>'
+                : '';
+            const optOutBtn = (youIn && p.status === 'locked')
+                ? ' <button class="sb-btn sb-btn-optout" type="button" onclick="sbOptOut(\'firstSpecial\')">Opt Out</button>'
+                : '';
+            out.push('<div class="sb-pot-card sb-pot-fs"><span class="sb-pot-type">⭐ FIRST SPECIAL</span>'
+                + carryNote
+                + ' <span class="sb-pot-amount">$' + p.pot.toLocaleString() + '</span>'
+                + ' <span class="sb-pot-meta">' + p.participants.length + ' players · ' + statusLabel(p.status) + (youIn ? ' · you in' : '') + '</span>'
+                + optOutBtn
+                + '</div>');
         }
         if (sb && sb.beatHand) {
             sb.beatHand.forEach(p => {
@@ -3093,16 +3111,27 @@ function renderSideBets(state) {
                 const accUser = p.accepterSid
                     ? (state.players[p.accepterSid] && state.players[p.accepterSid].username || '?')
                     : ((state.players[p.targetSid] && state.players[p.targetSid].username || '?') + ' (pending)');
-                out.push('<div class="sb-pot-card"><span class="sb-pot-type">🥊 Beat Hand</span> '
-                    + _sbEsc(chal) + ' vs ' + _sbEsc(accUser)
-                    + ' · <span class="sb-pot-amount">$' + p.pot.toLocaleString() + '</span> · ' + p.status + '</div>');
+                const carryNote = (Number(p.carryOverRounds) > 0)
+                    ? ' <span class="sb-pot-carry">(rolled ' + p.carryOverRounds + 'x)</span>'
+                    : '';
+                out.push('<div class="sb-pot-card sb-pot-bh"><span class="sb-pot-type">🥊 BEAT HAND</span>'
+                    + carryNote
+                    + ' <span class="sb-pot-vs">' + _sbEsc(chal) + ' vs ' + _sbEsc(accUser) + '</span>'
+                    + ' <span class="sb-pot-amount">$' + p.pot.toLocaleString() + '</span>'
+                    + ' <span class="sb-pot-meta">' + statusLabel(p.status) + '</span>'
+                    + '</div>');
             });
         }
         if (sb && sb.bestCard) {
             sb.bestCard.forEach(p => {
-                out.push('<div class="sb-pot-card"><span class="sb-pot-type">🃏 Best Card ' + _sbEsc(p.value) + '</span> '
-                    + '<span class="sb-pot-amount">$' + p.pot.toLocaleString() + '</span>'
-                    + ' · N=' + p.participants.length + ' · ' + p.status + '</div>');
+                const carryNote = (Number(p.carryOverRounds) > 0)
+                    ? ' <span class="sb-pot-carry">(rolled ' + p.carryOverRounds + 'x)</span>'
+                    : '';
+                out.push('<div class="sb-pot-card sb-pot-bc"><span class="sb-pot-type">🃏 BEST CARD ' + _sbEsc(p.value) + '</span>'
+                    + carryNote
+                    + ' <span class="sb-pot-amount">$' + p.pot.toLocaleString() + '</span>'
+                    + ' <span class="sb-pot-meta">' + p.participants.length + ' players · ' + statusLabel(p.status) + '</span>'
+                    + '</div>');
             });
         }
         potsEl.innerHTML = out.join('');
@@ -3225,3 +3254,6 @@ function sbConfirmInitiate() {
 
 function sbAccept(type, potId)  { sendMsg('acceptSideBet',  { sideBetType: type, potId: potId }); }
 function sbDecline(type, potId) { sendMsg('declineSideBet', { sideBetType: type, potId: potId }); }
+function sbOptOut(type)         { sendMsg('optOutSideBet',  { sideBetType: type }); }
+// Expose to inline onclick handlers rendered into innerHTML
+window.sbOptOut = sbOptOut;
