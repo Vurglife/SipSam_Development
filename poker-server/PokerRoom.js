@@ -1467,8 +1467,22 @@ class SipSamRoom {
     }
 
     resolveAllHands() {
-        const banker = this.gameState.players[this.gameState.bankerSessionId];
-        if (!banker) return;
+        const bankerSid = this.gameState.bankerSessionId;
+        const banker = this.gameState.players[bankerSid];
+        if (!banker) {
+            console.error(`[RESOLVE] FATAL: banker is missing — bankerSid=${bankerSid}`);
+            return;
+        }
+
+        // Diagnostic snapshot — logs every player's relevant state so a
+        // payout bug can be traced from server logs without re-running.
+        // Specifically catches the "human banker exits → bot takes over →
+        // remaining players not getting paid" class of bugs.
+        console.log(`[RESOLVE] === round=${this.gameState.round} bankerSid=${bankerSid} ===`);
+        console.log(`[RESOLVE] banker: name=${banker.username} isBanker=${banker.isBanker} isBot=${banker.isBot} isGhost=${banker.isGhostBot} dq=${banker.disqualified} hand1=${banker.hand1?.length || 0} chips=$${banker.chips}`);
+        Object.entries(this.gameState.players).forEach(([sid, p]) => {
+            console.log(`[RESOLVE]   player ${sid.slice(0,8)} name=${p.username} isBanker=${p.isBanker} isBot=${p.isBot} ghost=${p.isGhostBot} dq=${p.disqualified} bet=$${p.bet} chips=$${p.chips} hand1=${p.hand1?.length || 0} declared=${p.declaredSpecial?.name || '-'}`);
+        });
 
         // If banker left mid-round (ghost bot) or was DQ'd with no hands
         // treat as banker forfeit — pay all non-DQ players 2Ã— their bet
@@ -1513,13 +1527,31 @@ class SipSamRoom {
             : 0;
 
         Object.entries(this.gameState.players).forEach(([sid, player]) => {
-            if (player.isBanker || player.isGhostBot) return;
+            if (player.isBanker || player.isGhostBot) {
+                console.log(`[RESOLVE] skip ${player.username}: isBanker=${player.isBanker} ghost=${player.isGhostBot}`);
+                return;
+            }
 
             // DQ'd players have already paid the fixed double-bet DQ penalty.
             // Do not add more just because the banker also has a special.
-            if (player.disqualified) return;
+            if (player.disqualified) {
+                console.log(`[RESOLVE] skip ${player.username}: disqualified`);
+                return;
+            }
 
-            if (!player.hand1?.length) return;
+            if (!player.hand1?.length) {
+                console.log(`[RESOLVE] skip ${player.username}: no hand1 (length=${player.hand1?.length || 0})`);
+                return;
+            }
+
+            // CRITICAL SAFETY: if this player's sid somehow equals the
+            // banker's sid (state corruption), refuse to apply payouts —
+            // doing so would credit + debit the same object and look
+            // like "the payout vanished".
+            if (sid === bankerSid) {
+                console.error(`[RESOLVE] FATAL: player sid === banker sid (${sid}); skipping to avoid net-zero credit/debit on same object`);
+                return;
+            }
 
             const result = Logic.resolveRound(
                 { hand1:player.hand1, hand2:player.hand2, hand3:player.hand3 },
@@ -1530,6 +1562,8 @@ class SipSamRoom {
                 this.gameState.tableMinBet || 0
             );
 
+            const chipsBefore = player.chips;
+            const bankerChipsBefore = banker.chips;
             // payout is pure bet exchange only — bonuses are awarded INDEPENDENTLY:
             //   • player's own bonus (if they declared a special) is credited now,
             //     regardless of who won the round. Even if the banker has a bigger
@@ -1538,6 +1572,7 @@ class SipSamRoom {
             //   • banker's bankerBonus is accumulated and paid ONCE after the loop.
             player.chips      += result.payout;
             player.lastPayout  = result.payout;
+            console.log(`[RESOLVE-PAY] ${player.username}: bet=$${player.bet} payout=$${result.payout} chips $${chipsBefore} -> $${player.chips}; banker chips $${bankerChipsBefore} -> $${bankerChipsBefore - result.payout}`);
             // Player house bonus is only paid for a declared special.
             const playerBonusSpecial = player.declaredSpecial || null;
             const playerBonusOwn = playerBonusSpecial
