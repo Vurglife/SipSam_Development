@@ -537,7 +537,7 @@ class SipSamRoom {
     // by then the round has fully resolved — exits during roundEnd should
     // settle immediately, not wait for the next round to start.
     _isMidRoundPhase() {
-        return ['betting', 'arranging', 'revealing', 'sideBetPhase'].includes(this.gameState.status);
+        return ['betting', 'arranging', 'revealing', 'sideBetPhase', 'preRound1SideBets'].includes(this.gameState.status);
     }
 
     // Player clicked Exit on the client. Behaviour by phase:
@@ -951,7 +951,44 @@ class SipSamRoom {
         this.gameState.message = `${bankerName} is the Banker for all ${this.gameState.maxRounds} rounds!`;
         this.broadcastState();
         if (this._nextRoundTimer) clearTimeout(this._nextRoundTimer);
-        this._nextRoundTimer = setTimeout(() => this.startRound(), 2000);
+        // Pre-round-1 side-bet window: spec inserts a 10s window before
+        // round 1's betting where players can initiate AND accept any of
+        // the three side-bet types. After the window expires, finalize
+        // any pots (refund pending_accept solos, lock the rest), then
+        // begin round 1 as normal.
+        this._nextRoundTimer = setTimeout(() => this._startPreRound1SideBetWindow(), 2000);
+    }
+
+    _startPreRound1SideBetWindow() {
+        // Spec: 10s combined initiate+accept window before round 1.
+        // Skipped entirely if side bets are disabled at the table level
+        // (Blitz) since sideBetsAllowed returns false there.
+        const sb = this.gameState.sideBets || (this.gameState.sideBets = SideBets.emptyState());
+        if (!SideBets.sideBetsAllowed(this.gameState)) {
+            this.startRound();
+            return;
+        }
+        const PHASE_SECS = (SideBets && SideBets.PHASE_DURATION_SECONDS) || 10;
+        this.gameState.status  = 'preRound1SideBets';
+        this.gameState.timer   = PHASE_SECS;
+        this.gameState.message = `Pre-round side bets — ${PHASE_SECS}s to initiate / accept.`;
+        // Per-round initiation flags clean: ensures the post-window
+        // finalize pass sees only pots created in this window.
+        if (sb.initiationsThisRound) {
+            sb.initiationsThisRound.firstSpecial = false;
+            sb.initiationsThisRound.beatHand     = false;
+            sb.initiationsThisRound.bestCard     = false;
+        }
+        this.broadcastState();
+        console.log(`[SIDEBET] pre-round-1 window opened (${PHASE_SECS}s)`);
+        this.startCountdown(PHASE_SECS, 'preRound1SideBets', () => {
+            // Finalize each bet type — refund unaccepted pots, lock the rest.
+            try { SideBets.finalizePhase(this, 'firstSpecial'); } catch(e) { console.error('[SIDEBETS] finalize FS:', e); }
+            try { SideBets.finalizePhase(this, 'beatHand');     } catch(e) { console.error('[SIDEBETS] finalize BH:', e); }
+            try { SideBets.finalizePhase(this, 'bestCard');     } catch(e) { console.error('[SIDEBETS] finalize BC:', e); }
+            this.broadcastState();
+            this.startRound();
+        });
     }
 
     startRound() {
@@ -1305,8 +1342,8 @@ class SipSamRoom {
             this.sendToClient(client, { type:'sideBetError', message:'You are exiting - side bets disabled.' });
             return;
         }
-        if (this.gameState.status !== 'revealing') {
-            this.sendToClient(client, { type:'sideBetError', message:'Initiate only during reveal phase.' });
+        if (!['revealing', 'preRound1SideBets'].includes(this.gameState.status)) {
+            this.sendToClient(client, { type:'sideBetError', message:'Initiate only during reveal or pre-round-1 phase.' });
             return;
         }
         if (!SideBets.sideBetsAllowed(this.gameState)) {
@@ -1363,7 +1400,7 @@ class SipSamRoom {
         const player = this.gameState.players[client.sessionId];
         if (!player || player.isBot || player.isGhostBot) return;
         if (player.pendingExit) return;                                    // auto-declines per spec
-        if (!['revealing', 'sideBetPhase'].includes(this.gameState.status)) return;
+        if (!['revealing', 'sideBetPhase', 'preRound1SideBets'].includes(this.gameState.status)) return;
         const sideBetType = data && (data.sideBetType || data.betType || data.type);
         const res = SideBets.accept(sideBetType, this, player, data && data.potId);
         if (!res || !res.ok) {
@@ -1376,7 +1413,7 @@ class SipSamRoom {
     _onDeclineSideBet(client, data) {
         const player = this.gameState.players[client.sessionId];
         if (!player || player.isBot || player.isGhostBot) return;
-        if (!['revealing', 'sideBetPhase'].includes(this.gameState.status)) return;
+        if (!['revealing', 'sideBetPhase', 'preRound1SideBets'].includes(this.gameState.status)) return;
         const sideBetType = data && (data.sideBetType || data.betType || data.type);
         SideBets.decline(sideBetType, this, player, data && data.potId);
         this.broadcastState();
@@ -2042,18 +2079,20 @@ class SipSamRoom {
     }
 
     _phaseTimerKey(phase) {
-        return phase === 'arranging'    ? 'arrangeTimer'
-             : phase === 'betting'      ? 'betTimer'
-             : phase === 'revealing'    ? 'revealTimer'
-             : phase === 'sideBetPhase' ? 'sideBetTimer'
+        return phase === 'arranging'        ? 'arrangeTimer'
+             : phase === 'betting'          ? 'betTimer'
+             : phase === 'revealing'        ? 'revealTimer'
+             : phase === 'sideBetPhase'     ? 'sideBetTimer'
+             : phase === 'preRound1SideBets'? 'sideBetTimer'   // reuse
              : null;
     }
 
     _phaseWatchdogKey(phase) {
-        return phase === 'arranging'    ? 'arrangeWatchdog'
-             : phase === 'betting'      ? 'betWatchdog'
-             : phase === 'revealing'    ? 'revealWatchdog'
-             : phase === 'sideBetPhase' ? 'sideBetWatchdog'
+        return phase === 'arranging'        ? 'arrangeWatchdog'
+             : phase === 'betting'          ? 'betWatchdog'
+             : phase === 'revealing'        ? 'revealWatchdog'
+             : phase === 'sideBetPhase'     ? 'sideBetWatchdog'
+             : phase === 'preRound1SideBets'? 'sideBetWatchdog' // reuse
              : null;
     }
 
@@ -2074,7 +2113,7 @@ class SipSamRoom {
     }
 
     _clearAllPhaseTimers() {
-        ['betting', 'arranging', 'revealing', 'sideBetPhase'].forEach(phase => this._clearPhaseTimer(phase));
+        ['betting', 'arranging', 'revealing', 'sideBetPhase', 'preRound1SideBets'].forEach(phase => this._clearPhaseTimer(phase));
     }
 
     startCountdown(seconds, phase, onComplete) {

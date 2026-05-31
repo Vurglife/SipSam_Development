@@ -2816,7 +2816,7 @@ function _sbPlayerName(state, sid) {
 function _sbCollectSideBetOffers(state) {
     const sb = state && state.sideBets;
     const me = state && state.players && state.players[mySessionId];
-    const canAnswer = state && (state.status === 'revealing' || state.status === 'sideBetPhase');
+    const canAnswer = state && (state.status === 'revealing' || state.status === 'sideBetPhase' || state.status === 'preRound1SideBets');
     if (!canAnswer || !sb || !me || me.isBot || me.pendingExit) {
         return [];
     }
@@ -2968,13 +2968,14 @@ function renderSideBets(state) {
 
     const inReveal = status === 'revealing';
     const inPhase  = status === 'sideBetPhase';
+    const inPreR1  = status === 'preRound1SideBets';
     const hasAnyPot = sb && (
         sb.firstSpecial ||
         (sb.beatHand && sb.beatHand.length) ||
         (sb.bestCard && sb.bestCard.length)
     );
 
-    if (!inReveal && !inPhase && !hasAnyPot) {
+    if (!inReveal && !inPhase && !inPreR1 && !hasAnyPot) {
         panel.style.display = 'none';
         _sbRenderOfferPrompt(state, []);
         return;
@@ -2984,15 +2985,17 @@ function renderSideBets(state) {
     const phaseLabel = document.getElementById('sb-phase-label');
     if (phaseLabel) {
         phaseLabel.textContent =
+            inPreR1  ? ('Pre-round side bets — ' + (state.timer || 0) + 's') :
             inReveal ? 'Initiate during reveal' :
             inPhase  ? ('Accept (' + (sb.phaseActive || '') + ' ' + (state.timer || 0) + 's)') :
             '';
     }
 
-    // Initiate buttons — visible only during reveal AND not blitz/final
+    // Initiate buttons — visible during reveal OR pre-round-1 window
+    // (and not in blitz/final round).
     const initRow = document.getElementById('sb-initiate-row');
     if (initRow) {
-        const allowed = inReveal &&
+        const allowed = (inReveal || inPreR1) &&
             !state.blitz &&
             !(state.maxRounds > 0 && state.round >= state.maxRounds);
         initRow.style.display = allowed ? 'flex' : 'none';
