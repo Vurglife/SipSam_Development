@@ -1116,11 +1116,33 @@ class SipSamRoom {
         }
         this._clearPhaseTimer('betting');
         const deck = Logic.shuffleDeck(Logic.createDeck());
-        Object.values(this.gameState.players).forEach(p => {
-            if (p.isGhostBot) return; // ghost bots get no cards — they sit out visually
+
+        // Deal in PRIORITY ORDER so essential roles always get a full hand
+        // even when a stale ghost record inflates the player count past
+        // what the 52-card deck can serve:
+        //   1. Banker first (resolveAllHands early-returns if banker has
+        //      no hand1 — that means ZERO payouts get computed and any
+        //      DQ penalty still goes through because DQ uses a separate
+        //      code path. This matches the "banker face-down, wins not
+        //      paid, DQ still penalises" symptom.)
+        //   2. Humans next (they're the only ones who can't be
+        //      auto-arranged from scratch — must see real cards).
+        //   3. Bots last (deck shortfalls fall on bots, who at least
+        //      auto-arrange and won't deadlock the round).
+        const all = Object.values(this.gameState.players);
+        const banker  = this.gameState.players[this.gameState.bankerSessionId];
+        const humans  = all.filter(p => !p.isGhostBot && !p.isBot && p !== banker);
+        const otherBots = all.filter(p => !p.isGhostBot && p.isBot && p !== banker);
+        const dealOrder = [banker, ...humans, ...otherBots].filter(Boolean);
+
+        dealOrder.forEach(p => {
+            if (p.isGhostBot) return;
             p.rawCards = Logic.dealPlayerCards(deck);
             p.hasArranged = false;
             if (p.isBot) this.botArrange(p);
+            if (!p.rawCards || p.rawCards.length < 13) {
+                console.warn(`[DEAL] ${p.username} got only ${p.rawCards?.length || 0} cards — deck exhausted (priority deal order should keep banker safe).`);
+            }
         });
 
         // ── Best Card resolution (immediately after deal) ──
@@ -1511,7 +1533,30 @@ class SipSamRoom {
             return;
         }
 
-        if (banker.disqualified || !banker.hand1?.length) return;
+        if (banker.disqualified) return;
+
+        // Safety net: banker is supposed to have hands by reveal time. If
+        // not (deck shortfall, missed botArrange, ghost record glitch),
+        // force-arrange now from rawCards. If rawCards is also empty,
+        // deal a fresh 13 from a clean deck so the round always resolves
+        // properly — silently skipping comparisons let players win bets
+        // without being paid (real bug observed at round 7 after a
+        // human banker exit, where every main payout was lost but DQ
+        // penalties still flowed to the banker).
+        if (!banker.hand1?.length) {
+            console.warn(`[RESOLVE] banker ${banker.username} has no hand1 — emergency arrange`);
+            if (!banker.rawCards || banker.rawCards.length < 13) {
+                const emergencyDeck = Logic.shuffleDeck(Logic.createDeck());
+                banker.rawCards = Logic.dealPlayerCards(emergencyDeck);
+                console.warn(`[RESOLVE] banker rawCards was empty — dealt fresh 13 from emergency deck`);
+            }
+            try { this.botArrange(banker); }
+            catch(e) { console.error('[RESOLVE] emergency botArrange(banker) threw:', e); }
+            if (!banker.hand1?.length) {
+                console.error(`[RESOLVE] FATAL: banker still has no hand1 after emergency arrange — bailing out`);
+                return;
+            }
+        }
         const bankerHands = { hand1:banker.hand1, hand2:banker.hand2, hand3:banker.hand3 };
 
         // House bonus tracking.
