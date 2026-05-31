@@ -1367,12 +1367,40 @@ function updateOpponentSeats(state, revealed) {
         renderOpponentHands(zId, player, revealed);
     });
 
-    // Hide unused zones
+    // Fully clear unused zones (May 31 2026 — was previously only clearing
+    // the name element, leaving stale special/bet/chips text and hand
+    // badges/cards on screen. Surfaced as a DQ label persisting on a
+    // departed player's seat for the rest of the game).
     zones.forEach(z => {
-        if (!usedZones.has(z)) {
-            const nameEl = document.getElementById(z + '-name');
-            if (nameEl) nameEl.textContent = '—';
-        }
+        if (usedZones.has(z)) return;
+        const nameEl    = document.getElementById(z + '-name');
+        const specEl    = document.getElementById(z + '-special');
+        const betEl     = document.getElementById(z + '-bet-amt');
+        const balanceEl = document.getElementById(z + '-balance');
+        if (nameEl)    nameEl.textContent    = '—';
+        if (specEl)    specEl.textContent    = '';
+        if (betEl)     betEl.textContent     = '';
+        if (balanceEl) balanceEl.textContent = '';
+        // Clear all 3 hand slots + any appended .hand-result badges.
+        ['1','2','3'].forEach(num => {
+            const slot = document.getElementById(z + '-cards-' + num);
+            if (slot) {
+                slot.innerHTML = '';
+                slot.classList.remove('won','lost','tied');
+                const block = slot.closest('.hand-block');
+                if (block) block.querySelectorAll('.hand-result').forEach(b => b.remove());
+            }
+        });
+        // Drop any opacity dim left over from a ghost render.
+        const zoneEl = document.getElementById('zone-' + z) || document.querySelector('.zone-' + z);
+        if (zoneEl) zoneEl.style.opacity = '';
+    });
+
+    // Prune stale seatMap entries (sids no longer in players). Keeps the
+    // findIndex fallback honest when seats are recycled by new bots
+    // inserted via the v2 exit-replace path.
+    Object.keys(seatMap).forEach(sid => {
+        if (!players[sid]) delete seatMap[sid];
     });
 }
 
