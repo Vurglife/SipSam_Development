@@ -172,13 +172,10 @@ function _initiateBestCard(room, player, opts) {
     const sb = room.gameState.sideBets;
     if (!sb) return { ok: false, error: 'Side bets uninitialised.' };
 
-    // Spec: one active Best Card pot per initiator at a time.
-    const conflict = sb.bestCard.find(p =>
-        p.initiatorSid === sid &&
-        p.status !== 'resolved' &&
-        p.status !== 'refunded'
-    );
-    if (conflict) return { ok: false, error: 'You already have an active Best Card pot.' };
+    // Spec May 31 2026: lifted the "one active Best Card per initiator"
+    // constraint. Players may now run any number of Best Card pots in
+    // parallel (different value, different participant set, or
+    // additional pot while a previous one is still rolling over).
 
     // Per spec: "If no one selects yes to participate, then the player who
     // initiated is notified and the side bet does not stand." We surface
@@ -760,17 +757,20 @@ function _finalizeBeatHandPhase(room) {
 // Score one player's three hands vs another's. Returns numeric score
 // for side A (the challenger). Uses main Logic.compareHands so Flush
 // suit-tiebreak rules are applied identically to the main game.
+// Side-bet rule (spec May 31 2026): per-hand ties score ZERO for both
+// sides — the main-game "banker wins tied hand" rule does not apply
+// to Beat Hand. Overall draws roll the pot over.
 function _scoreBeatHand(playerA, playerB) {
     const handsA = [playerA.hand1, playerA.hand2, playerA.hand3];
     const handsB = [playerB.hand1, playerB.hand2, playerB.hand3];
-    let scoreA = 0;
+    let scoreA = 0, scoreB = 0, ties = 0;
     for (let i = 0; i < 3; i++) {
         const r = Logic.compareHands(handsA[i] || [], handsB[i] || []);
         if (r > 0)      scoreA += 1;
-        else if (r < 0) scoreA += 0;        // B wins this hand
-        else            scoreA += 0.5;      // tie → split this hand
+        else if (r < 0) scoreB += 1;
+        else            ties   += 1;        // tie → no points to either side
     }
-    return scoreA;
+    return { scoreA, scoreB, ties };
 }
 
 function _resolveBeatHandAtRoundEnd(room) {
@@ -782,6 +782,9 @@ function _resolveBeatHandAtRoundEnd(room) {
         if (pot.status !== 'locked') continue;
         const lockedAt = Number(pot.lockedAtRound) || 0;
         if (lockedAt && round < lockedAt) continue;
+        // De-dup safety: if we've already resolved this round (e.g. mid-
+        // round forfeit fired), skip the score pass.
+        if (Number(pot.lastResolvedRound) === round) continue;
 
         const chal = room.gameState.players[pot.challengerSid];
         const acc  = room.gameState.players[pot.accepterSid];
@@ -790,28 +793,36 @@ function _resolveBeatHandAtRoundEnd(room) {
 
         let winnerSid = null;
         let split = false;
+        let rollover = false;
         if (chalDq && accDq) {
-            split = true;
+            split = true;                                 // both DQ → split refund
         } else if (chalDq) {
-            winnerSid = pot.accepterSid;
+            winnerSid = pot.accepterSid;                  // single-side DQ → opponent
         } else if (accDq) {
             winnerSid = pot.challengerSid;
         } else {
-            const aScore = _scoreBeatHand(chal, acc);    // out of 3
-            const bScore = 3 - aScore;
-            if (aScore > bScore)       winnerSid = pot.challengerSid;
-            else if (bScore > aScore)  winnerSid = pot.accepterSid;
-            else                       split = true;     // 1.5–1.5
-            console.log(`[SIDEBET][BH] pot ${pot.id} scored — challenger ${aScore} vs accepter ${bScore}`);
+            const { scoreA, scoreB, ties } = _scoreBeatHand(chal, acc);
+            console.log(`[SIDEBET][BH] pot ${pot.id} scored — challenger ${scoreA} accepter ${scoreB} ties ${ties}`);
+            if (scoreA > scoreB)      winnerSid = pot.challengerSid;
+            else if (scoreB > scoreA) winnerSid = pot.accepterSid;
+            else                      rollover = true;    // overall draw → carry pot to next round
+        }
+
+        if (rollover) {
+            pot.carryOverRounds = (Number(pot.carryOverRounds) || 0) + 1;
+            pot.lastResolvedRound = round;                // mark so we don't double-resolve
+            console.log(`[SIDEBET][BH] pot ${pot.id} draw — carries to next round with pot=$${pot.pot}`);
+            resolved.push(pot);
+            continue;                                     // do NOT remove from sb.beatHand
         }
 
         if (split) {
             const each = Math.floor(pot.pot / 2);
             const rem  = pot.pot - 2 * each;
-            _refundWallet(chal, each + rem, room, `beatHand:${pot.id}`, 'Beat Hand split refund'); // rem goes to challenger
-            _refundWallet(acc,  each, room, `beatHand:${pot.id}`, 'Beat Hand split refund');
+            _refundWallet(chal, each + rem, room, `beatHand:${pot.id}`, 'Beat Hand both-DQ refund');
+            _refundWallet(acc,  each, room, `beatHand:${pot.id}`, 'Beat Hand both-DQ refund');
             pot.status = 'refunded';
-            console.log(`[SIDEBET][BH] pot ${pot.id} split (1.5–1.5 or both-DQ) — $${pot.pot}/2`);
+            console.log(`[SIDEBET][BH] pot ${pot.id} both-DQ — refund $${pot.pot}/2`);
         } else {
             const winner = room.gameState.players[winnerSid];
             _creditWallet(winner, pot.pot, room, 'side_bet_payout', `beatHand:${pot.id}`, 'Beat Hand payout');
@@ -823,6 +834,76 @@ function _resolveBeatHandAtRoundEnd(room) {
     }
     sb.beatHand = sb.beatHand.filter(p => p.status !== 'resolved' && p.status !== 'refunded');
     return resolved;
+}
+
+// Beat Hand rolled-over pot top-up (spec May 31 2026). Called at the
+// start of each round for every locked pot that previously rolled over
+// (carryOverRounds > 0 OR lastResolvedRound is set). Each side is
+// charged minBet; if EITHER side fails the top-up (no wallet / exited),
+// that side forfeits the pot to the other.
+function _topupBeatHandAtRoundStart(room) {
+    const sb = room.gameState.sideBets;
+    if (!sb) return { forfeited: [] };
+    const round = Number(room.gameState.round) || 0;
+    const stake = Number(room.gameState.tableMinBet) || 0;
+    if (stake <= 0) return { forfeited: [] };
+
+    const forfeited = [];
+    for (let i = sb.beatHand.length - 1; i >= 0; i--) {
+        const pot = sb.beatHand[i];
+        if (pot.status !== 'locked') continue;
+        // Only charge pots that have rolled over (were resolved as draw
+        // in a prior round). Freshly locked pots are paid via the
+        // initiate/accept stakes.
+        if (!Number(pot.carryOverRounds)) continue;
+        const lastCharged = Number(pot.lastChargedRound) || pot.lockedAtRound || 0;
+        if (round <= lastCharged) continue;
+
+        const chal = pot.challengerSid && room.gameState.players[pot.challengerSid];
+        const acc  = pot.accepterSid   && room.gameState.players[pot.accepterSid];
+
+        const chalCharge = chal && !chal.isGhostBot && !chal.pendingExit
+            ? _deductWallet(chal, stake, room, `beatHand:${pot.id}`, `Beat Hand round ${round} top-up`)
+            : false;
+        const accCharge  = acc  && !acc.isGhostBot  && !acc.pendingExit
+            ? _deductWallet(acc, stake, room, `beatHand:${pot.id}`, `Beat Hand round ${round} top-up`)
+            : false;
+
+        if (chalCharge && accCharge) {
+            pot.pot += 2 * stake;
+            pot.lastChargedRound = round;
+            console.log(`[SIDEBET][BH] pot ${pot.id} rollover top-up: both paid $${stake}, pot=$${pot.pot}`);
+            continue;
+        }
+
+        // Top-up failure on one side → forfeit to other side.
+        if (chalCharge && !accCharge) {
+            pot.pot += stake;
+            _creditWallet(chal, pot.pot, room, 'side_bet_payout',
+                `beatHand:${pot.id}`, 'Beat Hand forfeit (accepter topup failed)');
+            pot.status = 'resolved';
+            pot.winnerSid = pot.challengerSid;
+            forfeited.push({ pot, loserSid: pot.accepterSid, winnerSid: pot.challengerSid });
+            sb.beatHand.splice(i, 1);
+            console.log(`[SIDEBET][BH] pot ${pot.id} accepter top-up failed → forfeit to challenger ${chal && chal.username}`);
+        } else if (!chalCharge && accCharge) {
+            pot.pot += stake;
+            _creditWallet(acc, pot.pot, room, 'side_bet_payout',
+                `beatHand:${pot.id}`, 'Beat Hand forfeit (challenger topup failed)');
+            pot.status = 'resolved';
+            pot.winnerSid = pot.accepterSid;
+            forfeited.push({ pot, loserSid: pot.challengerSid, winnerSid: pot.accepterSid });
+            sb.beatHand.splice(i, 1);
+            console.log(`[SIDEBET][BH] pot ${pot.id} challenger top-up failed → forfeit to accepter ${acc && acc.username}`);
+        } else {
+            // Both failed — refund the pot (no one left to pay it to).
+            pot.status = 'refunded';
+            sb.beatHand.splice(i, 1);
+            console.log(`[SIDEBET][BH] pot ${pot.id} both sides failed top-up → refunded/closed`);
+        }
+    }
+
+    return { forfeited };
 }
 
 // Beat Hand is per-round. At game-end there shouldn't be unresolved
@@ -848,6 +929,58 @@ function _refundBeatHandAtGameEnd(room) {
     }
     sb.beatHand = sb.beatHand.filter(p => p.status !== 'refunded');
     return refunded;
+}
+
+// Voluntary opt-out of First Special (spec May 31 2026). Removes the
+// player from the pot's participants without forfeit-DQ from the main
+// game; their prior contributions stay in the pot for the remaining
+// participants. If the opt-out reduces the pot to a single remaining
+// participant, that participant is awarded the entire pot immediately
+// (same rule as universal exit).
+function optOutFirstSpecial(room, player) {
+    if (!room || !player) return { ok: false, error: 'Invalid request.' };
+    const sb  = room.gameState && room.gameState.sideBets;
+    const pot = sb && sb.firstSpecial;
+    if (!pot || pot.status !== 'locked') {
+        return { ok: false, error: 'No active First Special pot.' };
+    }
+    const sid = _findPlayerSid(room, player);
+    if (!sid) return { ok: false, error: 'Player not seated.' };
+    if (!pot.participants.find(p => p.sid === sid)) {
+        return { ok: false, error: 'You are not a participant in this pot.' };
+    }
+
+    const before = pot.participants.length;
+    pot.participants = pot.participants.filter(p => p.sid !== sid);
+    console.log(`[SIDEBET][FS] ${player.username} opted out of pot ${pot.id} (${before} -> ${pot.participants.length})`);
+
+    let event = null;
+    if (pot.participants.length === 1) {
+        // Sole remaining wins the entire pot.
+        const winnerSid = pot.participants[0].sid;
+        const winner = room.gameState.players[winnerSid];
+        const amount = pot.pot;
+        if (winner && amount > 0) {
+            _creditWallet(winner, amount, room, 'side_bet_payout',
+                `firstSpecial:${pot.id}`,
+                'First Special — sole remaining (opt-out of others)');
+            pot.status = 'resolved';
+            pot.winnerSid = winnerSid;
+            event = {
+                type:        'firstSpecial',
+                potId:       pot.id,
+                winnerSids:  [winnerSid],
+                amount,
+                eventLabel:  'First Special (opt-out)',
+                announceType:'payout',
+            };
+        }
+        sb.firstSpecial = null;
+    } else if (pot.participants.length === 0) {
+        pot.status = 'refunded';
+        sb.firstSpecial = null;
+    }
+    return { ok: true, event };
 }
 
 // ── EXIT / DQ universal handlers ─────────────────────────────
@@ -1035,7 +1168,8 @@ function finalizePhase(room, phaseType) {
 function topupAtRoundStart(room) {
     const fs = _topupFirstSpecialAtRoundStart(room);
     const bc = _topupBestCardAtRoundStart(room);
-    return { firstSpecial: fs, bestCard: bc };
+    const bh = _topupBeatHandAtRoundStart(room);
+    return { firstSpecial: fs, bestCard: bc, beatHand: bh };
 }
 
 function resolveAtRoundEnd(room) {
@@ -1122,6 +1256,7 @@ module.exports = {
     refundUnwonAtGameEnd,
     handleExit,
     handleDQ,
+    optOutFirstSpecial,
     PHASE_DURATION_SECONDS,
     SIDEBET_TYPES,
     // exported for unit smoke

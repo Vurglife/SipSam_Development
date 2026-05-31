@@ -115,6 +115,7 @@ class SipSamRoom {
             case "initiateSideBet":   this._onInitiateSideBet(client, data);   break;
             case "acceptSideBet":     this._onAcceptSideBet(client, data);     break;
             case "declineSideBet":    this._onDeclineSideBet(client, data);    break;
+            case "optOutSideBet":     this._onOptOutSideBet(client, data);     break;
             default: console.log("Unknown message:", type);
         }
     }
@@ -1452,6 +1453,27 @@ class SipSamRoom {
         if (!['revealing', 'sideBetPhase', 'preRound1SideBets'].includes(this.gameState.status)) return;
         const sideBetType = data && (data.sideBetType || data.betType || data.type);
         SideBets.decline(sideBetType, this, player, data && data.potId);
+        this.broadcastState();
+    }
+
+    // Voluntary opt-out of an active side-bet pot. Currently only First
+    // Special supports this (Beat Hand is locked to 2 sides — exit/DQ
+    // forfeit covers the equivalent; Best Card opt-out is the same as
+    // failing to top up, no penalty).
+    _onOptOutSideBet(client, data) {
+        const player = this.gameState.players[client.sessionId];
+        if (!player || player.isBot || player.isGhostBot) return;
+        const sideBetType = (data && (data.sideBetType || data.betType || data.type)) || 'firstSpecial';
+        if (sideBetType !== 'firstSpecial') {
+            this.sendToClient(client, { type:'sideBetError', message:'Opt-out only applies to First Special.' });
+            return;
+        }
+        const res = SideBets.optOutFirstSpecial(this, player);
+        if (!res || !res.ok) {
+            this.sendToClient(client, { type:'sideBetError', message:(res && res.error) || 'Cannot opt out.' });
+            return;
+        }
+        if (res.event) this._broadcastSideBetEvents([res.event]);
         this.broadcastState();
     }
 
