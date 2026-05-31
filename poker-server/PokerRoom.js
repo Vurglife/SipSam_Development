@@ -483,25 +483,34 @@ class SipSamRoom {
         if (leavingWasBanker) {
             console.log('Banker left mid-game - forfeit payments applied and Bot_Banker takes over.');
 
-            player.isBanker = false;
-            player.username = 'Bot_' + Date.now();
-
-            const botBankerId = 'bot_banker_' + Date.now();
+            // Convert the leaving banker's record IN PLACE to Bot_Banker.
+            // Previously we created a SECOND player entry (bot_banker_<ts>)
+            // and left the original as a promoted ghost — that inflated the
+            // active player count by one and starved later-iterated players
+            // of cards from the 52-card deck. Keeping a single record at
+            // the original sid preserves the seat and player count.
             const walletSize  = this.gameState.tableWalletSize || 3000;
-            this.gameState.players[botBankerId] = {
-                username:      'Bot_Banker',
-                avatar:        this._botAvatar(0),
-                token:         null,
-                chips:         walletSize,
-                bet:           0,
-                isBanker:      true,
-                isBot:         true,
-                isGhostBot:    false,
-                hand1:[], hand2:[], hand3:[], rawCards:[],
-                hasArranged:   false, disqualified: false,
-                lastPayout:    0, lastSpecial: null, wins: 0
-            };
-            this.gameState.bankerSessionId = botBankerId;
+            player.username   = 'Bot_Banker';
+            player.avatar     = this._botAvatar(0);
+            player.token      = null;
+            player.chips      = walletSize;
+            player.bet        = 0;
+            player.isBanker   = true;
+            player.isBot      = true;
+            player.isGhostBot = false;
+            player.hand1=[]; player.hand2=[]; player.hand3=[]; player.rawCards=[];
+            player.hasArranged = false;
+            player.disqualified = false;
+            player.disqualifyReason = null;
+            player.declaredSpecial = null;
+            player.declaredSpecialName = null;
+            player.handResults = null;
+            player.lastPayout = 0;
+            player.lastSpecial = null;
+            player._promoteToRealBot = false;   // already a bot now — don't double-promote
+            player.pendingExit = false;
+            // bankerSessionId stays pointing at the same sid (the seat)
+            this.gameState.bankerSessionId = client.sessionId;
 
             this._clearAllPhaseTimers();
 
@@ -1117,33 +1126,52 @@ class SipSamRoom {
         this._clearPhaseTimer('betting');
         const deck = Logic.shuffleDeck(Logic.createDeck());
 
-        // Deal in PRIORITY ORDER so essential roles always get a full hand
-        // even when a stale ghost record inflates the player count past
-        // what the 52-card deck can serve:
-        //   1. Banker first (resolveAllHands early-returns if banker has
-        //      no hand1 — that means ZERO payouts get computed and any
-        //      DQ penalty still goes through because DQ uses a separate
-        //      code path. This matches the "banker face-down, wins not
-        //      paid, DQ still penalises" symptom.)
-        //   2. Humans next (they're the only ones who can't be
-        //      auto-arranged from scratch — must see real cards).
-        //   3. Bots last (deck shortfalls fall on bots, who at least
-        //      auto-arrange and won't deadlock the round).
-        const all = Object.values(this.gameState.players);
-        const banker  = this.gameState.players[this.gameState.bankerSessionId];
-        const humans  = all.filter(p => !p.isGhostBot && !p.isBot && p !== banker);
-        const otherBots = all.filter(p => !p.isGhostBot && p.isBot && p !== banker);
-        const dealOrder = [banker, ...humans, ...otherBots].filter(Boolean);
+        // SipSam dealing rule: flip a card to determine the starting
+        // player; the deal then proceeds from that player around the
+        // table. We honour the rule by drawing a "flip card" off the
+        // top of the deck, using its rank to pick the start index
+        // among ACTIVE (non-ghost) players in seat order. The flip
+        // card is then discarded (not part of any hand) so the deck
+        // remaining is still the standard 52 - 1 = 51 cards spread
+        // across active players in rotation.
+        //
+        // (If the deck is ever short for the active player count, the
+        // resolveAllHands safety net force-arranges the banker so the
+        // round still resolves rather than silently zeroing payouts.)
+        const activeSeats = Object.entries(this.gameState.players)
+            .filter(([, p]) => !p.isGhostBot)
+            .map(([sid, p]) => ({ sid, p }));
 
-        dealOrder.forEach(p => {
-            if (p.isGhostBot) return;
+        if (activeSeats.length === 0) {
+            console.warn('[DEAL] no active seats — skipping');
+            return;
+        }
+
+        const flipCard = deck.shift();
+        const flipRank = Logic.cardValue
+            ? (Number(Logic.cardValue(flipCard)) || flipCard.charCodeAt(0))
+            : flipCard.charCodeAt(0);
+        const startIdx = ((flipRank % activeSeats.length) + activeSeats.length) % activeSeats.length;
+        const startSeat = activeSeats[startIdx];
+        console.log(`[DEAL] flip card=${flipCard} startIdx=${startIdx} starts with ${startSeat.p.username}`);
+        this.gameState.lastDealFlipCard = flipCard;
+        this.gameState.lastDealStartUsername = startSeat.p.username;
+
+        // Deal 13 cards to each active seat starting from the flip-determined
+        // position. Each player still gets 13 contiguous cards from their
+        // slice of the (now 51-card) deck; the START POSITION is what the
+        // flip rule actually controls. Cosmetically the UI sees the flip
+        // result via lastDealFlipCard / lastDealStartUsername in state.
+        for (let i = 0; i < activeSeats.length; i++) {
+            const seat = activeSeats[(startIdx + i) % activeSeats.length];
+            const p = seat.p;
             p.rawCards = Logic.dealPlayerCards(deck);
             p.hasArranged = false;
             if (p.isBot) this.botArrange(p);
             if (!p.rawCards || p.rawCards.length < 13) {
-                console.warn(`[DEAL] ${p.username} got only ${p.rawCards?.length || 0} cards — deck exhausted (priority deal order should keep banker safe).`);
+                console.warn(`[DEAL] ${p.username} got only ${p.rawCards?.length || 0} cards — deck shortfall (${activeSeats.length} active seats > 52-card capacity)`);
             }
-        });
+        }
 
         // ── Best Card resolution (immediately after deal) ──
         // Per revised spec: Best Card pots resolve against this round's
