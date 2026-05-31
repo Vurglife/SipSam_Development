@@ -710,37 +710,88 @@ html, body {
   to   { transform: translate(-50%,-50%) scale(1);   opacity: 1; }
 }
 
-/* Side-bet payout announcement banner (toast over the felt) */
+/* Side-bet payout announcement — viewport-level fixed banner so it
+   cannot be clipped by .oval-table or hidden by table elements. */
 .sidebet-announce-banner {
-  position: absolute;
-  left: 50%; top: 38%;
-  transform: translate(-50%,-50%);
-  background: linear-gradient(145deg, rgba(15,18,40,.96), rgba(8,10,24,.96));
+  position: fixed;
+  left: 50%; top: 14%;
+  transform: translateX(-50%);
+  background: linear-gradient(145deg, rgba(15,18,40,.97), rgba(8,10,24,.97));
   border: 2px solid var(--gold);
   color: var(--gold-lt);
   font-family: 'Cinzel Decorative', serif;
-  padding: 12px 26px;
+  padding: 14px 30px;
   border-radius: 14px;
-  z-index: 110;
+  z-index: 5000;
   text-align: center;
-  white-space: nowrap;
-  box-shadow: 0 0 36px rgba(201,168,76,.55);
+  max-width: 92vw;
+  box-shadow: 0 0 44px rgba(201,168,76,.75), 0 6px 18px rgba(0,0,0,.55);
   animation: specialBannerAnim 0.32s ease-out;
   pointer-events: none;
 }
 .sidebet-announce-title {
-  font-size: clamp(13px, 2vw, 18px);
+  font-size: clamp(14px, 2.2vw, 20px);
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
 }
 .sidebet-announce-detail {
-  margin-top: 4px;
+  margin-top: 5px;
   font-family: 'Rajdhani', sans-serif;
-  font-size: clamp(11px, 1.6vw, 14px);
+  font-size: clamp(12px, 1.8vw, 15px);
   font-weight: 600;
   color: #ffe9a9;
   letter-spacing: .5px;
+  white-space: normal;
+}
+
+/* Round chip-delta result card (P&L summary at end of arrange→reveal) */
+.round-delta-card {
+  position: fixed;
+  right: 16px; top: 16px;
+  background: linear-gradient(145deg, rgba(15,18,40,.96), rgba(8,10,24,.96));
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  padding: 10px 14px;
+  min-width: 200px;
+  z-index: 4500;
+  box-shadow: 0 0 28px rgba(201,168,76,.45), 0 4px 14px rgba(0,0,0,.5);
+  font-family: 'Rajdhani', sans-serif;
+  color: #e9d77a;
+  animation: specialBannerAnim 0.28s ease-out;
+  pointer-events: none;
+}
+.round-delta-head {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  color: var(--gold-lt);
+  text-align: center;
+  border-bottom: 1px solid var(--gold-dk);
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+}
+.round-delta-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 2px 0;
+}
+.round-delta-total {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--gold-dk);
+  font-size: 14px;
+  font-weight: 800;
+}
+.round-delta-row.rd-pos > span:last-child { color: #6ee391; }
+.round-delta-row.rd-neg > span:last-child { color: #ff7a7a; }
+@media (max-width: 480px) {
+  .round-delta-card { right: 8px; top: 8px; min-width: 160px; padding: 8px 10px; }
+  .round-delta-head { font-size: 11px; }
+  .round-delta-row  { font-size: 12px; }
+  .round-delta-total{ font-size: 13px; }
 }
 
 /* Special selection modal */

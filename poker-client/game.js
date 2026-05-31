@@ -1191,6 +1191,25 @@ function updateGameUI(state) {
         if (overlay) overlay.style.display = 'none';
     }
 
+    // Round chip-delta summary — fires at arranging→revealing transition,
+    // showing main-game P&L (player.lastPayout) + accumulated side-bet
+    // P&L (_mySideBetRoundDelta) for the local player.
+    if (state.status === 'revealing' && lastStatus === 'arranging') {
+        try {
+            const me = state.players && state.players[mySessionId];
+            const mainDelta = me ? (Number(me.lastPayout) || 0) : 0;
+            const sideDelta = _mySideBetRoundDelta || 0;
+            if (mainDelta !== 0 || sideDelta !== 0) {
+                showRoundChipDelta(mainDelta, sideDelta, state.round);
+            }
+        } catch (_e) {}
+    }
+    // Reset the side-bet accumulator at the start of every new betting
+    // phase so each round shows only that round's side-bet P&L.
+    if (state.status === 'betting' && lastStatus !== 'betting') {
+        _mySideBetRoundDelta = 0;
+    }
+
     // Show validation overlay on arranging → revealing transition
     if (state.status === 'revealing' && lastStatus === 'arranging') {
         const revOverlay = document.getElementById('reveal-overlay');
@@ -2206,44 +2225,62 @@ function showSpecialAlertBanner(announcementOrUsername, specialName, multiplier)
 // Server emits { type:'sideBetAnnouncement', message, event, durationMs }
 // per resolved side-bet payout (First Special, Beat Hand, Best Card,
 // or instant Beat Hand forfeits / sole-remaining awards from exit/DQ).
-// We render a gold banner + chip flow from the table center to the
-// winner's seat. Self-wins also get a top-of-screen toast.
+// Banner is rendered at viewport-level (position:fixed) so it can't be
+// hidden by table z-index conflicts. Self-wins also get the existing
+// in-game toast + a chip-flow animation toward the player's seat.
+//
+// Side-bet wins are also accumulated into _mySideBetRoundDelta so the
+// per-round chip-delta floater (showRoundChipDelta) can summarise main
+// + side-bet P&L at end of round.
+var _mySideBetRoundDelta = 0;
 function showSideBetAnnouncement(msg) {
     try {
         const ev = msg && msg.event;
-        if (!ev) return;
-        const durationMs = Number(msg.durationMs) || 2500;
+        if (!ev) {
+            console.warn('[SIDEBET][ANNOUNCE] missing event payload', msg);
+            return;
+        }
+        console.log('[SIDEBET][ANNOUNCE-RX]', ev.eventLabel, ev);
+        const durationMs = Math.max(2400, Number(msg.durationMs) || 2500);
         const summary = msg.message || ev.eventLabel || 'Side bet payout';
 
-        // Banner over the table
-        const oval = document.querySelector('.oval-table');
-        if (oval) {
-            const existing = oval.querySelector('.sidebet-announce-banner');
-            if (existing) existing.remove();
-            const banner = document.createElement('div');
-            banner.className = 'sidebet-announce-banner';
-            const title = document.createElement('div');
-            title.className = 'sidebet-announce-title';
-            title.textContent = '⭐ ' + (ev.eventLabel || 'Side Bet');
-            const detail = document.createElement('div');
-            detail.className = 'sidebet-announce-detail';
-            detail.textContent = summary;
-            banner.appendChild(title);
-            banner.appendChild(detail);
-            oval.appendChild(banner);
-            setTimeout(() => { if (banner.parentNode) banner.remove(); }, Math.max(800, durationMs));
-        }
+        // Body-level overlay banner. Fixed position, very high z-index —
+        // cannot be clipped by .oval-table overflow or hidden by other
+        // table elements.
+        const existing = document.querySelector('.sidebet-announce-banner');
+        if (existing) existing.remove();
+        const banner = document.createElement('div');
+        banner.className = 'sidebet-announce-banner';
+        const title = document.createElement('div');
+        title.className = 'sidebet-announce-title';
+        title.textContent = '⭐ ' + (ev.eventLabel || 'Side Bet');
+        const detail = document.createElement('div');
+        detail.className = 'sidebet-announce-detail';
+        detail.textContent = summary;
+        banner.appendChild(title);
+        banner.appendChild(detail);
+        document.body.appendChild(banner);
+        setTimeout(() => { if (banner.parentNode) banner.remove(); }, durationMs);
 
-        // Chip flow for the local player if they're a winner
+        // Chip flow + private toast + delta accumulator for the local
+        // player if they're one of the winners on this event.
         const names = ev.winnerNames || [];
         const iWon = myUsername && names.indexOf(myUsername) >= 0;
-        if (iWon && typeof animateChipFlow === 'function') {
-            const fromEl = document.querySelector('.oval-table') || document.body;
-            const toEl   = document.getElementById('my-area')
-                        || document.querySelector('.my-area')
-                        || document.body;
+        if (iWon) {
             const amount = Number(ev.amount) || 0;
-            try { animateChipFlow(fromEl, toEl, true, amount); } catch (_e) {}
+            // Split equally across winners (server already did the math
+            // but ev.amount is the per-event total — divide for display).
+            const myShare = names.length > 1
+                ? Math.floor(amount / names.length)
+                : amount;
+            _mySideBetRoundDelta += myShare;
+            if (typeof animateChipFlow === 'function') {
+                const fromEl = document.querySelector('.oval-table') || document.body;
+                const toEl   = document.getElementById('my-area')
+                            || document.querySelector('.my-area')
+                            || document.body;
+                try { animateChipFlow(fromEl, toEl, true, myShare); } catch (_e) {}
+            }
             if (typeof showIngameToast === 'function') {
                 showIngameToast('⭐ Side Bet Win!', summary);
             }
@@ -2252,6 +2289,43 @@ function showSideBetAnnouncement(msg) {
             SFX.special();
         }
     } catch (e) { console.warn('[SIDEBET][ANNOUNCE] render failed:', e); }
+}
+
+// ── ROUND CHIP DELTA (main + side-bet P&L summary) ──
+// Fires at arranging -> revealing transition. Renders a fixed-position
+// card showing this round's main-game P&L and side-bet P&L separately
+// so the player can see at a glance where chips moved.
+function showRoundChipDelta(mainDelta, sideDelta, round) {
+    try {
+        const fmt = n => {
+            const v = Math.abs(Math.floor(n));
+            const sign = n > 0 ? '+' : (n < 0 ? '-' : '');
+            return sign + '$' + v.toLocaleString();
+        };
+        const existing = document.querySelector('.round-delta-card');
+        if (existing) existing.remove();
+        const card = document.createElement('div');
+        card.className = 'round-delta-card';
+        const head = document.createElement('div');
+        head.className = 'round-delta-head';
+        head.textContent = 'ROUND ' + (round || '?') + ' RESULT';
+        const mainRow = document.createElement('div');
+        mainRow.className = 'round-delta-row ' + (mainDelta >= 0 ? 'rd-pos' : 'rd-neg');
+        mainRow.innerHTML = '<span>Round bet</span><span>' + fmt(mainDelta) + '</span>';
+        const sideRow = document.createElement('div');
+        sideRow.className = 'round-delta-row ' + (sideDelta >= 0 ? 'rd-pos' : 'rd-neg');
+        sideRow.innerHTML = '<span>Side bets</span><span>' + fmt(sideDelta) + '</span>';
+        const totalRow = document.createElement('div');
+        const total = mainDelta + sideDelta;
+        totalRow.className = 'round-delta-row round-delta-total ' + (total >= 0 ? 'rd-pos' : 'rd-neg');
+        totalRow.innerHTML = '<span>Total</span><span>' + fmt(total) + '</span>';
+        card.appendChild(head);
+        card.appendChild(mainRow);
+        card.appendChild(sideRow);
+        card.appendChild(totalRow);
+        document.body.appendChild(card);
+        setTimeout(() => { if (card.parentNode) card.remove(); }, 4500);
+    } catch (e) { console.warn('[ROUND-DELTA] render failed:', e); }
 }
 
 function buildDisqualifyPanel(state) {
