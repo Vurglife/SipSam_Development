@@ -419,44 +419,46 @@ class SipSamRoom {
         const leavingWasBanker = !!player.isBanker;
         const leavingName = player.username;
 
-        // ── DEFERRED EXIT RULE ───────────────────────────────────────────
-        // Per spec: when a player exits mid-round, the round must complete
-        // first so chips are assigned correctly via NORMAL game rules. No
-        // pre-emptive forfeit penalty. The player's bet rides out the
-        // round; if they failed to arrange in time, disqualifyLate applies
-        // the standard DQ penalty (lose their bet). Their wallet → bank
-        // settlement is deferred to round-end via _finalizePendingExits.
+        // ── DEFERRED EXIT RULE (v2, May 31 2026) ─────────────────────────
+        // ANY mid-round human exit (banker or non-banker) defers to round
+        // end. The leaving player's bet rides out the round; their hands
+        // already on the table are resolved per the existing main-game
+        // rules (banker DQ rule still applies if they fail to arrange in
+        // time — that's a different, well-tested path).
         //
-        // Banker leaving mid-round is a special case: the banker is needed
-        // for the round to resolve, so we keep the existing forfeit flow
-        // (banker pays out 2× every player's bet, round ends immediately).
-        if (!leavingWasBanker && this._isMidRoundPhase()) {
+        // At round end, _finalizePendingExits:
+        //   1. settles the leaver's wallet to bank,
+        //   2. DELETES players[sid] entirely (no ghosts, no _promoteToRealBot),
+        //   3. inserts a fresh bot at a NEW sid (with isBanker:true if the
+        //      leaver was banker, in which case bankerSessionId updates).
+        //
+        // This replaces the previous in-place / ghost-and-promote path
+        // which caused duplicate records, deck shortages, and client
+        // seat-render bugs.
+        if (this._isMidRoundPhase()) {
             player.pendingExit = true;
-            // Keep token so we can settle at round end. DO NOT apply exit
-            // payments, DO NOT convert to ghost, DO NOT call /exit yet.
+            player._pendingExitWasBanker = leavingWasBanker;
             this.broadcast({
                 type: 'playerLeft',
                 username: leavingName,
-                message: `${leavingName} is leaving — settlement at end of round.`
+                message: `${leavingName} is leaving — bot takes over at end of round.`
             });
-            console.log(`[EXIT-DEFER] ${leavingName} flagged pendingExit at status=${this.gameState.status}; will settle at round end.`);
+            console.log(`[EXIT-DEFER] ${leavingName} flagged pendingExit (wasBanker=${leavingWasBanker}) at status=${this.gameState.status}; will replace with bot at round end.`);
             this.broadcastState();
             return;
         }
 
-        // Banker mid-round exit OR end-of-round/gameOver exit: settle now.
-        // Side-bet exit semantics first (Beat Hand forfeit / sole-remaining win)
-        // so payouts to remaining players are credited before this player's
-        // wallet is settled to bank.
+        // Non-mid-round exit (lobby past, roundEnd, gameOver): apply the
+        // same delete + replace flow immediately so there's only ever one
+        // way a human leaves the room.
         try {
             const r = SideBets.handleExit(this, client.sessionId);
             this._broadcastSideBetEvents(r && r.events);
         } catch(e) { console.error('[SIDEBETS] handleExit threw on immediate exit:', e); }
-        this._applyExitPayments(player);
         this._settleExitedHumanWallet(player, leavingWasBanker ? 'banker_left_game' : 'left_game');
 
         const otherRealPlayers = Object.entries(this.gameState.players)
-            .filter(([sid, p]) => sid !== client.sessionId && !p.isBot && !p.isGhostBot);
+            .filter(([sid, p]) => sid !== client.sessionId && !p.isBot);
 
         if (otherRealPlayers.length === 0) {
             console.log('[ROOM] Last real player left - wallet settled, resetting room.');
@@ -464,72 +466,71 @@ class SipSamRoom {
             return;
         }
 
-        // Convert the departing human to a ghost immediately. The wallet was
-        // already snapshotted for bank settlement above.
-        player.token       = null;
-        player.isBot       = true;
-        player.isGhostBot  = true;
-        player.bet         = 0;
-        player.hasArranged = true;
-        player.chips       = 0;
-        player._promoteToRealBot = true;
+        this._replaceLeavingHumanWithBot(client.sessionId, leavingName, leavingWasBanker);
+    }
+
+    // Delete a leaving human's record entirely and insert a fresh bot at
+    // a NEW sid. Used by both the immediate-exit path and the deferred
+    // _finalizePendingExits path so there's a single source of truth.
+    _replaceLeavingHumanWithBot(leavingSid, leavingName, wasBanker) {
+        // Drop the old record completely — no ghost, no _promoteToRealBot,
+        // no trace. This is the v2 exit rule: the room must look exactly
+        // as if the leaver was never here, except for the fresh bot in
+        // their seat.
+        delete this.gameState.players[leavingSid];
+
+        // Build a unique sid for the replacement bot.
+        const newSid = (wasBanker ? 'bot_banker_' : 'bot_') + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        const walletSize = this.gameState.tableWalletSize || 3000;
+        const baseName   = wasBanker ? 'Bot_Banker' : this._nextBotUsername();
+        const newBot = {
+            username:        baseName,
+            avatar:          this._botAvatar(wasBanker ? 0 : Object.keys(this.gameState.players).length + 1),
+            token:           null,
+            chips:           walletSize,
+            bet:             0,
+            isBanker:        !!wasBanker,
+            isBot:           true,
+            isGhostBot:      false,
+            hand1:[], hand2:[], hand3:[], rawCards:[],
+            hasArranged:     false,
+            disqualified:    false,
+            disqualifyReason:null,
+            declaredSpecial: null,
+            declaredSpecialName:null,
+            handResults:     null,
+            lastPayout:      0,
+            lastSpecial:     null,
+            lastBonus:       0,
+            wins:            0,
+            pendingExit:     false,
+        };
+        this.gameState.players[newSid] = newBot;
+        if (wasBanker) this.gameState.bankerSessionId = newSid;
+
+        console.log(`[EXIT-REPLACE] ${leavingName} replaced by ${baseName} at new sid ${newSid} (wasBanker=${wasBanker})`);
 
         this.broadcast({
-            type: 'playerLeft',
-            username: leavingName,
-            message: `${leavingName} left. A bot will take their seat next round.`
+            type:     'botReplaced',
+            username: baseName,
+            replacing: leavingName,
+            wasBanker,
         });
-
-        if (leavingWasBanker) {
-            console.log('Banker left mid-game - forfeit payments applied and Bot_Banker takes over.');
-
-            // Convert the leaving banker's record IN PLACE to Bot_Banker.
-            // Previously we created a SECOND player entry (bot_banker_<ts>)
-            // and left the original as a promoted ghost — that inflated the
-            // active player count by one and starved later-iterated players
-            // of cards from the 52-card deck. Keeping a single record at
-            // the original sid preserves the seat and player count.
-            const walletSize  = this.gameState.tableWalletSize || 3000;
-            player.username   = 'Bot_Banker';
-            player.avatar     = this._botAvatar(0);
-            player.token      = null;
-            player.chips      = walletSize;
-            player.bet        = 0;
-            player.isBanker   = true;
-            player.isBot      = true;
-            player.isGhostBot = false;
-            player.hand1=[]; player.hand2=[]; player.hand3=[]; player.rawCards=[];
-            player.hasArranged = false;
-            player.disqualified = false;
-            player.disqualifyReason = null;
-            player.declaredSpecial = null;
-            player.declaredSpecialName = null;
-            player.handResults = null;
-            player.lastPayout = 0;
-            player.lastSpecial = null;
-            player._promoteToRealBot = false;   // already a bot now — don't double-promote
-            player.pendingExit = false;
-            // bankerSessionId stays pointing at the same sid (the seat)
-            this.gameState.bankerSessionId = client.sessionId;
-
-            this._clearAllPhaseTimers();
-
-            this.gameState.status  = 'roundEnd';
-            this.gameState.message = `${leavingName} forfeited as Banker. Bot_Banker takes over next round.`;
-            this.broadcast({
-                type:    'bankerForfeited',
-                username: leavingName,
-                message:  `${leavingName} (Banker) left the game and forfeited - active players receive 2x their bet.`
-            });
-            this.broadcastState();
-            if (this._nextRoundTimer) clearTimeout(this._nextRoundTimer);
-            this._nextRoundTimer = setTimeout(() => this.startRound(), 4000);
-            return;
-        }
-
-        player.username = '(Left)';
-        console.log(leavingName, 'left mid-game - converted to ghost bot after wallet settlement.');
         this.broadcastState();
+    }
+
+    // Pick a Bot_N name that isn't already in use.
+    _nextBotUsername() {
+        const used = new Set(
+            Object.values(this.gameState.players)
+                .map(p => p && p.username)
+                .filter(Boolean)
+        );
+        for (let n = 1; n < 999; n++) {
+            const candidate = 'Bot_' + n;
+            if (!used.has(candidate)) return candidate;
+        }
+        return 'Bot_' + Date.now();
     }
 
     _isActivePaymentPhase() {
@@ -592,41 +593,40 @@ class SipSamRoom {
     // converts them to ghost bots for subsequent rounds. Also notifies any
     // still-connected WS so the client can navigate away.
     _finalizePendingExits() {
-        Object.entries(this.gameState.players).forEach(([sid, player]) => {
-            if (!player || !player.pendingExit || player.isBot || player.isGhostBot) return;
-            const name = player.username;
-            const chips = Math.max(0, Number(player.chips) || 0);
-            console.log(`[EXIT-FINALIZE] ${name}: settling $${chips} → bank`);
+        // Build list first so we can mutate gameState.players without
+        // breaking the iteration (we're going to delete + re-insert).
+        const leavers = Object.entries(this.gameState.players)
+            .filter(([, p]) => p && p.pendingExit && !p.isBot && !p.isGhostBot)
+            .map(([sid, p]) => ({
+                sid,
+                name: p.username,
+                wasBanker: !!(p._pendingExitWasBanker || p.isBanker),
+                chips: Math.max(0, Number(p.chips) || 0),
+                player: p,
+            }));
 
-            // Side-bet exit semantics — Beat Hand forfeits to opponent;
-            // First Special / Best Card sole-remaining gets the pot.
-            // Runs BEFORE wallet settle so any payouts already landed in
-            // OTHER players' wallets are credited correctly; the leaver's
-            // own pot stake is never refunded.
+        for (const lv of leavers) {
+            console.log(`[EXIT-FINALIZE] ${lv.name}: settling $${lv.chips} → bank (wasBanker=${lv.wasBanker})`);
+
+            // Side-bet exit semantics first (Beat Hand forfeit / sole-remaining
+            // win) so payouts to remaining players are credited before this
+            // player's wallet is settled to bank.
             try {
-                const r = SideBets.handleExit(this, sid);
+                const r = SideBets.handleExit(this, lv.sid);
                 this._broadcastSideBetEvents(r && r.events);
             } catch(e) { console.error('[SIDEBETS] handleExit threw on finalize:', e); }
 
-            // Settle wallet → bank using the trusted game-server path so the
-            // platform credits the full amount, including any post-payout
-            // winnings, without the client-side ceiling cap.
-            this._settleExitedHumanWallet(player, 'deferred_exit');
+            // Wallet → bank.
+            this._settleExitedHumanWallet(lv.player, 'deferred_exit');
 
-            // Notify any WS still connected so the client navigates.
-            const cli = this.clients.find(c => c.sessionId === sid);
-            if (cli) this.sendToClient(cli, { type:'exitOk', settled: chips });
+            // Notify the leaver's still-connected WS so the client navigates.
+            const cli = this.clients.find(c => c.sessionId === lv.sid);
+            if (cli) this.sendToClient(cli, { type:'exitOk', settled: lv.chips });
 
-            // Convert to ghost so subsequent rounds skip this seat.
-            player.token       = null;
-            player.isBot       = true;
-            player.isGhostBot  = true;
-            player.bet         = 0;
-            player.hasArranged = true;
-            player.chips       = 0;
-            player._promoteToRealBot = true;
-            player.pendingExit = false;
-        });
+            // v2 exit rule: delete the human entirely and insert a fresh
+            // bot at a new sid. No ghost, no _promoteToRealBot.
+            this._replaceLeavingHumanWithBot(lv.sid, lv.name, lv.wasBanker);
+        }
     }
 
     _applyExitPayments(player) {
@@ -1065,21 +1065,10 @@ class SipSamRoom {
             });
         } catch(e) { console.error('[SIDEBETS] topupAtRoundStart threw:', e); }
 
-        // Promote ghost bots (left players) to real bots for this round
-        // They were ghost last round — now they become a proper bot replacement
-        let botNum = Object.values(this.gameState.players).filter(p => p.isBot && !p.isGhostBot).length + 1;
-        Object.values(this.gameState.players).forEach(p => {
-            if (p._promoteToRealBot) {
-                p.isGhostBot       = false;  // no longer sitting out
-                p.isBot            = true;
-                p._promoteToRealBot = false;
-                p.chips            = this.gameState.tableWalletSize || 3000; // fresh wallet
-                p.username         = 'Bot_' + botNum++;
-                p.avatar           = this._botAvatar(botNum);
-                console.log(`[ROUND] Ghost promoted to real bot: ${p.username} with $${p.chips} chips`);
-                this.broadcast({ type:'botReplaced', username: p.username });
-            }
-        });
+        // (Removed in v2 exit refactor: the _promoteToRealBot ghost path
+        // is gone. Exiting humans are deleted entirely and replaced with
+        // a fresh bot via _replaceLeavingHumanWithBot at exit time or at
+        // round-end via _finalizePendingExits.)
 
         // Convert broke real players to ghost bots before round starts
         Object.values(this.gameState.players).forEach(p => {
