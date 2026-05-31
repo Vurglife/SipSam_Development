@@ -1115,18 +1115,15 @@ class SipSamRoom {
         this._clearPhaseTimer('betting');
         const deck = Logic.shuffleDeck(Logic.createDeck());
 
-        // SipSam dealing rule: flip a card to determine the starting
-        // player; the deal then proceeds from that player around the
-        // table. We honour the rule by drawing a "flip card" off the
-        // top of the deck, using its rank to pick the start index
-        // among ACTIVE (non-ghost) players in seat order. The flip
-        // card is then discarded (not part of any hand) so the deck
-        // remaining is still the standard 52 - 1 = 51 cards spread
-        // across active players in rotation.
-        //
-        // (If the deck is ever short for the active player count, the
-        // resolveAllHands safety net force-arranges the banker so the
-        // round still resolves rather than silently zeroing payouts.)
+        // SipSam dealing rule: flip a card to determine who gets the 1st
+        // card; the deal then proceeds from that player around the table.
+        // The flip card IS the first card dealt to the starting seat — we
+        // peek at the top of the deck WITHOUT removing it, use its rank
+        // to pick the start index, then deal 13 each in rotation. This
+        // preserves the full 52-card deal capacity (4 × 13 = 52). The
+        // previous implementation discarded the flip card and left the
+        // last-dealt seat one card short — surfaced as Vurglife always
+        // getting only 12 cards.
         const activeSeats = Object.entries(this.gameState.players)
             .filter(([, p]) => !p.isGhostBot)
             .map(([sid, p]) => ({ sid, p }));
@@ -1136,13 +1133,13 @@ class SipSamRoom {
             return;
         }
 
-        const flipCard = deck.shift();
+        const flipCard = deck[0];   // PEEK only — don't consume
         const flipRank = Logic.cardValue
             ? (Number(Logic.cardValue(flipCard)) || flipCard.charCodeAt(0))
             : flipCard.charCodeAt(0);
         const startIdx = ((flipRank % activeSeats.length) + activeSeats.length) % activeSeats.length;
         const startSeat = activeSeats[startIdx];
-        console.log(`[DEAL] flip card=${flipCard} startIdx=${startIdx} starts with ${startSeat.p.username}`);
+        console.log(`[DEAL] flip card=${flipCard} (stays in deck) startIdx=${startIdx} starts with ${startSeat.p.username}, deck size=${deck.length}, seats=${activeSeats.length}`);
         this.gameState.lastDealFlipCard = flipCard;
         this.gameState.lastDealStartUsername = startSeat.p.username;
 
