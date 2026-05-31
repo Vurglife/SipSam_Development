@@ -74,7 +74,8 @@ Every side-bet payout (`side_bet_payout`) triggers a public table-wide
 announcement broadcast to all clients, naming the winner, the winning
 event (e.g. "Best Card: K of Hearts", "Beat Hand vs Player B", "First
 Special: 6½"), and the amount won. Winning client also receives the
-same chip-flow animation used for main-round wins.
+same chip-flow animation used for main-round wins. **Display duration
+is 5 seconds** so the table has time to read the result clearly.
 
 ---
 
@@ -97,11 +98,17 @@ same chip-flow animation used for main-round wins.
 - Every participant (initiator + accepters) contributes `minBet` per round
   the bet stays unresolved, deducted from wallet at the start of each round.
 
-### Drop-out / topup failure
+### Drop-out / topup failure / opt-out
 - A participant who refuses or cannot afford the next round's top-up
   forfeits all prior contributions to the pot AND is auto-DQ'd from the
   main game that round. Any main-game debt is drawn from their bank per
   normal banker-debt rules.
+- **Voluntary opt-out** — a participant may click "Opt Out" on the side
+  bets panel at any time while the pot is active. Their contributions
+  stay in the pot; they're removed from `participants` with no main-game
+  DQ penalty. If the opt-out reduces the pot to one remaining
+  participant, that participant wins the pot immediately (same as the
+  exit rule). The opt-out player will not be auto-charged future top-ups.
 
 ### Resolution
 - Winner = first participant to *correctly* declare a Special in any
@@ -141,18 +148,34 @@ same chip-flow animation used for main-round wins.
 ### Multi-pot
 - Multiple parallel Beat Hand pots can exist per round, each between a
   unique challenger/accepter pair.
-- **Constraint:** once A and B are in a Beat Hand pot together this
-  round, neither can issue another Beat Hand against the other this
-  round. Either may still issue vs the third non-banker.
-- Re-initiated every round (no auto-renew across rounds).
+- **Constraint:** once A and B have an ACTIVE Beat Hand pot together
+  (locked or rolled over from a prior round), neither can issue another
+  Beat Hand against the other while that pot remains unresolved. Either
+  may still issue vs a third non-banker — A vs C and B vs C are
+  unrestricted by an existing A vs B pot.
 
 ### Stake
 - `minBet` per side, locked into the pot when the accepter accepts.
 
-### Resolution (at end of round N+1)
-- Compare the two players' three hands using main SipSam rules including
-  Flush suit-tiebreak (H > S > D > C).
-- Winner of 2 or more hands takes the pot. **1.5–1.5 → split.**
+### Rollover on tie (revised May 31 2026)
+- Per-hand ties **do not award points** to either side in this side bet
+  (main-game rule "banker wins tied hand" does not apply here).
+- If the round-level score is a draw (e.g. each side wins exactly one
+  hand and the third is tied), the pot **rolls over** instead of
+  refunding. Each side tops up `minBet` at the start of the next round
+  so the pot grows by `2 × minBet` per rolled-over round, until one side
+  wins.
+- `lockedAtRound` and `lastChargedRound` track the rollover state the
+  same way Best Card / First Special do.
+- **Top-up failure on a rollover** (insufficient wallet or exit) → the
+  failing side forfeits the pot immediately to the other side.
+
+### Resolution (at end of each active round)
+- Compare the two players' three hands using main SipSam rules
+  including Flush suit-tiebreak (H > S > D > C). Per the rule above,
+  tied hands score zero, not 0.5 each.
+- Winner of 2 or more hands takes the pot.
+- Overall draw → pot rolls over.
 - Special declared by one side: pot resolves on hand-compare as normal
   (no multiplier applied — pot was fixed pre-round).
 - **DQ or exit by one side** → forfeiting side loses the pot immediately
@@ -167,8 +190,11 @@ same chip-flow animation used for main-round wins.
 ### Initiation
 - Each player (including banker) has a "Best Card" button. Clicking it
   starts a new pot; the initiator picks the value (2–A, no suit).
-- Each player may have at most one **active** Best Card pot they
-  initiated (cannot initiate a second while one is unresolved).
+- Players may initiate ANY number of Best Card pots simultaneously,
+  including starting a new pot while one of their previous pots is
+  still rolling over (different value, or same value with a different
+  participant set). Previous one-per-initiator constraint was lifted
+  May 31 2026.
 - Multiple parallel Best Card pots can exist per round, each with its
   own initiator, value, and participant set.
 
