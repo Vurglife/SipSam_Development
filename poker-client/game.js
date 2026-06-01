@@ -39,6 +39,37 @@ function fmtChips(n) {
     return sign + '$' + abs;
 }
 window.fmtChips = fmtChips; // expose for index.html inline scripts
+
+// ── MOBILE LAYOUT FLAG ──────────────────────────────────────
+// Single source of truth for "are we on a phone-width viewport".
+// Drives both CSS (body.is-mobile) and the bottom tab switcher JS.
+// Trigger is VIEWPORT WIDTH (<=600px), not device type — a desktop
+// window only flips if dragged narrower than 600px. Crossing back to
+// desktop clears the mobile tab state so no panel can get stuck hidden.
+// See docs/system-development/mobile-layout-plan.md.
+var MOBILE_MQ = window.matchMedia('(max-width: 600px)');
+function isMobileView() { return MOBILE_MQ.matches; }
+function applyMobileFlag() {
+    const b = document.body;
+    if (!b) return;
+    if (MOBILE_MQ.matches) {
+        b.classList.add('is-mobile');
+    } else {
+        // Returning to desktop — strip mobile-only state so the desktop
+        // layout (which never reads these classes) is pristine.
+        b.classList.remove('is-mobile', 'tab-hand', 'tab-sidebets');
+    }
+}
+// matchMedia change fires on every breakpoint crossing (incl. DevTools
+// device-mode toggles and window resizes).
+if (MOBILE_MQ.addEventListener) MOBILE_MQ.addEventListener('change', applyMobileFlag);
+else if (MOBILE_MQ.addListener) MOBILE_MQ.addListener(applyMobileFlag); // older Safari
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyMobileFlag);
+} else {
+    applyMobileFlag();
+}
+
 let tableMinBet    = 100; // default to $100 table — overridden by TABLE_CONFIGS lookup
 
 // TABLE_CONFIGS — single source of truth for all table types
