@@ -1069,6 +1069,75 @@ html, body {
   }
 }
 
+/* ════════════════════════════════════════════════════════════
+   MOBILE PHASE 1.3 — bottom tab switcher (My Hand / Side Bets)
+   Hidden entirely on desktop. The side-bets panel is position:fixed on
+   desktop, so this DOM-flow toggling only affects ≤600px.
+   ════════════════════════════════════════════════════════════ */
+.mobile-tabbar { display: none; }
+
+@media (max-width: 600px) {
+  .mobile-tabbar {
+    display: flex;
+    flex-shrink: 0;
+    background: rgba(4,8,18,.96);
+    border-top: 1px solid var(--gold-dk);
+  }
+  .mtab {
+    flex: 1;
+    padding: 11px 8px;
+    background: transparent;
+    border: none;
+    border-top: 3px solid transparent;
+    color: #8fa6c8;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  body.tab-hand     #mtab-hand,
+  body.tab-sidebets #mtab-sidebets {
+    color: var(--gold-lt);
+    border-top-color: var(--gold);
+    background: rgba(201,168,76,.08);
+  }
+  .mtab-badge {
+    display: inline-block;
+    min-width: 16px;
+    padding: 1px 5px;
+    border-radius: 9px;
+    background: #c0392b;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    margin-left: 5px;
+    text-align: center;
+  }
+
+  /* Tab bodies. CSS is authoritative on mobile — these !important rules
+     override the inline display:none/block that renderSideBets sets. */
+  body.is-mobile.tab-sidebets .my-area { display: none !important; }
+  body.is-mobile.tab-hand     #sidebets-panel { display: none !important; }
+  body.is-mobile.tab-sidebets #sidebets-panel {
+    display: block !important;
+    position: static !important;     /* flow as the bottom work area */
+    width: auto !important;
+    max-width: none !important;
+    max-height: 50dvh !important;
+    margin: 0 !important;
+    top: auto !important; right: auto !important; left: auto !important;
+    border-radius: 0 !important;
+    border: none !important;
+    border-top: 2px solid var(--gold-dk) !important;
+    overflow-y: auto;
+    flex-shrink: 0;
+    z-index: auto !important;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+}
+
 /* ── DEAL ANIMATION (betting phase) ── */
 .deal-anim-container {
   position: absolute;

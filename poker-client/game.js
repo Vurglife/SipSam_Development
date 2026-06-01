@@ -54,11 +54,35 @@ function applyMobileFlag() {
     if (!b) return;
     if (MOBILE_MQ.matches) {
         b.classList.add('is-mobile');
+        // Default to the My Hand tab if no tab is active yet.
+        if (!b.classList.contains('tab-hand') && !b.classList.contains('tab-sidebets')) {
+            setMobileTab('hand');
+        }
     } else {
         // Returning to desktop — strip mobile-only state so the desktop
         // layout (which never reads these classes) is pristine.
         b.classList.remove('is-mobile', 'tab-hand', 'tab-sidebets');
     }
+}
+
+// Bottom tab switcher (mobile only). 'hand' shows .my-area; 'sidebets'
+// shows #sidebets-panel as the bottom work area. No-op on desktop.
+function setMobileTab(tab) {
+    const b = document.body;
+    if (!b) return;
+    b.classList.remove('tab-hand', 'tab-sidebets');
+    b.classList.add(tab === 'sidebets' ? 'tab-sidebets' : 'tab-hand');
+}
+window.setMobileTab = setMobileTab;
+
+// Update the Side Bets tab badge with the active-pot count. Called from
+// renderSideBets each state update.
+function updateSideBetTabBadge(count) {
+    const badge = document.getElementById('mtab-sb-badge');
+    if (!badge) return;
+    const n = Number(count) || 0;
+    if (n > 0) { badge.textContent = String(n); badge.style.display = 'inline-block'; }
+    else       { badge.style.display = 'none'; }
 }
 // matchMedia change fires on every breakpoint crossing (incl. DevTools
 // device-mode toggles and window resizes).
@@ -1982,6 +2006,13 @@ function handleServerMessage(msg) {
             }
             updateGameUI(state);
             renderSideBets(state);
+            // Mobile: during betting/arranging the player works in their
+            // own hand area — force the My Hand tab so the bottom region
+            // shows the bet/arrange controls, not the side-bets sheet.
+            if (document.body.classList.contains('is-mobile') &&
+                (state.status === 'betting' || state.status === 'arranging')) {
+                setMobileTab('hand');
+            }
         }
     } else if (msg.type === 'sideBetError') {
         const el = document.getElementById('sb-status');
@@ -3105,11 +3136,14 @@ function renderSideBets(state) {
     const inReveal = status === 'revealing';
     const inPhase  = status === 'sideBetPhase';
     const inPreR1  = status === 'preRound1SideBets';
-    const hasAnyPot = sb && (
-        sb.firstSpecial ||
-        (sb.beatHand && sb.beatHand.length) ||
-        (sb.bestCard && sb.bestCard.length)
-    );
+    const potCount = sb
+        ? (sb.firstSpecial ? 1 : 0)
+          + (sb.beatHand ? sb.beatHand.length : 0)
+          + (sb.bestCard ? sb.bestCard.length : 0)
+        : 0;
+    const hasAnyPot = potCount > 0;
+    // Mobile bottom-tab badge reflects active pots regardless of phase.
+    updateSideBetTabBadge(potCount);
 
     if (!inReveal && !inPhase && !inPreR1 && !hasAnyPot) {
         panel.style.display = 'none';

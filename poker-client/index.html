@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="VurgLife">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/images/icon-192.png">
-<link rel="stylesheet" href="style.css?v=43">
+<link rel="stylesheet" href="style.css?v=44">
   <style>
     /* Lobby config banner (pre-selected from dashboard) */
     .lobby-title { font-family:'Bebas Neue',serif; font-size:2rem; letter-spacing:4px; margin:0 0 4px; }
@@ -273,37 +273,46 @@
       <div class="special-box" id="p1-special"></div>
     </div>
 
-    <!-- ═══════ SIDE BETS PANEL ═══════
-         Spec: docs/system-development/sidebets-spec.md
-         Visible only during reveal (initiate) + sideBetPhase (accept). -->
-    <div id="sidebets-panel" class="sb-panel" style="display:none">
-      <div class="sb-header">
-        <span class="sb-title">Side Bets</span>
-        <span id="sb-phase-label" class="sb-phase-label"></span>
-      </div>
-      <div id="sb-initiate-row" class="sb-row" style="display:none">
-        <button class="sb-btn" onclick="sbOpenInitiate('firstSpecial')">⭐ First Special</button>
-        <button class="sb-btn" onclick="sbOpenInitiate('bestCard')">🃏 Best Card</button>
-        <button class="sb-btn" onclick="sbOpenInitiate('beatHand')">🥊 Beat Hand</button>
-      </div>
-      <div id="sb-active-pots" class="sb-active-pots"></div>
-      <div id="sb-accept-row" class="sb-row" style="display:none"></div>
-      <div id="sb-status" class="sb-status"></div>
-    </div>
-
-    <!-- Side-bet initiation modal (Best Card value picker, Beat Hand target picker, First Special confirm) -->
-    <div id="sb-init-modal" class="sb-modal" style="display:none">
-      <div class="sb-modal-card">
-        <div id="sb-init-title" class="sb-modal-title">Initiate Side Bet</div>
-        <div id="sb-init-body" class="sb-modal-body"></div>
-        <div class="sb-modal-actions">
-          <button class="sb-btn-cancel" onclick="sbCloseInitiate()">Cancel</button>
-          <button id="sb-init-confirm" class="sb-btn-primary" onclick="sbConfirmInitiate()" disabled>Confirm</button>
-        </div>
-      </div>
-    </div>
-
   </div><!-- /game-body -->
+
+  <!-- Mobile-only bottom tab switcher (My Hand / Side Bets).
+       Hidden on desktop via CSS (.mobile-tabbar default display:none). -->
+  <div class="mobile-tabbar" id="mobile-tabbar">
+    <button class="mtab" id="mtab-hand" type="button" onclick="setMobileTab('hand')">My Hand</button>
+    <button class="mtab" id="mtab-sidebets" type="button" onclick="setMobileTab('sidebets')">Side Bets<span class="mtab-badge" id="mtab-sb-badge" style="display:none">0</span></button>
+  </div>
+
+  <!-- ═══════ SIDE BETS PANEL ═══════
+       Spec: docs/system-development/sidebets-spec.md
+       Moved out of .game-body so it can act as the Side Bets tab body on
+       mobile. position:fixed on desktop, so its DOM location here has no
+       effect on the desktop layout. -->
+  <div id="sidebets-panel" class="sb-panel" style="display:none">
+    <div class="sb-header">
+      <span class="sb-title">Side Bets</span>
+      <span id="sb-phase-label" class="sb-phase-label"></span>
+    </div>
+    <div id="sb-initiate-row" class="sb-row" style="display:none">
+      <button class="sb-btn" onclick="sbOpenInitiate('firstSpecial')">⭐ First Special</button>
+      <button class="sb-btn" onclick="sbOpenInitiate('bestCard')">🃏 Best Card</button>
+      <button class="sb-btn" onclick="sbOpenInitiate('beatHand')">🥊 Beat Hand</button>
+    </div>
+    <div id="sb-active-pots" class="sb-active-pots"></div>
+    <div id="sb-accept-row" class="sb-row" style="display:none"></div>
+    <div id="sb-status" class="sb-status"></div>
+  </div>
+
+  <!-- Side-bet initiation modal (Best Card value picker, Beat Hand target picker, First Special confirm) -->
+  <div id="sb-init-modal" class="sb-modal" style="display:none">
+    <div class="sb-modal-card">
+      <div id="sb-init-title" class="sb-modal-title">Initiate Side Bet</div>
+      <div id="sb-init-body" class="sb-modal-body"></div>
+      <div class="sb-modal-actions">
+        <button class="sb-btn-cancel" onclick="sbCloseInitiate()">Cancel</button>
+        <button id="sb-init-confirm" class="sb-btn-primary" onclick="sbConfirmInitiate()" disabled>Confirm</button>
+      </div>
+    </div>
+  </div>
 
   <!-- MY AREA -->
   <div class="my-area">
@@ -567,7 +576,7 @@
   </div>
 </div>
 
-<script src="game.js?v=57"></script>
+<script src="game.js?v=58"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      IN-GAME SLIDE-OUT MENU
