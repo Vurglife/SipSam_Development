@@ -149,8 +149,16 @@ const SFX = {
     },
 };
 
-function payoutChipCount(amount) {
+function payoutChipCount(amount, large) {
     const amt = Math.abs(Number(amount) || 0);
+    if (large) {
+        if (amt >= 10000000) return 72;
+        if (amt >= 5000000)  return 64;
+        if (amt >= 1000000)  return 56;
+        if (amt >= 500000)   return 48;
+        if (amt >= 100000)   return 42;
+        return 32;
+    }
     if (amt >= 1000000) return 34;
     if (amt >= 500000)  return 30;
     if (amt >= 100000)  return 26;
@@ -159,7 +167,7 @@ function payoutChipCount(amount) {
     return Math.max(6, Math.min(16, Math.ceil(amt / 1200)));
 }
 
-function animateChipFlow(fromEl, toEl, isWin, amount) {
+function animateChipFlow(fromEl, toEl, isWin, amount, options = {}) {
     try {
         if (!fromEl || !toEl) return;
         const f = fromEl.getBoundingClientRect();
@@ -169,8 +177,8 @@ function animateChipFlow(fromEl, toEl, isWin, amount) {
         const tx = t.left + t.width / 2;
         const ty = t.top + t.height / 2;
         const amt = Math.abs(Number(amount) || 0);
-        const count = payoutChipCount(amt);
-        const spread = Math.min(96, 34 + count * 2.2);
+        const count = payoutChipCount(amt, !!options.large);
+        const spread = Math.min(options.large ? 150 : 96, 34 + count * (options.large ? 2.6 : 2.2));
         const travelX = tx - fx;
         const travelY = ty - fy;
         const lift = Math.min(160, Math.max(46, Math.abs(travelY) * 0.24 + count * 1.7));
@@ -194,8 +202,8 @@ function animateChipFlow(fromEl, toEl, isWin, amount) {
             const endX = travelX + endJitterX;
             const endY = travelY + endJitterY;
             const rot = (isWin ? 1 : -1) * (160 + Math.random() * 260);
-            const delay = i * (amt >= 100000 ? 34 : 44);
-            const duration = 980 + Math.random() * 260 + Math.min(360, count * 12);
+            const delay = i * (options.large ? 22 : (amt >= 100000 ? 34 : 44));
+            const duration = 980 + Math.random() * 260 + Math.min(options.large ? 520 : 360, count * 12);
 
             setTimeout(function(){
                 if (chip.animate) {
@@ -425,16 +433,14 @@ function selectRounds(rounds, btn) {
     document.querySelectorAll('.btn-rounds').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
     updateLobbyInfo();
-    // Multiplayer hosts: create the room on the server NOW (not on Start) so
-    // the invite carries a real roomId and invitees join THIS lobby. Single
-    // player stays on the click-Start-to-create flow.
+    // Multiplayer connects now so public quick-join can attach this player to
+    // a matching active table. If none exists, the server creates a host room.
     if (gameMode === 'multiplayer') ensureHostRoom();
 }
 
 // ── HOST ROOM (eager create) ─────────────────────────────────
-// Once the host picks rounds in Multiplayer mode, open the WS room
-// immediately. The invite is sent with the real roomId from this call.
-// Click-Start later just sends `startGame` on the already-open socket.
+// Public quick-join or host room. A created waiting room makes this player
+// host; a matched active room makes them a seated late-joiner.
 let _ensuringHostRoom = null;
 async function ensureHostRoom() {
     if (gameMode !== 'multiplayer') return;
@@ -442,18 +448,17 @@ async function ensureHostRoom() {
     if (_ensuringHostRoom) return _ensuringHostRoom;
     _ensuringHostRoom = (async () => {
         try {
-            console.log('[Rhum32] Host eager-creating room…');
+            console.log('[Rhum32] Joining public table or creating host room...');
             ws = await joinRoom(myUsername, {
                 tableMinBet: selectedMinBet,
                 maxRounds:   selectedRounds || 10,
                 wallet:      tableConfig?.wallet || 5000,
                 mode:        'multiplayer',
-                isHost:      true,                  // server creates a fresh room and marks us as host
                 token:       rhumToken()
             });
-            console.log('[Rhum32] Host room ready:', currentRoomId);
+            console.log('[Rhum32] Multiplayer room ready:', currentRoomId);
         } catch (e) {
-            console.error('[Rhum32] Host room create failed:', e);
+            console.error('[Rhum32] Multiplayer room join/create failed:', e);
             const statusEl = document.getElementById('lobby-status');
             if (statusEl) {
                 statusEl.textContent = 'Could not reserve a table: ' + e.message;
@@ -1356,6 +1361,24 @@ function handleServerMessage(msg) {
 
 function escapeHtml(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+function renderNextRoundWaitingNotice(state) {
+    const me = state && mySessionId ? state.players?.[mySessionId] : null;
+    if (!me || !me.joiningNextRound) return;
+    ['bet-controls','decision-controls','my-cards-display'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+    const reveal = document.getElementById('reveal-info');
+    const title  = document.getElementById('reveal-result');
+    const desc   = document.getElementById('reveal-description');
+    if (reveal) reveal.style.display = 'block';
+    if (title) {
+        title.textContent = 'JOINED TABLE';
+        title.style.color = '#f0d080';
+    }
+    if (desc) desc.textContent = me.description || 'You will enter on the next round.';
+}
+
 // ============================================
 // RENDER STATE
 // ============================================
@@ -1401,7 +1424,10 @@ function renderState(state) {
 
     document.getElementById('table-message').textContent = state.message || '';
 
+    const meState = state.players && mySessionId ? state.players[mySessionId] : null;
+    const joiningNextRound = !!(meState && meState.joiningNextRound);
     showControls(state.status);
+    renderNextRoundWaitingNotice(state);
     if (state.status === 'betting') {
         const cdEl = document.getElementById('bet-countdown');
         if (cdEl) {
@@ -1412,7 +1438,7 @@ function renderState(state) {
         // Frozen players carry their previous front + tie bets — the server
         // preserves them in startRound, so sync the UI from state.players[me]
         // instead of resetting to the table minimum.
-        if (prevStatus !== 'betting') {
+        if (!joiningNextRound && prevStatus !== 'betting') {
             const me = state.players[mySessionId];
             const isFrozen = !!(me && me.frozen);
             currentFrontBet = isFrozen ? (Number(me.frontBet) || tableMinBet) : tableMinBet;
@@ -1488,45 +1514,43 @@ function maybeShowTableAnnouncement(state) {
     const events = [];
     Object.values(players).forEach(p => {
         if (p.folded || p.disqualified) return;
-        const tierName = (p.tier && p.tier.name) || '';
-        const tieWon   = (Number(p.tieBet) > 0) && (Number(p.tiePayout) > 0);
-        const bonus    = Number(p.bonus) || 0;
-        const isFace   = p.result === 'face_special';
-        const isTie    = p.result === 'tie';
-        const np       = Number(p.totalPayout) || 0;
-        const who      = p.username || 'Player';
-        const fmt      = (n) => (n >= 0 ? '+' : '−') + '$' + Math.abs(Math.round(n)).toLocaleString();
+        const tierName = (p.specialName || (p.tier && p.tier.name) || '').trim();
+        const tieWon = (Number(p.tieBet) > 0) && (Number(p.tiePayout) > 0);
+        const bonus = Number(p.bonus) || 0;
+        const np = Number(p.totalWin || p.totalPayout) || 0;
+        const who = p.username || 'Player';
+        const seat = Number(p.seat) || 0;
+        const isSpecial = !!(tierName && tierName !== '18-31 Normal' && tierName !== 'Over 31');
+        const specialWon = !!(p.specialWon || (isSpecial && np > 0));
 
-        let headline = null, sub = null, priority = 0;
-        if (isFace && tieWon) {
-            headline = (tierName || 'Face Special') + ' + TIE!';
-            sub = who + ' wins ' + fmt(np) + ' — unbeatable hand + tie stacked.';
-            priority = 5;
-        } else if (isFace) {
-            headline = (tierName || 'Face Special') + ' — UNBEATABLE';
-            sub = who + ' wins ' + fmt(np) + '.';
-            priority = 4;
-        } else if (isTie && bonus > 0) {
-            headline = (tierName || 'Special') + ' + TIE';
-            sub = who + ' wins ' + fmt(np) + ' (bonus + tie ×20).';
-            priority = 3;
-        } else if (isTie && tieWon) {
-            headline = 'TIE BET WIN';
-            sub = who + ' wins ' + fmt(np) + ' (20:1).';
-            priority = 2;
-        } else if (bonus > 0 && tierName) {
-            headline = tierName;
-            sub = who + ' bonus +$' + bonus.toLocaleString() + ' · total ' + fmt(np) + '.';
-            priority = 1;
+        if (specialWon) {
+            events.push({
+                headline: 'SPECIAL WON',
+                sub: 'Player: ' + who +
+                    ' | Special: ' + tierName +
+                    ' | Bonus: $' + Math.max(0, bonus).toLocaleString() +
+                    ' | Total Win: +$' + Math.max(0, Math.round(np)).toLocaleString(),
+                priority: 10,
+                amount: np,
+                seat,
+                largeFlow: true
+            });
+        } else if (tieWon) {
+            const tieTotal = Number(p.tiePayout) || 0;
+            events.push({
+                headline: 'TIE BET WIN',
+                sub: 'Player: ' + who + ' | Total Win: +$' + Math.max(0, Math.round(tieTotal)).toLocaleString(),
+                priority: 2,
+                amount: tieTotal,
+                seat,
+                largeFlow: false
+            });
         }
-        if (headline) events.push({ headline, sub, priority });
     });
-
-    // Highest-priority first; then by total payout desc so the biggest
-    // celebrations lead.
-    events.sort((a, b) => (b.priority - a.priority));
+    events.sort((a, b) => (b.priority - a.priority) || ((b.amount || 0) - (a.amount || 0)));
     _annQueue = events;
     _drainAnnouncementQueue();
+    return;
 }
 
 function _drainAnnouncementQueue() {
@@ -1545,6 +1569,7 @@ function _drainAnnouncementQueue() {
         wrap.classList.add('visible');
         wrap.setAttribute('aria-hidden', 'false');
     });
+    setTimeout(() => animateAnnouncementChipFlow(event), 160);
     // Hold visible 2.2s → fade out 0.4s → 0.45s gap → next.
     _annVisibleTimer = setTimeout(() => {
         wrap.classList.remove('visible');
@@ -1554,6 +1579,16 @@ function _drainAnnouncementQueue() {
             _annGapTimer = setTimeout(_drainAnnouncementQueue, 450);
         }, 400);
     }, 2200);
+}
+
+function animateAnnouncementChipFlow(event) {
+    if (!event || !(Number(event.amount) > 0)) return;
+    const dealerEl = document.getElementById('dealer-value') || document.querySelector('.dealer-zone');
+    const seatEl = event.seat
+        ? (document.getElementById('seat-' + event.seat + '-info') || document.getElementById('seat-' + event.seat))
+        : null;
+    const fallback = document.getElementById('my-wallet') || document.querySelector('.my-info-bar');
+    animateChipFlow(dealerEl, seatEl || fallback, true, event.amount, { large: !!event.largeFlow });
 }
 
 function formatStatus(status) {
@@ -1713,6 +1748,11 @@ function renderMyArea(players, status, roundNum) {
     if (me.playerValue != null) hvEl.textContent = 'Hand Value: ' + me.playerValue;
     else if (me.cards?.length && me.cards[0] !== '??') hvEl.textContent = 'Cards dealt — awaiting 5th card';
     else hvEl.textContent = '';
+
+    if (me.joiningNextRound) {
+        renderNextRoundWaitingNotice({ players });
+        return;
+    }
 
     if (status === 'decision') {
         document.getElementById('back-bet-amount').textContent = '$' + (me.frontBet * 2).toLocaleString();

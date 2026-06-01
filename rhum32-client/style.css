@@ -1364,6 +1364,18 @@ body {
   letter-spacing: 1.5px;
   margin-top: 4px;
   opacity: 0.9;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 520px) {
+  .table-announcement {
+    min-width: min(88vw, 360px);
+    max-width: 90vw;
+    padding: 12px 18px;
+  }
+  .ta-headline { letter-spacing: 1.5px; }
+  .ta-sub { letter-spacing: 0.8px; }
 }
 
 /* ── PER-SEAT BET PILLS ─────────────────────────────────────────

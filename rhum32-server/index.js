@@ -68,8 +68,9 @@ app.post("/matchmake/joinOrCreate/rhum32_room", (req, res) => {
         ({ roomId, room, created } = manager.joinOrCreate(tableMinBet, maxRounds));
     }
 
-    pendingSessions[sessionId] = { username, roomId, wallet, token, isHost };
-    console.log(`Matchmake: ${username} → ${sessionId} (room: ${roomId}, ${created ? "NEW" : "EXISTING"}${isHost ? ", HOST" : ""})`);
+    const becomesHost = isHost || (created && mode === "multiplayer" && !targetRoomId);
+    pendingSessions[sessionId] = { username, roomId, wallet, token, isHost: becomesHost };
+    console.log(`Matchmake: ${username} → ${sessionId} (room: ${roomId}, ${created ? "NEW" : "EXISTING"}${becomesHost ? ", HOST" : ""})`);
     res.json({ name: "rhum32_room", sessionId, roomId, processId: "local", created });
 });
 

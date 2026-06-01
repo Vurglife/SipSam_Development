@@ -42,11 +42,13 @@ class RoomManager {
     }
 
     // List joinable rooms for a given table tier
-    listRooms(tableMinBet) {
+    listRooms(tableMinBet, maxRounds) {
         const results = [];
+        const wantedRounds = Number(maxRounds) || 0;
         for (const [roomId, room] of this.rooms) {
             if (room.tableMinBet !== tableMinBet) continue;
             if (room.gameState.mode === 'single') continue; // single-player rooms are private
+            if (wantedRounds && Number(room.gameState.maxRounds) !== wantedRounds) continue;
 
             const playerCount = Object.values(room.gameState.players).length;
             const status      = room.gameState.status;
@@ -68,21 +70,42 @@ class RoomManager {
         return results;
     }
 
-    // Find or create a room for quick-join (like Zynga poker)
+    // Find or create a room for public quick-join.
+    // Match active rooms only when tier + selected round count are exact,
+    // at least one future round remains, and a real seat is open. Unlike
+    // SipSam, Rhum32 never replaces bots here; a late joiner waits for the
+    // next round if the current hand is already past betting.
     joinOrCreate(tableMinBet, maxRounds) {
-        // Try to find an existing room with space
-        const available = this.listRooms(tableMinBet);
-        // Prefer rooms that are still in "waiting" status
-        const waiting = available.filter(r => r.status === 'waiting');
-        if (waiting.length > 0) {
-            return { roomId: waiting[0].roomId, room: this.rooms.get(waiting[0].roomId), created: false };
+        const wantedRounds = Number(maxRounds) || 10;
+        const candidates = [];
+
+        for (const [roomId, room] of this.rooms) {
+            const gs = room.gameState || {};
+            if (room.tableMinBet !== tableMinBet) continue;
+            if (gs.mode === 'single') continue;
+            if (gs.status === 'waiting' || gs.status === 'gameOver') continue;
+            if (Number(gs.maxRounds) !== wantedRounds) continue;
+            if (Number(gs.round) >= wantedRounds) continue;
+
+            const playerCount = Object.keys(gs.players || {}).length;
+            if (playerCount >= 6) continue;
+
+            candidates.push({
+                roomId,
+                room,
+                score: (Number(gs.round) || 0) * 10 + playerCount
+            });
         }
-        // Otherwise join any room with space
-        if (available.length > 0) {
-            return { roomId: available[0].roomId, room: this.rooms.get(available[0].roomId), created: false };
+
+        if (candidates.length > 0) {
+            candidates.sort((a, b) => b.score - a.score);
+            const pick = candidates[0];
+            console.log(`[RoomManager] Quick-join matched ${pick.roomId} ($${tableMinBet}, ${wantedRounds} rounds)`);
+            return { roomId: pick.roomId, room: pick.room, created: false };
         }
+
         // Create new room
-        const { roomId, room } = this.createRoom(tableMinBet, maxRounds, 'multiplayer');
+        const { roomId, room } = this.createRoom(tableMinBet, wantedRounds, 'multiplayer');
         return { roomId, room, created: true };
     }
 

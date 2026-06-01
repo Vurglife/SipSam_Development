@@ -244,6 +244,7 @@ class Rhum32Room {
     _onPlaceBet(client, data) {
         const player = this.gameState.players[client.sessionId];
         if (!player || this.gameState.status !== "betting") return;
+        if (player.joiningNextRound) return;
         // Frozen bets are NOT locked from adjustment — clicking +/- while
         // frozen updates the bet AND becomes the new frozen value carried
         // into the next round. (Old behaviour silently dropped the update,
@@ -280,6 +281,7 @@ class Rhum32Room {
     _onPlaceTieBet(client, data) {
         const player = this.gameState.players[client.sessionId];
         if (!player) return;
+        if (player.joiningNextRound) return;
         if (this.gameState.status !== "betting") {
             // Most common cause: client click landed ~ms after the betting
             // timer expired and dealFourCards() flipped status to 'decision'.
@@ -312,6 +314,7 @@ class Rhum32Room {
     async _onPlayerDecision(client, data) {
         const player = this.gameState.players[client.sessionId];
         if (!player || this.gameState.status !== "decision") return;
+        if (player.joiningNextRound) return;
         if (player.folded || player.decided) return;
 
         const decision = data.decision; // "bet" or "push"
@@ -494,12 +497,28 @@ class Rhum32Room {
             description: "",
             tier:        null,
             playerValue: null,
+            frontPayout: 0,
+            backPayout:  0,
+            bonus:       0,
+            tiePayout:   0,
+            specialName: "",
+            specialWon:  false,
+            totalWin:    0,
             pendingExit: false,
             bankSettled: false,
             bankDebtTotal: 0,
             isBot:       false,
+            joiningNextRound: this._joinsNextRound(),
             token:       token
         };
+        if (this.gameState.players[client.sessionId].joiningNextRound) {
+            const p = this.gameState.players[client.sessionId];
+            p.hasBet = false;
+            p.folded = true;
+            p.decided = true;
+            p.result = "joining_next_round";
+            p.description = "Joined table. You will enter on the next round.";
+        }
 
         console.log(`${username} joined Rhum32 (seat ${seat}${isHost ? ', HOST' : ''}). Total: ${Object.keys(this.gameState.players).length}`);
         this.broadcastState();
@@ -588,6 +607,14 @@ class Rhum32Room {
             p.description = "";
             p.tier        = null;
             p.playerValue = null;
+            p.frontPayout = 0;
+            p.backPayout  = 0;
+            p.bonus       = 0;
+            p.tiePayout   = 0;
+            p.specialName = "";
+            p.specialWon  = false;
+            p.totalWin    = 0;
+            p.joiningNextRound = false;
             if (p.disqualified && p.observeRounds > 0) {
                 p.hasBet = false; // observers don't bet
             }
@@ -714,12 +741,19 @@ class Rhum32Room {
             p.tier        = resolution.tier;
             p.result      = resolution.result;
             p.description = resolution.description;
+            p.frontPayout = resolution.frontPayout || 0;
+            p.backPayout  = resolution.backPayout  || 0;
+            p.bonus       = resolution.bonus       || 0;
+            p.tiePayout   = resolution.tiePayout   || 0;
 
             // logic.js returns the single authoritative net wallet delta
             // (bonus-always, back-pushed-on-bust/tie, tie-bet stacking, and
             // 47-50 unbeatable specials are all folded into totalPayout).
             const net = resolution.totalPayout;
             p.totalPayout = net;
+            p.specialName = this._specialNameFromResolution(resolution);
+            p.specialWon  = !!(p.specialName && net > 0);
+            p.totalWin    = p.specialWon ? net : 0;
             await this._applyWalletDelta(p, net, `rhum32 ${resolution.result} settlement`);
 
             const sign = p.totalPayout >= 0 ? '+' : '';
@@ -792,6 +826,16 @@ class Rhum32Room {
         const rank = card[0] === 'T' ? '10' : card[0];
         const suitMap = { h: '\u2665', d: '\u2666', c: '\u2663', s: '\u2660' };
         return rank + (suitMap[card[1]] || card[1]);
+    }
+
+    _joinsNextRound() {
+        return !["waiting", "roundEnd", "gameOver"].includes(this.gameState.status);
+    }
+
+    _specialNameFromResolution(resolution) {
+        const tierName = resolution && resolution.tier && resolution.tier.name;
+        if (!tierName || tierName === "18-31 Normal" || tierName === "Over 31") return "";
+        return tierName;
     }
 
     getPublicState(forSessionId) {
