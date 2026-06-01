@@ -921,8 +921,8 @@ html, body {
 
 /* ── MOBILE BREAKPOINTS ── */
 @media (max-width: 600px) {
-  .oval-table { width:96vw; height:52vw; border-radius:32px; }
-  .side-extras { width:0; overflow:hidden; padding:0; }
+  /* (Table sizing + side-extras handled by the MOBILE PHASE 1 block
+     below — vertical-strip grid layout.) */
   .game-body { padding:2px 0; }
   .my-area { padding:6px 10px 8px; }
   .my-hands { gap:4px; }
@@ -939,6 +939,134 @@ html, body {
   .pile-drop-result { font-size:15px; padding:6px 13px; }
   /* Status / round / timer in top bar */
   #table-message, .status-bar { font-size:14px; }
+}
+
+/* ════════════════════════════════════════════════════════════
+   MOBILE PHASE 1 — vertical-strip table  (≤600px)
+   Plan: docs/system-development/mobile-layout-plan.md
+   Pure media-query gated so desktop (>600px) sees none of it, even
+   if the body.is-mobile JS never runs.
+   ════════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+  /* Screen = single column filling the dynamic viewport height so the
+     bottom work area stays reachable without page scroll. dvh tracks
+     the mobile browser chrome; vh is the fallback. */
+  #screen-game.active {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .top-bar, .status-bar { flex-shrink: 0; }
+
+  /* Table region scrolls independently; bottom work area stays pinned. */
+  .game-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    overflow-y: auto;
+    overflow-x: hidden;
+    gap: 6px;
+    padding: 6px;
+  }
+
+  /* Countdown duplicates the top-bar timer on mobile — hide it. */
+  .game-body > .countdown-box { display: none; }
+
+  /* ── Table → CSS-grid strips (no DOM changes) ──
+     felt-grid + table-logo stay position:absolute so they don't take
+     grid cells; the 4 seat zones are placed by grid-area. */
+  .oval-table {
+    order: 0;
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    border-radius: 14px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-auto-rows: min-content;
+    grid-template-areas:
+      "bank bank bank"
+      "p3   p2   p1";
+    gap: 6px;
+    padding: 8px;
+    animation: none !important;     /* drop desktop LED cycle */
+    filter: none !important;        /* drop drop-shadow filter (traps fixed kids) */
+    flex-shrink: 0;
+  }
+  /* Neutralise absolute seat positioning AND the banker-pov !important
+     transforms so grid-area fully controls placement. */
+  .oval-table .zone,
+  .oval-table.banker-pov .zone {
+    position: static !important;
+    top: auto !important; bottom: auto !important;
+    left: auto !important; right: auto !important;
+    transform: none !important;
+    max-height: none !important;
+  }
+  .zone-banker { grid-area: bank; align-items: stretch !important; }
+  .zone-p3     { grid-area: p3; }
+  .zone-p2     { grid-area: p2; }
+  .zone-p1     { grid-area: p1; }
+
+  /* Opponent + banker seats: stack their 3 hands vertically, compact. */
+  .zone-p1, .zone-p2, .zone-p3 {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 3px;
+  }
+  .p1-hands, .p2-hands, .p3-hands, .banker-hands {
+    flex-direction: column !important;
+    gap: 3px;
+    align-items: stretch;
+    width: 100%;
+  }
+  /* Horizontal card slots fill the third-of-screen column. */
+  .hb-horiz { gap: 3px; }
+  .hb-horiz .hb-cards,
+  .hb-horiz.hb-first .hb-cards {
+    width: 100% !important;
+    min-width: 0;
+    height: clamp(28px, 7.5vw, 38px);
+  }
+  .hb-horiz .hb-label { min-width: 20px; }
+
+  /* ── Side rails (P1/P3 name+chips live here, outside the table) ──
+     Reflow as full-width horizontal info chips below the table so P1/P3
+     identity + chips stay visible (was width:0 = hidden). */
+  .side-extras {
+    width: 100% !important;
+    flex-direction: row !important;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 5px 10px;
+    overflow: visible;
+    flex-shrink: 0;
+    background: rgba(8,18,36,.6);
+    border: 1px solid rgba(201,168,76,.22);
+    border-radius: 8px;
+  }
+  .side-extras .side-name {
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    transform: none !important;
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  .side-right { order: 1; }   /* P1 info row, just below the table */
+  .side-left  { order: 2; }   /* P3 info row */
+
+  /* Bottom work area: pinned, capped, scrolls internally. */
+  .my-area {
+    flex-shrink: 0;
+    max-height: 48dvh;
+  }
 }
 
 /* ── DEAL ANIMATION (betting phase) ── */
