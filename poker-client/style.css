@@ -1138,6 +1138,31 @@ html, body {
   }
 }
 
+/* ════════════════════════════════════════════════════════════
+   MOBILE PHASE 1.4 — overlay stacking (≤600px)
+   Desktop pins the announce banner, P&L card, low-wallet toast and
+   countdown all toward the top-right / bottom, where on a phone they
+   collide with each other and the bottom work area. Re-band them into
+   non-overlapping zones. Countdown is already hidden on mobile.
+   ════════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+  /* Side-bet announcement: just under the top+status bars, full-ish. */
+  .sidebet-announce-banner { top: 58px; max-width: 94vw; }
+  /* Round P&L card: below the announce band, centered, readable width. */
+  .round-delta-card {
+    top: 132px; right: 50%; left: auto;
+    transform: translateX(50%);
+    min-width: 200px;
+  }
+  /* Low-wallet / generic toast: was bottom:24px (under the work area).
+     Move to mid-screen so it never hides behind the tab work area. */
+  body.is-mobile #igm-toast {
+    bottom: auto !important;
+    top: 46% !important;
+    transform: translate(-50%, -50%) !important;
+  }
+}
+
 /* ── DEAL ANIMATION (betting phase) ── */
 .deal-anim-container {
   position: absolute;
