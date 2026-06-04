@@ -1474,7 +1474,8 @@ function renderState(state) {
     // and scans EVERY player's outcome. Each special / tie-bet win is
     // queued; the queue plays sequentially with a delay between calls.
     if (state.status === 'revealing' && prevStatus !== 'revealing') {
-        maybeShowTableAnnouncement(state);
+        const announcementCount = maybeShowTableAnnouncement(state);
+        maybeQueueDealerBust(state, announcementCount);
     }
 
     renderDealer(state.dealer, state.status);
@@ -1499,6 +1500,13 @@ let _annPlaying = false;
 let _annVisibleTimer = null;
 let _annFadeTimer    = null;
 let _annGapTimer     = null;
+const ANNOUNCEMENT_HOLD_MS = 2200;
+const ANNOUNCEMENT_FADE_MS = 400;
+const ANNOUNCEMENT_GAP_MS  = 450;
+const _suppressedSpecialEchoKeys = new Set();
+let _pendingDealerBust = null;
+let _dealerBustHideTimer = null;
+let _lastDealerBustKey = "";
 
 function maybeShowTableAnnouncement(state) {
     // Reset any in-flight queue from a previous round.
@@ -1507,8 +1515,10 @@ function maybeShowTableAnnouncement(state) {
     clearTimeout(_annFadeTimer);
     clearTimeout(_annGapTimer);
     _annPlaying = false;
+    _pendingDealerBust = null;
     const wrap = document.getElementById('table-announcement');
     if (wrap) { wrap.classList.remove('visible'); wrap.setAttribute('aria-hidden', 'true'); }
+    _suppressedSpecialEchoKeys.clear();
 
     const players = state.players || {};
     const events = [];
@@ -1533,6 +1543,11 @@ function maybeShowTableAnnouncement(state) {
                 priority: 10,
                 amount: np,
                 seat,
+                sessionId: sid,
+                username: who,
+                specialName: tierName,
+                round: state.round,
+                isSpecial: true,
                 largeFlow: true
             });
         } else if (tieWon) {
@@ -1550,13 +1565,16 @@ function maybeShowTableAnnouncement(state) {
     events.sort((a, b) => (b.priority - a.priority) || ((b.amount || 0) - (a.amount || 0)));
     _annQueue = events;
     _drainAnnouncementQueue();
-    return;
+    return events.length;
 }
 
 function _drainAnnouncementQueue() {
     if (_annPlaying) return;
     const event = _annQueue.shift();
-    if (!event) return;
+    if (!event) {
+        playPendingDealerBust();
+        return;
+    }
     _annPlaying = true;
     const wrap = document.getElementById('table-announcement');
     const hEl  = document.getElementById('ta-headline');
@@ -1572,13 +1590,14 @@ function _drainAnnouncementQueue() {
     setTimeout(() => animateAnnouncementChipFlow(event), 160);
     // Hold visible 2.2s → fade out 0.4s → 0.45s gap → next.
     _annVisibleTimer = setTimeout(() => {
+        clearWinnerSpecialEcho(event);
         wrap.classList.remove('visible');
         wrap.setAttribute('aria-hidden', 'true');
         _annFadeTimer = setTimeout(() => {
             _annPlaying = false;
-            _annGapTimer = setTimeout(_drainAnnouncementQueue, 450);
-        }, 400);
-    }, 2200);
+            _annGapTimer = setTimeout(_drainAnnouncementQueue, ANNOUNCEMENT_GAP_MS);
+        }, ANNOUNCEMENT_FADE_MS);
+    }, ANNOUNCEMENT_HOLD_MS);
 }
 
 function animateAnnouncementChipFlow(event) {
@@ -1589,6 +1608,63 @@ function animateAnnouncementChipFlow(event) {
         : null;
     const fallback = document.getElementById('my-wallet') || document.querySelector('.my-info-bar');
     animateChipFlow(dealerEl, seatEl || fallback, true, event.amount, { large: !!event.largeFlow });
+}
+
+function clearWinnerSpecialEcho(event) {
+    if (!event || !event.isSpecial || !lastState || !mySessionId) return;
+    const me = lastState.players && lastState.players[mySessionId];
+    if (!me || me.username !== event.username) return;
+    _suppressedSpecialEchoKeys.add(specialEchoKey(mySessionId, event.round));
+    const desc = document.getElementById('reveal-description');
+    if (desc) desc.textContent = '';
+}
+
+function specialEchoKey(sessionId, roundNum) {
+    return `${currentRoomId || 'room'}:${sessionId || 'player'}:${roundNum || lastRound || 'round'}`;
+}
+
+function isLocalSpecialWin(player) {
+    const tierName = (player && player.tier && player.tier.name) || '';
+    const net = Number(player && (player.netPayout ?? player.totalPayout)) || 0;
+    return !!(player && (player.specialWon || (tierName && tierName !== '18-31 Normal' && tierName !== 'Over 31' && net > 0)));
+}
+
+function maybeQueueDealerBust(state, announcementCount) {
+    const value = Number(state && state.dealer && state.dealer.value);
+    if (!(value > 32)) return;
+    const key = String(state.round || 'round') + ':' + value;
+    if (_lastDealerBustKey === key) return;
+    _lastDealerBustKey = key;
+    const event = { key, value };
+    if (announcementCount > 0) {
+        _pendingDealerBust = event;
+    } else {
+        showDealerBustPop(event);
+    }
+}
+
+function playPendingDealerBust() {
+    if (!_pendingDealerBust) return;
+    const event = _pendingDealerBust;
+    _pendingDealerBust = null;
+    showDealerBustPop(event);
+}
+
+function showDealerBustPop(event) {
+    const pop = document.getElementById('dealer-bust-pop');
+    if (!pop || !event) return;
+    const val = document.getElementById('dealer-bust-pop-value');
+    if (val) val.textContent = 'Value ' + event.value;
+    clearTimeout(_dealerBustHideTimer);
+    pop.classList.remove('visible');
+    pop.setAttribute('aria-hidden', 'true');
+    void pop.offsetWidth;
+    pop.classList.add('visible');
+    pop.setAttribute('aria-hidden', 'false');
+    _dealerBustHideTimer = setTimeout(() => {
+        pop.classList.remove('visible');
+        pop.setAttribute('aria-hidden', 'true');
+    }, 1750);
 }
 
 function formatStatus(status) {
@@ -1602,6 +1678,7 @@ function renderDealer(dealer, status) {
     const valueEl   = document.getElementById('dealer-value');
     container.innerHTML = '';
     valueEl.textContent = '';
+    valueEl.className = 'dealer-value';
     if (!dealer || !dealer.cards || dealer.cards.length === 0) return;
     dealer.cards.forEach((card, i) => {
         const isShown = (dealer.shownCard && card === dealer.shownCard && i === 3);
@@ -1610,7 +1687,7 @@ function renderDealer(dealer, status) {
     if (dealer.value !== null && dealer.value !== undefined) {
         const crossed = dealer.value > 32;
         valueEl.textContent = `Value: ${dealer.value}${crossed ? ' (BUST!)' : ''}`;
-        valueEl.style.color = crossed ? '#cc2200' : '#4caf50';
+        valueEl.className = crossed ? 'dealer-value bust' : 'dealer-value live';
     }
 }
 
@@ -1773,7 +1850,8 @@ function renderMyArea(players, status, roundNum) {
         } else if (me.result === 'folded' || me.result === 'auto_fold') {
             rEl.textContent = 'FOLDED'; rEl.style.color = '#999';
         } else rEl.textContent = '';
-        dEl.textContent = me.description || '';
+        const hideSpecialEcho = _suppressedSpecialEchoKeys.has(specialEchoKey(mySessionId, roundNum)) && isLocalSpecialWin(me);
+        dEl.textContent = hideSpecialEcho ? '' : (me.description || '');
         triggerRhum32ChipFlow(me, status, roundNum);
     }
 }

@@ -435,6 +435,7 @@ html, body {
 
 /* ── DEALER ZONE (top center) ── */
 .dealer-zone {
+  position: relative;
   text-align: center; margin-bottom: 6px; z-index: 5;
 }
 .dealer-tag {
@@ -458,8 +459,95 @@ html, body {
 }
 .dealer-value {
   color: var(--gold-lt); font-size: 0.95rem;
-  margin-top: 6px; font-weight: 700;
-  text-shadow: 0 0 6px rgba(201,168,76,0.3);
+  margin-top: 6px; font-weight: 800;
+  text-shadow: 0 1px 2px rgba(0,0,0,.95), 0 0 10px rgba(201,168,76,0.35);
+}
+.dealer-value.live {
+  color: #8ff0b0;
+}
+.dealer-value.bust {
+  display: inline-block;
+  color: #fff8d6;
+  background: linear-gradient(135deg, rgba(3, 14, 16, 0.92), rgba(105, 35, 9, 0.88));
+  border: 1px solid rgba(255, 232, 163, 0.72);
+  border-radius: 999px;
+  padding: 3px 12px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.48),
+    0 0 18px rgba(255, 232, 163, 0.32),
+    inset 0 1px 0 rgba(255,255,255,0.12);
+  text-shadow:
+    0 1px 2px rgba(0,0,0,1),
+    0 0 10px rgba(255, 232, 163, 0.48);
+}
+.dealer-bust-pop {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 4px);
+  z-index: 95;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -8px) scale(0.34);
+  transform-origin: center;
+  min-width: 148px;
+  padding: 8px 18px 9px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 28% 22%, rgba(255,255,255,0.22), transparent 30%),
+    linear-gradient(135deg, rgba(10, 31, 32, 0.96), rgba(82, 42, 9, 0.95));
+  border: 1px solid rgba(255, 232, 163, 0.78);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.62),
+    0 12px 30px rgba(0,0,0,0.58),
+    0 0 32px rgba(255, 232, 163, 0.28);
+  color: #fff8d6;
+  text-align: center;
+}
+.dealer-bust-pop span {
+  display: block;
+  font-family: 'Cinzel Decorative', serif;
+  font-size: clamp(14px, 2vw, 20px);
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  text-shadow: 0 2px 2px rgba(0,0,0,.92), 0 0 13px rgba(255,232,163,.42);
+}
+.dealer-bust-pop strong {
+  display: block;
+  margin-top: 3px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: #8ff0d0;
+  text-shadow: 0 1px 2px rgba(0,0,0,.96);
+}
+.dealer-bust-pop.visible {
+  animation: dealerBustPop 1.75s cubic-bezier(.16,.92,.24,1) both;
+}
+
+@keyframes dealerBustPop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -6px) scale(0.32);
+    filter: blur(1px);
+  }
+  16% {
+    opacity: 1;
+    transform: translate(-50%, -12px) scale(1.16);
+    filter: blur(0);
+  }
+  30% {
+    transform: translate(-50%, -10px) scale(0.98);
+  }
+  72% {
+    opacity: 1;
+    transform: translate(-50%, -10px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -15px) scale(0.9);
+  }
 }
 
 /* ── OVAL TABLE (D-shape) ── */
