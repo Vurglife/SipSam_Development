@@ -25,6 +25,7 @@ const BET_PAYOUTS = {
   column: 2, dozen: 2,
   red: 1, black: 1, even: 1, odd: 1, low: 1, high: 1,
 };
+const NUMBER_WIN_BET_TYPES = new Set(['straight', 'split', 'street', 'trio', 'corner', 'line']);
 
 const RED_SET = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
 const BLACK_SET = new Set([2,4,6,8,10,11,13,15,17,20,22,24,26,28,29,31,33,35]);
@@ -43,6 +44,17 @@ const EUROPEAN_WHEEL = [
   0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10,
   5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
 ];
+
+// Racetrack call bets. Classic European number groups, all valid on the
+// American wheel. Each fans out into individual straight bets the server
+// already understands — NO new server bet type and NO payout-table change,
+// so the money path is untouched. ZERO is the American 0/00 pair.
+const CALL_BET_GROUPS = {
+  tiers:     { label: 'TIERS',     numbers: [5, 8, 10, 11, 13, 16, 23, 24, 27, 30, 33, 36] },
+  orphelins: { label: 'ORPHELINS', numbers: [1, 6, 9, 14, 17, 20, 31, 34] },
+  voisins:   { label: 'VOISINS',   numbers: [0, 2, 3, 4, 7, 12, 15, 18, 19, 21, 22, 25, 26, 28, 29, 32, 35] },
+  zero:      { label: 'ZERO',      numbers: [0, '00'] },
+};
 
 const PHASE_SECONDS = { betting: 40, spinning: 8, resolving: 5 };
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -87,6 +99,9 @@ const S = {
   insideMode: null,
   insideSelection: [],
   showWinValues: false,
+  clearOneMode: false,
+  chipTrayOpen: false,
+  mobileControlsOpen: false,
   soundEnabled: true,
   audioCtx: null,
   spinSoundTimer: null,
@@ -366,6 +381,7 @@ function connectWS() {
     showScreen('screen-game');
     renderChips();
     renderWheelFace();
+    renderMobileWheelTrack();
     attachBoardHandlers();
     attachWheelHandlers();
     refreshBetViewUI();
@@ -477,6 +493,9 @@ function onState(d) {
     S.walletSize = S.cfg?.walletSize || S.walletSize;
     S.wallet = me.wallet;
     S.myBets = me.bets.slice();
+    if (S.clearOneMode && S.myBets.length === 0) {
+      S.clearOneMode = false;
+    }
   }
   const nextStake = S.myBets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
   if (S.phase === 'betting' && nextStake > prevStake) playSound('chip');
@@ -570,6 +589,9 @@ function refreshPhaseUI() {
   if (!bettingOpen && S.insideSelection.length) {
     S.insideSelection = [];
   }
+  if (!bettingOpen && S.clearOneMode) {
+    S.clearOneMode = false;
+  }
   document.querySelectorAll('.cell').forEach((c) => {
     c.style.pointerEvents = bettingOpen ? '' : 'none';
     c.style.opacity = bettingOpen ? '' : '0.78';
@@ -590,8 +612,10 @@ function refreshPhaseUI() {
   document.getElementById('btn-clear').disabled = !bettingOpen;
   updateDoubleButton();
   updateRepeatButton();
+  updateClearOneButton();
   updateWinToggleButton();
   updateSoundButton();
+  updateMobileControlsUI();
   updateInsideBetUI();
   refreshBoardSelection();
   updateMyAreaHeight();
@@ -636,6 +660,9 @@ function renderBoard() {
         btn.className = 'cell ' + (RED_SET.has(n) ? 'num-red' : 'num-black');
         btn.textContent = String(n);
         btn.dataset.bet = JSON.stringify({ type: 'straight', target: n });
+        btn.dataset.number = String(n);
+        btn.style.setProperty('--mobile-row', String(Math.ceil(n / 3)));
+        btn.style.setProperty('--mobile-col', String(((n - 1) % 3) + 1));
         main.appendChild(btn);
       }
     }
@@ -669,6 +696,8 @@ function renderDirectBetHotspots() {
         kind: 'split-v',
         x: streetCenterPct(street),
         y: colBoundaryPct(col),
+        mobileX: mobileColBoundaryPct(col),
+        mobileY: mobileStreetCenterPct(street),
       });
     }
   }
@@ -679,6 +708,8 @@ function renderDirectBetHotspots() {
         kind: 'split-h',
         x: streetBoundaryPct(street),
         y: colCenterPct(col),
+        mobileX: mobileColCenterPct(col),
+        mobileY: mobileStreetBoundaryPct(street),
       });
     }
   }
@@ -694,6 +725,8 @@ function renderDirectBetHotspots() {
         kind: 'corner',
         x: streetBoundaryPct(street),
         y: colBoundaryPct(col),
+        mobileX: mobileColBoundaryPct(col),
+        mobileY: mobileStreetBoundaryPct(street),
       });
     }
   }
@@ -704,6 +737,8 @@ function renderDirectBetHotspots() {
       label: '3',
       x: streetCenterPct(street),
       y: '100%',
+      mobileX: 'calc(100% + 12px)',
+      mobileY: mobileStreetCenterPct(street),
     });
   }
 
@@ -713,6 +748,8 @@ function renderDirectBetHotspots() {
       label: '6',
       x: streetBoundaryPct(street),
       y: '100%',
+      mobileX: 'calc(100% + 12px)',
+      mobileY: mobileStreetBoundaryPct(street),
     });
   }
 
@@ -744,6 +781,8 @@ function addHotspot(parent, type, targets, opts) {
   btn.title = `${betLabelForType(type)} ${targets.map(formatTarget).join('-')}`;
   btn.style.left = opts.x;
   btn.style.top = opts.y;
+  if (opts.mobileX) btn.style.setProperty('--mobile-left', opts.mobileX);
+  if (opts.mobileY) btn.style.setProperty('--mobile-top', opts.mobileY);
   btn.dataset.bet = JSON.stringify({ type, targets });
   btn.dataset.betKey = compoundKey(type, targets);
   parent.appendChild(btn);
@@ -774,6 +813,22 @@ function colBoundaryPct(lowCol) {
   return (((3 - lowCol) / 3) * 100).toFixed(4) + '%';
 }
 
+function mobileStreetCenterPct(street) {
+  return (((street - 0.5) / 12) * 100).toFixed(4) + '%';
+}
+
+function mobileStreetBoundaryPct(street) {
+  return ((street / 12) * 100).toFixed(4) + '%';
+}
+
+function mobileColCenterPct(col) {
+  return (((col - 0.5) / 3) * 100).toFixed(4) + '%';
+}
+
+function mobileColBoundaryPct(lowCol) {
+  return ((lowCol / 3) * 100).toFixed(4) + '%';
+}
+
 function attachBoardHandlers() {
   const board = document.getElementById('board');
   if (board.dataset.handlersAttached) return;
@@ -788,7 +843,7 @@ function attachBoardHandlers() {
       if (S.phase !== 'betting') return flashMessage('Betting is closed');
       let desc;
       try { desc = JSON.parse(direct.dataset.bet); } catch (_) { return; }
-      placeBetDescriptor(desc);
+      handleBetDescriptorClick(desc);
       return;
     }
     const cell = e.target.closest('.cell');
@@ -796,11 +851,15 @@ function attachBoardHandlers() {
     if (S.phase !== 'betting') return flashMessage('Betting is closed');
     let desc;
     try { desc = JSON.parse(cell.dataset.bet); } catch (_) { return; }
+    if (S.clearOneMode) {
+      removeBetDescriptor(desc);
+      return;
+    }
     if (S.insideMode && desc.type === 'straight') {
       toggleInsideTarget(desc.target);
       return;
     }
-    placeBetDescriptor(desc);
+    handleBetDescriptorClick(desc);
   });
 }
 
@@ -846,8 +905,50 @@ function previewTargetsFor(desc) {
 }
 
 function placeBetDescriptor(desc) {
+  if (S.chipTrayOpen) {
+    S.chipTrayOpen = false;
+    updateChipTrayUI();
+  }
   const bet = { ...desc, amount: S.selectedChip };
   send({ type: 'placeBet', bet });
+}
+
+function handleBetDescriptorClick(desc) {
+  if (S.clearOneMode) {
+    removeBetDescriptor(desc);
+    return;
+  }
+  placeBetDescriptor(desc);
+}
+
+// Racetrack call bet: fan a group out into individual straight bets the
+// server already resolves. One chip lands on each number, so chips render
+// on the real pockets and payouts use the existing straight-bet path.
+function placeCallBet(key) {
+  const group = CALL_BET_GROUPS[key];
+  if (!group) return;
+  if (S.phase !== 'betting') return flashMessage('Betting is closed');
+  if (S.clearOneMode) {
+    group.numbers.forEach((n) => removeBetDescriptor({ type: 'straight', target: n }));
+    return;
+  }
+  const chip = Number(S.selectedChip) || 0;
+  const cost = chip * group.numbers.length;
+  const currentStake = (typeof currentBetStake === 'function') ? currentBetStake() : 0;
+  if (cost + currentStake > S.wallet) {
+    playSound('error');
+    return flashMessage('Not enough chips for ' + group.label + ' (needs $' + cost.toLocaleString() + ')');
+  }
+  playSound('button');
+  group.numbers.forEach((n) => placeBetDescriptor({ type: 'straight', target: n }));
+  flashMessage(group.label + ': ' + group.numbers.length + ' numbers · $' + cost.toLocaleString());
+}
+
+function removeBetDescriptor(desc) {
+  if (S.phase !== 'betting') return flashMessage('Betting is closed');
+  if (!S.myBets.length) return flashMessage('No bets to clear');
+  playSound('button');
+  send({ type: 'removeBet', bet: { ...desc } });
 }
 
 function rememberLastBets() {
@@ -935,6 +1036,33 @@ function updateRepeatButton() {
   btn.disabled = !canRepeat;
 }
 
+window.toggleClearOneMode = function () {
+  if (S.phase !== 'betting') return flashMessage('Betting is closed');
+  if (!S.clearOneMode && !S.myBets.length) return flashMessage('No bets to clear');
+  S.clearOneMode = !S.clearOneMode;
+  if (S.clearOneMode) {
+    S.insideMode = null;
+    S.insideSelection = [];
+    refreshBoardSelection();
+    flashMessage('Tap a placed bet to clear one chip');
+  }
+  playSound('button');
+  updateClearOneButton();
+  updateInsideBetUI();
+};
+
+function updateClearOneButton() {
+  const btn = document.getElementById('btn-clear-one');
+  const game = document.getElementById('screen-game');
+  if (btn) {
+    const enabled = S.phase === 'betting';
+    btn.disabled = !enabled;
+    btn.classList.toggle('active', S.clearOneMode);
+    btn.textContent = S.clearOneMode ? 'Clearing' : 'Clear One';
+  }
+  if (game) game.classList.toggle('clear-one-mode', S.clearOneMode);
+}
+
 window.toggleWinValues = function () {
   S.showWinValues = !S.showWinValues;
   playSound('button');
@@ -945,8 +1073,28 @@ window.toggleWinValues = function () {
 function updateWinToggleButton() {
   const btn = document.getElementById('btn-win-toggle');
   if (!btn) return;
-  btn.textContent = S.showWinValues ? 'Win: On' : 'Win: Off';
+  btn.textContent = S.showWinValues ? 'Show Win: On' : 'Show Win: Off';
   btn.classList.toggle('active', S.showWinValues);
+}
+
+window.toggleMobileControls = function () {
+  S.mobileControlsOpen = !S.mobileControlsOpen;
+  if (S.mobileControlsOpen && S.chipTrayOpen) {
+    S.chipTrayOpen = false;
+    updateChipTrayUI();
+  }
+  playSound('button');
+  updateMobileControlsUI();
+};
+
+function updateMobileControlsUI() {
+  const game = document.getElementById('screen-game');
+  const btn = document.getElementById('mobile-controls-toggle');
+  if (game) game.classList.toggle('mobile-controls-open', !!S.mobileControlsOpen);
+  if (btn) {
+    btn.setAttribute('aria-expanded', S.mobileControlsOpen ? 'true' : 'false');
+    btn.textContent = S.mobileControlsOpen ? 'Hide' : 'Controls';
+  }
 }
 
 window.setBetView = function (view) {
@@ -963,10 +1111,21 @@ window.setBetView = function (view) {
 
 function refreshBetViewUI() {
   const game = document.getElementById('screen-game');
-  if (game) game.classList.toggle('bet-view-wheel', S.betView === 'wheel');
+  const isWheelView = S.betView === 'wheel';
+  renderMobileWheelTrack();
+  if (game) {
+    game.classList.toggle('bet-view-wheel', isWheelView);
+    game.dataset.betView = isWheelView ? 'wheel' : 'table';
+  }
+  const tablePanel = document.getElementById('table-mode-panel');
+  const wheelPanel = document.getElementById('wheel-mode-panel');
+  const modeStage = document.getElementById('bet-mode-stage');
+  if (tablePanel) tablePanel.setAttribute('aria-hidden', isWheelView ? 'true' : 'false');
+  if (wheelPanel) wheelPanel.setAttribute('aria-hidden', isWheelView ? 'false' : 'true');
+  if (modeStage) modeStage.dataset.activeView = isWheelView ? 'wheel' : 'table';
   document.querySelectorAll('.view-toggle').forEach((btn) => {
-    const active = (btn.id === 'view-wheel' && S.betView === 'wheel')
-      || (btn.id === 'view-table' && S.betView !== 'wheel');
+    const active = (btn.id === 'view-wheel' && isWheelView)
+      || (btn.id === 'view-table' && !isWheelView);
     btn.classList.toggle('active', active);
   });
   updateMyAreaHeight();
@@ -981,7 +1140,7 @@ function attachWheelHandlers() {
     if (!pocket || S.betView !== 'wheel') return;
     if (S.phase !== 'betting') return flashMessage('Betting is closed');
     const target = parseWheelTarget(pocket.dataset.pocket);
-    placeBetDescriptor({ type: 'straight', target });
+    handleBetDescriptorClick({ type: 'straight', target });
   });
 
   document.querySelectorAll('.wheel-special-bet').forEach((btn) => {
@@ -992,11 +1151,75 @@ function attachWheelHandlers() {
   });
 }
 
+function renderMobileWheelTrack() {
+  const mount = document.getElementById('mobile-wheel-track');
+  if (!mount || mount.dataset.rendered) return;
+
+  const left = AMERICAN_WHEEL.slice(0, 19);
+  const right = AMERICAN_WHEEL.slice(19).reverse();
+  const makePocket = (pocket, side, index) => {
+    const btn = document.createElement('button');
+    const color = colorOfNum(pocket);
+    const curve = Math.sin((index / 18) * Math.PI);
+    const shift = (1 - curve) * 24 * (side === 'left' ? 1 : -1);
+    btn.type = 'button';
+    btn.className = `mobile-wheel-pocket ${color} ${side}`;
+    btn.dataset.pocket = String(pocket);
+    btn.dataset.bet = JSON.stringify({ type: 'straight', target: pocket });
+    btn.dataset.betKey = 'straight:' + String(pocket);
+    btn.style.setProperty('--track-i', String(index));
+    btn.style.setProperty('--pocket-shift', `${shift.toFixed(2)}px`);
+    btn.innerHTML = `<span class="mobile-wheel-num">${pocket}</span>`;
+    return btn;
+  };
+
+  const leftCol = document.createElement('div');
+  leftCol.className = 'mobile-wheel-track-col mobile-wheel-track-left';
+  left.forEach((pocket, index) => leftCol.appendChild(makePocket(pocket, 'left', index)));
+
+  const rightCol = document.createElement('div');
+  rightCol.className = 'mobile-wheel-track-col mobile-wheel-track-right';
+  right.forEach((pocket, index) => rightCol.appendChild(makePocket(pocket, 'right', index)));
+
+  const center = document.createElement('div');
+  center.className = 'mobile-wheel-track-center';
+  center.innerHTML = `
+    <button type="button" class="track-call-bet track-zone-top" data-callbet="tiers" data-bet-key="callbet:tiers" title="Tiers du Cylindre — 12 numbers">
+      <span class="tcb-name">TIERS</span><span class="tcb-meta">12 No.</span>
+    </button>
+    <button type="button" class="track-call-bet" data-callbet="orphelins" data-bet-key="callbet:orphelins" title="Orphelins — 8 numbers">
+      <span class="tcb-name">ORPHELINS</span><span class="tcb-meta">8 No.</span>
+    </button>
+    <button type="button" class="track-call-bet" data-callbet="voisins" data-bet-key="callbet:voisins" title="Voisins du Zéro — 17 numbers">
+      <span class="tcb-name">VOISINS</span><span class="tcb-meta">17 No.</span>
+    </button>
+    <button type="button" class="track-call-bet track-zone-bottom" data-callbet="zero" data-bet-key="callbet:zero" title="Zero — 0 and 00">
+      <span class="tcb-name">ZERO</span><span class="tcb-meta">0 &amp; 00</span>
+    </button>
+  `;
+
+  mount.appendChild(leftCol);
+  mount.appendChild(center);
+  mount.appendChild(rightCol);
+  mount.dataset.rendered = '1';
+  mount.addEventListener('click', (e) => {
+    if (S.betView !== 'wheel') return;
+    const callBtn = e.target.closest('.track-call-bet');
+    if (callBtn) { placeCallBet(callBtn.dataset.callbet); return; }
+    const pocket = e.target.closest('.mobile-wheel-pocket');
+    if (!pocket) return;
+    if (S.phase !== 'betting') return flashMessage('Betting is closed');
+    const target = parseWheelTarget(pocket.dataset.pocket);
+    handleBetDescriptorClick({ type: 'straight', target });
+  });
+  redrawMobileWheelTrackChips();
+}
+
 window.placeWheelSpecialBet = function (el) {
   if (S.phase !== 'betting') return flashMessage('Betting is closed');
   let desc;
   try { desc = JSON.parse(el.dataset.bet); } catch (_) { return; }
-  placeBetDescriptor(desc);
+  handleBetDescriptorClick(desc);
 };
 
 function showWheelTargetPreview(targets) {
@@ -1029,11 +1252,36 @@ function renderWheelFace() {
     'aria-label': 'American roulette wheel',
   });
 
+  svg.appendChild(createWheelDefs());
+  svg.appendChild(svgEl('circle', {
+    class: 'wheel-neon-ring wheel-neon-magenta',
+    cx: WHEEL_CENTER,
+    cy: WHEEL_CENTER,
+    r: 119,
+  }));
+  svg.appendChild(svgEl('circle', {
+    class: 'wheel-neon-ring wheel-neon-blue',
+    cx: WHEEL_CENTER,
+    cy: WHEEL_CENTER,
+    r: 115,
+  }));
+  svg.appendChild(svgEl('circle', {
+    class: 'wheel-rim wheel-rim-outer',
+    cx: WHEEL_CENTER,
+    cy: WHEEL_CENTER,
+    r: 116,
+  }));
   svg.appendChild(svgEl('circle', {
     class: 'wheel-bowl',
     cx: WHEEL_CENTER,
     cy: WHEEL_CENTER,
     r: 118,
+  }));
+  svg.appendChild(svgEl('circle', {
+    class: 'wheel-rim wheel-rim-inner',
+    cx: WHEEL_CENTER,
+    cy: WHEEL_CENTER,
+    r: 108,
   }));
 
   const face = svgEl('g', { id: 'wheel-face', class: 'wheel-face' });
@@ -1055,6 +1303,19 @@ function renderWheelFace() {
       class: 'wheel-pocket-path',
       d: sectorPath(WHEEL_OUTER_R, WHEEL_INNER_R, start, end),
     }));
+    group.appendChild(svgEl('path', {
+      class: 'wheel-pocket-depth',
+      d: sectorPath(WHEEL_OUTER_R - 16, WHEEL_INNER_R + 6, start + 0.7, end - 0.7),
+    }));
+    const sepOuter = polarPoint(WHEEL_OUTER_R - 0.5, start);
+    const sepInner = polarPoint(WHEEL_INNER_R + 1.5, start);
+    group.appendChild(svgEl('line', {
+      class: 'wheel-pocket-separator',
+      x1: sepOuter.x.toFixed(2),
+      y1: sepOuter.y.toFixed(2),
+      x2: sepInner.x.toFixed(2),
+      y2: sepInner.y.toFixed(2),
+    }));
     const labelPos = polarPoint(WHEEL_LABEL_R, mid);
     const chipPos = polarPoint(84, mid);
     group.dataset.chipX = chipPos.x.toFixed(2);
@@ -1074,6 +1335,15 @@ function renderWheelFace() {
   }
 
   svg.appendChild(face);
+  for (let i = 0; i < 16; i += 1) {
+    const angle = i * 22.5;
+    const p = polarPoint(111.5, angle);
+    svg.appendChild(svgEl('polygon', {
+      class: 'wheel-rim-pin',
+      points: '0,-2.6 2.4,0 0,2.6 -2.4,0',
+      transform: `translate(${p.x.toFixed(2)} ${p.y.toFixed(2)}) rotate(${angle})`,
+    }));
+  }
   svg.appendChild(svgEl('circle', {
     class: 'wheel-ball-track',
     cx: WHEEL_CENTER,
@@ -1086,16 +1356,84 @@ function renderWheelFace() {
     cy: WHEEL_CENTER,
     r: WHEEL_INNER_R - 11,
   }));
+  const spokes = svgEl('g', { class: 'wheel-spokes' });
+  for (let i = 0; i < 8; i += 1) {
+    const angle = i * 45;
+    const a = polarPoint(19, angle);
+    const b = polarPoint(WHEEL_INNER_R - 15, angle);
+    spokes.appendChild(svgEl('line', {
+      class: 'wheel-spoke',
+      x1: a.x.toFixed(2),
+      y1: a.y.toFixed(2),
+      x2: b.x.toFixed(2),
+      y2: b.y.toFixed(2),
+    }));
+  }
+  svg.appendChild(spokes);
+  const handleGroup = svgEl('g', { class: 'wheel-handle-group' });
+  for (let i = 0; i < 4; i += 1) {
+    const angle = i * 90;
+    const a = polarPoint(18, angle);
+    const b = polarPoint(47, angle);
+    const knob = polarPoint(52, angle);
+    handleGroup.appendChild(svgEl('line', {
+      class: 'wheel-handle',
+      x1: a.x.toFixed(2),
+      y1: a.y.toFixed(2),
+      x2: b.x.toFixed(2),
+      y2: b.y.toFixed(2),
+    }));
+    handleGroup.appendChild(svgEl('circle', {
+      class: 'wheel-handle-knob',
+      cx: knob.x.toFixed(2),
+      cy: knob.y.toFixed(2),
+      r: 4.2,
+    }));
+  }
+  svg.appendChild(handleGroup);
+  svg.appendChild(svgEl('circle', {
+    class: 'wheel-hub-base',
+    cx: WHEEL_CENTER,
+    cy: WHEEL_CENTER,
+    r: 24,
+  }));
   svg.appendChild(svgEl('circle', {
     class: 'wheel-hub',
     cx: WHEEL_CENTER,
     cy: WHEEL_CENTER,
     r: 14,
   }));
+  svg.appendChild(svgEl('image', {
+    class: 'wheel-hub-logo',
+    href: 'VurgLife_logo_table.png?v=1',
+    x: WHEEL_CENTER - 18,
+    y: WHEEL_CENTER - 6,
+    width: 36,
+    height: 12,
+    preserveAspectRatio: 'xMidYMid meet',
+  }));
+  const brand = svgEl('text', {
+    class: 'wheel-brand',
+    x: WHEEL_CENTER,
+    y: WHEEL_CENTER + 1,
+    'text-anchor': 'middle',
+    'dominant-baseline': 'central',
+  });
+  brand.textContent = 'VURG';
+  svg.appendChild(brand);
+  const brandAccent = svgEl('text', {
+    class: 'wheel-brand-accent',
+    x: WHEEL_CENTER + 15,
+    y: WHEEL_CENTER + 2,
+    'text-anchor': 'middle',
+    'dominant-baseline': 'central',
+  });
+  brandAccent.textContent = 'Life';
+  svg.appendChild(brandAccent);
   svg.appendChild(svgEl('circle', {
     id: 'wheel-ball',
     class: 'wheel-ball',
-    r: 4.8,
+    r: 5.3,
   }));
 
   mount.textContent = '';
@@ -1104,6 +1442,62 @@ function renderWheelFace() {
   setWheelFaceRotation(S.wheelRotation);
   setBallAtAngle(S.ballAngle);
   redrawWheelChipStacks();
+}
+
+function createWheelDefs() {
+  const defs = svgEl('defs');
+  defs.innerHTML = `
+    <radialGradient id="wheelBowlGlow" cx="50%" cy="42%" r="63%">
+      <stop offset="0%" stop-color="#2b2e38"/>
+      <stop offset="42%" stop-color="#090b10"/>
+      <stop offset="76%" stop-color="#020306"/>
+      <stop offset="100%" stop-color="#1a1721"/>
+    </radialGradient>
+    <radialGradient id="wheelInnerGloss" cx="38%" cy="28%" r="75%">
+      <stop offset="0%" stop-color="#2d2f38"/>
+      <stop offset="45%" stop-color="#0d0f15"/>
+      <stop offset="100%" stop-color="#030407"/>
+    </radialGradient>
+    <linearGradient id="wheelPocketRed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff4b4b"/>
+      <stop offset="38%" stop-color="#d51621"/>
+      <stop offset="100%" stop-color="#62070d"/>
+    </linearGradient>
+    <linearGradient id="wheelPocketBlack" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3a4045"/>
+      <stop offset="42%" stop-color="#0f1216"/>
+      <stop offset="100%" stop-color="#010204"/>
+    </linearGradient>
+    <linearGradient id="wheelPocketGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#31d76c"/>
+      <stop offset="45%" stop-color="#078a37"/>
+      <stop offset="100%" stop-color="#033a17"/>
+    </linearGradient>
+    <linearGradient id="wheelMetal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="18%" stop-color="#8ba0c4"/>
+      <stop offset="42%" stop-color="#121927"/>
+      <stop offset="62%" stop-color="#d9e6ff"/>
+      <stop offset="100%" stop-color="#1c2538"/>
+    </linearGradient>
+    <linearGradient id="wheelNeonBlue" x1="0%" y1="20%" x2="100%" y2="80%">
+      <stop offset="0%" stop-color="#24f2ff"/>
+      <stop offset="52%" stop-color="#3977ff"/>
+      <stop offset="100%" stop-color="#0cf5ff"/>
+    </linearGradient>
+    <linearGradient id="wheelNeonMagenta" x1="0%" y1="80%" x2="100%" y2="20%">
+      <stop offset="0%" stop-color="#ff38fb"/>
+      <stop offset="50%" stop-color="#c047ff"/>
+      <stop offset="100%" stop-color="#5c65ff"/>
+    </linearGradient>
+    <filter id="wheelNeonGlow" x="-35%" y="-35%" width="170%" height="170%">
+      <feGaussianBlur stdDeviation="2.3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>`;
+  return defs;
 }
 
 function svgEl(name, attrs) {
@@ -1147,11 +1541,11 @@ function setWheelFaceRotation(deg) {
   face.style.transform = `rotate(${deg}deg)`;
 }
 
-function setBallAtAngle(deg) {
+function setBallAtAngle(deg, radius = BALL_TRACK_R) {
   S.ballAngle = deg;
   const ball = document.getElementById('wheel-ball');
   if (!ball) return;
-  const p = polarPoint(BALL_TRACK_R, normalizeDeg(deg));
+  const p = polarPoint(radius, normalizeDeg(deg));
   ball.setAttribute('cx', p.x.toFixed(2));
   ball.setAttribute('cy', p.y.toFixed(2));
 }
@@ -1189,25 +1583,32 @@ function cellKeyForBet(b) {
 function redrawChipStacks() {
   // Clear existing stacks
   document.querySelectorAll('.chip-stack').forEach((n) => n.remove());
+  document.querySelectorAll('.number-win-label').forEach((n) => n.remove());
+  document.querySelectorAll('.cell.has-number-win').forEach((n) => {
+    n.classList.remove('has-number-win');
+    delete n.dataset.winFull;
+  });
   document.querySelectorAll('.bet-hotspot.has-chip, .zero-hotspot.has-chip, .wheel-special-bet.has-chip').forEach((n) => n.classList.remove('has-chip'));
   const sums = new Map();
   for (const b of S.myBets) {
     const k = cellKeyForBet(b);
-    const prev = sums.get(k) || { amount: 0, win: 0 };
+    const prev = sums.get(k) || { amount: 0, win: 0, type: b.type };
     prev.amount += b.amount;
     prev.win += potentialWinForBet(b);
+    prev.type = b.type;
     sums.set(k, prev);
   }
   for (const [key, sum] of sums) {
     const cell = findCellByKey(key);
     if (!cell) continue;
     const chip = document.createElement('div');
-    chip.className = 'chip-stack' + (S.showWinValues ? ' with-win' : '');
+    const showPlacementWin = S.showWinValues && !NUMBER_WIN_BET_TYPES.has(sum.type);
+    chip.className = 'chip-stack' + (showPlacementWin ? ' with-win' : '');
     const stake = document.createElement('span');
     stake.className = 'chip-stake';
     stake.textContent = fmtChip(sum.amount);
     chip.appendChild(stake);
-    if (S.showWinValues) {
+    if (showPlacementWin) {
       const win = document.createElement('span');
       win.className = 'chip-win-label';
       win.textContent = '+$' + fmtChip(sum.win);
@@ -1216,13 +1617,42 @@ function redrawChipStacks() {
     cell.appendChild(chip);
     cell.classList.add('has-chip');
   }
+  renderNumberWinLabels();
   redrawWheelChipStacks();
   renderWallet();
 }
 
+function renderNumberWinLabels() {
+  if (!S.showWinValues) return;
+  const sums = new Map();
+  for (const b of S.myBets) {
+    if (!NUMBER_WIN_BET_TYPES.has(b.type) || !Array.isArray(b.numbers)) continue;
+    const win = potentialWinForBet(b);
+    if (!win) continue;
+    for (const target of b.numbers) {
+      const key = String(target);
+      sums.set(key, (sums.get(key) || 0) + win);
+    }
+  }
+  for (const [target, win] of sums) {
+    const cell = findCellByKey('straight:' + target);
+    if (!cell) continue;
+    const label = document.createElement('span');
+    label.className = 'number-win-label';
+    label.textContent = fmtWinBadge(win);
+    label.title = 'Potential win ' + fmtMoneyFull(win);
+    cell.dataset.winFull = 'Win ' + fmtMoneyFull(win);
+    cell.appendChild(label);
+    cell.classList.add('has-number-win');
+  }
+}
+
 function redrawWheelChipStacks() {
   const face = document.getElementById('wheel-face');
-  if (!face) return;
+  if (!face) {
+    redrawMobileWheelTrackChips();
+    return;
+  }
   face.querySelectorAll('.wheel-chip').forEach((n) => n.remove());
   const sums = new Map();
   for (const b of S.myBets) {
@@ -1270,17 +1700,52 @@ function redrawWheelChipStacks() {
     }
     face.appendChild(chip);
   }
+  redrawMobileWheelTrackChips();
+}
+
+function redrawMobileWheelTrackChips() {
+  const track = document.getElementById('mobile-wheel-track');
+  if (!track) return;
+  track.querySelectorAll('.mobile-track-chip').forEach((n) => n.remove());
+  track.querySelectorAll('.mobile-wheel-pocket.has-chip').forEach((n) => n.classList.remove('has-chip'));
+  const sums = new Map();
+  for (const b of S.myBets) {
+    if (b.type !== 'straight' || !b.numbers || !b.numbers.length) continue;
+    const key = String(b.numbers[0]);
+    const prev = sums.get(key) || { amount: 0, win: 0 };
+    prev.amount += b.amount;
+    prev.win += potentialWinForBet(b);
+    sums.set(key, prev);
+  }
+  for (const [key, sum] of sums) {
+    const pocket = Array.from(track.querySelectorAll('.mobile-wheel-pocket')).find((el) => el.dataset.pocket === key);
+    if (!pocket) continue;
+    const chip = document.createElement('span');
+    chip.className = 'mobile-track-chip';
+    chip.textContent = fmtChip(sum.amount);
+    if (S.showWinValues) chip.title = 'Potential win ' + fmtMoneyFull(sum.win);
+    pocket.appendChild(chip);
+    pocket.classList.add('has-chip');
+  }
+
+  // Light up a call-bet sector when every number in its group is covered.
+  track.querySelectorAll('.track-call-bet').forEach((sector) => {
+    const group = CALL_BET_GROUPS[sector.dataset.callbet];
+    const active = !!group && group.numbers.every((n) => sums.has(String(n)));
+    sector.classList.toggle('has-chip', active);
+  });
 }
 
 function potentialWinForBet(b) {
   const ratio = BET_PAYOUTS[b.type] || 0;
-  return (Number(b.amount) || 0) * ratio;
+  return (Number(b.amount) || 0) * (ratio + 1);
 }
 
 function findCellByKey(key) {
   const matches = [];
   for (const hook of document.querySelectorAll('[data-bet-key]')) {
     if (hook.dataset.betKey !== key) continue;
+    if (hook.classList.contains('wheel-pocket') || hook.classList.contains('mobile-wheel-pocket')) continue;
     if (isVisibleBetHook(hook)) return hook;
     matches.push(hook);
   }
@@ -1314,8 +1779,20 @@ function fmtChip(n) {
   return String(n);
 }
 
+function fmtWinBadge(n) {
+  return '$' + fmtChip(Number(n) || 0);
+}
+
+function fmtMoneyFull(n) {
+  return '$' + Math.max(0, Math.floor(Number(n) || 0)).toLocaleString();
+}
+
 // Inside bets: mobile-safe precision controls for split, row, trio, corner, line.
 window.setInsideMode = function (mode) {
+  if (S.clearOneMode) {
+    S.clearOneMode = false;
+    updateClearOneButton();
+  }
   S.insideMode = mode && mode !== 'straight' ? mode : null;
   S.insideSelection = [];
   updateInsideBetUI();
@@ -1534,6 +2011,7 @@ function isValidLineSelection(ns) {
 function renderChips() {
   const row = document.getElementById('chip-row');
   row.innerHTML = '';
+  row.classList.toggle('chip-tray-open', !!S.chipTrayOpen);
   const chipCap = Number(S.cfg?.maxChip || S.cfg?.maxBet || 500);
   let denoms = [100, 500, 1000, 5000, 10000, 25000, 50000, 100000]
     .filter((value) => value <= chipCap);
@@ -1541,22 +2019,66 @@ function renderChips() {
   S.chipDenoms = denoms;
   if (!denoms.includes(S.selectedChip)) S.selectedChip = denoms[0];
 
-  for (const d of denoms) {
+  for (let index = 0; index < denoms.length; index += 1) {
+    const d = denoms[index];
     const btn = document.createElement('button');
     btn.className = 'chip c-' + d + (d === S.selectedChip ? ' selected' : '');
     btn.textContent = '$' + fmtChip(d);
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'Select chip $' + fmtChip(d));
+    btn.style.setProperty('--chip-i', String(index));
     btn.onclick = () => {
+      if (d === S.selectedChip && isCompactChipTray()) {
+        S.chipTrayOpen = !S.chipTrayOpen;
+        if (S.chipTrayOpen && S.mobileControlsOpen) {
+          S.mobileControlsOpen = false;
+          updateMobileControlsUI();
+        }
+        playSound('button');
+        updateChipTrayUI();
+        return;
+      }
       S.selectedChip = d;
+      S.chipTrayOpen = false;
+      if (S.mobileControlsOpen) {
+        S.mobileControlsOpen = false;
+        updateMobileControlsUI();
+      }
       playSound('button');
       document.querySelectorAll('.chip').forEach((c) =>
         c.classList.toggle('selected', c.textContent === '$' + fmtChip(d)));
       document.getElementById('selected-chip-label').textContent = 'CHIP: $' + fmtChip(d);
+      updateChipTrayUI();
     };
     row.appendChild(btn);
   }
+  updateChipTrayUI();
   document.getElementById('selected-chip-label').textContent = 'CHIP: $' + fmtChip(S.selectedChip);
   updateInsideBetUI();
   updateMyAreaHeight();
+}
+
+function isCompactChipTray() {
+  return window.matchMedia && window.matchMedia('(max-width: 679px), (max-width: 940px) and (max-height: 520px) and (orientation: landscape)').matches;
+}
+
+function updateChipTrayUI() {
+  const row = document.getElementById('chip-row');
+  if (!row) return;
+  row.classList.toggle('chip-tray-open', !!S.chipTrayOpen);
+  const chips = Array.from(row.querySelectorAll('.chip'));
+  const selectable = chips.filter((chip) => !chip.classList.contains('selected'));
+  const spread = Math.min(142, Math.max(82, selectable.length * 21));
+  const start = -155;
+  const end = -25;
+  const step = selectable.length > 1 ? (end - start) / (selectable.length - 1) : 0;
+  selectable.forEach((chip, index) => {
+    const angle = (start + step * index) * Math.PI / 180;
+    const x = Math.cos(angle) * spread;
+    const y = Math.sin(angle) * spread;
+    chip.style.setProperty('--chip-x', x.toFixed(1) + 'px');
+    chip.style.setProperty('--chip-y', y.toFixed(1) + 'px');
+  });
 }
 
 // ── Wallet / history ──────────────────────────────────────
@@ -1835,6 +2357,7 @@ function animateWheel(winning) {
   const startBall = S.ballAngle || 0;
   const ballBackToTop = normalizeDeg(startBall);
   const endBall = startBall - 360 * 8 - ballBackToTop;
+  const launchRadius = Math.max(24, WHEEL_INNER_R - 28);
   const started = performance.now();
   const duration = Math.max(3600, (PHASE_SECONDS.spinning - 0.45) * 1000);
 
@@ -1845,8 +2368,10 @@ function animateWheel(winning) {
   const frame = (now) => {
     const t = Math.min(1, (now - started) / duration);
     const eased = easeOutCubic(t);
+    const launchT = Math.min(1, t / 0.18);
+    const ballRadius = launchRadius + (BALL_TRACK_R - launchRadius) * easeOutCubic(launchT);
     setWheelFaceRotation(startWheel + (endWheel - startWheel) * eased);
-    setBallAtAngle(startBall + (endBall - startBall) * eased);
+    setBallAtAngle(startBall + (endBall - startBall) * eased, ballRadius);
     if (t < 1) {
       S.wheelAnimId = requestAnimationFrame(frame);
       return;
@@ -1866,7 +2391,7 @@ function highlightWinningCell(winning) {
   if (cell) cell.classList.add('hit');
   setTimeout(() => {
     if (cell) cell.classList.remove('hit');
-  }, 2800);
+  }, 4200);
 }
 
 function highlightWinningPocket(winning) {
@@ -1884,11 +2409,21 @@ function highlightWinningPocket(winning) {
 function showWinningNumber(winning, big) {
   const display = document.getElementById('winning-display');
   const num = document.getElementById('winning-num');
+  const card = document.getElementById('winning-card');
+  const prev = document.getElementById('winning-prev');
+  const next = document.getElementById('winning-next');
   if (!display || !num) return;
-  display.classList.toggle('show-win', !!big);
+  const hasWinning = winning !== null && winning !== undefined;
+  display.classList.toggle('show-win', !!big && hasWinning);
+  display.classList.toggle('pop-result', !!big && hasWinning);
+  display.classList.toggle('has-result', hasWinning);
+  if (card) {
+    card.classList.remove('red', 'black', 'green', 'pending');
+  }
+  if (prev) prev.textContent = '';
+  if (next) next.textContent = '';
   if (winning === null) {
-    num.textContent = '...';
-    num.style.color = '#ffe9a8';
+    num.textContent = '';
     return;
   }
   if (winning === undefined) {
@@ -1898,9 +2433,18 @@ function showWinningNumber(winning, big) {
   }
   num.textContent = String(winning);
   const color = colorOfNum(winning);
+  if (card && color) card.classList.add(color);
   num.style.color = color === 'red' ? '#ff8585'
     : color === 'black' ? '#fff'
     : '#9aeeaa';
+  const wheel = wheelFor(S.variant);
+  const idx = wheel.findIndex((p) => String(p) === String(winning));
+  if (idx >= 0) {
+    const previousPocket = wheel[(idx - 1 + wheel.length) % wheel.length];
+    const nextPocket = wheel[(idx + 1) % wheel.length];
+    if (prev) prev.textContent = String(previousPocket);
+    if (next) next.textContent = String(nextPocket);
+  }
 }
 
 function setWheelFocus(active) {
@@ -2131,7 +2675,12 @@ window.toggleGameMenu = function () {
   m.style.display = m.style.display === 'none' ? 'flex' : 'none';
 };
 window.undoBet    = function () { playSound('button'); send({ type: 'undoBet' }); };
-window.clearBets  = function () { playSound('button'); send({ type: 'clearBets' }); };
+window.clearBets  = function () {
+  S.clearOneMode = false;
+  updateClearOneButton();
+  playSound('button');
+  send({ type: 'clearBets' });
+};
 window.replenishWallet = function () {
   send({ type: 'replenishWallet' });
   document.getElementById('game-menu').style.display = 'none';

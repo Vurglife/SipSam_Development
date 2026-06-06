@@ -254,6 +254,7 @@ class RouletteRoom {
   get handlers() {
     return {
       placeBet:   this.onPlaceBet,
+      removeBet:  this.onRemoveBet,
       doubleBets: this.onDoubleBets,
       clearBets:  this.onClearBets,
       undoBet:    this.onUndoBet,
@@ -317,6 +318,35 @@ class RouletteRoom {
     if (this.phase !== 'betting') return;
     p.bets.pop();
     this.broadcastState();
+  }
+
+  onRemoveBet(client, data) {
+    const p = this.players[client.sessionId];
+    if (!p) return;
+    if (this.phase !== 'betting') {
+      return this._err(client, 'Betting is closed');
+    }
+    if (!p.bets.length) {
+      return this._err(client, 'No bets to clear');
+    }
+
+    let target;
+    try {
+      if (!data || !data.bet) throw new Error('Invalid bet');
+      target = engine.normalizeBet(data.bet, this.variant);
+    } catch (e) {
+      return this._err(client, e.message);
+    }
+
+    const targetKey = this._betShapeKey(target);
+    for (let i = p.bets.length - 1; i >= 0; i -= 1) {
+      if (this._betShapeKey(p.bets[i]) === targetKey) {
+        p.bets.splice(i, 1);
+        this.broadcastState();
+        return;
+      }
+    }
+    this._err(client, 'No matching bet to clear');
   }
 
   onDoubleBets(client) {
@@ -455,6 +485,13 @@ class RouletteRoom {
       };
     }
     return out;
+  }
+
+  _betShapeKey(bet) {
+    const numbers = Array.isArray(bet.numbers)
+      ? bet.numbers.map((n) => String(n)).sort().join('|')
+      : '';
+    return `${bet.type || ''}:${bet.which || ''}:${numbers}`;
   }
 
   _err(client, msg) {
